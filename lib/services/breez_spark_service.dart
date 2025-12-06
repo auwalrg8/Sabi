@@ -181,7 +181,7 @@ class BreezSparkService {
       );
 
       _sdk = await connect(request: connectRequest);
-      debugPrint(
+      defeabugPrint(
         '✅ Spark SDK connected! Local node ready – offline sovereignty achieved.',
       );
 
@@ -208,26 +208,25 @@ class BreezSparkService {
 
       try {
         await _sdk!.receivePayment(request: bootstrapReq);
-        debugPrint(
-          '📡 Inbound channel opened – ready to receive (check getInfo in 30s)',
-        );
+        debugPrint('📡 Inbound channel opened – ready to receive');
       } catch (e) {
-        debugPrint(
-          '⚠️ Bootstrap fallback: $e – first real receive will open channel',
-        );
+        debugPrint('⚠️ Bootstrap fallback: $e – first real receive will open channel');
       }
 
-      // Force blockchain sync for Bitcoin receives
-      debugPrint('🔄 Syncing blockchain for Bitcoin receives...');
-      try {
-        await _sdk!.sync(request: SyncRequest());
-        debugPrint('✅ Blockchain synced - ready to receive Bitcoin');
-      } catch (e) {
-        debugPrint('⚠️ Sync fallback: $e');
+      // Polling getInfo triggers internal blockchain sync
+      debugPrint('🔄 Polling blockchain for Bitcoin receives...');
+      for (int i = 0; i < 5; i++) {
+        try {
+          await Future.delayed(const Duration(seconds: 3));
+          await _sdk!.getInfo(request: GetInfoRequest());
+          debugPrint('✅ Blockchain poll $i - checking for Bitcoin receives');
+        } catch (e) {
+          debugPrint('⚠️ Poll $i: $e');
+        }
       }
 
-      // Wait for LSP channel setup AND blockchain sync (typically 5-30 seconds)
-      await Future.delayed(const Duration(seconds: 45));
+      // Wait for LSP channel setup (typically 5-30 seconds)
+      await Future.delayed(const Duration(seconds: 15));
 
       // Step 8: Listen for payments + balance updates
       _setupEventListener();
@@ -386,9 +385,7 @@ class BreezSparkService {
       }
 
       try {
-        // Force sync before checking balance (ensures Bitcoin receives are detected)
-        await _sdk!.sync(request: SyncRequest());
-
+        // Calling getInfo triggers internal blockchain sync
         final info = await _sdk!.getInfo(request: GetInfoRequest());
         final sats = _extractBalanceSats(info);
 
@@ -491,8 +488,9 @@ class BreezSparkService {
     }
   }
 
-  /// Force sync with blockchain - call this to check for Bitcoin receives
-  /// Returns the updated balance after sync
+  /// Force blockchain check - call this to check for Bitcoin receives
+  /// Repeatedly calls getInfo to trigger internal blockchain sync
+  /// Returns the updated balance after checks
   static Future<int?> syncAndGetBalance() async {
     if (_sdk == null) {
       debugPrint('⚠️ SDK not initialized');
@@ -500,16 +498,20 @@ class BreezSparkService {
     }
 
     try {
-      debugPrint('🔄 Forcing blockchain sync...');
-      await _sdk!.sync(request: SyncRequest());
-      debugPrint('✅ Sync complete');
+      debugPrint('🔄 Checking blockchain for Bitcoin receives...');
+      // Poll multiple times to trigger internal sync
+      for (int i = 0; i < 3; i++) {
+        await Future.delayed(const Duration(seconds: 2));
+        await getBalance();
+        debugPrint('✅ Blockchain check $i complete');
+      }
 
       final info = await getBalance();
       final sats = _extractBalanceSats(info);
-      debugPrint('💰 Balance after sync: $sats sats');
+      debugPrint('💰 Final balance: $sats sats');
       return sats;
     } catch (e) {
-      debugPrint('❌ Sync error: $e');
+      debugPrint('❌ Check error: $e');
       return null;
     }
   }
