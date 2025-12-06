@@ -12,7 +12,7 @@ class BreezConfig {
 
   /// Enable Regtest network for testing (no API key required)
   /// Set to true for development/testing, false for production
-  static const bool useRegtest = false; // Change to true for testing
+  static const bool useRegtest = true; // Change to false for production
 
   /// Get network type based on useRegtest flag
   static String get networkType => useRegtest ? 'regtest' : 'mainnet';

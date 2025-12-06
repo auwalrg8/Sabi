@@ -236,8 +236,15 @@ class _HomeContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final walletAsync = ref.watch(walletInfoProvider);
 
+    Future<void> _refreshWithSync() async {
+      // First, sync with blockchain to detect Bitcoin receives
+      await BreezSparkService.syncAndGetBalance();
+      // Then refresh the UI
+      await ref.read(walletInfoProvider.notifier).refresh();
+    }
+
     return RefreshIndicator(
-      onRefresh: () => ref.read(walletInfoProvider.notifier).refresh(),
+      onRefresh: _refreshWithSync,
       color: AppColors.primary,
       backgroundColor: AppColors.surface,
       child: SafeArea(

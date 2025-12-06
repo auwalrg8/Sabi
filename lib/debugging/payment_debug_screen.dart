@@ -59,7 +59,10 @@ Timestamp: ${status['timestamp']}
     setState(() => _isLoading = true);
     try {
       final amount = int.parse(_amountController.text);
-      final response = await BreezSparkService.createInvoice(amount, 'Debug receive');
+      final response = await BreezSparkService.createInvoice(
+        amount,
+        'Debug receive',
+      );
       setState(() {
         _statusText = '''
 ✅ Invoice Created Successfully!
@@ -80,11 +83,34 @@ Amount: $amount sats
     }
   }
 
+  Future<void> _testSync() async {
+    setState(() => _isLoading = true);
+    try {
+      final balance = await BreezSparkService.syncAndGetBalance();
+      setState(() {
+        _statusText = '''
+✅ Blockchain Sync Complete!
+
+Updated Balance: $balance sats
+
+Use this to check for received Bitcoin payments.
+If balance increased, your Bitcoin receive is working!
+''';
+      });
+    } catch (e) {
+      setState(() {
+        _statusText = '❌ Sync failed:\n$e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _testSend() async {
     if (_identifierController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter payment identifier')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter payment identifier')));
       return;
     }
 
@@ -123,10 +149,7 @@ Fee: ${BreezSparkService.extractSendFeeSats(response)} sats
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Payment Debug'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Payment Debug'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -162,6 +185,37 @@ Fee: ${BreezSparkService.extractSendFeeSats(response)} sats
                         fontFamily: 'Courier',
                         fontSize: 12,
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Test Receive
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Manual Blockchain Sync',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Force sync with blockchain to detect Bitcoin receives.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _testSync,
+                      icon: const Icon(Icons.sync),
+                      label: const Text('Sync & Check Balance'),
                     ),
                   ],
                 ),

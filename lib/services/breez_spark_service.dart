@@ -126,7 +126,7 @@ class BreezSparkService {
       // Step 3: Construct seed (new wallet or restore)
       Seed seed;
       String mnemonicPhrase;
-      
+
       if (isRestore && mnemonic != null && mnemonic.trim().isNotEmpty) {
         // RESTORE: Use user mnemonic – overwrite Hive to fix "same seed" issue
         mnemonicPhrase = mnemonic.trim();
@@ -142,9 +142,11 @@ class BreezSparkService {
       } else {
         // NEW WALLET: Generate mnemonic from secure entropy
         final secureEntropy = _generateSecureRandomEntropy(32); // 256-bit
-        mnemonicPhrase = bip39.entropyToMnemonic(secureEntropy.map((b) => b.toRadixString(16).padLeft(2, '0')).join());
+        mnemonicPhrase = bip39.entropyToMnemonic(
+          secureEntropy.map((b) => b.toRadixString(16).padLeft(2, '0')).join(),
+        );
         seed = Seed.mnemonic(mnemonic: mnemonicPhrase, passphrase: null);
-        
+
         // CRITICAL: Save mnemonic so wallet can be restored on app restart
         await _box.put('mnemonic', mnemonicPhrase);
         debugPrint('✨ New wallet created with mnemonic (saved to storage)');
@@ -153,11 +155,12 @@ class BreezSparkService {
       // Step 4: Create config with API key (following SDK documentation pattern)
       debugPrint('🔑 Fetching Breez API key...');
       final apiKey = await BreezConfig.apiKey;
-      
+
       // Select network based on config
-      final network = BreezConfig.useRegtest ? Network.regtest : Network.mainnet;
+      final network =
+          BreezConfig.useRegtest ? Network.regtest : Network.mainnet;
       debugPrint('🌐 Network: ${BreezConfig.networkType}');
-      
+
       if (BreezConfig.useRegtest) {
         debugPrint('✅ Using Regtest network (no API key required)');
       } else {
@@ -165,9 +168,9 @@ class BreezSparkService {
       }
 
       // Use copyWith pattern from SDK docs to inject API key while preserving defaults
-      final config = defaultConfig(network: network).copyWith(
-        apiKey: apiKey.isEmpty ? null : apiKey,
-      );
+      final config = defaultConfig(
+        network: network,
+      ).copyWith(apiKey: apiKey.isEmpty ? null : apiKey);
       debugPrint('🔧 Config created for ${BreezConfig.networkType}');
 
       // Step 5: Connect (creates wallet + opens channel instantly)
@@ -178,7 +181,9 @@ class BreezSparkService {
       );
 
       _sdk = await connect(request: connectRequest);
-      debugPrint('✅ Spark SDK connected! Local node ready – offline sovereignty achieved.');
+      debugPrint(
+        '✅ Spark SDK connected! Local node ready – offline sovereignty achieved.',
+      );
 
       // Forced API key validation: immediately call getInfo
       try {
@@ -203,13 +208,26 @@ class BreezSparkService {
 
       try {
         await _sdk!.receivePayment(request: bootstrapReq);
-        debugPrint('📡 Inbound channel opened – ready to receive (check getInfo in 30s)');
+        debugPrint(
+          '📡 Inbound channel opened – ready to receive (check getInfo in 30s)',
+        );
       } catch (e) {
-        debugPrint('⚠️ Bootstrap fallback: $e – first real receive will open channel');
+        debugPrint(
+          '⚠️ Bootstrap fallback: $e – first real receive will open channel',
+        );
       }
 
-      // Wait for LSP channel setup (typically 5-30 seconds)
-      await Future.delayed(const Duration(seconds: 30));
+      // Force blockchain sync for Bitcoin receives
+      debugPrint('🔄 Syncing blockchain for Bitcoin receives...');
+      try {
+        await _sdk!.sync(request: SyncRequest());
+        debugPrint('✅ Blockchain synced - ready to receive Bitcoin');
+      } catch (e) {
+        debugPrint('⚠️ Sync fallback: $e');
+      }
+
+      // Wait for LSP channel setup AND blockchain sync (typically 5-30 seconds)
+      await Future.delayed(const Duration(seconds: 45));
 
       // Step 8: Listen for payments + balance updates
       _setupEventListener();
@@ -245,15 +263,10 @@ class BreezSparkService {
       final nodeInfo = await _sdk!.getInfo(request: GetInfoRequest());
       final balanceSats = _extractBalanceSats(nodeInfo);
 
-      status['nodeInfo'] = {
-        'balanceSats': balanceSats,
-        'connected': true,
-      };
+      status['nodeInfo'] = {'balanceSats': balanceSats, 'connected': true};
       status['canSend'] = balanceSats > 0;
       status['canReceive'] = true; // Spark with LSP can always receive
-      debugPrint(
-        '✅ SDK Operational: $balanceSats sats',
-      );
+      debugPrint('✅ SDK Operational: $balanceSats sats');
     } catch (e) {
       status['error'] = e.toString();
       debugPrint('❌ SDK Error: $e');
@@ -285,10 +298,10 @@ class BreezSparkService {
   }
 
   /// Generate Bitcoin receiving address (for on-chain payments)
-  /// 
+  ///
   /// The SDK monitors this static address for new UTXOs and automatically
   /// initiates the claim process when funds are detected.
-  /// 
+  ///
   /// Perfect for testing on Regtest network with faucet:
   /// https://app.lightspark.com/regtest-faucet
   static Future<String> generateBitcoinAddress() async {
@@ -315,7 +328,8 @@ class BreezSparkService {
         debugPrint('📥 SDK Event: $type');
 
         // Handle all critical events
-        if (type.contains('PaymentPending') || type.contains('PaymentSucceeded')) {
+        if (type.contains('PaymentPending') ||
+            type.contains('PaymentSucceeded')) {
           debugPrint('💰 Payment event detected - refreshing balance');
           await _refreshBalance(); // Immediate refresh
         } else if (type.contains('NodeSynced')) {
@@ -361,33 +375,37 @@ class BreezSparkService {
   }
 
   /// Balance polling (fixes "no balance after restore/receive")
-  /// Faster polling (3s) to detect received payments immediately
+  /// Faster polling (2s) to detect received payments immediately
   static void _startBalancePolling() {
     _balanceTimer?.cancel();
 
-    _balanceTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+    _balanceTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
       if (_sdk == null) {
         timer.cancel();
         return;
       }
 
       try {
+        // Force sync before checking balance (ensures Bitcoin receives are detected)
+        await _sdk!.sync(request: SyncRequest());
+
         final info = await _sdk!.getInfo(request: GetInfoRequest());
         final sats = _extractBalanceSats(info);
-        
+
         // Try to extract inbound capacity (defensive)
         int inboundSats = 0;
         try {
-          final dynamic inboundMsat = (info as dynamic).inboundLiquidityMsat ?? 
-                                      (info as dynamic).channelsBalanceInboundMsat ??
-                                      BigInt.zero;
+          final dynamic inboundMsat =
+              (info as dynamic).inboundLiquidityMsat ??
+              (info as dynamic).channelsBalanceInboundMsat ??
+              BigInt.zero;
           if (inboundMsat is BigInt) {
             inboundSats = (inboundMsat ~/ BigInt.from(1000)).toInt();
           } else if (inboundMsat is num) {
             inboundSats = (inboundMsat / 1000).toInt();
           }
         } catch (_) {}
-        
+
         debugPrint('💰 Balance: $sats sats | Inbound: $inboundSats sats');
 
         // If balance > 0 after receive, force any UI listeners to refresh
@@ -423,8 +441,10 @@ class BreezSparkService {
     if (_sdk == null) throw Exception('SDK not initialized');
 
     try {
-      debugPrint('🔍 Attempting to send to: $identifier (amount: ${sats ?? "invoice amount"} sats)');
-      
+      debugPrint(
+        '🔍 Attempting to send to: $identifier (amount: ${sats ?? "invoice amount"} sats)',
+      );
+
       // Step 1: Prepare (validates format + auto-detects method)
       // Fixes "failed to parse: SDK Error: invalidinput (field0: unsupported payment method)"
       final prepareReq = PrepareSendPaymentRequest(
@@ -467,6 +487,29 @@ class BreezSparkService {
       final info = await getBalance();
       return _extractBalanceSats(info);
     } catch (_) {
+      return null;
+    }
+  }
+
+  /// Force sync with blockchain - call this to check for Bitcoin receives
+  /// Returns the updated balance after sync
+  static Future<int?> syncAndGetBalance() async {
+    if (_sdk == null) {
+      debugPrint('⚠️ SDK not initialized');
+      return null;
+    }
+
+    try {
+      debugPrint('🔄 Forcing blockchain sync...');
+      await _sdk!.sync(request: SyncRequest());
+      debugPrint('✅ Sync complete');
+
+      final info = await getBalance();
+      final sats = _extractBalanceSats(info);
+      debugPrint('💰 Balance after sync: $sats sats');
+      return sats;
+    } catch (e) {
+      debugPrint('❌ Sync error: $e');
       return null;
     }
   }
@@ -629,13 +672,13 @@ class BreezSparkService {
         if (json is Map) {
           final map = Map<String, dynamic>.from(json);
           return _extractInt(map, [
-            'amount_sats',
-            'amountSat',
-            'amountSats',
-            'amount_sat',
-            'amount',
-            'amount_msat',
-          ]) ~/
+                'amount_sats',
+                'amountSat',
+                'amountSats',
+                'amount_sat',
+                'amount',
+                'amount_msat',
+              ]) ~/
               1;
         }
       }
@@ -651,13 +694,13 @@ class BreezSparkService {
         if (json is Map) {
           final map = Map<String, dynamic>.from(json);
           return _extractInt(map, [
-            'fee_sats',
-            'feeSat',
-            'feeSats',
-            'fee_sat',
-            'fee',
-            'fee_msat',
-          ]) ~/
+                'fee_sats',
+                'feeSat',
+                'feeSats',
+                'fee_sat',
+                'fee',
+                'fee_msat',
+              ]) ~/
               1;
         }
       }
@@ -671,12 +714,7 @@ class BreezSparkService {
       if (p != null) {
         final json = (p as dynamic).toJson();
         if (json is Map) {
-          final candidates = [
-            'description',
-            'memo',
-            'label',
-            'note',
-          ];
+          final candidates = ['description', 'memo', 'label', 'note'];
           for (final key in candidates) {
             final val = json[key];
             if (val is String && val.isNotEmpty) return val;
@@ -693,12 +731,7 @@ class BreezSparkService {
       if (p != null) {
         final json = (p as dynamic).toJson();
         if (json is Map) {
-          final candidates = [
-            'id',
-            'payment_id',
-            'paymentId',
-            'hash',
-          ];
+          final candidates = ['id', 'payment_id', 'paymentId', 'hash'];
           for (final key in candidates) {
             final val = json[key];
             if (val is String && val.isNotEmpty) return val;
