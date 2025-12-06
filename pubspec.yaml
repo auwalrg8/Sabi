@@ -1,0 +1,88 @@
+name: sabi_wallet
+description: Sabi Wallet - Nigeria's non-custodial Bitcoin + Lightning wallet.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.4.9
+  smooth_page_indicator: ^1.2.0
+  # Add more like go_router later
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  riverpod_annotation: ^2.6.1
+  wolt_modal_sheet: ^0.11.0
+  flutter_animate: ^4.5.2
+  audioplayers: ^6.1.0
+  lottie: ^3.2.0
+  iconsax: ^0.0.8
+  flutter_native_splash: ^2.4.7
+  flutter_launcher_icons: ^0.14.4
+  flutter_secure_storage: ^9.2.4
+  intl: ^0.20.2
+  http: ^1.2.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  encrypt: ^5.0.3
+  path_provider: ^2.1.4
+  flutter_confetti: ^0.2.0
+  bip39: ^1.0.6
+  crypto: ^3.0.3
+  local_auth: ^2.3.0
+  breez_sdk_spark_flutter:
+    git:
+      url: https://github.com/breez/breez-sdk-spark-flutter
+      ref: main
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  riverpod_generator: ^2.4.0 # Optional for @riverpod
+  build_runner: ^2.4.7
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^5.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+flutter:
+  uses-material-design: true
+  generate: true # Enable localization generation
+
+  # Add this entire fonts block
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+
+  # Add the assets folder so Flutter can find the fonts and images
+  assets:
+    - assets/fonts/
+    - assets/images/
+    - assets/anim/
+    - assets/audio/

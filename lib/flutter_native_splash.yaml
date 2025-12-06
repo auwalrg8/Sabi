@@ -1,0 +1,7 @@
+flutter_native_splash:
+  color: "#0C0C1A"
+  image: assets/images/sabi_logo.png
+  android_12:
+    image: assets/images/sabi_logo.png
+    color: "#0C0C1A"
+  web: false

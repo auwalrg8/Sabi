@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Backend repo (Rust)
+    url: https://github.com/sabiwallet/sabi-wallet-backend
+    about: USSD, recovery, webhooks → go there
+  - name: Discord #dev-chat
+    url: https://discord.gg/sabiwallet
+    about: Fast help and voice sync

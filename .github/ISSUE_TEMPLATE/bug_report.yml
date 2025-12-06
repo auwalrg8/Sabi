@@ -1,0 +1,34 @@
+name: 🐞 UI / Flutter Bug
+description: Something no display well or crash
+title: "[FLUTTER BUG] "
+labels: ["bug", "flutter", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report! Help us fix am sharp.
+  - type: dropdown
+    attributes:
+      label: Where e happen?
+      options: [Onboarding, Home, Send, Receive, Cash tab, Zaps, Recovery picker, USSD screen, Other]
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Device
+      options: [Android, iOS, Both]
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Device + OS version
+      placeholder: e.g. Tecno Spark 10 – Android 14
+  - type: textarea
+    attributes:
+      label: Wetin happen vs wetin you expect
+      placeholder: I tap Buy → app close, or QR code no show
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Screenshot / Video (drag & drop)

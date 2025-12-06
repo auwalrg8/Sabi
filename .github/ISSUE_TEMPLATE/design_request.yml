@@ -1,0 +1,20 @@
+name: 🎨 Design / UI Polish
+description: Make am finer than Moniepoint
+title: "[DESIGN] "
+labels: ["design", "good first issue"]
+body:
+  - type: textarea
+    attributes:
+      label: Wetin you wan change?
+      placeholder: e.g. Make the orange button bigger, or add confetti when receive money
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Screen
+      options: [All screens, Home, Send, Receive, Cash tab, Onboarding, Other]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Screenshot or Figma link (optional)

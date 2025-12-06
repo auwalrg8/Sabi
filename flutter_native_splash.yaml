@@ -1,0 +1,76 @@
+flutter_native_splash:
+  # This package generates native code to customize Flutter's default white native splash screen
+  # with background color and splash image.
+  # Customize the parameters below, and run the following command in the terminal:
+  # dart run flutter_native_splash:create
+  # To restore Flutter's default white splash screen, run the following command in the terminal:
+  # dart run flutter_native_splash:remove
+
+  # IMPORTANT NOTE: These parameter do not affect the configuration of Android 12 and later, which
+  # handle splash screens differently that prior versions of Android.  Android 12 and later must be
+  # configured specifically in the android_12 section below.
+
+  # Background color - using Sabi Wallet's dark background (#0C0C1A)
+  color: "#0C0C1A"
+
+  # Main splash image - using sabi_logo.png (512x512)
+  # This is the centered icon/logo shown during app launch
+  image: assets/images/sabi_logo.png
+
+  # Branding image - using logo.png (165x60) at the bottom
+  # This shows the Sabi wordmark/branding at the bottom of the splash screen
+  branding: assets/images/logo.png
+  branding_mode: bottom
+  branding_bottom_padding: 48
+
+  # Dark mode configuration (same as light mode since app is dark-themed)
+  color_dark: "#0C0C1A"
+  image_dark: assets/images/sabi_logo.png
+  branding_dark: assets/images/logo.png
+
+  # Android 12+ splash screen configuration
+  # Android 12+ uses a different splash screen API with circular icon clipping
+  # See: https://developer.android.com/guide/topics/ui/splash-screen
+  android_12:
+    # Icon image - using sabi_logo.png (512x512)
+    # The icon will be clipped to a circle on Android 12+
+    # Our 512x512 logo fits well within the safe circular area
+    image: assets/images/sabi_logo.png
+
+    # Splash screen background color - Sabi dark background
+    color: "#0C0C1A"
+
+    # Icon background color - matches app background for seamless look
+    icon_background_color: "#0C0C1A"
+
+    # Branding at bottom - using logo.png wordmark
+    branding: assets/images/logo.png
+
+    # Dark mode (same as light since app is dark-themed)
+    image_dark: assets/images/sabi_logo.png
+    color_dark: "#0C0C1A"
+    icon_background_color_dark: "#0C0C1A"
+    branding_dark: assets/images/logo.png
+
+  # Platform enablement
+  android: true
+  ios: true
+  web: true
+
+  # Platform-specific overrides
+  # Web uses the sabi_logo.png for a clean, centered icon
+  image_web: assets/images/sabi_logo.png
+  color_web: "#0C0C1A"
+  color_dark_web: "#0C0C1A"
+
+  # Image positioning
+  # Center the logo on all platforms for a clean, professional look
+  android_gravity: center
+  ios_content_mode: center
+  web_image_mode: center
+
+  # Screen orientation - portrait for mobile wallet app
+  android_screen_orientation: portrait
+
+  # Fullscreen mode - false to show status bar
+  fullscreen: false

@@ -1,0 +1,35 @@
+// Groovy init script to patch breez_sdk before evaluation
+// Place in ~/.gradle/init.d/ or run: gradle --init-script=patching.gradle
+
+def breezSdkPath = file("$rootDir/../../../.pub-cache/hosted/pub.dev/breez_sdk-0.4.1").canonicalPath
+if (!breezSdkPath.endsWith("/breez_sdk-0.4.1")) {
+    breezSdkPath = "$gradle.gradleUserHomeDir/Cache/hosted/pub.dev/breez_sdk-0.4.1"
+}
+
+settingsEvaluated { settings ->
+    // Patch breez_sdk's build.gradle BEFORE it's evaluated
+    try {
+        def breezBuildFile = file("$breezSdkPath/android/build.gradle")
+        if (breezBuildFile.exists()) {
+            def content = breezBuildFile.text
+            if (!content.contains("namespace")) {
+                // Add namespace to android block
+                content = content.replace(
+                    "android {",
+                    "android {\n    namespace 'com.breez.breez_sdk'"
+                )
+                breezBuildFile.text = content
+            }
+            if (!content.contains("compileSdkVersion 34")) {
+                // Update compileSdkVersion from 33 to 34 for AGP 8+ compatibility
+                content = content.replace(
+                    "compileSdkVersion 33",
+                    "compileSdkVersion 34"
+                )
+                breezBuildFile.text = content
+            }
+        }
+    } catch (Exception e) {
+        println("Warning: Could not patch breez_sdk: $e")
+    }
+}

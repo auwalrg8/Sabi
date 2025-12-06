@@ -1,0 +1,45 @@
+flutter_launcher_icons:
+  # Main icon path (fallback for all platforms)
+  # sabi_logo.png is 512x512 - perfect for launcher icons
+  image_path: "assets/images/sabi_logo.png"
+
+  # Android configuration
+  android: "launcher_icon"
+  min_sdk_android: 21
+
+  # Adaptive icon for Android 8.0+ (API 26+)
+  # Background: App's dark background color
+  # Foreground: sabi_logo.png (512x512)
+  adaptive_icon_background: "#0C0C1A"
+  adaptive_icon_foreground: "assets/images/sabi_logo.png"
+
+  # iOS configuration
+  # Generates all required iOS icon sizes from 20x20 to 1024x1024
+  ios: true
+
+  # macOS configuration
+  # Generates icons from 16x16 to 1024x1024
+  macos:
+    generate: true
+    image_path: "assets/images/sabi_logo.png"
+
+  # Windows configuration
+  # Generates .ico file with multiple sizes
+  windows:
+    generate: true
+    image_path: "assets/images/sabi_logo.png"
+    icon_size: 256 # Windows icon size (48, 256)
+
+  # Linux configuration
+  # Generates PNG icons for Linux desktop
+  linux:
+    generate: true
+    image_path: "assets/images/sabi_logo.png"
+
+  # Web configuration
+  # Generates favicon and PWA icons (192x192, 512x512)
+  web:
+    generate: true
+    image_path: "assets/images/sabi_logo.png"
+    background_color: "#0C0C1A" # App's dark background
+    theme_color: "#F7931A" # App's primary orange color

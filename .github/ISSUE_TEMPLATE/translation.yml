@@ -1,0 +1,24 @@
+name: 🌍 Translation (Hausa / Yoruba / Igbo / Pidgin)
+description: Make mama understand everything
+title: "[TRANSLATE] "
+labels: ["translation", "good first issue", "flutter"]
+body:
+  - type: dropdown
+    attributes:
+      label: Language
+      options: [Hausa, Yoruba, Igbo, Pidgin English]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: English → Your translation
+      placeholder: |
+        English: "Your balance"
+        Hausa: "Kudin ka"
+        Pidgin: "Your money wey dey wallet"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: File location (if you know)
+      placeholder: lib/l10n/app_en.arb

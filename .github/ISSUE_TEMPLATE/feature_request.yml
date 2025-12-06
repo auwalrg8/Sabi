@@ -1,0 +1,25 @@
+name: 💡 Flutter Feature / UI Request
+description: New screen or better flow
+title: "[FLUTTER FEATURE] "
+labels: ["enhancement", "flutter"]
+body:
+  - type: textarea
+    attributes:
+      label: Wetin you want make we add or change
+      placeholder: e.g. Add animation when balance flip to sats
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which screen/flow?
+      options: [Onboarding, Home, Send, Receive, Cash tab, Zaps, Recovery, Settings, Other]
+      multiple: true
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: You fit help?
+      options:
+        - label: I fit design am for Figma
+        - label: I fit code am (Flutter/Dart)
+        - label: I fit translate Hausa/Pidgin

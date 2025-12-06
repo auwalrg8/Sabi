@@ -1,0 +1,8 @@
+{
+  "@@locale": "en",
+  "appTitle": "Sabi Wallet",
+  "@appTitle": {
+    "description": "The title of the application"
+  }
+}
+
