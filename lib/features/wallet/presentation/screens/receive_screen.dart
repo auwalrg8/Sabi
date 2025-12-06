@@ -63,12 +63,14 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   children: [
                     _buildQRCodeSection(),
                     const SizedBox(height: 30),
-                    _buildUserInfo(),
-                    const SizedBox(height: 4),
-                    _buildAmountSelector(),
-                    const SizedBox(height: 30),
-                    _buildExpiryAndDescription(),
-                    const SizedBox(height: 30),
+                    if (_selectedTab == 'lightning') ...[
+                      _buildUserInfo(),
+                      const SizedBox(height: 4),
+                      _buildAmountSelector(),
+                      const SizedBox(height: 30),
+                      _buildExpiryAndDescription(),
+                      const SizedBox(height: 30),
+                    ],
                     _buildActionButtons(),
                   ],
                 ),
@@ -216,75 +218,51 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.primary, width: 8),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (displayData != null)
-            Image.network(
-              'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(displayData)}',
-              width: 240,
-              height: 240,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
+      child: Center(
+        child:
+            displayData != null
+                ? Image.network(
+                  'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(displayData)}',
+                  width: 240,
+                  height: 240,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 240,
+                      height: 240,
+                      color: Colors.grey[330],
+                      child: const Center(
+                        child: Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    );
+                  },
+                )
+                : _loadingBitcoinAddress && _selectedTab == 'bitcoin'
+                ? const SizedBox(
+                  width: 240,
+                  height: 240,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+                : Container(
                   width: 240,
                   height: 240,
                   color: Colors.grey[330],
-                  child: const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.grey,
+                  child: Center(
+                    child: Text(
+                      _selectedTab == 'lightning'
+                          ? 'Create invoice to show QR'
+                          : 'Loading...',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                );
-              },
-            )
-          else if (_loadingBitcoinAddress && _selectedTab == 'bitcoin')
-            const SizedBox(
-              width: 240,
-              height: 240,
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            )
-          else
-            Container(
-              width: 240,
-              height: 240,
-              color: Colors.grey[330],
-              child: Center(
-                child: Text(
-                  _selectedTab == 'lightning'
-                      ? 'Create invoice to show QR'
-                      : 'Loading...',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  textAlign: TextAlign.center,
                 ),
-              ),
-            ),
-          Positioned(
-            child: Container(
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 4),
-              ),
-              child: Center(
-                child: Text(
-                  _selectedTab == 'lightning' ? '⚡' : '₿',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
