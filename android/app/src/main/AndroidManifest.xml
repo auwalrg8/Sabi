@@ -8,6 +8,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     
+    <!-- Contacts permission for importing contacts -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    
     <application
         android:label="Sabi Wallet"
         android:name="${applicationName}"

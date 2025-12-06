@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'services/secure_storage.dart';
 import 'services/breez_spark_service.dart';
+import 'services/contact_service.dart';
 import 'core/services/secure_storage_service.dart';
 import 'features/wallet/presentation/screens/home_screen.dart';
 import 'features/onboarding/presentation/screens/onboarding_carousel_screen.dart';
@@ -11,6 +12,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SecureStorage.init();
   await BreezSparkService.initPersistence();
+  await ContactService.init();
   runApp(const ProviderScope(child: SabiWalletApp()));
 }
 
