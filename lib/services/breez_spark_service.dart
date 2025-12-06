@@ -181,7 +181,7 @@ class BreezSparkService {
       );
 
       _sdk = await connect(request: connectRequest);
-      defeabugPrint(
+      debugPrint(
         '✅ Spark SDK connected! Local node ready – offline sovereignty achieved.',
       );
 

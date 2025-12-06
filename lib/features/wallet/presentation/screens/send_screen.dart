@@ -32,7 +32,7 @@ class _SendScreenState extends State<SendScreen> {
       _searchController.text = widget.initialAddress!;
       // Auto-process the scanned code
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleAddressInput(widget.initialAddress!);
+        _processAddress(widget.initialAddress!);
       });
     }
   }
@@ -191,13 +191,89 @@ class _SendScreenState extends State<SendScreen> {
       if (scannedCode != null && scannedCode.isNotEmpty) {
         setState(() => _searchController.text = scannedCode);
         // Auto-process the scanned code
-        _handleAddressInput(scannedCode);
+        _processAddress(scannedCode);
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('QR Scanner error: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    }
+  }
+
+  Future<void> _processAddress(String text) async {
+    // Check if it's a lightning address (user@domain.com format)
+    final isLightningAddress = text.contains('@') && text.contains('.');
+
+    if (isLightningAddress) {
+      // Lightning addresses REQUIRE amount - navigate to amount screen
+      setState(() {
+        _selectedRecipient = Recipient(
+          name: text.split('@')[0], // username part
+          identifier: text,
+          type: RecipientType.lightning,
+        );
+        _searchController.text = text;
+      });
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => SendAmountScreen(recipient: _selectedRecipient!),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Try to parse as bolt11 invoice (has amount encoded)
+    setState(() => _searchController.text = 'Parsing...');
+
+    try {
+      final result = await BreezSparkService.sendPayment(text);
+      final amountSats = BreezSparkService.extractSendAmountSats(result);
+      final feeSats = BreezSparkService.extractSendFeeSats(result);
+      final rate = await _fetchNgnPerSat();
+      final amountNgn =
+          rate != null ? amountSats * rate : amountSats.toDouble();
+      final feeNgn = rate != null ? feeSats * rate : feeSats.toDouble();
+      final memo = _extractMemo(result) ?? 'Lightning payment';
+
+      if (!mounted) return;
+
+      // Create transaction and navigate to confirmation
+      final transaction = SendTransaction(
+        recipient: Recipient(
+          name: 'Lightning Payment',
+          identifier: text.length > 30 ? '${text.substring(0, 30)}...' : text,
+          type: RecipientType.lightning,
+        ),
+        amount: amountNgn,
+        memo: memo,
+        fee: feeNgn,
+        transactionId: _extractTxId(result),
+        amountSats: amountSats,
+        feeSats: feeSats,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => SendConfirmationScreen(transaction: transaction),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _searchController.text = text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to parse: $e'),
           backgroundColor: AppColors.surface,
         ),
       );
