@@ -15,6 +15,7 @@ import '../providers/wallet_info_provider.dart';
 import '../providers/payment_provider.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
+import 'qr_scanner_screen.dart';
 import 'package:sabi_wallet/features/onboarding/data/models/wallet_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -243,6 +244,34 @@ class _HomeContent extends ConsumerWidget {
       await ref.read(walletInfoProvider.notifier).refresh();
     }
 
+    Future<void> _openQRScanner(BuildContext context, WidgetRef ref) async {
+      try {
+        final String? scannedCode = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+        );
+
+        if (scannedCode != null && scannedCode.isNotEmpty && context.mounted) {
+          // Navigate to send screen with the scanned code
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SendScreen(initialAddress: scannedCode),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('QR Scanner error: $e'),
+              backgroundColor: AppColors.surface,
+            ),
+          );
+        }
+      }
+    }
+
     return RefreshIndicator(
       onRefresh: _refreshWithSync,
       color: AppColors.primary,
@@ -347,7 +376,7 @@ class _HomeContent extends ConsumerWidget {
                     children: [
                       _HeaderIcon(
                         icon: Icons.qr_code_scanner_outlined,
-                        onTap: () {},
+                        onTap: () => _openQRScanner(context, ref),
                       ),
                       const SizedBox(width: 30),
                       _HeaderIcon(

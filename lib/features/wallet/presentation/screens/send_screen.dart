@@ -9,9 +9,12 @@ import 'package:sabi_wallet/features/wallet/presentation/widgets/recipient_avata
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/send_confirmation_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class SendScreen extends StatefulWidget {
-  const SendScreen({super.key});
+  final String? initialAddress;
+
+  const SendScreen({super.key, this.initialAddress});
 
   @override
   State<SendScreen> createState() => _SendScreenState();
@@ -20,6 +23,19 @@ class SendScreen extends StatefulWidget {
 class _SendScreenState extends State<SendScreen> {
   final TextEditingController _searchController = TextEditingController();
   Recipient? _selectedRecipient;
+
+  @override
+  void initState() {
+    super.initState();
+    // If initial address is provided, set it in the search field
+    if (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) {
+      _searchController.text = widget.initialAddress!;
+      // Auto-process the scanned code
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleAddressInput(widget.initialAddress!);
+      });
+    }
+  }
 
   final List<Recipient> _recentRecipients = const [
     Recipient(
@@ -92,7 +108,7 @@ class _SendScreenState extends State<SendScreen> {
 
     // Check if it's a lightning address (user@domain.com format)
     final isLightningAddress = text.contains('@') && text.contains('.');
-    
+
     if (isLightningAddress) {
       // Lightning addresses REQUIRE amount - navigate to amount screen
       setState(() {
@@ -103,12 +119,13 @@ class _SendScreenState extends State<SendScreen> {
         );
         _searchController.text = text;
       });
-      
+
       if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SendAmountScreen(recipient: _selectedRecipient!),
+            builder:
+                (context) => SendAmountScreen(recipient: _selectedRecipient!),
           ),
         );
       }
@@ -123,7 +140,8 @@ class _SendScreenState extends State<SendScreen> {
       final amountSats = BreezSparkService.extractSendAmountSats(result);
       final feeSats = BreezSparkService.extractSendFeeSats(result);
       final rate = await _fetchNgnPerSat();
-      final amountNgn = rate != null ? amountSats * rate : amountSats.toDouble();
+      final amountNgn =
+          rate != null ? amountSats * rate : amountSats.toDouble();
       final feeNgn = rate != null ? feeSats * rate : feeSats.toDouble();
       final memo = _extractMemo(result) ?? 'Lightning payment';
 
@@ -157,6 +175,29 @@ class _SendScreenState extends State<SendScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to parse: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    }
+  }
+
+  Future<void> _openQRScanner() async {
+    try {
+      final String? scannedCode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+      );
+
+      if (scannedCode != null && scannedCode.isNotEmpty) {
+        setState(() => _searchController.text = scannedCode);
+        // Auto-process the scanned code
+        _handleAddressInput(scannedCode);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('QR Scanner error: $e'),
           backgroundColor: AppColors.surface,
         ),
       );
@@ -305,7 +346,17 @@ class _SendScreenState extends State<SendScreen> {
               ),
             ),
           ),
-          Icon(Icons.qr_code_scanner, color: AppColors.textSecondary, size: 24),
+          GestureDetector(
+            onTap: _openQRScanner,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                Icons.qr_code_scanner,
+                color: AppColors.primary,
+                size: 28,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -425,9 +476,10 @@ class _SendScreenState extends State<SendScreen> {
       final rates = await api.get(ApiEndpoints.rates);
       final nairaToBtc = rates['naira_to_btc'];
       if (nairaToBtc != null) {
-        final nairaPerBtc = nairaToBtc is num
-            ? (1 / nairaToBtc)
-            : (1 / double.parse(nairaToBtc.toString()));
+        final nairaPerBtc =
+            nairaToBtc is num
+                ? (1 / nairaToBtc)
+                : (1 / double.parse(nairaToBtc.toString()));
         return nairaPerBtc / 100000000;
       }
     } catch (_) {}

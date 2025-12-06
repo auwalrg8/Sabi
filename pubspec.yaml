@@ -41,6 +41,8 @@ dependencies:
   bip39: ^1.0.6
   crypto: ^3.0.3
   local_auth: ^2.3.0
+  mobile_scanner: ^5.2.3
+  permission_handler: ^11.3.1
   breez_sdk_spark_flutter:
     git:
       url: https://github.com/breez/breez-sdk-spark-flutter
