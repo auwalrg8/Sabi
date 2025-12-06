@@ -32,4 +32,23 @@ settingsEvaluated { settings ->
     } catch (Exception e) {
         println("Warning: Could not patch breez_sdk: $e")
     }
+    
+    // Patch contacts_service's build.gradle
+    try {
+        def contactsServicePath = file("$gradle.gradleUserHomeDir/Cache/hosted/pub.dev/contacts_service-0.6.3").canonicalPath
+        def contactsBuildFile = file("$contactsServicePath/android/build.gradle")
+        if (contactsBuildFile.exists()) {
+            def content = contactsBuildFile.text
+            if (!content.contains("namespace")) {
+                // Add namespace to android block
+                content = content.replace(
+                    "android {",
+                    "android {\n    namespace 'com.example.contacts_service'"
+                )
+                contactsBuildFile.text = content
+            }
+        }
+    } catch (Exception e) {
+        println("Warning: Could not patch contacts_service: $e")
+    }
 }
