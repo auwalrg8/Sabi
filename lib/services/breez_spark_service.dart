@@ -195,38 +195,7 @@ class BreezSparkService {
         throw Exception('Invalid Breez API key: $e');
       }
 
-      debugPrint('✅ Spark SDK connected! Bootstrapping inbound liquidity...');
-
-      // Bootstrap: 0-sat invoice opens LSP channel automatically (fixes "unable to complete")
-      // Docs: receivePayment with zero amount triggers JIT channel open
-      final bootstrapReq = ReceivePaymentRequest(
-        paymentMethod: ReceivePaymentMethod.bolt11Invoice(
-          description: 'Sabi Wallet liquidity bootstrap',
-          amountSats: BigInt.zero, // 0 = open channel only, no payment
-        ),
-      );
-
-      try {
-        await _sdk!.receivePayment(request: bootstrapReq);
-        debugPrint('📡 Inbound channel opened – ready to receive');
-      } catch (e) {
-        debugPrint('⚠️ Bootstrap fallback: $e – first real receive will open channel');
-      }
-
-      // Polling getInfo triggers internal blockchain sync
-      debugPrint('🔄 Polling blockchain for Bitcoin receives...');
-      for (int i = 0; i < 5; i++) {
-        try {
-          await Future.delayed(const Duration(seconds: 3));
-          await _sdk!.getInfo(request: GetInfoRequest());
-          debugPrint('✅ Blockchain poll $i - checking for Bitcoin receives');
-        } catch (e) {
-          debugPrint('⚠️ Poll $i: $e');
-        }
-      }
-
-      // Wait for LSP channel setup (typically 5-30 seconds)
-      await Future.delayed(const Duration(seconds: 15));
+      debugPrint('✅ Spark SDK connected!');
 
       // Step 8: Listen for payments + balance updates
       _setupEventListener();

@@ -283,56 +283,6 @@ class _HomeContent extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Backup status banner
-              FutureBuilder<String?>(
-                future:
-                    ref.read(secureStorageServiceProvider).getBackupStatus(),
-                builder: (context, snapshot) {
-                  final status = snapshot.data;
-                  if (status == null || status != 'skipped') {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentRed,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'No backup – phone loss = money loss',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed:
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const BackupChoiceScreen(),
-                                ),
-                              ),
-                          child: const Text(
-                            'Set up backup now',
-                            style: TextStyle(color: AppColors.surface),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
