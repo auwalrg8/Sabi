@@ -7,15 +7,17 @@ import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen
 import 'package:sabi_wallet/features/zaps/presentation/screens/zaps_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
-import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/notification_service.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/payment_provider.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
+import 'transactions_screen.dart';
+import 'notifications_screen.dart';
 import 'package:sabi_wallet/features/onboarding/data/models/wallet_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -93,6 +95,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     eventService.paymentNotifications.listen((payment) {
       // Show notification or update UI
       if (mounted && payment.inbound) {
+        // Add to notification service
+        NotificationService.addPaymentNotification(
+          isInbound: payment.inbound,
+          amountSats: payment.amountSats,
+          description: payment.description,
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Received ${payment.amountSats} sats'),
@@ -329,9 +338,15 @@ class _HomeContent extends ConsumerWidget {
                         onTap: () => _openQRScanner(context, ref),
                       ),
                       const SizedBox(width: 30),
-                      _HeaderIcon(
-                        icon: Icons.notifications_outlined,
-                        onTap: () {},
+                      _NotificationIcon(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -433,7 +448,14 @@ class _HomeContent extends ConsumerWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TransactionsScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'See All',
                       style: TextStyle(
@@ -678,6 +700,75 @@ class _HeaderIcon extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Icon(icon, color: AppColors.textSecondary, size: 24),
+    );
+  }
+}
+
+class _NotificationIcon extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _NotificationIcon({required this.onTap});
+
+  @override
+  State<_NotificationIcon> createState() => _NotificationIconState();
+}
+
+class _NotificationIconState extends State<_NotificationIcon> {
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final count = await NotificationService.getUnreadCount();
+    if (mounted) {
+      setState(() => _unreadCount = count);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        widget.onTap();
+        // Refresh count after returning from notifications screen
+        Future.delayed(const Duration(milliseconds: 500), _loadUnreadCount);
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textSecondary,
+            size: 24,
+          ),
+          if (_unreadCount > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  _unreadCount > 99 ? '99+' : _unreadCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
