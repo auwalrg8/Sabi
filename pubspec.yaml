@@ -37,6 +37,7 @@ dependencies:
   hive_flutter: ^1.1.0
   encrypt: ^5.0.3
   path_provider: ^2.1.4
+  path: ^1.8.3
   flutter_confetti: ^0.2.0
   bip39: ^1.0.6
   crypto: ^3.0.3
@@ -44,6 +45,7 @@ dependencies:
   mobile_scanner: ^5.2.3
   permission_handler: ^11.3.1
   contacts_service: ^0.6.3
+  image_picker: ^1.0.7
   breez_sdk_spark_flutter:
     git:
       url: https://github.com/breez/breez-sdk-spark-flutter

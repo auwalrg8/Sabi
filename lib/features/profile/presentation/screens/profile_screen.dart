@@ -1,16 +1,66 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
-import 'package:sabi_wallet/features/profile/presentation/providers/profile_provider.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileNotifierProvider);
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  UserProfile? _profile;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoading = true);
+    final profile = await ProfileService.getProfile();
+    if (mounted) {
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _navigateToEditProfile() async {
+    if (_profile == null) return;
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(currentProfile: _profile!),
+      ),
+    );
+
+    if (result == true) {
+      _loadProfile(); // Reload profile after edit
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    final profile = _profile!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -52,23 +102,35 @@ class ProfileScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
+                          image:
+                              profile.profilePicturePath != null
+                                  ? DecorationImage(
+                                    image: FileImage(
+                                      File(profile.profilePicturePath!),
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                  : null,
                         ),
-                        child: Center(
-                          child: Text(
-                            profile.initial,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'Inter',
-                              fontSize: 32,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                        child:
+                            profile.profilePicturePath == null
+                                ? Center(
+                                  child: Text(
+                                    profile.initial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: 'Inter',
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                )
+                                : null,
                       ),
                       const SizedBox(height: 16),
                       // Name
                       Text(
-                        profile.name,
+                        profile.fullName,
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontFamily: 'Inter',
@@ -79,7 +141,7 @@ class ProfileScreen extends ConsumerWidget {
                       const SizedBox(height: 8),
                       // Username
                       Text(
-                        profile.username,
+                        profile.sabiUsername,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontFamily: 'Inter',
@@ -92,9 +154,7 @@ class ProfileScreen extends ConsumerWidget {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
-                          onPressed: () {
-                            // TODO: Navigate to edit profile screen
-                          },
+                          onPressed: _navigateToEditProfile,
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(
                               color: AppColors.primary,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
 
 class ReceiveScreen extends ConsumerStatefulWidget {
   const ReceiveScreen({super.key});
@@ -22,6 +23,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   String? _bitcoinAddress;
   bool _loadingBitcoinAddress = false;
   String _selectedTab = 'lightning'; // 'lightning' or 'bitcoin'
+  UserProfile? _userProfile;
 
   final List<int> presetAmounts = [1000, 5000, 10000, 50000, 100000];
   final List<String> expiryOptions = [
@@ -30,6 +32,19 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     '7 days',
     'Never expires',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final profile = await ProfileService.getProfile();
+    if (mounted) {
+      setState(() => _userProfile = profile);
+    }
+  }
 
   @override
   void dispose() {
@@ -268,6 +283,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Widget _buildUserInfo() {
+    final username = _userProfile?.sabiUsername ?? '@sabi/user';
+
     return Column(
       children: [
         Padding(
@@ -277,9 +294,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
-                child: const Text(
-                  '@sabi/auwalrg',
-                  style: TextStyle(
+                child: Text(
+                  username,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -289,7 +306,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => _copyToClipboard('@sabi/auwalrg', 'Username'),
+                onTap: () => _copyToClipboard(username, 'Username'),
                 child: Container(
                   width: 34,
                   height: 34,
@@ -690,10 +707,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     if (selectedAmount == null) return;
     setState(() => _creating = true);
     try {
+      final username = _userProfile?.sabiUsername ?? '@sabi/user';
       final result = await BreezSparkService.createInvoice(
         selectedAmount!,
         _descriptionController.text.isEmpty
-            ? 'Payment to @sabi/auwalrg'
+            ? 'Payment to $username'
             : _descriptionController.text,
       );
 

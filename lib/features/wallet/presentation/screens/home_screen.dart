@@ -10,6 +10,7 @@ import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/payment_provider.dart';
@@ -295,41 +296,48 @@ class _HomeContent extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'HI, Auwal',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w500,
-                          height: 28 / 17,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Health indicator dot
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final eventService = ref.watch(
-                            eventStreamServiceProvider,
-                          );
-                          final isOnline = eventService.isConnected;
-                          return Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color:
-                                  isOnline
-                                      ? AppColors.accentGreen
-                                      : const Color(
-                                        0xFFFF8C00,
-                                      ), // Orange when offline
-                              shape: BoxShape.circle,
+                  FutureBuilder<UserProfile>(
+                    future: ProfileService.getProfile(),
+                    builder: (context, snapshot) {
+                      final username =
+                          snapshot.hasData ? snapshot.data!.username : 'User';
+                      return Row(
+                        children: [
+                          Text(
+                            'HI, $username',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                              height: 28 / 17,
                             ),
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                          const SizedBox(width: 8),
+                          // Health indicator dot
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final eventService = ref.watch(
+                                eventStreamServiceProvider,
+                              );
+                              final isOnline = eventService.isConnected;
+                              return Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color:
+                                      isOnline
+                                          ? AppColors.accentGreen
+                                          : const Color(
+                                            0xFFFF8C00,
+                                          ), // Orange when offline
+                                  shape: BoxShape.circle,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   Row(
                     children: [
