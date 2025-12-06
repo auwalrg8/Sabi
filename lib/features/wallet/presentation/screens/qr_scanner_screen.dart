@@ -14,6 +14,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
   bool _isProcessing = false;
+  bool _torchEnabled = false;
 
   @override
   void dispose() {
@@ -34,6 +35,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         Navigator.pop(context, code);
         break;
       }
+    }
+  }
+
+  Future<void> _toggleTorch() async {
+    try {
+      await controller.toggleTorch();
+      setState(() => _torchEnabled = !_torchEnabled);
+    } catch (e) {
+      debugPrint('Torch error: $e');
     }
   }
 
@@ -67,18 +77,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => controller.toggleTorch(),
-                        icon: ValueListenableBuilder(
-                          valueListenable: controller.torchState,
-                          builder: (context, state, child) {
-                            return Icon(
-                              state == TorchState.on
-                                  ? Icons.flash_on
-                                  : Icons.flash_off,
-                              color: Colors.white,
-                              size: 28,
-                            );
-                          },
+                        onPressed: _toggleTorch,
+                        icon: Icon(
+                          _torchEnabled ? Icons.flash_on : Icons.flash_off,
+                          color: Colors.white,
+                          size: 28,
                         ),
                       ),
                     ],
