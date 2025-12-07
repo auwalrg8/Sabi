@@ -141,12 +141,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  Future<bool> _showExitDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit Sabi Wallet'),
+            content: const Text('Do you really want to quit Sabi Wallet?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Exit'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      floatingActionButton:
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        
+        // Only show exit dialog when on home tab
+        if (_currentIndex == 0) {
+          final shouldExit = await _showExitDialog();
+          if (shouldExit && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          // If not on home tab, go back to home tab
+          setState(() => _currentIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: IndexedStack(index: _currentIndex, children: _screens),
+        floatingActionButton:
           _currentIndex == 0
               ? Container(
                 width: 56,
@@ -213,6 +250,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ],
         ),
       ),
+    ),
     );
   }
 
