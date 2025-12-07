@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/payment_provider.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/payment_detail_screen.dart';
 
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
@@ -27,7 +28,7 @@ class TransactionsScreen extends ConsumerWidget {
                           Icon(
                             Icons.receipt_long_outlined,
                             size: 80,
-                            color: AppColors.textSecondary.withOpacity(0.3),
+                            color: AppColors.textSecondary.withValues(alpha: 0.3),
                           ),
                           const SizedBox(height: 16),
                           const Text(
@@ -90,14 +91,23 @@ class TransactionsScreen extends ConsumerWidget {
                               '${paymentTime.day}/${paymentTime.month}/${paymentTime.year}';
                         }
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PaymentDetailScreen(payment: payment),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
                             children: [
                               Container(
                                 width: 48,
@@ -105,12 +115,12 @@ class TransactionsScreen extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   color:
                                       isInbound
-                                          ? AppColors.accentGreen.withOpacity(
-                                            0.1,
+                                          ? AppColors.accentGreen.withValues(
+                                            alpha: 0.1,
                                           )
                                           : const Color(
                                             0xFFFF4D4F,
-                                          ).withOpacity(0.1),
+                                          ).withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -160,6 +170,7 @@ class TransactionsScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
+                        ),
                         );
                       },
                     ),

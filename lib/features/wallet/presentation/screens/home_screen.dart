@@ -19,6 +19,7 @@ import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'transactions_screen.dart';
 import 'notifications_screen.dart';
+import 'payment_detail_screen.dart';
 import 'package:sabi_wallet/features/onboarding/data/models/wallet_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -606,6 +607,14 @@ class _HomeContent extends ConsumerWidget {
                                   time: timeStr,
                                   amount: amountDisplay,
                                   amountColor: amountColor,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => PaymentDetailScreen(payment: payment),
+                                      ),
+                                    );
+                                  },
                                 ),
                               );
                             }).toList(),
@@ -884,6 +893,7 @@ class _TransactionItem extends StatelessWidget {
   final String time;
   final String amount;
   final Color amountColor;
+  final VoidCallback? onTap;
 
   const _TransactionItem({
     required this.icon,
@@ -891,24 +901,27 @@ class _TransactionItem extends StatelessWidget {
     required this.time,
     required this.amount,
     required this.amountColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
         children: [
           Container(
             width: 40,
@@ -958,6 +971,7 @@ class _TransactionItem extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
