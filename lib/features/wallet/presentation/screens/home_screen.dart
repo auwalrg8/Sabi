@@ -60,10 +60,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _startAutoRefresh() {
-    // Auto-refresh balance every 5 seconds using Breez SDK event stream
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Poll balance every 3 seconds using Breez SDK getInfo()
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (mounted) {
-        ref.read(walletInfoProvider.notifier).refresh();
+        try {
+          // Fetch fresh balance from Breez SDK
+          await BreezSparkService.getBalance();
+          // Refresh the wallet info provider
+          ref.read(walletInfoProvider.notifier).refresh();
+        } catch (e) {
+          debugPrint('⚠️ Balance refresh error: $e');
+        }
       }
     });
   }
@@ -365,44 +372,50 @@ class _HomeContent extends ConsumerWidget {
               _InboundStatusBanner(walletAsync: walletAsync),
               const SizedBox(height: 12),
               // Replace inline balance view with reusable BalanceCard
-              FutureBuilder<String?>(
-                future: ref
-                    .read(secureStorageServiceProvider)
-                    .read(key: 'first_payment_confetti_pending'),
-                builder: (context, confettiSnapshot) {
-                  final showConfetti = confettiSnapshot.data == 'true';
+              StreamBuilder<PaymentRecord>(
+                stream: BreezSparkService.paymentStream,
+                builder: (context, paymentSnapshot) {
+                  // Rebuild when payments occur to refresh balance
+                  return FutureBuilder<String?>(
+                    future: ref
+                        .read(secureStorageServiceProvider)
+                        .read(key: 'first_payment_confetti_pending'),
+                    builder: (context, confettiSnapshot) {
+                      final showConfetti = confettiSnapshot.data == 'true';
 
-                  // Mark confetti as shown if displaying
-                  if (showConfetti) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) async {
-                      final storage = ref.read(secureStorageServiceProvider);
-                      await storage.write(
-                        key: 'first_payment_confetti_shown',
-                        value: 'true',
-                      );
-                      await storage.write(
-                        key: 'first_payment_confetti_pending',
-                        value: 'false',
-                      );
-                    });
-                  }
+                      // Mark confetti as shown if displaying
+                      if (showConfetti) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) async {
+                          final storage = ref.read(secureStorageServiceProvider);
+                          await storage.write(
+                            key: 'first_payment_confetti_shown',
+                            value: 'true',
+                          );
+                          await storage.write(
+                            key: 'first_payment_confetti_pending',
+                            value: 'false',
+                          );
+                        });
+                      }
 
-                  return walletAsync.when(
-                    data: (model) {
-                      final sats = model?.balanceSats ?? 0;
-                      final btc = sats / 100000000;
-                      final ngn = model?.balanceNgn ?? 0.0;
-                      return BalanceCard(
-                        balanceBtc: btc,
-                        balanceNgn: ngn,
-                        showConfetti: showConfetti,
+                      return walletAsync.when(
+                        data: (model) {
+                          final sats = model?.balanceSats ?? 0;
+                          final btc = sats / 100000000;
+                          final ngn = model?.balanceNgn ?? 0.0;
+                          return BalanceCard(
+                            balanceBtc: btc,
+                            balanceNgn: ngn,
+                            showConfetti: showConfetti,
+                          );
+                        },
+                        loading:
+                            () => const BalanceCard(balanceBtc: 0, balanceNgn: 0),
+                        error:
+                            (_, __) =>
+                                const BalanceCard(balanceBtc: 0, balanceNgn: 0),
                       );
                     },
-                    loading:
-                        () => const BalanceCard(balanceBtc: 0, balanceNgn: 0),
-                    error:
-                        (_, __) =>
-                            const BalanceCard(balanceBtc: 0, balanceNgn: 0),
                   );
                 },
               ),
@@ -503,7 +516,7 @@ class _HomeContent extends ConsumerWidget {
                       return Column(
                         children:
                             payments.take(5).map((payment) {
-                              final isInbound = payment.inbound;
+                              final isInbound = payment.isIncoming;
                               final icon =
                                   isInbound
                                       ? _ReceiveTransactionIcon()

@@ -74,8 +74,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
-    // Check if user has completed onboarding with Spark SDK
-    if (BreezSparkService.hasCompletedOnboarding) {
+    // Check if user has completed onboarding AND has mnemonic (wallet exists)
+    final hasOnboarded = BreezSparkService.hasCompletedOnboarding;
+    final mnemonic = await BreezSparkService.getMnemonic();
+    
+    if (hasOnboarded && mnemonic != null) {
+      // Wallet exists - reinitialize SDK on app restart
+      try {
+        if (!BreezSparkService.isInitialized) {
+          await BreezSparkService.initializeSparkSDK(mnemonic: mnemonic);
+          debugPrint('✅ SDK reinitialized on app restart');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to reinitialize SDK: $e');
+      }
+      
       // Check if PIN is set up
       final storage = ref.read(secureStorageServiceProvider);
       final pin = await storage.getPinCode();

@@ -12,7 +12,12 @@ class BreezConfig {
 
   /// Enable Regtest network for testing (no API key required)
   /// Set to true for development/testing, false for production
-  static const bool useRegtest = true; // Change to false for production
+  static const bool useRegtest = false; // Mainnet by default
+
+  // Local override API key (kept in codebase per user instruction)
+  // NOTE: Do not commit real secrets publicly. This is for internal builds.
+  static const String localOverrideApiKey =
+      'MIIBczCCASWgAwIBAgIHPq+GoWjQ1zAFBgMrZXAwEDEOMAwGA1UEAxMFQnJlZXowHhcNMjUxMTI5MTkyMjEyWhcNMzUxMTI3MTkyMjEyWjAvMRQwEgYDVQQKEwtTYWJpIFdhbGxldDEXMBUGA1UEAxMOQXV3YWwgQWJ1YmFrYXIwKjAFBgMrZXADIQDQg/XL3yA8HKIgyimHU/Qbpxy0tvzris1fDUtEs6ldd6N/MH0wDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFNo5o+5ea0sNMlW/75VgGJCv2AcJMB8GA1UdIwQYMBaAFN6q1pJW843ndJIW/Ey2ILJrKJhrMB0GA1UdEQQWMBSBEmF1d2Fscmc4QGdtYWlsLmNvbTAFBgMrZXADQQCInVRb1DyioxmjSLOhYLggfLiO1wXyTWRMEh5PhU5a8M0lWteV7hmQvjJr9SN3I+JVutSWGlnu5tgz3bRQJHAN';
 
   /// Get network type based on useRegtest flag
   static String get networkType => useRegtest ? 'regtest' : 'mainnet';
@@ -25,6 +30,12 @@ class BreezConfig {
   /// 3. Cache successfully fetched key in secure storage
   /// 4. If offline/error, use cached key as fallback
   static Future<String> get apiKey async {
+    // If local override is set, use it immediately
+    if (localOverrideApiKey.isNotEmpty) {
+      debugPrint('🔑 Using local override Breez API key');
+      return localOverrideApiKey;
+    }
+
     // Regtest doesn't require API key
     if (useRegtest) {
       debugPrint('🧪 Using Regtest network - no API key required');

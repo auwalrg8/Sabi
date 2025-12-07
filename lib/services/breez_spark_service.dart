@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import '../config/breez_config.dart';
 
 /// Local wrapper class for payment history display
 class PaymentRecord {
@@ -97,12 +98,17 @@ class BreezSparkService {
       await Directory(storageDir).create(recursive: true);
       debugPrint('📁 Storage directory: $storageDir');
 
+      // Fetch API key (local override preferred)
+      final apiKey = await BreezConfig.apiKey;
+      debugPrint('🔑 Breez API key loaded');
+
       // Connect to SDK (Bitcoin mainnet) - WRAPPED IN TRY/CATCH
       try {
         debugPrint('🔗 Attempting to connect to Breez Spark SDK...');
         _sdk = await connect(
           request: ConnectRequest(
             config: Config(
+              apiKey: apiKey,
               network: Network.mainnet, // Bitcoin mainnet (no testnet)
               syncIntervalSecs: 15,
               preferSparkOverLightning: true,
