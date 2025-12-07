@@ -14,6 +14,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SecureStorage.init();
   await BreezSparkService.initPersistence();
+  
+  // Initialize Breez SDK from saved mnemonic or create new wallet
+  final savedMnemonic = await BreezSparkService.getMnemonic();
+  if (savedMnemonic != null) {
+    // Restore wallet from saved mnemonic
+    try {
+      await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
+      debugPrint('✅ Wallet restored from saved mnemonic');
+    } catch (e) {
+      debugPrint('⚠️ Failed to restore wallet: $e');
+    }
+  }
+  // If no saved mnemonic, SDK will be initialized during onboarding
+  
   await ContactService.init();
   await NotificationService.init();
   await ProfileService.init();
