@@ -7,6 +7,9 @@ import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 import 'core/theme/app_theme.dart';
 
+// NOTE: This app widget is not currently used as the active entry point.
+// The actual app entry point is SabiWalletApp in main.dart.
+// This is kept for potential future use or testing purposes.
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 

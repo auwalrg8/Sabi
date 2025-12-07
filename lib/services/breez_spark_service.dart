@@ -542,6 +542,13 @@ class BreezSparkService {
   }
 
   /// Force reconnect from stored mnemonic (for settings restore)
+  /// 
+  /// This method resets the SDK before reconnecting, making it suitable for:
+  /// - Manual restore from settings
+  /// - Forced reconnection after errors
+  /// 
+  /// Note: This method throws exceptions on failure. Callers should handle errors appropriately.
+  /// For graceful startup restoration, use `restoreOnStartup()` instead.
   static Future<void> restoreFromStoredMnemonic() async {
     final storedMnemonic = mnemonic;
     if (storedMnemonic != null) {
