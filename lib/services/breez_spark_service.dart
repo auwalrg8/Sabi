@@ -207,16 +207,16 @@ class BreezSparkService {
       // Step 9: Bootstrap inbound liquidity with 0-sat receive
       try {
         debugPrint('🔄 Bootstrapping inbound liquidity...');
-        // TODO: Fix ReceivePaymentRequest API - currently mismatched with SDK
-        // final bootstrapInvoice = await _sdk!.receivePayment(
-        //   request: ReceivePaymentRequest(
-        //     amountSats: 0, // 0-sat invoice opens channel
-        //     description: 'Bootstrap channel',
-        //   ),
-        // );
-        // debugPrint('✅ Channel bootstrap invoice created (not meant to be paid)');
-        // debugPrint('   Invoice: ${bootstrapInvoice.invoice}');
-        debugPrint('✅ Skipping bootstrap (API mismatch - will be fixed)');
+        final bootstrapInvoice = await _sdk!.receivePayment(
+          request: ReceivePaymentRequest(
+            paymentMethod: ReceivePaymentMethod.bolt11Invoice(
+              description: 'Bootstrap channel',
+              amountSats: null, // 0-sat opens channel
+            ),
+          ),
+        );
+        debugPrint('✅ Channel bootstrap invoice created');
+        debugPrint('   Invoice: ${bootstrapInvoice.invoice}');
       } catch (e) {
         debugPrint('⚠️ Bootstrap invoice failed (non-critical): $e');
       }
@@ -314,17 +314,17 @@ class BreezSparkService {
     try {
       debugPrint('📥 Creating invoice: $sats sats, memo: "$memo"');
 
-      // TODO: Fix ReceivePaymentRequest API - currently mismatched with SDK
-      // final result = await _sdk!.receivePayment(
-      //   request: ReceivePaymentRequest(
-      //     amountSats: sats,
-      //     description: memo,
-      //   ),
-      // );
-      // debugPrint('✅ Invoice created: ${result.invoice}');
-      // return result.invoice;
+      final result = await _sdk!.receivePayment(
+        request: ReceivePaymentRequest(
+          paymentMethod: ReceivePaymentMethod.bolt11Invoice(
+            description: memo,
+            amountSats: BigInt.from(sats),
+          ),
+        ),
+      );
 
-      throw UnimplementedError('createInvoice: API mismatch with Breez SDK - needs fixing');
+      debugPrint('✅ Invoice created: ${result.invoice}');
+      return result.invoice;
     } catch (e) {
       debugPrint('❌ createInvoice error: $e');
       throw Exception('Failed to create invoice: $e');
@@ -341,28 +341,32 @@ class BreezSparkService {
     try {
       debugPrint('💸 Preparing payment to: $identifier');
 
-      // TODO: Fix PrepareSendPaymentRequest API - currently mismatched with SDK
-      // final prepareRequest = PrepareSendPaymentRequest(
-      //   destination: identifier,
-      //   amountSats: sats,
-      // );
-      // final prepareResponse = await _sdk!.prepareSendPayment(
-      //   request: prepareRequest,
-      // );
-      // final sendRequest = SendPaymentRequest(
-      //   prepareResponse: prepareResponse,
-      // );
-      // final sendResponse = await _sdk!.sendPayment(request: sendRequest);
-      // debugPrint('✅ Payment sent! Payment hash: ${sendResponse.payment.txId}');
-      // return {
-      //   'success': true,
-      //   'paymentHash': sendResponse.payment.txId,
-      //   'amountSats': sendResponse.payment.amountSats,
-      //   'feeSats': sendResponse.payment.feesSats,
-      //   'description': sendResponse.payment.description ?? '',
-      // };
+      // Step 1: Prepare payment (validates + calculates fees)
+      final prepareRequest = PrepareSendPaymentRequest(
+        paymentRequest: identifier,
+        amount: sats != null ? BigInt.from(sats) : null,
+      );
 
-      throw UnimplementedError('sendPayment: API mismatch with Breez SDK - needs fixing');
+      final prepareResponse = await _sdk!.prepareSendPayment(
+        request: prepareRequest,
+      );
+
+      debugPrint('✅ Payment prepared');
+      debugPrint('   Fees: ${prepareResponse.feeDetails.feesMsat ~/ 1000} sats');
+
+      // Step 2: Send payment
+      final sendRequest = SendPaymentRequest(
+        prepareResponse: prepareResponse,
+      );
+
+      final sendResponse = await _sdk!.sendPayment(request: sendRequest);
+
+      debugPrint('✅ Payment sent! ID: ${sendResponse.payment.id}');
+
+      return {
+        'success': true,
+        'payment': sendResponse.payment,
+      };
     } catch (e) {
       debugPrint('❌ sendPayment error: $e');
       return {
