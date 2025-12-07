@@ -212,7 +212,7 @@ class BreezSparkService {
           ),
         );
         debugPrint('✅ Channel bootstrap invoice created (not meant to be paid)');
-        debugPrint('   Invoice: ${bootstrapInvoice.invoice}');
+        debugPrint('   Invoice: ${bootstrapInvoice.paymentRequest}');
       } catch (e) {
         debugPrint('⚠️ Bootstrap invoice failed (non-critical): $e');
       }
@@ -317,8 +317,8 @@ class BreezSparkService {
         ),
       );
 
-      debugPrint('✅ Invoice created: ${result.invoice}');
-      return result.invoice;
+      debugPrint('✅ Invoice created: ${result.paymentRequest}');
+      return result.paymentRequest;
     } catch (e) {
       debugPrint('❌ createInvoice error: $e');
       throw Exception('Failed to create invoice: $e');
@@ -339,8 +339,8 @@ class BreezSparkService {
       
       // Step 1: Prepare payment (validates + calculates fees)
       final prepareRequest = PrepareSendPaymentRequest(
-        destination: identifier,
-        amountSats: sats,
+        paymentRequest: identifier,
+        amountMsat: sats != null ? sats * 1000 : null,
       );
       
       final prepareResponse = await _sdk!.prepareSendPayment(
@@ -348,8 +348,8 @@ class BreezSparkService {
       );
 
       debugPrint('✅ Payment prepared');
-      debugPrint('   Amount: ${prepareResponse.amountSats} sats');
-      debugPrint('   Fees: ${prepareResponse.feesSats} sats');
+      debugPrint('   Amount: ${prepareResponse.amountMsat ~/ 1000} sats');
+      debugPrint('   Fees: ${prepareResponse.feesMsat ~/ 1000} sats');
 
       // Step 2: Send payment
       final sendRequest = SendPaymentRequest(
@@ -358,13 +358,13 @@ class BreezSparkService {
 
       final sendResponse = await _sdk!.sendPayment(request: sendRequest);
 
-      debugPrint('✅ Payment sent! Payment hash: ${sendResponse.payment.txId}');
+      debugPrint('✅ Payment sent! Payment hash: ${sendResponse.payment.id}');
 
       return {
         'success': true,
-        'paymentHash': sendResponse.payment.txId,
-        'amountSats': sendResponse.payment.amountSats,
-        'feeSats': sendResponse.payment.feesSats,
+        'paymentHash': sendResponse.payment.id,
+        'amountSats': sendResponse.payment.amountMsat ~/ 1000,
+        'feeSats': sendResponse.payment.feesMsat ~/ 1000,
         'description': sendResponse.payment.description ?? '',
       };
     } catch (e) {
@@ -389,19 +389,19 @@ class BreezSparkService {
   static Future<List<PaymentDetails>> listPayments({int limit = 50}) async {
     if (_sdk == null) throw Exception('SDK not initialized');
     try {
-      final payments = await _sdk!.listPayments(
+      final response = await _sdk!.listPayments(
         request: ListPaymentsRequest(),
       );
 
-      return payments.map((p) {
+      return response.payments.map((p) {
         return PaymentDetails(
-          id: p.txId ?? const Uuid().v4(),
-          amountSats: p.amountSats,
-          feeSats: p.feesSats,
-          timestamp: DateTime.fromMillisecondsSinceEpoch(p.timestamp * 1000),
+          id: p.id ?? const Uuid().v4(),
+          amountSats: p.amountMsat ~/ 1000,
+          feeSats: p.feesMsat ~/ 1000,
+          timestamp: DateTime.fromMillisecondsSinceEpoch(p.paymentTime * 1000),
           description: p.description ?? '',
           bolt11: p.bolt11,
-          inbound: p.paymentType == PaymentType.received,
+          inbound: p.paymentType == PaymentType.receive,
         );
       }).toList();
     } catch (e) {
@@ -417,7 +417,7 @@ class BreezSparkService {
     try {
       _eventSub?.cancel();
       _balanceTimer?.cancel();
-      await _sdk?.disconnect(request: DisconnectRequest());
+      await _sdk?.disconnect();
       _sdk = null;
       debugPrint('✅ Spark SDK disconnected');
     } catch (e) {
