@@ -513,7 +513,11 @@ class BreezSparkService {
 
   /// Restore SDK on app startup if user has completed onboarding
   /// This should be called after initPersistence() during app startup
-  /// Handles errors gracefully and doesn't block app startup if restoration fails
+  /// 
+  /// Returns silently on failure, allowing the app to continue with limited functionality.
+  /// Users can manually restore from settings if automatic restoration fails.
+  /// 
+  /// Handles errors gracefully and doesn't block app startup if restoration fails.
   static Future<void> restoreOnStartup() async {
     // Skip if SDK is already initialized (prevents double restoration)
     if (isInitialized) {
@@ -542,11 +546,11 @@ class BreezSparkService {
   }
 
   /// Force reconnect from stored mnemonic (for settings restore)
-  /// 
+  ///
   /// This method resets the SDK before reconnecting, making it suitable for:
   /// - Manual restore from settings
   /// - Forced reconnection after errors
-  /// 
+  ///
   /// Note: This method throws exceptions on failure. Callers should handle errors appropriately.
   /// For graceful startup restoration, use `restoreOnStartup()` instead.
   static Future<void> restoreFromStoredMnemonic() async {
