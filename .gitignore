@@ -11,10 +11,11 @@ ios/Flutter/Flutter.framework
 ios/Flutter/Generated.xcconfig
 ios/Runner/GeneratedPluginRegistrant.*
 
-# Local config
+# Local config / secrets
 .local/
 .env
 *.local
+lib/config/breez_api_key.local.dart
 
 # Android
 android/app/debug

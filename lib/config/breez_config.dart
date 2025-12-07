@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 class BreezConfig {
   // Cloudflare Worker URL (100% safe to commit - key encrypted in Cloudflare)
   static const String _configUrl =
-      "https://sabi-breez-config.sabibwallet.workers.dev";
+    "https://sabi-breez-config.sabibwallet.workers.dev";
   static const String _cacheKey = 'breez_api_key_cached';
   static const _secureStorage = FlutterSecureStorage();
 
@@ -14,10 +14,12 @@ class BreezConfig {
   /// Set to true for development/testing, false for production
   static const bool useRegtest = false; // Mainnet by default
 
-  // Local override API key (kept in codebase per user instruction)
-  // NOTE: Do not commit real secrets publicly. This is for internal builds.
-  static const String localOverrideApiKey =
-      'MIIBczCCASWgAwIBAgIHPq+GoWjQ1zAFBgMrZXAwEDEOMAwGA1UEAxMFQnJlZXowHhcNMjUxMTI5MTkyMjEyWhcNMzUxMTI3MTkyMjEyWjAvMRQwEgYDVQQKEwtTYWJpIFdhbGxldDEXMBUGA1UEAxMOQXV3YWwgQWJ1YmFrYXIwKjAFBgMrZXADIQDQg/XL3yA8HKIgyimHU/Qbpxy0tvzris1fDUtEs6ldd6N/MH0wDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFNo5o+5ea0sNMlW/75VgGJCv2AcJMB8GA1UdIwQYMBaAFN6q1pJW843ndJIW/Ey2ILJrKJhrMB0GA1UdEQQWMBSBEmF1d2Fscmc4QGdtYWlsLmNvbTAFBgMrZXADQQCInVRb1DyioxmjSLOhYLggfLiO1wXyTWRMEh5PhU5a8M0lWteV7hmQvjJr9SN3I+JVutSWGlnu5tgz3bRQJHAN';
+  // Local override API key (leave empty in git; inject via dart-define or local file)
+  static const String localOverrideApiKey = '';
+
+  // Build-time override from --dart-define=BREEZ_API_KEY=... (preferred for CI/local)
+  static const String _dartDefineApiKey =
+    String.fromEnvironment('BREEZ_API_KEY', defaultValue: '');
 
   /// Get network type based on useRegtest flag
   static String get networkType => useRegtest ? 'regtest' : 'mainnet';
@@ -30,10 +32,16 @@ class BreezConfig {
   /// 3. Cache successfully fetched key in secure storage
   /// 4. If offline/error, use cached key as fallback
   static Future<String> get apiKey async {
-    // If local override is set, use it immediately
+    // If local override is set, use it immediately (local file or dart-define)
     if (localOverrideApiKey.isNotEmpty) {
       debugPrint('🔑 Using local override Breez API key');
       return localOverrideApiKey;
+    }
+
+    // If provided via dart-define, prefer it
+    if (_dartDefineApiKey.isNotEmpty) {
+      debugPrint('🔑 Using dart-define Breez API key');
+      return _dartDefineApiKey;
     }
 
     // Regtest doesn't require API key
