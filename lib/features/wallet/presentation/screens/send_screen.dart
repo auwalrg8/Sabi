@@ -271,11 +271,10 @@ class _SendScreenState extends State<SendScreen> {
 
     try {
       // PREPARE payment instead of sending immediately
-      final prepResponse = await BreezSparkService.prepareSendPayment(text);
+      await BreezSparkService.prepareSendPayment(text);
       // Extract amount from prepResponse (it should have the amount in the response)
       final amountSats = 0; // Will be extracted from invoice
       final feeSats = 0; // Will be calculated
-      final rate = await _fetchNgnPerSat();
       final amountNgn = 0.0; // Placeholder
       final feeNgn = 0.0; // Placeholder
 
