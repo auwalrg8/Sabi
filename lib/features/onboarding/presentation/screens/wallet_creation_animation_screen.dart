@@ -71,10 +71,7 @@ class _WalletCreationAnimationScreenState
 
     // Navigate to Home
     if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      Navigator.pushReplacementNamed(context, '/home');
     }
   }
 

@@ -50,10 +50,7 @@ class _WalletSuccessScreenState extends State<WalletSuccessScreen>
   void _startNavigation() {
     Timer(const Duration(seconds: 5), () {
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
+        Navigator.pushReplacementNamed(context, '/home');
       }
     });
   }

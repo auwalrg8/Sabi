@@ -26,6 +26,10 @@ class WalletCreationHelper {
       // CRITICAL: Always save mnemonic to secure storage (for SDK re-init on app restart)
       await storage.saveMnemonic(mnemonic);
       debugPrint('✅ Mnemonic saved to secure storage');
+      
+      // CRITICAL: Mark onboarding complete so app never loops back
+      await BreezSparkService.setOnboardingComplete();
+      debugPrint('✅ Onboarding marked complete');
 
       // Optional: Notify backend for recovery metadata (can fail silently)
       try {

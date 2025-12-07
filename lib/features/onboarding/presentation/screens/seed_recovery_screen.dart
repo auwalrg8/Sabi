@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
-import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 import 'package:bip39/bip39.dart' as bip39;
 
 class SeedRecoveryScreen extends ConsumerStatefulWidget {
@@ -152,15 +151,14 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
       final storage = ref.read(secureStorageServiceProvider);
       await storage.saveWalletSeed(mnemonic);
       await storage.saveBackupStatus('seed');
+      
+      // CRITICAL: Mark onboarding complete so app never loops back
+      await BreezSparkService.setOnboardingComplete();
 
       if (!mounted) return;
 
-      // Navigate to home screen and show success message
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      // Navigate to home screen using named route
+      Navigator.pushReplacementNamed(context, '/home');
 
       // Note: ScaffoldMessenger after navigation will fail - message shown in new screen instead
     } catch (e) {
