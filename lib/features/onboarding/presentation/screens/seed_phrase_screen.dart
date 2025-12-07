@@ -33,7 +33,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
       
       // If no mnemonic exists, generate a new one (shouldn't happen in normal flow)
       if (mnemonic == null || mnemonic.isEmpty) {
-        mnemonic = bip39.generateMnemonic(strength: 128); // 128 bits = 12 words
+        mnemonic = bip39.generateMnemonic(strength: 256); // 256 bits = 24 words
         await storage.saveMnemonic(mnemonic);
       }
       
@@ -43,7 +43,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
       });
     } catch (e) {
       // Fallback: generate new mnemonic
-      final mnemonic = bip39.generateMnemonic(strength: 128);
+      final mnemonic = bip39.generateMnemonic(strength: 256); // 256 bits = 24 words
       final storage = ref.read(secureStorageServiceProvider);
       await storage.saveMnemonic(mnemonic);
       
@@ -122,7 +122,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Your 12-Word Backup',
+                          'Your 24-Word Backup',
                           style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 18,
@@ -131,7 +131,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
                           ),
                         ),
                         Text(
-                          'Write these words down in order',
+                          'Write down all 24 words in order',
                           style: TextStyle(
                             color: Color(0xFF9CA3AF),
                             fontSize: 12,
