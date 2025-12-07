@@ -213,7 +213,8 @@ class BreezSparkService {
       throw Exception('SDK not initialized');
     }
     try {
-      final info = await _sdk!.getInfo(request: GetInfoRequest());
+      // Use ensure_synced: true to get network-fresh balance instead of cached
+      final info = await _sdk!.getInfo(request: GetInfoRequest(ensureSynced: true));
       // balanceSats is already in sats
       final balanceSats = (info.balanceSats).toInt();
       debugPrint('💰 Balance: $balanceSats sats');
