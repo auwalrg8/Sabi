@@ -526,11 +526,7 @@ class BreezSparkService {
     }
 
     try {
-      // Restore SDK connection from stored mnemonic
-      await initializeSparkSDK(
-        mnemonic: storedMnemonic,
-        isRestore: true,
-      );
+      await _restoreSdkFromMnemonic(storedMnemonic, resetSdk: false);
       debugPrint('✅ SDK restored successfully on startup');
     } catch (e) {
       // If SDK restoration fails, log but don't block app startup
@@ -543,10 +539,21 @@ class BreezSparkService {
   static Future<void> restoreFromStoredMnemonic() async {
     final storedMnemonic = mnemonic;
     if (storedMnemonic != null) {
-      _sdk = null; // Reset SDK to force reconnect
-      await initializeSparkSDK(mnemonic: storedMnemonic, isRestore: true);
+      await _restoreSdkFromMnemonic(storedMnemonic, resetSdk: true);
       debugPrint('🔄 Forced reconnection from stored mnemonic');
     }
+  }
+
+  /// Internal helper to restore SDK from mnemonic
+  /// Used by both restoreOnStartup and restoreFromStoredMnemonic
+  static Future<void> _restoreSdkFromMnemonic(
+    String mnemonic, {
+    required bool resetSdk,
+  }) async {
+    if (resetSdk) {
+      _sdk = null; // Reset SDK to force reconnect
+    }
+    await initializeSparkSDK(mnemonic: mnemonic, isRestore: true);
   }
 
   static int _extractInt(Map<String, dynamic> json, List<String> keys) {
