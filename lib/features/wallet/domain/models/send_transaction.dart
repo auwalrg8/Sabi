@@ -8,6 +8,7 @@ class SendTransaction {
   final String? transactionId;
   final int? amountSats;
   final int? feeSats;
+  final String? bolt11; // Store bolt11 invoice for later sending
 
   const SendTransaction({
     required this.recipient,
@@ -17,6 +18,7 @@ class SendTransaction {
     this.transactionId,
     this.amountSats,
     this.feeSats,
+    this.bolt11,
   });
 
   double get total => amount + fee;

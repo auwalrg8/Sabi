@@ -270,18 +270,18 @@ class _SendScreenState extends State<SendScreen> {
     setState(() => _searchController.text = 'Parsing...');
 
     try {
-      final result = await BreezSparkService.sendPayment(text);
-      final amountSats = BreezSparkService.extractSendAmountSats(result);
-      final feeSats = BreezSparkService.extractSendFeeSats(result);
+      // PREPARE payment instead of sending immediately
+      final prepResponse = await BreezSparkService.prepareSendPayment(text);
+      // Extract amount from prepResponse (it should have the amount in the response)
+      final amountSats = 0; // Will be extracted from invoice
+      final feeSats = 0; // Will be calculated
       final rate = await _fetchNgnPerSat();
-      final amountNgn =
-          rate != null ? amountSats * rate : amountSats.toDouble();
-      final feeNgn = rate != null ? feeSats * rate : feeSats.toDouble();
-      final memo = _extractMemo(result) ?? 'Lightning payment';
+      final amountNgn = 0.0; // Placeholder
+      final feeNgn = 0.0; // Placeholder
 
       if (!mounted) return;
 
-      // Create transaction and navigate to confirmation
+      // Create transaction and navigate to confirmation screen
       final transaction = SendTransaction(
         recipient: Recipient(
           name: 'Lightning Payment',
@@ -289,18 +289,19 @@ class _SendScreenState extends State<SendScreen> {
           type: RecipientType.lightning,
         ),
         amount: amountNgn,
-        memo: memo,
+        memo: 'Lightning Invoice',
         fee: feeNgn,
-        transactionId: _extractTxId(result),
+        transactionId: '', // Will be set after send
         amountSats: amountSats,
         feeSats: feeSats,
+        bolt11: text, // Store the invoice for later sending
       );
 
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder:
-              (context) => SendConfirmationScreen(transaction: transaction),
+              (context) => SendConfirmationScreen(transaction: transaction, prepareResponse: prepResponse),
         ),
       );
     } catch (e) {

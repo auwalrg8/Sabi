@@ -52,6 +52,25 @@ class BreezSparkService {
   static final StreamController<int> _balanceStream =
       StreamController.broadcast();
   static Stream<int> get balanceStream => _balanceStream.stream;
+  static Timer? _balancePollingTimer;
+
+  // Start balance polling
+  static void _startBalancePolling() {
+    _balancePollingTimer?.cancel();
+    _balancePollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      try {
+        final balance = await getBalance();
+        _balanceStream.add(balance);
+      } catch (e) {
+        debugPrint('⚠️ Balance polling error: $e');
+      }
+    });
+  }
+
+  // Stop balance polling
+  static void stopBalancePolling() {
+    _balancePollingTimer?.cancel();
+  }
 
   // ============================================================================
   // STEP 1: Initialize Hive persistence
@@ -146,6 +165,10 @@ class BreezSparkService {
 
       await setOnboardingComplete();
       _isInitializing = false;
+      
+      // Start balance polling immediately
+      _startBalancePolling();
+      
       debugPrint('✅✅✅ SPARK SDK INITIALIZED ✅✅✅');
     } catch (e) {
       _isInitializing = false;
@@ -221,9 +244,50 @@ class BreezSparkService {
       final response = await _sdk!.receivePayment(request: req);
 
       debugPrint('✅ Invoice: ${response.paymentRequest}');
+      
+      // Poll balance after creating invoice (will update when payment received)
+      Timer.periodic(const Duration(seconds: 2), (timer) async {
+        if (timer.tick > 30) { // Stop after 60 seconds
+          timer.cancel();
+          return;
+        }
+        try {
+          final balance = await getBalance();
+          _balanceStream.add(balance);
+        } catch (e) {
+          debugPrint('⚠️ Balance check error: $e');
+        }
+      });
+      
       return response.paymentRequest; // Returns bolt11 string
     } catch (e) {
       debugPrint('❌ Invoice creation failed: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // Prepare Send Payment (for showing confirmation before sending)
+  // ============================================================================
+  static Future<PrepareSendPaymentResponse> prepareSendPayment(String identifier) async {
+    // Guard: ensure SDK is initialized
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot prepare payment');
+      throw Exception('SDK not initialized');
+    }
+    try {
+      debugPrint('🔍 Preparing payment for: $identifier');
+
+      final prepReq = PrepareSendPaymentRequest(
+        paymentRequest: identifier,
+        amount: null,
+      );
+      final prepResponse = await _sdk!.prepareSendPayment(request: prepReq);
+      
+      debugPrint('✅ Payment prepared successfully');
+      return prepResponse;
+    } catch (e) {
+      debugPrint('❌ Prepare payment failed: $e');
       rethrow;
     }
   }
@@ -264,6 +328,11 @@ class BreezSparkService {
       final sendResponse = await _sdk!.sendPayment(request: sendReq);
 
       debugPrint('✅ Payment sent: ${sendResponse.payment.id}');
+      
+      // Update balance immediately after send
+      final balance = await getBalance();
+      _balanceStream.add(balance);
+      
       return {
         'payment': sendResponse.payment,
         'amount': sendResponse.payment.amount,

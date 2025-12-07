@@ -106,7 +106,7 @@ class _BalanceCardState extends State<BalanceCard>
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Main balance - huge NGN or SATS
+                // Main balance - huge NGN or SATS (56px as requested)
                 AnimatedBuilder(
                   animation: _flipController,
                   builder: (context, child) {
@@ -129,15 +129,25 @@ class _BalanceCardState extends State<BalanceCard>
                   },
                 ),
                 const SizedBox(height: 8),
-                // Small BTC amount
-                Text(
-                  '≈ ${widget.balanceBtc.toStringAsFixed(5)} BTC',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
+                // Show "Syncing..." if balance is 0, otherwise show BTC amount
+                widget.balanceBtc == 0.0
+                    ? const Text(
+                        'Syncing...',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      )
+                    : Text(
+                        '≈ ${widget.balanceBtc.toStringAsFixed(5)} BTC',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
               ],
             ),
           ),
@@ -152,7 +162,7 @@ class _BalanceCardState extends State<BalanceCard>
       key: const ValueKey('ngn'),
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 48,
+        fontSize: 56, // Increased from 48 to 56px as requested
         fontWeight: FontWeight.w700,
         height: 1.0,
       ),
@@ -165,7 +175,7 @@ class _BalanceCardState extends State<BalanceCard>
       key: const ValueKey('sats'),
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 48,
+        fontSize: 56, // Increased from 48 to 56px as requested
         fontWeight: FontWeight.w700,
         height: 1.0,
       ),
