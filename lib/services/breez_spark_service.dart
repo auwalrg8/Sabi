@@ -163,7 +163,11 @@ class BreezSparkService {
         debugPrint('⚠️ Bootstrap failed (non-critical): $e');
       }
 
-      await setOnboardingComplete();
+      // Mark onboarding as complete and save wallet initialization timestamp
+      await _box.put('has_completed_onboarding', true);
+      await _box.put('wallet_initialized_at', DateTime.now().millisecondsSinceEpoch);
+      debugPrint('🔒 ONBOARDING FLAG SAVED — WILL NEVER SHOW AGAIN');
+      
       _isInitializing = false;
       
       // Start balance polling immediately
@@ -435,11 +439,13 @@ class BreezSparkService {
   // Onboarding Status
   // ============================================================================
   static bool get hasCompletedOnboarding {
-    return _box.get('completedOnboarding', defaultValue: false) as bool;
+    return _box.get('has_completed_onboarding', defaultValue: false) as bool;
   }
 
   static Future<void> setOnboardingComplete() async {
-    await _box.put('completedOnboarding', true);
+    await _box.put('has_completed_onboarding', true);
+    await _box.put('wallet_initialized_at', DateTime.now().millisecondsSinceEpoch);
+    debugPrint('🔒 Onboarding marked complete');
   }
 
   @Deprecated('Use getMnemonic() instead')

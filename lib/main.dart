@@ -21,18 +21,20 @@ void main() async {
   await SecureStorage.init();
   await BreezSparkService.initPersistence();
   
-  // Initialize Breez SDK from saved mnemonic or create new wallet
+  // BULLETPROOF: Auto-recover wallet and skip onboarding forever
+  final hasOnboarded = BreezSparkService.hasCompletedOnboarding;
   final savedMnemonic = await BreezSparkService.getMnemonic();
-  if (savedMnemonic != null) {
-    // Restore wallet from saved mnemonic
+  
+  if (hasOnboarded && savedMnemonic != null) {
+    // Auto-login: skip onboarding forever
     try {
       await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
-      debugPrint('✅ Wallet restored from saved mnemonic');
+      debugPrint('🔓 Auto-recovered wallet from storage - SKIPPING ONBOARDING');
     } catch (e) {
-      debugPrint('⚠️ Failed to restore wallet: $e');
+      debugPrint('⚠️ Failed to auto-recover wallet: $e');
     }
   }
-  // If no saved mnemonic, SDK will be initialized during onboarding
+  // If not onboarded, SDK will be initialized during onboarding flow
   
   await ContactService.init();
   await NotificationService.init();
