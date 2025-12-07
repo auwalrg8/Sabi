@@ -54,26 +54,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
+    // Restore SDK if user has completed onboarding
+    await BreezSparkService.restoreOnStartup();
+
+    if (!mounted) return;
+
     // Check if user has completed onboarding with Spark SDK
     if (BreezSparkService.hasCompletedOnboarding) {
-      // Restore SDK from stored mnemonic before showing home screen
-      final mnemonic = BreezSparkService.mnemonic;
-      if (mnemonic != null && mnemonic.isNotEmpty) {
-        try {
-          // Restore SDK connection from stored mnemonic
-          await BreezSparkService.initializeSparkSDK(
-            mnemonic: mnemonic,
-            isRestore: true,
-          );
-        } catch (e) {
-          // If SDK restoration fails, log but don't block app startup
-          // User can still access the app and try again
-          debugPrint('⚠️ Failed to restore SDK on startup: $e');
-        }
-      }
-
-      if (!mounted) return;
-
       // Check if PIN is set up
       final storage = ref.read(secureStorageServiceProvider);
       final pin = await storage.getPinCode();

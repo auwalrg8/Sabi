@@ -42,23 +42,8 @@ class _StartupRouterState extends State<_StartupRouter> {
     // Initialize Breez Spark SDK persistence to check onboarding status
     await BreezSparkService.initPersistence();
     
-    // If user has completed onboarding, restore SDK from stored mnemonic
-    if (BreezSparkService.hasCompletedOnboarding) {
-      final mnemonic = BreezSparkService.mnemonic;
-      if (mnemonic != null && mnemonic.isNotEmpty) {
-        try {
-          // Restore SDK connection from stored mnemonic
-          await BreezSparkService.initializeSparkSDK(
-            mnemonic: mnemonic,
-            isRestore: true,
-          );
-        } catch (e) {
-          // If SDK restoration fails, log but don't block app startup
-          // User can still access the app and try again
-          debugPrint('⚠️ Failed to restore SDK on startup: $e');
-        }
-      }
-    }
+    // Restore SDK if user has completed onboarding
+    await BreezSparkService.restoreOnStartup();
     
     setState(() {
       _hasWallet = BreezSparkService.hasCompletedOnboarding;

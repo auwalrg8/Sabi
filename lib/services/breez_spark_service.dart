@@ -511,6 +511,34 @@ class BreezSparkService {
       _box.get('has_onboarded', defaultValue: false);
   static String? get mnemonic => _box.get('mnemonic');
 
+  /// Restore SDK on app startup if user has completed onboarding
+  /// This should be called after initPersistence() during app startup
+  /// Handles errors gracefully and doesn't block app startup if restoration fails
+  static Future<void> restoreOnStartup() async {
+    if (!hasCompletedOnboarding) {
+      return; // User hasn't completed onboarding, nothing to restore
+    }
+
+    final storedMnemonic = mnemonic;
+    if (storedMnemonic == null || storedMnemonic.isEmpty) {
+      debugPrint('⚠️ Onboarding complete but no mnemonic found');
+      return;
+    }
+
+    try {
+      // Restore SDK connection from stored mnemonic
+      await initializeSparkSDK(
+        mnemonic: storedMnemonic,
+        isRestore: true,
+      );
+      debugPrint('✅ SDK restored successfully on startup');
+    } catch (e) {
+      // If SDK restoration fails, log but don't block app startup
+      // User can still access the app and try again
+      debugPrint('⚠️ Failed to restore SDK on startup: $e');
+    }
+  }
+
   /// Force reconnect from stored mnemonic (for settings restore)
   static Future<void> restoreFromStoredMnemonic() async {
     final storedMnemonic = mnemonic;
