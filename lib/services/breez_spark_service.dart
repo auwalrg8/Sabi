@@ -515,6 +515,12 @@ class BreezSparkService {
   /// This should be called after initPersistence() during app startup
   /// Handles errors gracefully and doesn't block app startup if restoration fails
   static Future<void> restoreOnStartup() async {
+    // Skip if SDK is already initialized (prevents double restoration)
+    if (isInitialized) {
+      debugPrint('✅ SDK already initialized, skipping restoration');
+      return;
+    }
+
     if (!hasCompletedOnboarding) {
       return; // User hasn't completed onboarding, nothing to restore
     }
