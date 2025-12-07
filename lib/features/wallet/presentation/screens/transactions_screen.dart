@@ -65,7 +65,7 @@ class TransactionsScreen extends ConsumerWidget {
                       itemCount: payments.length,
                       itemBuilder: (context, index) {
                         final payment = payments[index];
-                        final isInbound = payment.inbound;
+                        final isInbound = payment.isIncoming;
                         final amountColor =
                             isInbound
                                 ? AppColors.accentGreen
