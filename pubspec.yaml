@@ -40,6 +40,7 @@ dependencies:
   path: ^1.8.3
   flutter_confetti: ^0.2.0
   bip39: ^1.0.6
+  uuid: ^4.5.0
   crypto: ^3.0.3
   local_auth: ^2.3.0
   mobile_scanner: ^5.2.3
