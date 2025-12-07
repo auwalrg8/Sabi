@@ -20,7 +20,7 @@ class WalletCreationHelper {
       // Initialize Spark SDK (2025 Nodeless/Spark)
       await BreezSparkService.initializeSparkSDK();
       
-      final mnemonic = BreezSparkService.mnemonic ?? '';
+      final mnemonic = await BreezSparkService.getMnemonic() ?? '';
       await BreezSparkService.getBalance();
 
       // CRITICAL: Always save mnemonic to secure storage (for SDK re-init on app restart)

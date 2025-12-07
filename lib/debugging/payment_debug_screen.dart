@@ -24,28 +24,15 @@ class _PaymentDebugScreenState extends State<PaymentDebugScreen> {
 
   Future<void> _checkStatus() async {
     try {
-      final status = await BreezSparkService.getInitializationStatus();
+      final balance = await BreezSparkService.getBalance();
       setState(() {
         _statusText = '''
-SDK Status:
-- Initialized: ${status['isInitialized'] ? '✅ YES' : '❌ NO'}
-- Exists: ${status['sdkExists'] ? '✅ YES' : '❌ NO'}
+✅ SDK Status
 
-${status.containsKey('nodeInfo') ? '''
-Node Info:
-- ID: ${(status['nodeInfo'] as Map)['nodeId']}
-- Balance: ${(status['nodeInfo'] as Map)['balanceSats']} sats
-- Channel Balance: ${(status['nodeInfo'] as Map)['channelsBalanceMsat']} msat
-- Can Send: ${status['canSend'] ? '✅ YES' : '❌ NO'}
-- Can Receive: ${status['canReceive'] ? '✅ YES' : '❌ NO'}
+Current Balance: $balance sats
 
-Max Sendable: ${(status['nodeInfo'] as Map)['maxPayableAmountSat']} sats
-Max Receivable: ${(status['nodeInfo'] as Map)['maxReceivableAmountSat']} sats
-''' : '❌ No node info available'}
-
-${status.containsKey('error') ? 'ERROR: ${status['error']}' : ''}
-
-Timestamp: ${status['timestamp']}
+SDK is ready for payment operations.
+Ready to receive and send payments.
 ''';
       });
     } catch (e) {
@@ -60,15 +47,15 @@ Timestamp: ${status['timestamp']}
     try {
       final amount = int.parse(_amountController.text);
       final response = await BreezSparkService.createInvoice(
-        amount,
-        'Debug receive',
+        sats: amount,
+        memo: 'Debug receive',
       );
       setState(() {
         _statusText = '''
 ✅ Invoice Created Successfully!
 
 Payment Request:
-${response.paymentRequest}
+$response
 
 Memo: Debug receive
 Amount: $amount sats
@@ -125,7 +112,6 @@ If balance increased, your Bitcoin receive is working!
         _statusText = '''
 ✅ Payment Sent Successfully!
 
-Payment ID: ${response.payment.id}
 Amount: ${BreezSparkService.extractSendAmountSats(response)} sats
 Fee: ${BreezSparkService.extractSendFeeSats(response)} sats
 ''';

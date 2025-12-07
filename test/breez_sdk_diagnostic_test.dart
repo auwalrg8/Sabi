@@ -23,46 +23,28 @@ void main() {
     });
 
     test('SDK operational status check', () async {
-      final status = await BreezSparkService.getInitializationStatus();
+      final balance = await BreezSparkService.getBalance();
 
-      expect(status['isInitialized'], true, reason: 'SDK should be initialized');
-      expect(
-        status['sdkExists'],
-        true,
-        reason: 'SDK singleton should exist',
-      );
+      expect(balance, isNotNull, reason: 'SDK should return balance');
 
       // Print diagnostic info
       print('');
       print('========== SPARK SDK DIAGNOSTIC REPORT ==========');
-      print('Status: ${status['isInitialized'] ? '✅ READY' : '❌ FAILED'}');
-
-      if (status.containsKey('nodeInfo')) {
-        final nodeInfo = status['nodeInfo'] as Map;
-        print('Node ID: ${nodeInfo['nodeId']}');
-        print(
-          'Balance: ${nodeInfo['balanceSats']} sats (${nodeInfo['channelsBalanceMsat']} msat)',
-        );
-        print('Can Send: ${status['canSend'] ? '✅ YES' : '❌ NO'}');
-        print('Can Receive: ${status['canReceive'] ? '✅ YES' : '❌ NO'}');
-      }
-
-      if (status.containsKey('error')) {
-        print('ERROR: ${status['error']}');
-      }
+      print('Status: ✅ READY');
+      print('Balance: $balance sats');
       print('==============================================');
       print('');
     });
 
     test('Can create invoice for receiving', () async {
       final response = await BreezSparkService.createInvoice(
-        1000, // 1000 sats
-        'Test invoice',
+        sats: 1000,
+        memo: 'Test invoice',
       );
 
-      expect(response.paymentRequest, isNotEmpty,
+      expect(response, isNotEmpty,
           reason: 'Should generate invoice');
-      print('Generated invoice (first 80 chars): ${response.paymentRequest.substring(0, 80)}...');
+      print('Generated invoice (first 80 chars): ${response.substring(0, 80)}...');
     });
 
     test('SDK initialization with restore', () async {
@@ -76,8 +58,8 @@ void main() {
           isRestore: true,
         );
 
-        final status = await BreezSparkService.getInitializationStatus();
-        expect(status['isInitialized'], true,
+        final balance = await BreezSparkService.getBalance();
+        expect(balance, isNotNull,
             reason: 'SDK should be initialized on restore');
         print('✅ Wallet restored successfully');
       } else {

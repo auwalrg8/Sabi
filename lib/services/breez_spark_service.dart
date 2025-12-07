@@ -411,6 +411,25 @@ class BreezSparkService {
   }
 
   // ============================================================================
+  // Helper Methods - Extract values from payment responses
+  // ============================================================================
+  static int extractSendAmountSats(Map<String, dynamic> result) {
+    if (result.containsKey('payment')) {
+      final payment = result['payment'] as dynamic;
+      return (payment.amountMsat as BigInt).toInt() ~/ 1000;
+    }
+    return 0;
+  }
+
+  static int extractSendFeeSats(Map<String, dynamic> result) {
+    if (result.containsKey('payment')) {
+      final payment = result['payment'] as dynamic;
+      return (payment.feesMsat as BigInt?)?.toInt() ?? 0 ~/ 1000;
+    }
+    return 0;
+  }
+
+  // ============================================================================
   // Disconnect SDK (cleanup)
   // ============================================================================
   static Future<void> disconnect() async {
@@ -431,4 +450,53 @@ class BreezSparkService {
   static Future<int> syncAndGetBalance() async {
     return await getBalance();
   }
+
+  // ============================================================================
+  // Onboarding Status
+  // ============================================================================
+  static bool get hasCompletedOnboarding {
+    return _box.get('completedOnboarding', defaultValue: false) as bool;
+  }
+
+  static Future<void> setOnboardingComplete() async {
+    await _box.put('completedOnboarding', true);
+  }
+
+  // ============================================================================
+  // Mnemonic Getter (returns null if not set)
+  // ============================================================================
+  @Deprecated('Use getMnemonic() instead')
+  static String? get mnemonic {
+    return _box.get('mnemonic') as String?;
+  }
+
+  // ============================================================================
+  // Payment List Methods
+  // ============================================================================
+  @Deprecated('Use listPayments() instead')
+  static Future<List<PaymentDetails>> listPaymentDetails({int limit = 50}) async {
+    return await listPayments(limit: limit);
+  }
+
+  // ============================================================================
+  // Bitcoin Address Generation (placeholder)
+  // ============================================================================
+  static Future<String> generateBitcoinAddress() async {
+    // For Spark (nodeless), use the onchain wallet from receivePayment()
+    // This is a placeholder that returns the current invoice bolt11
+    return 'Use createInvoice() for bolt11 addresses';
+  }
+
+  // ============================================================================
+  // Safe Balance Getter
+  // ============================================================================
+  static Future<int> getBalanceSatsSafe() async {
+    try {
+      return await getBalance();
+    } catch (e) {
+      debugPrint('⚠️ Error getting balance: $e');
+      return 0;
+    }
+  }
 }
+

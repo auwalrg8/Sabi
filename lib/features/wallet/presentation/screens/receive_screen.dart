@@ -709,8 +709,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     try {
       final username = _userProfile?.sabiUsername ?? '@sabi/user';
       final result = await BreezSparkService.createInvoice(
-        selectedAmount!,
-        _descriptionController.text.isEmpty
+        sats: selectedAmount!,
+        memo: _descriptionController.text.isEmpty
             ? 'Payment to $username'
             : _descriptionController.text,
       );
@@ -718,8 +718,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       if (!mounted) return;
 
       setState(() {
-        // Extract bolt11 from ReceivePaymentResponse.paymentRequest
-        _bolt11 = result.paymentRequest;
+        // Result is already the bolt11 string
+        _bolt11 = result;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(

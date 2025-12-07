@@ -222,7 +222,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final response = await BreezSparkService.listPayments(limit: 10);
 
       // If we have any payments, mark confetti as pending
-      if (response.payments.isNotEmpty) {
+      if (response.isNotEmpty) {
         await storage.write(
           key: 'first_payment_confetti_pending',
           value: 'true',
