@@ -99,6 +99,7 @@ class BreezSparkService {
 
       // Connect to SDK (Bitcoin mainnet) - WRAPPED IN TRY/CATCH
       try {
+        debugPrint('🔗 Attempting to connect to Breez Spark SDK...');
         _sdk = await connect(
           request: ConnectRequest(
             config: Config(
@@ -112,7 +113,7 @@ class BreezSparkService {
             storageDir: storageDir,
           ),
         );
-        debugPrint('✅ Connected to Breez Spark SDK');
+        debugPrint('✅ Connected to Breez Spark SDK successfully');
       } catch (e) {
         _sdk = null;
         debugPrint('❌ SDK connect() failed: $e');
@@ -121,6 +122,7 @@ class BreezSparkService {
 
       // VALIDATE API KEY: Call getInfo() immediately to ensure SDK is working
       try {
+        debugPrint('🔍 Validating SDK connection with getInfo()...');
         final info = await _sdk!.getInfo(request: GetInfoRequest());
         debugPrint('✅ API validation SUCCESS - Balance: ${info.balanceSats} sats');
       } catch (e) {

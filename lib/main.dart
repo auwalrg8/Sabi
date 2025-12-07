@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'services/secure_storage.dart';
 import 'services/breez_spark_service.dart';
 import 'services/contact_service.dart';
@@ -12,6 +13,11 @@ import 'features/auth/presentation/screens/pin_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // CRITICAL: Initialize flutter_rust_bridge FIRST, before any SDK calls
+  await BreezSdkSparkLib.init();
+  debugPrint('✅ BreezSdkSparkLib.init() called - Bridge initialized');
+  
   await SecureStorage.init();
   await BreezSparkService.initPersistence();
   
