@@ -301,7 +301,7 @@ class _SendScreenState extends State<SendScreen> {
         context,
         MaterialPageRoute(
           builder:
-              (context) => SendConfirmationScreen(transaction: transaction, prepareResponse: prepResponse),
+              (context) => SendConfirmationScreen(transaction: transaction),
         ),
       );
     } catch (e) {
