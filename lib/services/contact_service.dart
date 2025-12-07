@@ -1,7 +1,30 @@
-import 'package:contacts_service/contacts_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+// Stub for contacts_service - plugin has compatibility issues with newer AGP versions
+// TODO: Replace with maintained alternative like contacts_plus or phone_contacts
+class Contact {
+  String? displayName;
+  Iterable<Phone>? phones;
+  Iterable<Email>? emails;
+}
+
+class Phone {
+  String? value;
+}
+
+class Email {
+  String? value;
+}
+
+class ContactsService {
+  static Future<Iterable<Contact>> getContacts() async {
+    // Stub implementation - returns empty list
+    // Real contact sync can be implemented later with a maintained plugin
+    return [];
+  }
+}
 
 class ContactInfo {
   final String displayName;
