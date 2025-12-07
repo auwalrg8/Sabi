@@ -81,7 +81,7 @@ class WalletInfoNotifier extends StateNotifier<AsyncValue<WalletModel?>> {
   Future<WalletModel> _maybeAttachSparkBalance(WalletModel model) async {
     try {
       final sparkBalance = await BreezSparkService.getBalanceSatsSafe();
-      if (sparkBalance != null && sparkBalance >= 0) {
+      if (sparkBalance >= 0) {
         return WalletModel(
           id: model.id,
           userId: model.userId,
