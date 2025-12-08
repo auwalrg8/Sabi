@@ -1,16 +1,16 @@
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/core/services/api_client.dart';
 import 'package:sabi_wallet/core/constants/api_config.dart';
+import 'package:sabi_wallet/core/services/api_client.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
-import 'package:sabi_wallet/features/wallet/presentation/screens/send_amount_screen.dart';
-import 'package:sabi_wallet/features/wallet/presentation/widgets/recipient_avatar.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
-import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
-import 'package:sabi_wallet/features/wallet/presentation/screens/send_confirmation_screen.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
-import 'qr_scanner_screen.dart';
+
+enum _SendStep { recipient, amount, confirm }
+
+enum _CurrencyMode { sats, ngn }
 
 class SendScreen extends StatefulWidget {
   final String? initialAddress;
@@ -21,804 +21,703 @@ class SendScreen extends StatefulWidget {
   State<SendScreen> createState() => _SendScreenState();
 }
 
-class _SendScreenState extends State<SendScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  Recipient? _selectedRecipient;
-  List<ContactInfo> _phoneContacts = [];
-  List<ContactInfo> _recentContactsList = [];
-  bool _showContactsModal = false;
-  bool _isLoadingContacts = false;
+class _SendScreenState extends State<SendScreen>
+    with SingleTickerProviderStateMixin {
+  final TextEditingController _recipientController = TextEditingController();
+  final TextEditingController _memoController = TextEditingController();
+  final TextEditingController _pinController = TextEditingController();
+
+  _SendStep _step = _SendStep.recipient;
+  _CurrencyMode _mode = _CurrencyMode.sats;
+
+  Recipient? _recipient;
+  bool _isSending = false;
+  double? _ngnPerSat;
+
+  String _amountText = '0';
+  int _quickIndex = 0;
+
+  List<ContactInfo> _recent = [];
+  List<ContactInfo> _contacts = [];
+  bool _loadingContacts = false;
 
   @override
   void initState() {
     super.initState();
-    // If initial address is provided, set it in the search field
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    _fetchRate();
+    _loadRecent();
     if (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) {
-      _searchController.text = widget.initialAddress!;
-      // Auto-process the scanned code
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _processAddress(widget.initialAddress!);
-      });
-    }
-    _loadRecentContacts();
-  }
-
-  Future<void> _loadRecentContacts() async {
-    try {
-      final recent = await ContactService.getRecentContacts();
-      setState(() {
-        _recentContactsList = recent;
-      });
-    } catch (e) {
-      debugPrint('❌ Error loading recent contacts: $e');
+      _recipientController.text = widget.initialAddress!;
+      _selectRecipientFromInput(widget.initialAddress!);
     }
   }
 
-  Future<void> _importPhoneContacts() async {
-    setState(() => _isLoadingContacts = true);
-    try {
-      final contacts = await ContactService.importPhoneContacts();
-      setState(() {
-        _phoneContacts = contacts;
-        _isLoadingContacts = false;
-      });
-      _showContactsModal = true;
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to import contacts: $e'),
-            backgroundColor: AppColors.surface,
-          ),
-        );
-      }
-      setState(() => _isLoadingContacts = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _selectContact(ContactInfo contact) {
-    // Convert phone contacts to Recipient
-    final recipient = Recipient(
-      name: contact.displayName,
-      identifier: contact.identifier,
-      type:
-          contact.type == 'phone'
-              ? RecipientType.phone
-              : RecipientType.lightning,
-    );
-
-    setState(() {
-      _selectedRecipient = recipient;
-      _searchController.text = contact.identifier;
-      _showContactsModal = false;
-    });
-
-    // Add to recent contacts
-    ContactService.addRecentContact(contact);
-  }
-
-  void _continue() {
-    if (_selectedRecipient != null) {
-      // Add to recent contacts
-      ContactService.addRecentContact(
-        ContactInfo(
-          displayName: _selectedRecipient!.name,
-          identifier: _selectedRecipient!.identifier,
-          type: _selectedRecipient!.type.toString().split('.').last,
-        ),
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => SendAmountScreen(recipient: _selectedRecipient!),
-        ),
-      );
-    }
-  }
-
-  Future<void> _handlePaste() async {
-    final clipData = await Clipboard.getData('text/plain');
-    final text = clipData?.text?.trim();
-
-    if (text == null || text.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Clipboard is empty'),
-            backgroundColor: AppColors.surface,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Check if it's a lightning address (user@domain.com format)
-    final isLightningAddress = text.contains('@') && text.contains('.');
-
-    if (isLightningAddress) {
-      // Lightning addresses REQUIRE amount - navigate to amount screen
-      setState(() {
-        _selectedRecipient = Recipient(
-          name: text.split('@')[0], // username part
-          identifier: text,
-          type: RecipientType.lightning,
-        );
-        _searchController.text = text;
-      });
-
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => SendAmountScreen(recipient: _selectedRecipient!),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Try to parse as bolt11 invoice (has amount encoded)
-    setState(() => _searchController.text = 'Parsing...');
-
-    try {
-      final result = await BreezSparkService.sendPayment(text);
-      final amountSats = BreezSparkService.extractSendAmountSats(result);
-      final feeSats = BreezSparkService.extractSendFeeSats(result);
-      final rate = await _fetchNgnPerSat();
-      final amountNgn =
-          rate != null ? amountSats * rate : amountSats.toDouble();
-      final feeNgn = rate != null ? feeSats * rate : feeSats.toDouble();
-      final memo = _extractMemo(result) ?? 'Lightning payment';
-
-      if (!mounted) return;
-
-      // Create transaction and navigate to confirmation
-      final transaction = SendTransaction(
-        recipient: Recipient(
-          name: 'Lightning Payment',
-          identifier: text.length > 30 ? '${text.substring(0, 30)}...' : text,
-          type: RecipientType.lightning,
-        ),
-        amount: amountNgn,
-        memo: memo,
-        fee: feeNgn,
-        transactionId: _extractTxId(result),
-        amountSats: amountSats,
-        feeSats: feeSats,
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => SendConfirmationScreen(transaction: transaction),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _searchController.text = text);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to parse: $e'),
-          backgroundColor: AppColors.surface,
-        ),
-      );
-    }
-  }
-
-  Future<void> _openQRScanner() async {
-    try {
-      final String? scannedCode = await Navigator.push<String>(
-        context,
-        MaterialPageRoute(builder: (context) => const QRScannerScreen()),
-      );
-
-      if (scannedCode != null && scannedCode.isNotEmpty) {
-        setState(() => _searchController.text = scannedCode);
-        // Auto-process the scanned code
-        _processAddress(scannedCode);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('QR Scanner error: $e'),
-          backgroundColor: AppColors.surface,
-        ),
-      );
-    }
-  }
-
-  Future<void> _processAddress(String text) async {
-    // Check if it's a lightning address (user@domain.com format)
-    final isLightningAddress = text.contains('@') && text.contains('.');
-
-    if (isLightningAddress) {
-      // Lightning addresses REQUIRE amount - navigate to amount screen
-      setState(() {
-        _selectedRecipient = Recipient(
-          name: text.split('@')[0], // username part
-          identifier: text,
-          type: RecipientType.lightning,
-        );
-        _searchController.text = text;
-      });
-
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => SendAmountScreen(recipient: _selectedRecipient!),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Try to parse as bolt11 invoice (has amount encoded)
-    setState(() => _searchController.text = 'Parsing...');
-
-    try {
-      // PREPARE payment instead of sending immediately
-      await BreezSparkService.prepareSendPayment(text);
-      // Extract amount from prepResponse (it should have the amount in the response)
-      final amountSats = 0; // Will be extracted from invoice
-      final feeSats = 0; // Will be calculated
-      final amountNgn = 0.0; // Placeholder
-      final feeNgn = 0.0; // Placeholder
-
-      if (!mounted) return;
-
-      // Create transaction and navigate to confirmation screen
-      final transaction = SendTransaction(
-        recipient: Recipient(
-          name: 'Lightning Payment',
-          identifier: text.length > 30 ? '${text.substring(0, 30)}...' : text,
-          type: RecipientType.lightning,
-        ),
-        amount: amountNgn,
-        memo: 'Lightning Invoice',
-        fee: feeNgn,
-        transactionId: '', // Will be set after send
-        amountSats: amountSats,
-        feeSats: feeSats,
-        bolt11: text, // Store the invoice for later sending
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => SendConfirmationScreen(transaction: transaction),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _searchController.text = text);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to parse: $e'),
-          backgroundColor: AppColors.surface,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final hasSelection = _selectedRecipient != null;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(30),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              'Who you want to send to?',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-                        if (hasSelection) _buildSelectedRecipient(),
-                        if (!hasSelection) _buildSearchField(),
-                        const SizedBox(height: 17),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildActionButton(
-                                'Contacts',
-                                Icons.people_outline,
-                                onTap:
-                                    _isLoadingContacts
-                                        ? null
-                                        : _importPhoneContacts,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildActionButton(
-                                'Paste',
-                                Icons.paste,
-                                onTap: _handlePaste,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-                        const Text(
-                          'Recent',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        const SizedBox(height: 17),
-                        _buildRecentContacts(),
-                      ],
-                    ),
-                  ),
-                ),
-                _buildContinueButton(hasSelection),
-              ],
-            ),
-          ),
-          if (_showContactsModal) _buildContactsModal(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSelectedRecipient() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          RecipientAvatar(initial: _selectedRecipient!.initial, size: 48),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _selectedRecipient!.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _selectedRecipient!.identifier,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Text(
-            '12 mutuals',
-            style: TextStyle(color: AppColors.accentGreen, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchField() {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              decoration: const InputDecoration(
-                hintText: 'Phone no./@sabi name./npub./LN address',
-                hintStyle: TextStyle(
-                  color: AppColors.textTertiary,
-                  fontSize: 13,
-                ),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: _openQRScanner,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              child: Icon(
-                Icons.qr_code_scanner,
-                color: AppColors.primary,
-                size: 28,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-    String label,
-    IconData icon, {
-    VoidCallback? onTap,
-  }) {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap ?? () {},
-          borderRadius: BorderRadius.circular(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: AppColors.primary, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentContacts() {
-    final displayList =
-        _recentContactsList.isNotEmpty
-            ? _recentContactsList
-            : _buildFallbackRecents();
-
-    if (displayList.isEmpty) {
-      return const Center(
-        child: Text(
-          'No recent contacts yet',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 124,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: displayList.length,
-        itemBuilder: (context, index) {
-          final contact = displayList[index];
-
-          // Extract initial from name
-          String getInitial(String name) {
-            return name.isNotEmpty ? name[0].toUpperCase() : '?';
-          }
-
-          return GestureDetector(
-            onTap: () => _selectContact(contact),
-            child: Container(
-              width: 96,
-              margin: const EdgeInsets.only(right: 0),
-              child: Column(
-                children: [
-                  RecipientAvatar(
-                    initial: getInitial(contact.displayName),
-                    size: 64,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    contact.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    contact.type,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 9,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  List<ContactInfo> _buildFallbackRecents() {
-    return [
-      ContactInfo(
-        displayName: 'Auwal',
-        identifier: '@sabi/chidi',
-        type: 'sabi',
-      ),
-      ContactInfo(
-        displayName: 'Blessing',
-        identifier: '@sabi/blessing',
-        type: 'sabi',
-      ),
-      ContactInfo(
-        displayName: 'Tunde',
-        identifier: '+234 803 456 7890',
-        type: 'phone',
-      ),
-    ];
-  }
-
-  Widget _buildContactsModal() {
-    return Positioned.fill(
-      child: GestureDetector(
-        onTap: () => setState(() => _showContactsModal = false),
-        child: Container(
-          color: Colors.black.withValues(alpha: 0.6),
-          child: GestureDetector(
-            onTap: () {}, // Prevent closing when tapping modal content
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  height: MediaQuery.of(context).size.height * 0.75,
-                  decoration: const BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Select Contact',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                              ),
-                              onPressed:
-                                  () => setState(
-                                    () => _showContactsModal = false,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_isLoadingContacts)
-                        const Expanded(
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        )
-                      else if (_phoneContacts.isEmpty)
-                        const Expanded(
-                          child: Center(
-                            child: Text(
-                              'No contacts found',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: _phoneContacts.length,
-                            itemBuilder: (context, index) {
-                              final contact = _phoneContacts[index];
-                              return GestureDetector(
-                                onTap: () => _selectContact(contact),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 24,
-                                        backgroundColor: AppColors.primary,
-                                        child: Text(
-                                          contact.displayName[0].toUpperCase(),
-                                          style: const TextStyle(
-                                            color: AppColors.surface,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              contact.displayName,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              contact.identifier,
-                                              style: const TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontSize: 12,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Text(
-                                        contact.type,
-                                        style: const TextStyle(
-                                          color: AppColors.accentGreen,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContinueButton(bool enabled) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
-      child: SizedBox(
-        width: double.infinity,
-        height: 50,
-        child: ElevatedButton(
-          onPressed: enabled ? _continue : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                enabled
-                    ? AppColors.primary
-                    : AppColors.primary.withValues(alpha: 0.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          child: const Text(
-            'Continue',
-            style: TextStyle(
-              color: AppColors.surface,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<double?> _fetchNgnPerSat() async {
+  Future<void> _fetchRate() async {
     try {
       final api = ApiClient();
       final rates = await api.get(ApiEndpoints.rates);
       final nairaToBtc = rates['naira_to_btc'];
       if (nairaToBtc != null) {
         final nairaPerBtc =
-            nairaToBtc is num
-                ? (1 / nairaToBtc)
-                : (1 / double.parse(nairaToBtc.toString()));
-        return nairaPerBtc / 100000000;
+            nairaToBtc is num ? (1 / nairaToBtc) : (1 / double.parse('$nairaToBtc'));
+        _ngnPerSat = nairaPerBtc / 100000000;
       }
+    } catch (_) {
+      _ngnPerSat = null;
+    }
+  }
+
+  Future<void> _loadRecent() async {
+    try {
+      final recent = await ContactService.getRecentContacts();
+      if (mounted) setState(() => _recent = recent);
     } catch (_) {}
-    return null;
   }
 
-  String? _extractMemo(dynamic response) {
+  Future<void> _importContacts() async {
+    setState(() => _loadingContacts = true);
     try {
-      final payment = (response as dynamic).payment;
-      return payment?.description as String?;
+      final list = await ContactService.importPhoneContacts();
+      if (mounted) setState(() => _contacts = list);
     } catch (_) {
-      return null;
+      _showSnack('Failed to import contacts');
+    } finally {
+      if (mounted) setState(() => _loadingContacts = false);
     }
   }
 
-  String? _extractTxId(dynamic response) {
-    try {
-      final payment = (response as dynamic).payment;
-      return payment?.paymentHash?.toString();
-    } catch (_) {
-      return null;
+  @override
+  void dispose() {
+    _recipientController.dispose();
+    _memoController.dispose();
+    _pinController.dispose();
+    super.dispose();
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppColors.surface,
+      ),
+    );
+  }
+
+  void _selectRecipientFromInput(String raw) {
+    final input = raw.trim();
+    if (input.isEmpty) {
+      _showSnack('Enter a recipient');
+      return;
     }
+
+    RecipientType type;
+    if (input.startsWith('npub')) {
+      type = RecipientType.npub;
+    } else if (input.contains('@') && input.contains('.')) {
+      type = RecipientType.lnAddress;
+    } else if (input.toLowerCase().startsWith('lnbc') ||
+        input.toLowerCase().startsWith('bcrt') ||
+        input.toLowerCase().startsWith('lntb')) {
+      type = RecipientType.lightning;
+    } else if (RegExp(r'^\+?\d{6,}$').hasMatch(input)) {
+      type = RecipientType.phone;
+    } else if (input.startsWith('@')) {
+      type = RecipientType.sabiName;
+    } else {
+      type = RecipientType.lightning;
+    }
+
+    setState(() {
+      _recipient = Recipient(
+        name: input,
+        identifier: input,
+        type: type,
+      );
+      _step = _SendStep.amount;
+    });
+
+    ContactService.addRecentContact(
+      ContactInfo(displayName: input, identifier: input, type: type.name),
+    );
+  }
+
+  void _selectRecipient(ContactInfo contact) {
+    setState(() {
+      _recipient = Recipient(
+        name: contact.displayName,
+        identifier: contact.identifier,
+        type: contact.type == 'phone'
+            ? RecipientType.phone
+            : RecipientType.lightning,
+      );
+      _recipientController.text = contact.identifier;
+      _step = _SendStep.amount;
+    });
+  }
+
+  double _parsedAmount() {
+    final cleaned = _amountText.replaceAll(',', '').trim();
+    return double.tryParse(cleaned) ?? 0;
+  }
+
+  int _amountSats() {
+    final amt = _parsedAmount();
+    if (_mode == _CurrencyMode.sats) return amt.round();
+    if (_ngnPerSat == null) return 0;
+    return (amt / _ngnPerSat!).round();
+  }
+
+  double _amountNgn() {
+    final amt = _parsedAmount();
+    if (_mode == _CurrencyMode.ngn) return amt;
+    if (_ngnPerSat == null) return 0;
+    return amt * _ngnPerSat!;
+  }
+
+  void _setQuickAmount(int value) {
+    setState(() {
+      _quickIndex = value;
+      final amounts = _mode == _CurrencyMode.sats
+          ? [1000, 5000, 10000, 50000]
+          : [1000, 5000, 10000, 50000];
+      _amountText = amounts[value].toString();
+    });
+  }
+
+  void _toggleMode() {
+    setState(() {
+      if (_mode == _CurrencyMode.sats) {
+        final sats = _parsedAmount();
+        if (_ngnPerSat != null) {
+          _amountText = (sats * _ngnPerSat!).toStringAsFixed(0);
+        }
+        _mode = _CurrencyMode.ngn;
+      } else {
+        final ngn = _parsedAmount();
+        if (_ngnPerSat != null) {
+          _amountText = (ngn / _ngnPerSat!).toStringAsFixed(0);
+        }
+        _mode = _CurrencyMode.sats;
+      }
+    });
+  }
+
+  Future<void> _onPaste() async {
+    final clip = await Clipboard.getData('text/plain');
+    final text = clip?.text?.trim();
+    if (text == null || text.isEmpty) {
+      _showSnack('Clipboard is empty');
+      return;
+    }
+    _recipientController.text = text;
+    _selectRecipientFromInput(text);
+  }
+
+  void _nextFromAmount() {
+    if (_recipient == null) {
+      _showSnack('Select a recipient first');
+      return;
+    }
+    final sats = _amountSats();
+    if (sats <= 0) {
+      _showSnack('Enter an amount');
+      return;
+    }
+    setState(() => _step = _SendStep.confirm);
+  }
+
+  Future<void> _confirmAndSend() async {
+    final ngn = _amountNgn();
+    if (ngn > 10000) {
+      await _showPinSheet();
+    } else {
+      await _executeSend();
+    }
+  }
+
+  Future<void> _showPinSheet() async {
+    _pinController.clear();
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter 4-digit street PIN',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _pinController,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: 'PIN',
+                  counterText: '',
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                ),
+                style: const TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (_pinController.text.trim().length != 4) {
+                      _showSnack('PIN must be 4 digits');
+                      return;
+                    }
+                    Navigator.pop(context);
+                    await _executeSend();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Continue'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _executeSend() async {
+    if (_recipient == null) {
+      _showSnack('Select a recipient');
+      return;
+    }
+    final sats = _amountSats();
+    if (sats <= 0) {
+      _showSnack('Enter an amount');
+      return;
+    }
+
+    setState(() => _isSending = true);
+    try {
+      await BreezSparkService.sendPayment(
+        _recipient!.identifier,
+        sats: sats,
+        comment: _memoController.text,
+      );
+      if (!mounted) return;
+      _showSnack('Payment sent');
+      Navigator.pop(context);
+    } catch (e) {
+      _showSnack('Send failed: $e');
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _step == _SendStep.recipient
+                        ? 'Send – Choose Recipient'
+                        : _step == _SendStep.amount
+                            ? 'Send – Enter Amount'
+                            : 'Send – Confirm',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_isSending)
+                    const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _buildStep(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep() {
+    switch (_step) {
+      case _SendStep.recipient:
+        return _buildRecipientStep();
+      case _SendStep.amount:
+        return _buildAmountStep();
+      case _SendStep.confirm:
+        return _buildConfirmStep();
+    }
+  }
+
+  Widget _buildRecipientStep() {
+    return SingleChildScrollView(
+      key: const ValueKey('recipient'),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _recipientController,
+            decoration: InputDecoration(
+              hintText: 'Paste phone, @handle, npub, LNURL, lightning address',
+              hintStyle: const TextStyle(color: AppColors.textSecondary),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.paste, color: AppColors.textSecondary),
+                onPressed: _onPaste,
+              ),
+            ),
+            style: const TextStyle(color: Colors.white),
+            onSubmitted: _selectRecipientFromInput,
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            children: [
+              _pillButton('Paste', Icons.content_paste, _onPaste),
+              _pillButton('Contacts', Icons.contacts, _importContacts),
+              _pillButton('Recent', Icons.history, () {
+                if (_recent.isEmpty) {
+                  _showSnack('No recent recipients');
+                  return;
+                }
+                _showRecentBottomSheet();
+              }),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (_loadingContacts)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            ),
+          if (_contacts.isNotEmpty) ...[
+            const Text('Phone contacts', style: TextStyle(color: Colors.white)),
+            const SizedBox(height: 10),
+            ..._contacts.take(5).map((c) => _contactTile(c)),
+          ],
+          if (_recent.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Text('Recent', style: TextStyle(color: Colors.white)),
+            const SizedBox(height: 10),
+            ..._recent.take(5).map((c) => _contactTile(c)),
+          ],
+          const SizedBox(height: 30),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: () => _selectRecipientFromInput(_recipientController.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Continue'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRecentBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(12),
+            children: _recent.map(_contactTile).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAmountStep() {
+    final quickLabels = _mode == _CurrencyMode.sats
+        ? ['1k', '5k', '10k', '50k']
+        : ['₦1k', '₦5k', '₦10k', '₦50k'];
+
+    final ngn = _amountNgn();
+    final sats = _amountSats();
+
+    return SingleChildScrollView(
+      key: const ValueKey('amount'),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _recipient?.name ?? 'Recipient',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              TextButton(
+                onPressed: _toggleMode,
+                child: Text(
+                  _mode == _CurrencyMode.sats ? 'Switch to ₦' : 'Switch to sats',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  _mode == _CurrencyMode.sats ? 'sats' : '₦',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _amountText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 46,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                    _mode == _CurrencyMode.sats
+                      ? '≈ ₦${ngn.toStringAsFixed(0)}'
+                      : '≈ $sats sats',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Slider(
+            value: _quickIndex.toDouble(),
+            min: 0,
+            max: 3,
+            divisions: 3,
+            label: quickLabels[_quickIndex],
+            onChanged: (v) => _setQuickAmount(v.toInt()),
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.surface,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: quickLabels
+                .asMap()
+                .entries
+                .map(
+                  (e) => GestureDetector(
+                    onTap: () => _setQuickAmount(e.key),
+                    child: Chip(
+                      label: Text(e.value),
+                      backgroundColor: _quickIndex == e.key
+                          ? AppColors.primary.withValues(alpha: 0.2)
+                          : AppColors.surface,
+                      labelStyle: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: _mode == _CurrencyMode.sats ? 'Amount (sats)' : 'Amount (₦)',
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            style: const TextStyle(color: Colors.white, fontSize: 18),
+            onChanged: (v) => setState(() => _amountText = v.isEmpty ? '0' : v),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _memoController,
+            decoration: InputDecoration(
+              labelText: 'Memo (optional)',
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            style: const TextStyle(color: Colors.white),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _nextFromAmount,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Continue'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfirmStep() {
+    final sats = _amountSats();
+    final ngn = _amountNgn();
+
+    return SingleChildScrollView(
+      key: const ValueKey('confirm'),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _summaryRow('To', _recipient?.name ?? ''),
+          const SizedBox(height: 10),
+          _summaryRow('Identifier', _recipient?.identifier ?? ''),
+          const SizedBox(height: 10),
+          _summaryRow('Amount', '$sats sats (₦${ngn.toStringAsFixed(0)})'),
+          const SizedBox(height: 10),
+          _summaryRow('Memo', _memoController.text.isEmpty ? '—' : _memoController.text),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _isSending ? null : _confirmAndSend,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                _isSending ? 'Sending…' : 'Send',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pillButton(String label, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _contactTile(ContactInfo c) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+        child: Text(
+          c.displayName.isNotEmpty ? c.displayName[0].toUpperCase() : '?',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      title: Text(c.displayName, style: const TextStyle(color: Colors.white)),
+      subtitle: Text(c.identifier, style: const TextStyle(color: AppColors.textSecondary)),
+      onTap: () => _selectRecipient(c),
+    );
+  }
+
+  Widget _summaryRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+          ),
+        ),
+      ],
+    );
   }
 }
