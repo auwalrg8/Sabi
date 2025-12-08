@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -226,20 +227,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final displayData = _selectedTab == 'lightning' ? _bolt11 : _bitcoinAddress;
 
     return Container(
-      height: 280,
-      padding: const EdgeInsets.all(16),
+      height: 310.h,
+      padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.primary, width: 8),
+        borderRadius: BorderRadius.circular(24.r),
+        border: Border.all(color: AppColors.primary, width: 8.w),
       ),
       child: Center(
         child:
             displayData != null
                 ? Image.network(
                   'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(displayData)}',
-                  width: 240,
-                  height: 240,
+                  width: 245.w,
+                  height: 265.h,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
@@ -710,9 +711,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       final username = _userProfile?.sabiUsername ?? '@sabi/user';
       final result = await BreezSparkService.createInvoice(
         sats: selectedAmount!,
-        memo: _descriptionController.text.isEmpty
-            ? 'Payment to $username'
-            : _descriptionController.text,
+        memo:
+            _descriptionController.text.isEmpty
+                ? 'Payment to $username'
+                : _descriptionController.text,
       );
 
       if (!mounted) return;
