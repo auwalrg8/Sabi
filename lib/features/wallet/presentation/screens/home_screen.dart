@@ -13,8 +13,8 @@ import 'package:sabi_wallet/services/notification_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 
 import '../providers/wallet_info_provider.dart';
-import '../providers/payment_provider.dart';
 import '../providers/balance_provider.dart';
+import '../providers/recent_transactions_provider.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
@@ -61,6 +61,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await ref.read(balanceNotifierProvider.notifier).refresh();
       // Refresh wallet provider to get the balance
       await ref.read(walletInfoProvider.notifier).refresh();
+      // Refresh recent transactions
+      await ref.read(recentTransactionsProvider.notifier).refresh();
+      // Refresh all transactions
+      await ref.read(allTransactionsNotifierProvider.notifier).refresh();
       _pollPaymentsForConfetti();
       _initEventStream();
       _startAutoRefresh();
@@ -68,7 +72,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _startAutoRefresh() {
-    // Poll balance every 3 seconds using Breez SDK getInfo()
+    // Poll balance and transactions every 3 seconds using Breez SDK
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       if (mounted) {
         try {
@@ -78,8 +82,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ref.read(balanceNotifierProvider.notifier).refresh();
           // Also refresh wallet info provider
           ref.read(walletInfoProvider.notifier).refresh();
+          // Refresh recent transactions
+          ref.read(recentTransactionsProvider.notifier).refresh();
+          // Refresh all transactions
+          ref.read(allTransactionsNotifierProvider.notifier).refresh();
         } catch (e) {
-          debugPrint('⚠️ Balance refresh error: $e');
+          debugPrint('⚠️ Auto-refresh error: $e');
         }
       }
     });
@@ -112,8 +120,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Listen to payment notifications
     eventService.paymentNotifications.listen((payment) async {
-      // Refresh payment list when new payment arrives
-      ref.invalidate(latestPaymentsProvider);
+      // Refresh recent transactions when new payment arrives
+      ref.read(recentTransactionsProvider.notifier).refresh();
+      // Also refresh all transactions
+      ref.read(allTransactionsNotifierProvider.notifier).refresh();
       
       // Show notification or update UI
       if (payment.inbound) {
@@ -163,6 +173,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (state == AppLifecycleState.resumed) {
       // Refresh wallet data when app comes back to foreground
       ref.read(walletInfoProvider.notifier).refresh();
+      // Refresh recent transactions
+      ref.read(recentTransactionsProvider.notifier).refresh();
+      // Refresh all transactions
+      ref.read(allTransactionsNotifierProvider.notifier).refresh();
       // Also poll recent payments to mark first-payment confetti if applicable
       _pollPaymentsForConfetti();
     }
@@ -548,8 +562,7 @@ class _HomeContent extends ConsumerWidget {
               // Display real transactions from Breez SDK
               Consumer(
                 builder: (context, ref, _) {
-                  final paymentsAsync = ref.watch(latestPaymentsProvider);
-                  final walletModel = walletAsync.asData?.value;
+                  final paymentsAsync = ref.watch(recentTransactionsProvider);
 
                   return paymentsAsync.when(
                     data: (payments) {
@@ -600,14 +613,7 @@ class _HomeContent extends ConsumerWidget {
                                     '${_monthName(paymentTime.month)} ${paymentTime.day}, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
                               }
 
-                              final double amountNgn = _satsToNgn(
-                                payment.amountSats,
-                                walletModel,
-                              );
-                              final String amountDisplay =
-                                  amountNgn > 0
-                                      ? '$amountPrefix₦${_formatNgn(amountNgn)}'
-                                      : '$amountPrefix${payment.amountSats} sats';
+                              final String amountDisplay = '$amountPrefix${_formatSats(payment.amountSats)} sats';
                               final title =
                                   payment.description.isNotEmpty
                                       ? payment.description
@@ -676,17 +682,9 @@ class _HomeContent extends ConsumerWidget {
     return months[month];
   }
 
-  double _satsToNgn(int sats, WalletModel? model) {
-    if (model != null && model.balanceNgn != null && model.balanceSats > 0) {
-      final ngnPerSat = model.balanceNgn! / model.balanceSats;
-      return sats * ngnPerSat;
-    }
-    return 0;
-  }
-
-  String _formatNgn(double amount) {
+  String _formatSats(int amount) {
     return amount
-        .toStringAsFixed(0)
+        .toString()
         .replaceAllMapped(
           RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
           (match) => '${match[1]},',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/wallet/presentation/providers/payment_provider.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/recent_transactions_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_detail_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_debug_screen.dart';
 
@@ -10,7 +10,7 @@ class TransactionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paymentsAsync = ref.watch(allPaymentsProvider);
+    final paymentsAsync = ref.watch(allTransactionsNotifierProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -57,7 +57,7 @@ class TransactionsScreen extends ConsumerWidget {
                     backgroundColor: AppColors.surface,
                     color: AppColors.primary,
                     onRefresh: () async {
-                      ref.invalidate(allPaymentsProvider);
+                      await ref.read(allTransactionsNotifierProvider.notifier).refresh();
                     },
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(
@@ -205,7 +205,7 @@ class TransactionsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () => ref.invalidate(allPaymentsProvider),
+                          onPressed: () => ref.read(allTransactionsNotifierProvider.notifier).refresh(),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                           ),
