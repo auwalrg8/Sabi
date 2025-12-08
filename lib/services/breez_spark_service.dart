@@ -149,7 +149,9 @@ class BreezSparkService {
       try {
         debugPrint('🔍 Validating SDK connection with getInfo()...');
         final info = await _sdk!.getInfo(request: GetInfoRequest());
-        debugPrint('✅ API validation SUCCESS - Balance: ${info.balanceSats} sats');
+        final balanceMsat = info.balances.lightning;
+        final balanceSats = (balanceMsat ~/ BigInt.from(1000)).toInt();
+        debugPrint('✅ API validation SUCCESS - Balance: $balanceSats sats');
       } catch (e) {
         _sdk = null;
         debugPrint('❌ API validation FAILED: $e');
@@ -215,9 +217,34 @@ class BreezSparkService {
     try {
       // Use ensure_synced: true to get network-fresh balance instead of cached
       final info = await _sdk!.getInfo(request: GetInfoRequest(ensureSynced: true));
-      // balanceSats is already in sats
-      final balanceSats = (info.balanceSats).toInt();
-      debugPrint('💰 Balance: $balanceSats sats');
+      
+      // DEBUG: Log all available balance fields
+      debugPrint('📊 Balance Info Debug:');
+      debugPrint('   info type: ${info.runtimeType}');
+      try {
+        debugPrint('   info.balanceSats: ${info.balanceSats}');
+      } catch (e) {
+        debugPrint('   info.balanceSats ERROR: $e');
+      }
+      
+      // Try to get balance from balances.lightning (similar to transaction amount fix)
+      int balanceSats = 0;
+      try {
+        // The balance is likely in info.balances.lightning (in msat)
+        final balanceMsat = info.balances.lightning;
+        balanceSats = (balanceMsat ~/ BigInt.from(1000)).toInt();
+        debugPrint('   info.balances.lightning: $balanceMsat msat = $balanceSats sats');
+      } catch (e) {
+        debugPrint('   info.balances.lightning ERROR: $e');
+        // Fallback to balanceSats if available
+        try {
+          balanceSats = (info.balanceSats).toInt();
+        } catch (e2) {
+          debugPrint('   Fallback balanceSats ERROR: $e2');
+        }
+      }
+      
+      debugPrint('💰 Final Balance: $balanceSats sats');
       return balanceSats;
     } catch (e) {
       debugPrint('❌ Get balance error: $e');
