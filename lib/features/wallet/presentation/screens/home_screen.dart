@@ -21,6 +21,7 @@ import 'qr_scanner_screen.dart';
 import 'transactions_screen.dart';
 import 'notifications_screen.dart';
 import 'payment_detail_screen.dart';
+import 'payment_received_screen.dart';
 import 'package:sabi_wallet/features/onboarding/data/models/wallet_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -144,12 +145,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           description: payment.description,
         );
 
+        // Show payment received screen with animation
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Received ${payment.amountSats} sats'),
-              backgroundColor: AppColors.accentGreen,
-              duration: const Duration(seconds: 3),
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              opaque: false,
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  PaymentReceivedScreen(
+                amountSats: payment.amountSats,
+                description: payment.description ?? '',
+              ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
             ),
           );
         }
