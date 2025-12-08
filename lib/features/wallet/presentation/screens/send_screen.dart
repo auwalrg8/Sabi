@@ -7,6 +7,7 @@ import 'package:sabi_wallet/core/services/api_client.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
+import 'qr_scanner_screen.dart';
 
 enum _SendStep { recipient, amount, confirm }
 
@@ -218,6 +219,22 @@ class _SendScreenState extends State<SendScreen>
     _selectRecipientFromInput(text);
   }
 
+  Future<void> _openQRScanner() async {
+    try {
+      final String? scannedCode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+      );
+
+      if (scannedCode != null && scannedCode.isNotEmpty && mounted) {
+        _recipientController.text = scannedCode;
+        _selectRecipientFromInput(scannedCode);
+      }
+    } catch (e) {
+      _showSnack('QR Scanner error: $e');
+    }
+  }
+
   void _nextFromAmount() {
     if (_recipient == null) {
       _showSnack('Select a recipient first');
@@ -421,10 +438,7 @@ class _SendScreenState extends State<SendScreen>
                         Icons.qr_code_scanner,
                         color: AppColors.textSecondary,
                       ),
-                      onPressed: () async {
-                        // TODO: Implement QR scanner
-                        _showSnack('QR scanner coming soon');
-                      },
+                      onPressed: _openQRScanner,
                     ),
                   ),
                   style: const TextStyle(color: Colors.white, fontSize: 14),
