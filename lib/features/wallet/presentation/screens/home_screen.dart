@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
@@ -263,7 +265,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: const Text('Cancel'),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () {
+                  // Save all data before exiting
+                  Navigator.of(context).pop(true);
+                },
                 child: const Text('Exit'),
               ),
             ],
@@ -283,7 +288,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (_currentIndex == 0) {
           final shouldExit = await _showExitDialog();
           if (shouldExit && context.mounted) {
-            Navigator.of(context).pop();
+            // Exit the app completely (minimize to background)
+            // Data is already saved in Hive/SecureStorage
+            await Future.delayed(const Duration(milliseconds: 100));
+            // Use SystemNavigator to exit without popping
+            if (Platform.isAndroid) {
+              SystemNavigator.pop();
+            } else if (Platform.isIOS) {
+              exit(0);
+            }
           }
         } else {
           // If not on home tab, go back to home tab
