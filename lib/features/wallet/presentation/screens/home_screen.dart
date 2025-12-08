@@ -111,12 +111,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     // Listen to payment notifications
-    eventService.paymentNotifications.listen((payment) {
+    eventService.paymentNotifications.listen((payment) async {
       // Refresh payment list when new payment arrives
       ref.invalidate(latestPaymentsProvider);
       
       // Show notification or update UI
-      if (mounted && payment.inbound) {
+      if (payment.inbound) {
+        // Trigger confetti for incoming payments
+        final storage = ref.read(secureStorageServiceProvider);
+        await storage.write(
+          key: 'first_payment_confetti_pending',
+          value: 'true',
+        );
+        
+        // Refresh balance to show confetti
+        ref.read(balanceNotifierProvider.notifier).refresh();
+        
         // Add to notification service
         NotificationService.addPaymentNotification(
           isInbound: payment.inbound,
@@ -124,15 +134,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           description: payment.description,
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Received ${payment.amountSats} sats'),
-            backgroundColor: AppColors.accentGreen,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Received ${payment.amountSats} sats'),
+              backgroundColor: AppColors.accentGreen,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-      // Refresh wallet info
+      // Refresh wallet info and balance
+      ref.read(balanceNotifierProvider.notifier).refresh();
       ref.read(walletInfoProvider.notifier).refresh();
     });
   }
