@@ -69,9 +69,7 @@ class TransactionsScreen extends ConsumerWidget {
                         final payment = payments[index];
                         final isInbound = payment.isIncoming;
                         final amountColor =
-                            isInbound
-                                ? AppColors.accentGreen
-                                : const Color(0xFFFF4D4F);
+                            isInbound ? AppColors.accentGreen : const Color(0xFFFF4D4F);
                         final amountPrefix = isInbound ? '+' : '-';
 
                         final now = DateTime.now();
@@ -109,122 +107,114 @@ class TransactionsScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color:
-                                      isInbound
-                                          ? AppColors.accentGreen.withValues(
-                                            alpha: 0.1,
-                                          )
-                                          : const Color(
-                                            0xFFFF4D4F,
-                                          ).withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: isInbound
+                                        ? AppColors.accentGreen.withValues(alpha: 0.1)
+                                        : const Color(0xFFFF4D4F).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isInbound
+                                        ? Icons.arrow_downward_rounded
+                                        : Icons.arrow_upward_rounded,
+                                    color: amountColor,
+                                    size: 24,
+                                  ),
                                 ),
-                                child: Icon(
-                                  isInbound
-                                      ? Icons.arrow_downward_rounded
-                                      : Icons.arrow_upward_rounded,
-                                  color: amountColor,
-                                  size: 24,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isInbound ? 'Received' : 'Sent',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        timeStr,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      isInbound ? 'Received' : 'Sent',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                      '$amountPrefix${payment.amountSats} sats',
+                                      style: TextStyle(
+                                        color: amountColor,
                                         fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      timeStr,
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '$amountPrefix${payment.amountSats} sats',
-                                    style: TextStyle(
-                                      color: amountColor,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                         );
                       },
                     ),
                   );
                 },
-                loading:
-                    () => const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                error:
-                    (error, stack) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 60,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Failed to load transactions',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              error.toString(),
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed:
-                                  () => ref.invalidate(allPaymentsProvider),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                              ),
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                loading: () => const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                  ),
+                ),
+                error: (error, stack) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 60,
+                          color: AppColors.textSecondary,
                         ),
-                      ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Failed to load transactions',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => ref.invalidate(allPaymentsProvider),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -238,37 +228,40 @@ class TransactionsScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       child: Row(
         children: [
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'All Transactions',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 10),
-            const Text(
-              'All Transactions',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+          ),
+          const Spacer(),
+          // Debug button - tap 3 times to show
+          Material(
+            color: Colors.transparent,
+            child: Tooltip(
+              message: 'Payment Debug Info',
+              child: IconButton(
+                icon: const Icon(Icons.bug_report_outlined, color: AppColors.primary),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PaymentDebugScreen(),
+                    ),
+                  );
+                },
               ),
             ),
-            const Spacer(),
-            // Debug button - tap 3 times to show
-            Material(
-              color: Colors.transparent,
-              child: Tooltip(
-                message: 'Payment Debug Info',
-                child: IconButton(
-                  icon: const Icon(Icons.bug_report_outlined, color: AppColors.primary),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PaymentDebugScreen()),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
