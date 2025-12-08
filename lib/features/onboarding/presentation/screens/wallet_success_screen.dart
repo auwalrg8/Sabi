@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 
 class WalletSuccessScreen extends StatefulWidget {
   const WalletSuccessScreen({super.key});
@@ -82,10 +81,7 @@ class _WalletSuccessScreenState extends State<WalletSuccessScreen>
                   animation: _rocketController,
                   builder: (context, child) {
                     return Transform.translate(
-                      offset: Offset(
-                        0,
-                        -500 * _rocketController.value,
-                      ),
+                      offset: Offset(0, -500 * _rocketController.value),
                       child: child,
                     );
                   },
@@ -167,46 +163,33 @@ class _WalletSuccessScreenState extends State<WalletSuccessScreen>
           color: AppColors.primary,
           borderRadius: BorderRadius.circular(40),
         ),
-        child: const Center(
-          child: Text(
-            '🚀',
-            style: TextStyle(fontSize: 60),
-          ),
-        ),
+        child: const Center(child: Text('🚀', style: TextStyle(fontSize: 60))),
       ),
     );
   }
 
   Widget _buildBackgroundAnimation() {
     return Stack(
-      children: List.generate(
-        15,
-        (index) {
-          final delay = (index * 100).toDouble();
+      children: List.generate(15, (index) {
+        final delay = (index * 100).toDouble();
 
-          return Positioned(
-            left: (index * 30).toDouble() % 400,
-            top: (index * 60).toDouble() % 800,
-            child: AnimatedBuilder(
-              animation: _rocketController,
-              builder: (context, child) {
-                final opacity = (1.0 - (_rocketController.value + (delay / 3000)))
-                    .clamp(0.0, 1.0)
-                    .toDouble();
+        return Positioned(
+          left: (index * 30).toDouble() % 400,
+          top: (index * 60).toDouble() % 800,
+          child: AnimatedBuilder(
+            animation: _rocketController,
+            builder: (context, child) {
+              final opacity =
+                  (1.0 - (_rocketController.value + (delay / 3000)))
+                      .clamp(0.0, 1.0)
+                      .toDouble();
 
-                return Opacity(
-                  opacity: opacity * 0.3,
-                  child: child,
-                );
-              },
-              child: const Text(
-                '✨',
-                style: TextStyle(fontSize: 24),
-              ),
-            ),
-          );
-        },
-      ),
+              return Opacity(opacity: opacity * 0.3, child: child);
+            },
+            child: const Text('✨', style: TextStyle(fontSize: 24)),
+          ),
+        );
+      }),
     );
   }
 }

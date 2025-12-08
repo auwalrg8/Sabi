@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 import 'seed_recovery_screen.dart';
@@ -20,7 +22,7 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
     try {
       // Generate new wallet
       await BreezSparkService.initializeSparkSDK();
-      
+
       // Mark onboarding complete
       await BreezSparkService.setOnboardingComplete();
 
@@ -47,9 +49,7 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
     if (mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const SeedRecoveryScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const SeedRecoveryScreen()),
       );
     }
   }
@@ -68,24 +68,24 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Welcome to Sabi Wallet',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 32,
+                        fontSize: 32.sp,
                         fontWeight: FontWeight.w900,
-                        height: 1.2,
+                        height: 1.2.h,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Text(
                       'Self-custodial Bitcoin & Lightning in your pocket',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w400,
-                        height: 1.5,
+                        height: 1.5.h,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -98,50 +98,55 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                   // Create Wallet Button
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
+                    height: 56.h,
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _createNewWallet,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFA500),
-                        disabledBackgroundColor: const Color(0xFFFFA500).withValues(alpha: 0.5),
+                        disabledBackgroundColor: const Color(
+                          0xFFFFA500,
+                        ).withValues(alpha: 0.5),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
                         elevation: 0,
                       ),
-                      icon: _isLoading
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.black.withValues(alpha: 0.8),
+                      icon:
+                          _isLoading
+                              ? SizedBox(
+                                width: 20.w,
+                                height: 20.h,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    // Colors.black.withValues(alpha: 0.8),
+                                    AppColors.background,
+                                  ),
+                                  strokeWidth: 2,
                                 ),
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.add, color: Colors.black),
+                              )
+                              : Icon(Icons.add, color: AppColors.background),
                       label: Text(
                         _isLoading ? 'Creating...' : "Let's Sabi ₿",
                         style: TextStyle(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          fontSize: 16,
+                          // color: Colors.black.withValues(alpha: 0.8),
+                          color: AppColors.background,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12.h),
                   // Restore Button
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
+                    height: 56.h,
                     child: OutlinedButton(
                       onPressed: _isLoading ? null : _restoreWallet,
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
+                        side: BorderSide(
                           color: Color(0xFF1F2937),
-                          width: 1.5,
+                          width: 1.5.w,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -151,7 +156,7 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                         'Restore',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

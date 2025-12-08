@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -35,9 +36,12 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
     for (var node in _focusNodes) {
       node.dispose();
     }
-    
+
     // Create new controllers based on word count
-    _controllers = List.generate(_wordCount, (index) => TextEditingController());
+    _controllers = List.generate(
+      _wordCount,
+      (index) => TextEditingController(),
+    );
     _focusNodes = List.generate(_wordCount, (index) => FocusNode());
   }
 
@@ -54,12 +58,12 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
 
   void _onPasteChanged(String value) {
     setState(() => _errorMessage = null);
-    
+
     if (value.trim().isEmpty) return;
-    
+
     // Split by whitespace
     final words = value.trim().toLowerCase().split(RegExp(r'\s+'));
-    
+
     // Validate word count (12, 15, 18, 21, or 24 words)
     if (words.length >= 12 && words.length <= 24) {
       // Auto-detect and set word count
@@ -70,7 +74,7 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
           _initializeControllers();
         });
       }
-      
+
       // Fill in the words
       for (int i = 0; i < words.length && i < _wordCount; i++) {
         _controllers[i].text = words[i];
@@ -104,12 +108,13 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
 
   Future<void> _restoreWallet() async {
     String mnemonic;
-    
+
     if (_usePasteMode) {
       mnemonic = _pasteController.text.trim().toLowerCase();
     } else {
       // Collect all words from grid
-      final words = _controllers.map((c) => c.text.trim().toLowerCase()).toList();
+      final words =
+          _controllers.map((c) => c.text.trim().toLowerCase()).toList();
       if (words.any((w) => w.isEmpty)) {
         setState(() => _errorMessage = 'Please enter all $_wordCount words');
         return;
@@ -131,7 +136,11 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
 
     // Validate BIP39 mnemonic (checksum validation)
     if (!bip39.validateMnemonic(mnemonic)) {
-      setState(() => _errorMessage = 'Invalid seed phrase — check spelling and word count');
+      setState(
+        () =>
+            _errorMessage =
+                'Invalid seed phrase — check spelling and word count',
+      );
       return;
     }
 
@@ -151,7 +160,7 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
       final storage = ref.read(secureStorageServiceProvider);
       await storage.saveWalletSeed(mnemonic);
       await storage.saveBackupStatus('seed');
-      
+
       // CRITICAL: Mark onboarding complete so app never loops back
       await BreezSparkService.setOnboardingComplete();
 
@@ -177,41 +186,46 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: AppColors.textPrimary,
+                      size: 25.sp,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  SizedBox(width: 7.w),
+                  Text(
+                    'Restore from Seed Phrase',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 15.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Restore from Seed Phrase',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
                     Text(
-                      _usePasteMode ? 'Paste your seed phrase (12-24 words)' : 'Enter your $_wordCount-word seed phrase',
-                      style: const TextStyle(
+                      _usePasteMode
+                          ? 'Paste your seed phrase (12-24 words)'
+                          : 'Enter your $_wordCount-word seed phrase',
+                      style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 13.h),
                     // Mode toggle
                     Row(
                       children: [
@@ -226,33 +240,35 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
                         if (!_usePasteMode) _buildWordCountSelector(),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20.h),
                     _usePasteMode ? _buildPasteField() : _buildWordGrid(),
                     if (_errorMessage != null) ...[
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20.h),
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(12.w),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF4D4F).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                           border: Border.all(
-                            color: const Color(0xFFFF4D4F).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFFFF4D4F,
+                            ).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.error_outline,
                               color: Color(0xFFFF4D4F),
-                              size: 20,
+                              size: 20.sp,
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: 12.w),
                             Expanded(
                               child: Text(
                                 _errorMessage!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Color(0xFFFF4D4F),
-                                  fontSize: 13,
+                                  fontSize: 13.sp,
                                 ),
                               ),
                             ),
@@ -260,27 +276,27 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16.r),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.info_outline,
                             color: AppColors.primary,
-                            size: 20,
+                            size: 20.sp,
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: 12.w),
                           Expanded(
                             child: Text(
                               'Supports 12-24 word BIP39 seed phrases. Paste your full phrase or type word by word.',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 12,
+                                fontSize: 12.sp,
                               ),
                             ),
                           ),
@@ -302,20 +318,18 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.r),
       child: TextField(
         controller: _pasteController,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
+        style: TextStyle(color: AppColors.textPrimary, fontSize: 14.sp),
         maxLines: 6,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           border: InputBorder.none,
-          hintText: 'Paste your seed phrase here...\n\ne.g., word1 word2 word3 ... word12',
-          hintStyle: TextStyle(
-            color: AppColors.textTertiary,
-            fontSize: 13,
-          ),
+          hintText:
+              'Paste your seed phrase here...\n\ne.g., word1 word2 word3 ... word12',
+          hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 13.sp),
         ),
         onChanged: _onPasteChanged,
       ),
@@ -326,16 +340,16 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.r),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: isSelected ? Colors.white : AppColors.textSecondary,
-            fontSize: 13,
+            fontSize: 13.sp,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -346,43 +360,51 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
   Widget _buildWordCountSelector() {
     return Row(
       children: [
-        const Text(
+        Text(
           'Words:',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
         ),
-        const SizedBox(width: 8),
-        ...[12, 24].map((count) => Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _wordCount = count;
-                _initializeControllers();
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _wordCount == count ? AppColors.primary.withValues(alpha: 0.2) : AppColors.surface,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: _wordCount == count ? AppColors.primary : Colors.transparent,
+        SizedBox(width: 8.w),
+        ...[12, 24].map(
+          (count) => Padding(
+            padding: EdgeInsets.only(left: 4.w),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _wordCount = count;
+                  _initializeControllers();
+                });
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color:
+                      _wordCount == count
+                          ? AppColors.primary.withValues(alpha: 0.2)
+                          : AppColors.surface,
+                  borderRadius: BorderRadius.circular(6.r),
+                  border: Border.all(
+                    color:
+                        _wordCount == count
+                            ? AppColors.primary
+                            : Colors.transparent,
+                  ),
                 ),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: _wordCount == count ? AppColors.primary : AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color:
+                        _wordCount == count
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
           ),
-        )),
+        ),
       ],
     );
   }
@@ -391,10 +413,10 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        crossAxisSpacing: 12.h,
+        mainAxisSpacing: 12.w,
         childAspectRatio: 3.5,
       ),
       itemCount: _wordCount,
@@ -408,29 +430,29 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
         children: [
           Container(
-            width: 36,
+            width: 36.w,
             alignment: Alignment.center,
             child: Text(
               '${index + 1}.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
             ),
           ),
           Expanded(
             child: TextField(
               controller: _controllers[index],
               focusNode: _focusNodes[index],
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              decoration: const InputDecoration(
+              style: TextStyle(color: Colors.white, fontSize: 14.sp),
+              decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: 'word',
                 hintStyle: TextStyle(
                   color: AppColors.textTertiary,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                 ),
               ),
               onChanged: (value) => _onWordChanged(index, value),
@@ -440,7 +462,9 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
                 }
               },
               textInputAction:
-                  index < _wordCount - 1 ? TextInputAction.next : TextInputAction.done,
+                  index < _wordCount - 1
+                      ? TextInputAction.next
+                      : TextInputAction.done,
             ),
           ),
         ],
@@ -450,33 +474,33 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
 
   Widget _buildRestoreButton() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+      padding: EdgeInsets.fromLTRB(30.w, 0, 30.w, 30.h),
       child: SizedBox(
         width: double.infinity,
-        height: 50,
+        height: 52.h,
         child: ElevatedButton(
           onPressed: _isRestoring ? null : _restoreWallet,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
             ),
           ),
           child:
               _isRestoring
-                  ? const SizedBox(
-                    width: 20,
-                    height: 20,
+                  ? SizedBox(
+                    width: 20.w,
+                    height: 20.h,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+                      color: AppColors.textPrimary,
+                      strokeWidth: 2.w,
                     ),
                   )
-                  : const Text(
+                  : Text(
                     'Restore Wallet',
                     style: TextStyle(
                       color: AppColors.surface,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
