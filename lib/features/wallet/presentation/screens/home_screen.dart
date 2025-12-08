@@ -446,11 +446,9 @@ class _HomeContent extends ConsumerWidget {
 
                       return walletAsync.when(
                         data: (model) {
-                          final sats = (model?.balanceSats ?? 0).toDouble();
-                          final ngn = model?.balanceNgn ?? 0.0;
+                          final sats = model?.balanceSats ?? 0;
                           return BalanceCard(
                             balanceSats: sats,
-                            balanceNgn: ngn,
                             showConfetti: showConfetti,
                             isOnline: ref.watch(eventStreamServiceProvider).isConnected,
                             isBalanceHidden: !isBalanceVisible,
@@ -459,11 +457,9 @@ class _HomeContent extends ConsumerWidget {
                         },
                         loading: () => const BalanceCard(
                           balanceSats: 0,
-                          balanceNgn: 0,
                         ),
                         error: (_, __) => const BalanceCard(
                           balanceSats: 0,
-                          balanceNgn: 0,
                         ),
                       );
                     },
