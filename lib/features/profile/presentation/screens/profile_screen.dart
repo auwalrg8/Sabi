@@ -5,6 +5,7 @@ import 'package:sabi_wallet/features/profile/presentation/screens/backup_recover
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -46,6 +47,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (result == true) {
       _loadProfile(); // Reload profile after edit
+    }
+  }
+
+  Future<void> _switchWallet() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Switch Wallet?'),
+        content: const Text(
+          'This will take you back to the wallet selection screen. Your wallet data will remain secure.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Switch', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // Go back to entry screen
+      Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
     }
   }
 
@@ -223,6 +251,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () {
                     // TODO: Navigate to earn rewards screen
                   },
+                ),
+                const SizedBox(height: 12),
+                _MenuItemTile(
+                  icon: Icons.swap_horiz,
+                  iconColor: Colors.orange,
+                  title: 'Switch Wallet',
+                  onTap: _switchWallet,
                 ),
               ],
             ),

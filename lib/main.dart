@@ -8,6 +8,7 @@ import 'services/notification_service.dart';
 import 'services/profile_service.dart';
 import 'features/wallet/presentation/screens/home_screen.dart';
 import 'features/onboarding/presentation/screens/splash_screen.dart';
+import 'features/onboarding/presentation/screens/entry_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,7 +54,8 @@ class SabiWalletApp extends StatelessWidget {
           : const SplashScreen(),   // No wallet → show onboarding
       routes: {
         '/home': (context) => const HomeScreen(),
-        '/splash': (context) => const SplashScreen(),
+        '/splash': (context) => const EntryScreen(),
+        '/entry': (context) => const EntryScreen(),
       },
       theme: ThemeData(
         fontFamily: 'Inter',
