@@ -8,7 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bip39/bip39.dart' as bip39;
 
 class SeedPhraseScreen extends ConsumerStatefulWidget {
-  const SeedPhraseScreen({super.key});
+  final bool isRestoring;
+  
+  const SeedPhraseScreen({
+    super.key,
+    this.isRestoring = false,
+  });
 
   @override
   ConsumerState<SeedPhraseScreen> createState() => _SeedPhraseScreenState();
