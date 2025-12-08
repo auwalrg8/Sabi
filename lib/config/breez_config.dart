@@ -7,7 +7,7 @@ import 'breez_api_key.local.dart' as breez_local; // Local, gitignored
 class BreezConfig {
   // Cloudflare Worker URL (100% safe to commit - key encrypted in Cloudflare)
   static const String _configUrl =
-    "https://sabi-breez-config.sabibwalet.workers.dev";
+      "https://sabi-breez-config.sabibwalet.workers.dev";
   static const String _cacheKey = 'breez_api_key_cached';
   static const _secureStorage = FlutterSecureStorage();
 
@@ -15,12 +15,14 @@ class BreezConfig {
   /// Set to true for development/testing, false for production
   static const bool useRegtest = false; // Mainnet by default
 
-    // Local override API key (gitignored file) or dart-define
-    static const String localOverrideApiKey = breez_local.breezApiKey;
+  // Local override API key (gitignored file) or dart-define
+  static const String localOverrideApiKey = breez_local.breezApiKey;
 
-    // Build-time override from --dart-define=BREEZ_API_KEY=... (preferred for CI/local)
-    static const String _dartDefineApiKey =
-      String.fromEnvironment('BREEZ_API_KEY', defaultValue: '');
+  // Build-time override from --dart-define=BREEZ_API_KEY=... (preferred for CI/local)
+  static const String _dartDefineApiKey = String.fromEnvironment(
+    'BREEZ_API_KEY',
+    defaultValue: '',
+  );
 
   /// Get network type based on useRegtest flag
   static String get networkType => useRegtest ? 'regtest' : 'mainnet';

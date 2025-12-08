@@ -1,4 +1,3 @@
-// lib/features/onboarding/presentation/screens/onboarding_carousel_screen.dart
 import 'package:flutter/material.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/widgets/pages/onboarding_page.dart';
