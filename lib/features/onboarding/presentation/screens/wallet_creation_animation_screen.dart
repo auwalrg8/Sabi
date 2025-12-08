@@ -7,7 +7,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 
 class WalletCreationAnimationScreen extends ConsumerStatefulWidget {
   const WalletCreationAnimationScreen({super.key});
@@ -39,8 +38,9 @@ class _WalletCreationAnimationScreenState
   Future<void> _detectAssetsAndStart() async {
     // Try to load lottie asset presence
     try {
-      await DefaultAssetBundle.of(context)
-          .loadString('assets/anim/rocket_launch.json');
+      await DefaultAssetBundle.of(
+        context,
+      ).loadString('assets/anim/rocket_launch.json');
       _hasLottie = true;
     } catch (_) {
       _hasLottie = false;
@@ -147,34 +147,34 @@ class _WalletCreationAnimationScreenState
     }
 
     return Container(
-      width: 140,
-      height: 140,
-      decoration: BoxDecoration(
-        color: isReady
-            ? AppColors.accentGreen.withValues(alpha: 0.2)
-            : AppColors.primary.withValues(alpha: 0.2),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Icon(
-          isReady ? Icons.check_circle_outline : Icons.rocket_launch_outlined,
-          size: 80,
-          color: isReady ? AppColors.accentGreen : AppColors.primary,
+          width: 140,
+          height: 140,
+          decoration: BoxDecoration(
+            color:
+                isReady
+                    ? AppColors.accentGreen.withValues(alpha: 0.2)
+                    : AppColors.primary.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Icon(
+                  isReady
+                      ? Icons.check_circle_outline
+                      : Icons.rocket_launch_outlined,
+                  size: 80,
+                  color: isReady ? AppColors.accentGreen : AppColors.primary,
+                )
+                .animate(onPlay: (controller) => controller.repeat())
+                .shimmer(
+                  duration: 2000.ms,
+                  color: Colors.white.withValues(alpha: 0.3),
+                )
+                .then()
+                .shake(hz: 2, duration: 500.ms),
+          ),
         )
-            .animate(onPlay: (controller) => controller.repeat())
-            .shimmer(
-              duration: 2000.ms,
-              color: Colors.white.withValues(alpha: 0.3),
-            )
-            .then()
-            .shake(hz: 2, duration: 500.ms),
-      ),
-    )
         .animate()
-        .scale(
-          duration: 600.ms,
-          curve: Curves.elasticOut,
-        )
+        .scale(duration: 600.ms, curve: Curves.elasticOut)
         .fadeIn(duration: 400.ms);
   }
 }
@@ -198,10 +198,7 @@ class _ConfettiPiece extends StatelessWidget {
   final Duration delay;
   final double horizontalOffset;
 
-  const _ConfettiPiece({
-    required this.delay,
-    required this.horizontalOffset,
-  });
+  const _ConfettiPiece({required this.delay, required this.horizontalOffset});
 
   @override
   Widget build(BuildContext context) {
@@ -216,13 +213,13 @@ class _ConfettiPiece extends StatelessWidget {
       top: -20,
       left: MediaQuery.of(context).size.width / 2 + horizontalOffset,
       child: Container(
-        width: 8,
-        height: 16,
-        decoration: BoxDecoration(
-          color: colors[horizontalOffset.toInt().abs() % colors.length],
-          borderRadius: BorderRadius.circular(2),
-        ),
-      )
+            width: 8,
+            height: 16,
+            decoration: BoxDecoration(
+              color: colors[horizontalOffset.toInt().abs() % colors.length],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          )
           .animate(delay: delay)
           .moveY(
             begin: 0,
