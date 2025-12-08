@@ -102,6 +102,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Listen to payment notifications
     eventService.paymentNotifications.listen((payment) {
+      // Refresh payment list when new payment arrives
+      ref.invalidate(latestPaymentsProvider);
+      
       // Show notification or update UI
       if (mounted && payment.inbound) {
         // Add to notification service
