@@ -42,13 +42,19 @@ class _BalanceCardState extends State<BalanceCard> {
     );
   }
 
+  String _satsToBTC(int sats) {
+    // 1 BTC = 100,000,000 sats
+    final btc = sats / 100000000;
+    return btc.toStringAsFixed(5);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -68,14 +74,14 @@ class _BalanceCardState extends State<BalanceCard> {
             ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
           // Header: Title + Hide Button
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Your Balance',
+                'Total Balance',
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 14,
@@ -95,7 +101,7 @@ class _BalanceCardState extends State<BalanceCard> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           // Sats balance display
           if (widget.isBalanceHidden)
             const Text(
@@ -110,26 +116,43 @@ class _BalanceCardState extends State<BalanceCard> {
             )
           else
             Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  _formatSats(widget.balanceSats),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 56,
-                    fontWeight: FontWeight.w700,
-                    height: 0.9,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      _formatSats(widget.balanceSats),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 56,
+                        fontWeight: FontWeight.w700,
+                        height: 0.9,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'sats',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        height: 0.9,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'SATS',
-                  style: TextStyle(
+                const SizedBox(height: 12),
+                Text(
+                  '≈ ${_satsToBTC(widget.balanceSats)} BTC',
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w500,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
