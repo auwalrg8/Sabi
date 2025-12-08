@@ -35,12 +35,12 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
       if (!mounted) return;
 
       // Backend manages Breez; frontend proceeds to backup flow without creating wallet yet
-      ref.read(onboardingNotifierProvider.notifier).setPath(OnboardingPath.createNew);
+      ref
+          .read(onboardingNotifierProvider.notifier)
+          .setPath(OnboardingPath.createNew);
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const BackupChoiceScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const BackupChoiceScreen()),
       );
     } catch (e) {
       walletCreationNotifier.setError('Error preparing wallet: $e');
@@ -55,11 +55,17 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
     final now = DateTime.now();
     final random = now.microsecond ^ now.millisecond;
     final hex1 = now.year.toRadixString(16).padLeft(8, '0');
-    final hex2 = now.month.toRadixString(16).padLeft(2, '0') + now.day.toRadixString(16).padLeft(2, '0');
-    final hex3 = now.hour.toRadixString(16).padLeft(2, '0') + now.minute.toRadixString(16).padLeft(2, '0');
-    final hex4 = now.second.toRadixString(16).padLeft(2, '0') + random.toRadixString(16).padLeft(6, '0');
+    final hex2 =
+        now.month.toRadixString(16).padLeft(2, '0') +
+        now.day.toRadixString(16).padLeft(2, '0');
+    final hex3 =
+        now.hour.toRadixString(16).padLeft(2, '0') +
+        now.minute.toRadixString(16).padLeft(2, '0');
+    final hex4 =
+        now.second.toRadixString(16).padLeft(2, '0') +
+        random.toRadixString(16).padLeft(6, '0');
     final hex5 = now.microsecond.toRadixString(16).padLeft(12, '0');
-    
+
     return '$hex1-$hex2-4$hex3-a$hex4-$hex5';
   }
 
@@ -90,7 +96,8 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
               ),
               const SizedBox(height: 30),
               _CreateWalletCard(
-                onTap: walletCreationState.isLoading ? null : _prepareAndProceed,
+                onTap:
+                    walletCreationState.isLoading ? null : _prepareAndProceed,
                 isLoading: walletCreationState.isLoading,
               ),
               const SizedBox(height: 20),
@@ -109,16 +116,17 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
               ),
               const SizedBox(height: 24),
               TextButton(
-                onPressed: walletCreationState.isLoading
-                    ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SeedRecoveryScreen(),
-                          ),
-                        );
-                      },
+                onPressed:
+                    walletCreationState.isLoading
+                        ? null
+                        : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SeedRecoveryScreen(),
+                            ),
+                          );
+                        },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -141,19 +149,20 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: walletCreationState.isLoading
-                    ? null
-                    : () {
-                        ref
-                            .read(onboardingNotifierProvider.notifier)
-                            .setPath(OnboardingPath.importNostr);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ImportNostrScreen(),
-                          ),
-                        );
-                      },
+                onPressed:
+                    walletCreationState.isLoading
+                        ? null
+                        : () {
+                          ref
+                              .read(onboardingNotifierProvider.notifier)
+                              .setPath(OnboardingPath.importNostr);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ImportNostrScreen(),
+                            ),
+                          );
+                        },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -233,7 +242,7 @@ class _CreateWalletCard extends StatelessWidget {
           const Text(
             'Create new wallet',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: AppColors.background,
               fontSize: 20,
               fontWeight: FontWeight.w700,
               height: 1.6,
@@ -263,16 +272,19 @@ class _CreateWalletCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: AppColors.textPrimary)
-                  : const Text(
-                      'Get Started',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        height: 1.87,
+              child:
+                  isLoading
+                      ? const CircularProgressIndicator(
+                        color: AppColors.textPrimary,
+                      )
+                      : const Text(
+                        'Get Started',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          height: 1.87,
+                        ),
                       ),
-                    ),
             ),
           ),
         ],

@@ -119,17 +119,17 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                                 child: CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     // Colors.black.withValues(alpha: 0.8),
-                                    AppColors.textPrimary,
+                                    AppColors.background,
                                   ),
                                   strokeWidth: 2,
                                 ),
                               )
-                              : Icon(Icons.add, color: AppColors.textPrimary),
+                              : Icon(Icons.add, color: AppColors.background),
                       label: Text(
                         _isLoading ? 'Creating...' : "Let's Sabi ₿",
                         style: TextStyle(
                           // color: Colors.black.withValues(alpha: 0.8),
-                          color: AppColors.textPrimary,
+                          color: AppColors.background,
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                         ),

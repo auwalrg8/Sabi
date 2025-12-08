@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
@@ -123,12 +124,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Listen to Breez SDK payment stream directly for more reliable detection
     BreezSparkService.paymentStream.listen((payment) async {
-      debugPrint('🔔 Payment stream event: ${payment.isIncoming ? "incoming" : "outgoing"} ${payment.amountSats} sats');
-      
+      debugPrint(
+        '🔔 Payment stream event: ${payment.isIncoming ? "incoming" : "outgoing"} ${payment.amountSats} sats',
+      );
+
       // Refresh transaction providers
       ref.read(recentTransactionsProvider.notifier).refresh();
       ref.read(allTransactionsNotifierProvider.notifier).refresh();
-      
+
       if (payment.isIncoming) {
         // Trigger confetti for incoming payments
         final storage = ref.read(secureStorageServiceProvider);
@@ -136,10 +139,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           key: 'first_payment_confetti_pending',
           value: 'true',
         );
-        
+
         // Refresh balance to show confetti
         ref.read(balanceNotifierProvider.notifier).refresh();
-        
+
         // Add to notification service
         NotificationService.addPaymentNotification(
           isInbound: true,
@@ -149,27 +152,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         // Show payment received screen with animation
         if (mounted) {
-          debugPrint('🎉 Showing payment received screen: ${payment.amountSats} sats');
+          debugPrint(
+            '🎉 Showing payment received screen: ${payment.amountSats} sats',
+          );
           Navigator.of(context).push(
             PageRouteBuilder(
               opaque: false,
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  PaymentReceivedScreen(
-                amountSats: payment.amountSats,
-                description: payment.description,
-              ),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: child,
-                );
+              pageBuilder:
+                  (context, animation, secondaryAnimation) =>
+                      PaymentReceivedScreen(
+                        amountSats: payment.amountSats,
+                        description: payment.description,
+                      ),
+              transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ) {
+                return FadeTransition(opacity: animation, child: child);
               },
             ),
           );
         }
       }
-      
+
       // Refresh wallet info and balance
       ref.read(balanceNotifierProvider.notifier).refresh();
       ref.read(walletInfoProvider.notifier).refresh();
@@ -177,13 +184,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Also listen to payment notifications from event service as backup
     eventService.paymentNotifications.listen((payment) async {
-      debugPrint('🔔 Event service notification: ${payment.inbound ? "incoming" : "outgoing"} ${payment.amountSats} sats');
-      
+      debugPrint(
+        '🔔 Event service notification: ${payment.inbound ? "incoming" : "outgoing"} ${payment.amountSats} sats',
+      );
+
       // Refresh recent transactions when new payment arrives
       ref.read(recentTransactionsProvider.notifier).refresh();
       // Also refresh all transactions
       ref.read(allTransactionsNotifierProvider.notifier).refresh();
-      
+
       // Show notification or update UI
       if (payment.inbound) {
         // Trigger confetti for incoming payments
@@ -192,10 +201,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           key: 'first_payment_confetti_pending',
           value: 'true',
         );
-        
+
         // Refresh balance to show confetti
         ref.read(balanceNotifierProvider.notifier).refresh();
-        
+
         // Add to notification service
         NotificationService.addPaymentNotification(
           isInbound: payment.inbound,
@@ -205,21 +214,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         // Show payment received screen with animation
         if (mounted) {
-          debugPrint('🎉 Showing payment received screen (from event service): ${payment.amountSats} sats');
+          debugPrint(
+            '🎉 Showing payment received screen (from event service): ${payment.amountSats} sats',
+          );
           Navigator.of(context).push(
             PageRouteBuilder(
               opaque: false,
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  PaymentReceivedScreen(
-                amountSats: payment.amountSats,
-                description: payment.description ?? '',
-              ),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: child,
-                );
+              pageBuilder:
+                  (context, animation, secondaryAnimation) =>
+                      PaymentReceivedScreen(
+                        amountSats: payment.amountSats,
+                        description: payment.description ?? '',
+                      ),
+              transitionsBuilder: (
+                context,
+                animation,
+                secondaryAnimation,
+                child,
+              ) {
+                return FadeTransition(opacity: animation, child: child);
               },
             ),
           );
@@ -256,23 +269,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<bool> _showExitDialog() async {
     return await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Exit Sabi Wallet'),
-            content: const Text('Do you really want to quit Sabi Wallet?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Exit Sabi Wallet'),
+                content: const Text('Do you really want to quit Sabi Wallet?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Save all data before exiting
+                      Navigator.of(context).pop(true);
+                    },
+                    child: const Text('Exit'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () {
-                  // Save all data before exiting
-                  Navigator.of(context).pop(true);
-                },
-                child: const Text('Exit'),
-              ),
-            ],
-          ),
         ) ??
         false;
   }
@@ -283,7 +297,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        
+
         // Only show exit dialog when on home tab
         if (_currentIndex == 0) {
           final shouldExit = await _showExitDialog();
@@ -307,73 +321,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: AppColors.background,
         body: IndexedStack(index: _currentIndex, children: _screens),
         floatingActionButton:
-          _currentIndex == 0
-              ? Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 15,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 6,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SendScreen()),
+            _currentIndex == 0
+                ? Container(
+                  width: 56.w,
+                  height: 56.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 15,
+                        offset: const Offset(0, 10),
                       ),
-                  icon: const Icon(Icons.bolt, color: Colors.white, size: 24),
-                ),
-              )
-              : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: Container(
-        height: 65,
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.surface, width: 1)),
-        ),
-        child: Row(
-          children: [
-            _BottomNavItem(
-              icon: Icons.home_outlined,
-              label: 'Home',
-              isSelected: _currentIndex == 0,
-              onTap: () => setState(() => _currentIndex = 0),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 6,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SendScreen()),
+                        ),
+                    icon: Icon(Icons.bolt, color: Colors.white, size: 24.sp),
+                  ),
+                )
+                : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        bottomNavigationBar: Container(
+          height: 65.h,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(
+              top: BorderSide(color: AppColors.surface, width: 1.w),
             ),
-            _BottomNavItem(
-              customIcon: _CashNavIcon(isSelected: _currentIndex == 1),
-              label: 'Cash',
-              isSelected: _currentIndex == 1,
-              onTap: () => setState(() => _currentIndex = 1),
-            ),
-            _BottomNavItem(
-              icon: Icons.bolt_outlined,
-              label: 'Zaps',
-              isSelected: _currentIndex == 2,
-              onTap: () => setState(() => _currentIndex = 2),
-            ),
-            _BottomNavItem(
-              icon: Icons.person_outline,
-              label: 'Profile',
-              isSelected: _currentIndex == 3,
-              onTap: () => setState(() => _currentIndex = 3),
-            ),
-          ],
+          ),
+          child: Row(
+            children: [
+              _BottomNavItem(
+                icon: Icons.home_outlined,
+                label: 'Home',
+                isSelected: _currentIndex == 0,
+                onTap: () => setState(() => _currentIndex = 0),
+              ),
+              _BottomNavItem(
+                customIcon: _CashNavIcon(isSelected: _currentIndex == 1),
+                label: 'Cash',
+                isSelected: _currentIndex == 1,
+                onTap: () => setState(() => _currentIndex = 1),
+              ),
+              _BottomNavItem(
+                icon: Icons.bolt_outlined,
+                label: 'Zaps',
+                isSelected: _currentIndex == 2,
+                onTap: () => setState(() => _currentIndex = 2),
+              ),
+              _BottomNavItem(
+                icon: Icons.person_outline,
+                label: 'Profile',
+                isSelected: _currentIndex == 3,
+                onTap: () => setState(() => _currentIndex = 3),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -456,7 +472,7 @@ class _HomeContent extends ConsumerWidget {
       backgroundColor: AppColors.surface,
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(30),
+          padding: EdgeInsets.all(30.h),
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,14 +489,14 @@ class _HomeContent extends ConsumerWidget {
                         children: [
                           Text(
                             'HI, $username',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 17,
+                              fontSize: 17.sp,
                               fontWeight: FontWeight.w500,
-                              height: 28 / 17,
+                              height: 28.h / 17.h,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8.w),
                           // Health indicator dot
                           Consumer(
                             builder: (context, ref, _) {
@@ -489,15 +505,13 @@ class _HomeContent extends ConsumerWidget {
                               );
                               final isOnline = eventService.isConnected;
                               return Container(
-                                width: 8,
-                                height: 8,
+                                width: 8.w,
+                                height: 8.h,
                                 decoration: BoxDecoration(
                                   color:
                                       isOnline
                                           ? AppColors.accentGreen
-                                          : const Color(
-                                            0xFFFF8C00,
-                                          ), // Orange when offline
+                                          : const Color(0xFFFF8C00),
                                   shape: BoxShape.circle,
                                 ),
                               );
@@ -513,7 +527,7 @@ class _HomeContent extends ConsumerWidget {
                         icon: Icons.qr_code_scanner_outlined,
                         onTap: () => _openQRScanner(context, ref),
                       ),
-                      const SizedBox(width: 30),
+                      SizedBox(width: 30.w),
                       _NotificationIcon(
                         onTap: () {
                           Navigator.push(
@@ -528,15 +542,15 @@ class _HomeContent extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
+              SizedBox(height: 30.h),
               // Spark inbound status / first-channel loading banner
               _InboundStatusBanner(walletAsync: walletAsync),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               // Balance card with direct Breez SDK balance
               Consumer(
                 builder: (context, ref, _) {
                   final balance = ref.watch(balanceNotifierProvider);
-                  
+
                   return FutureBuilder<String?>(
                     future: ref
                         .read(secureStorageServiceProvider)
@@ -547,7 +561,9 @@ class _HomeContent extends ConsumerWidget {
                       // Mark confetti as shown if displaying
                       if (showConfetti) {
                         WidgetsBinding.instance.addPostFrameCallback((_) async {
-                          final storage = ref.read(secureStorageServiceProvider);
+                          final storage = ref.read(
+                            secureStorageServiceProvider,
+                          );
                           await storage.write(
                             key: 'first_payment_confetti_shown',
                             value: 'true',
@@ -562,7 +578,8 @@ class _HomeContent extends ConsumerWidget {
                       return BalanceCard(
                         balanceSats: balance,
                         showConfetti: showConfetti,
-                        isOnline: ref.watch(eventStreamServiceProvider).isConnected,
+                        isOnline:
+                            ref.watch(eventStreamServiceProvider).isConnected,
                         isBalanceHidden: !isBalanceVisible,
                         onToggleHide: onToggleBalance,
                       );
@@ -570,7 +587,7 @@ class _HomeContent extends ConsumerWidget {
                   );
                 },
               ),
-              const SizedBox(height: 17),
+              SizedBox(height: 17.h),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -606,17 +623,17 @@ class _HomeContent extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
+              SizedBox(height: 30.h),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Recent Transactions',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
+                      fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
-                      height: 28 / 15,
+                      height: 28.h / 15.h,
                     ),
                   ),
                   GestureDetector(
@@ -628,11 +645,11 @@ class _HomeContent extends ConsumerWidget {
                         ),
                       );
                     },
-                    child: const Text(
+                    child: Text(
                       'See All',
                       style: TextStyle(
                         color: AppColors.primary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                         height: 20 / 12,
                       ),
@@ -640,7 +657,7 @@ class _HomeContent extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               // Display real transactions from Breez SDK
               Consumer(
                 builder: (context, ref, _) {
@@ -656,7 +673,7 @@ class _HomeContent extends ConsumerWidget {
                               'No transactions yet',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 14,
+                                fontSize: 14.sp,
                               ),
                             ),
                           ),
@@ -695,7 +712,8 @@ class _HomeContent extends ConsumerWidget {
                                     '${_monthName(paymentTime.month)} ${paymentTime.day}, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
                               }
 
-                              final String amountDisplay = '$amountPrefix${_formatSats(payment.amountSats)} sats';
+                              final String amountDisplay =
+                                  '$amountPrefix${_formatSats(payment.amountSats)} sats';
                               final title =
                                   payment.description.isNotEmpty
                                       ? payment.description
@@ -704,7 +722,7 @@ class _HomeContent extends ConsumerWidget {
                                           : 'Sent Payment');
 
                               return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
+                                padding: EdgeInsets.only(bottom: 12.h),
                                 child: _TransactionItem(
                                   icon: icon,
                                   title: title,
@@ -715,7 +733,10 @@ class _HomeContent extends ConsumerWidget {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => PaymentDetailScreen(payment: payment),
+                                        builder:
+                                            (_) => PaymentDetailScreen(
+                                              payment: payment,
+                                            ),
                                       ),
                                     );
                                   },
@@ -725,9 +746,9 @@ class _HomeContent extends ConsumerWidget {
                       );
                     },
                     loading:
-                        () => const Center(
+                        () => Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
+                            padding: EdgeInsets.all(40.h),
                             child: CircularProgressIndicator(
                               color: AppColors.primary,
                             ),
@@ -737,7 +758,7 @@ class _HomeContent extends ConsumerWidget {
                   );
                 },
               ),
-              const SizedBox(height: 100),
+              SizedBox(height: 100.h),
             ],
           ),
         ),
@@ -765,12 +786,10 @@ class _HomeContent extends ConsumerWidget {
   }
 
   String _formatSats(int amount) {
-    return amount
-        .toString()
-        .replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (match) => '${match[1]},',
-        );
+    return amount.toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]},',
+    );
   }
 
   Widget _buildMockTransactions() {
@@ -821,24 +840,24 @@ class _InboundStatusBanner extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
           decoration: BoxDecoration(
             color: AppColors.accentGreen.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
               color: AppColors.accentGreen.withValues(alpha: 0.35),
             ),
           ),
           child: Row(
-            children: const [
+            children: [
               Icon(Icons.bolt, color: AppColors.accentGreen),
-              SizedBox(width: 10),
+              SizedBox(width: 10.w),
               Expanded(
                 child: Text(
                   'Spark: Instant inbound is setting up...\nYou can receive immediately. Syncing in background.',
                   style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 13,
+                    fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -863,7 +882,7 @@ class _HeaderIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Icon(icon, color: AppColors.textSecondary, size: 24),
+      child: Icon(icon, color: AppColors.textSecondary, size: 24.sp),
     );
   }
 }
@@ -904,27 +923,27 @@ class _NotificationIconState extends State<_NotificationIcon> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(
+          Icon(
             Icons.notifications_outlined,
             color: AppColors.textSecondary,
-            size: 24,
+            size: 24.sp,
           ),
           if (_unreadCount > 0)
             Positioned(
               right: -2,
               top: -2,
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: EdgeInsets.all(4.h),
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                 ),
-                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                constraints: BoxConstraints(minWidth: 16.w, minHeight: 16.h),
                 child: Text(
                   _unreadCount > 99 ? '99+' : _unreadCount.toString(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 9,
+                    fontSize: 9.sp,
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,
@@ -953,27 +972,27 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 55,
+        width: 58.w,
         child: Column(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 48.w,
+              height: 48.h,
               decoration: const BoxDecoration(
                 color: AppColors.surface,
                 shape: BoxShape.circle,
               ),
               child: Center(child: icon),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8.h),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 12,
+                fontSize: 12.sp,
                 fontWeight: FontWeight.w400,
-                height: 20 / 12,
+                height: 20.h / 12.h,
               ),
             ),
           ],
@@ -1005,10 +1024,10 @@ class _TransactionItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16.h),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20.r),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -1018,56 +1037,56 @@ class _TransactionItem extends StatelessWidget {
           ],
         ),
         child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF374151), width: 1),
-              color: AppColors.surface,
+          children: [
+            Container(
+              width: 40.w,
+              height: 40.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF374151), width: 1),
+                color: AppColors.surface,
+              ),
+              child: Center(child: icon),
             ),
-            child: Center(child: icon),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 24 / 14,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      height: 24.h / 14.h,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    height: 20 / 12,
+                  SizedBox(height: 3.h),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                      height: 20.h / 12.h,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Text(
-            amount,
-            style: TextStyle(
-              color: amountColor,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              height: 24 / 14,
+            Text(
+              amount,
+              style: TextStyle(
+                color: amountColor,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+                height: 24.h / 14.h,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -1104,15 +1123,15 @@ class _BottomNavItem extends StatelessWidget {
                   icon,
                   color:
                       isSelected ? AppColors.primary : AppColors.textSecondary,
-                  size: 24,
+                  size: 24.sp,
                 ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4.h),
               Text(
                 label,
                 style: TextStyle(
                   color:
                       isSelected ? AppColors.primary : AppColors.textSecondary,
-                  fontSize: 10,
+                  fontSize: 10.sp,
                   fontWeight: FontWeight.w400,
                   height: 16 / 10,
                 ),
@@ -1133,7 +1152,7 @@ class _CashNavIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
       decoration: BoxDecoration(
         color: isSelected ? AppColors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(9999),
@@ -1142,7 +1161,7 @@ class _CashNavIcon extends StatelessWidget {
         '₦',
         style: TextStyle(
           color: isSelected ? Colors.white : AppColors.textSecondary,
-          fontSize: 12,
+          fontSize: 12.sp,
           fontWeight: FontWeight.w700,
           height: 20 / 12,
         ),
@@ -1154,7 +1173,7 @@ class _CashNavIcon extends StatelessWidget {
 class _SendIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(size: const Size(20, 20), painter: _SendIconPainter());
+    return CustomPaint(size: Size(20.w, 20.h), painter: _SendIconPainter());
   }
 }
 
@@ -1455,7 +1474,7 @@ class _SendTransactionIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      size: const Size(20, 20),
+      size: Size(20.w, 20.h),
       painter: _SendTransactionIconPainter(),
     );
   }
