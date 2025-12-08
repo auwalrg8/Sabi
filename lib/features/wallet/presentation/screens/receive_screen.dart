@@ -74,18 +74,18 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(30),
+                padding: EdgeInsets.all(30.h),
                 child: Column(
                   children: [
                     _buildQRCodeSection(),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                     if (_selectedTab == 'lightning') ...[
                       _buildUserInfo(),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4.h),
                       _buildAmountSelector(),
-                      const SizedBox(height: 30),
+                      SizedBox(height: 30.h),
                       _buildExpiryAndDescription(),
-                      const SizedBox(height: 30),
+                      SizedBox(height: 30.h),
                     ],
                     _buildActionButtons(),
                   ],
@@ -100,7 +100,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(30, 20, 30, 0),
+      padding: EdgeInsets.fromLTRB(30, 20, 30, 0),
       child: Column(
         children: [
           Row(
@@ -108,17 +108,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             children: [
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                child: Icon(Icons.arrow_back, color: Colors.white, size: 24.sp),
               ),
-              const Text(
+              Text(
                 'Receive',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
+                  fontSize: 17.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -129,9 +125,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   });
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 6.h,
                   ),
                   decoration: BoxDecoration(
                     color: isStaticMode ? AppColors.primary : AppColors.surface,
@@ -141,7 +137,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 20.h),
           _buildTabSelector(),
         ],
       ),
@@ -150,10 +146,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Widget _buildTabSelector() {
     return Container(
-      height: 42,
+      height: 44.h,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
         children: [
@@ -161,20 +157,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             child: GestureDetector(
               onTap: () => setState(() => _selectedTab = 'lightning'),
               child: Container(
-                height: 42,
+                height: 44.h,
                 decoration: BoxDecoration(
                   color:
                       _selectedTab == 'lightning'
                           ? AppColors.primary
                           : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
                     '⚡ Lightning',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       fontWeight:
                           _selectedTab == 'lightning'
                               ? FontWeight.w600
@@ -194,20 +190,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 }
               },
               child: Container(
-                height: 42,
+                height: 42.h,
                 decoration: BoxDecoration(
                   color:
                       _selectedTab == 'bitcoin'
                           ? AppColors.primary
                           : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
                     '₿ Bitcoin',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       fontWeight:
                           _selectedTab == 'bitcoin'
                               ? FontWeight.w600
@@ -232,7 +228,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(color: AppColors.primary, width: 8.w),
+        border: Border.all(color: AppColors.primary, width: 5.w),
       ),
       child: Center(
         child:
@@ -244,13 +240,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      width: 240,
-                      height: 240,
+                      width: 240.w,
+                      height: 240.h,
                       color: Colors.grey[330],
-                      child: const Center(
+                      child: Center(
                         child: Icon(
                           Icons.error_outline,
-                          size: 48,
+                          size: 48.sp,
                           color: Colors.grey,
                         ),
                       ),
@@ -258,23 +254,23 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   },
                 )
                 : _loadingBitcoinAddress && _selectedTab == 'bitcoin'
-                ? const SizedBox(
-                  width: 240,
-                  height: 240,
+                ? SizedBox(
+                  width: 240.w,
+                  height: 240.h,
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 )
                 : Container(
-                  width: 240,
-                  height: 240,
+                  width: 240.w,
+                  height: 240.h,
                   color: Colors.grey[330],
                   child: Center(
                     child: Text(
                       _selectedTab == 'lightning'
                           ? 'Create invoice to show QR'
                           : 'Loading...',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: Colors.grey, fontSize: 12.sp),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -289,7 +285,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
+          padding: EdgeInsets.symmetric(horizontal: 40.w),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -297,22 +293,26 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               Flexible(
                 child: Text(
                   username,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.w700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8.w),
               GestureDetector(
                 onTap: () => _copyToClipboard(username, 'Username'),
                 child: Container(
-                  width: 34,
-                  height: 34,
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(Icons.copy, color: AppColors.primary, size: 18),
+                  width: 34.w,
+                  height: 34.h,
+                  padding: EdgeInsets.all(8.h),
+                  child: Icon(
+                    Icons.copy,
+                    color: AppColors.primary,
+                    size: 18.sp,
+                  ),
                 ),
               ),
             ],
@@ -355,14 +355,14 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Widget _buildAmountSelector() {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 8.w,
+      runSpacing: 8.w,
       alignment: WrapAlignment.start,
       children: [
         Container(
-          width: 120,
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          width: 120.w,
+          height: 40.h,
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(9999),
@@ -370,20 +370,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           ),
           child: TextField(
             keyboardType: TextInputType.number,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w400,
             ),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Custom',
               hintStyle: TextStyle(
                 color: Color(0xFFCCCCCC),
-                fontSize: 14,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
               ),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 10),
+              contentPadding: EdgeInsets.symmetric(vertical: 10.h),
             ),
             onChanged: (value) {
               final amount = int.tryParse(value.replaceAll(',', ''));
@@ -407,16 +407,16 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 9.h),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(9999),
         ),
         child: Text(
           '₦ ${_formatAmount(amount)}',
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -434,55 +434,12 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   Widget _buildExpiryAndDescription() {
     return Column(
       children: [
-        // Container(
-        //   padding: const EdgeInsets.all(12),
-        //   decoration: BoxDecoration(
-        //     color: AppColors.surface,
-        //     borderRadius: BorderRadius.circular(16),
-        //   ),
-        //   child: Column(
-        //     children: [
-        //       GestureDetector(
-        //         onTap: () {
-        //           setState(() {
-        //             isExpiryExpanded = !isExpiryExpanded;
-        //           });
-        //         },
-        //         child: Row(
-        //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        //           children: [
-        //             const Text(
-        //               'Set expiry',
-        //               style: TextStyle(
-        //                 color: Colors.white,
-        //                 fontSize: 12,
-        //                 fontWeight: FontWeight.w400,
-        //               ),
-        //             ),
-        //             Text(
-        //               selectedExpiry,
-        //               style: const TextStyle(
-        //                 color: AppColors.primary,
-        //                 fontSize: 12,
-        //                 fontWeight: FontWeight.w500,
-        //               ),
-        //             ),
-        //           ],
-        //         ),
-        //       ),
-        //       if (isExpiryExpanded) ...[
-        //         const SizedBox(height: 12),
-        //         ...expiryOptions.map((option) => _buildExpiryOption(option)),
-        //       ],
-        //     ],
-        //   ),
-        // ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10.h),
         SizedBox(
           width: double.infinity,
           child: Container(
             height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -491,11 +448,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             child: TextField(
               controller: _descriptionController,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Describe the payment you want to receive',
                 hintStyle: TextStyle(
                   color: AppColors.textSecondary,
-                  fontSize: 13,
+                  fontSize: 13.sp,
                   fontWeight: FontWeight.w400,
                 ),
                 border: InputBorder.none,
@@ -507,36 +464,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     );
   }
 
-  // Widget _buildExpiryOption(String option) {
-  //   final isSelected = selectedExpiry == option;
-  //   return Padding(
-  //     padding: const EdgeInsets.only(bottom: 8),
-  //     child: GestureDetector(
-  //       onTap: () {
-  //         setState(() {
-  //           selectedExpiry = option;
-  //           isExpiryExpanded = false;
-  //         });
-  //       },
-  //       child: Container(
-  //         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-  //         decoration: BoxDecoration(
-  //           color: isSelected ? AppColors.primary : AppColors.background,
-  //           borderRadius: BorderRadius.circular(8),
-  //         ),
-  //         child: Text(
-  //           option,
-  //           style: const TextStyle(
-  //             color: Colors.white,
-  //             fontSize: 12,
-  //             fontWeight: FontWeight.w400,
-  //           ),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildActionButtons() {
     if (_selectedTab == 'bitcoin') {
       return Column(
@@ -544,31 +471,31 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           if (_bitcoinAddress != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16.h),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Bitcoin Address',
                     style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8.h),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           _bitcoinAddress!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 13,
+                            fontSize: 13.sp,
                             fontWeight: FontWeight.w500,
                             fontFamily: 'monospace',
                           ),
@@ -576,7 +503,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8.w),
                       GestureDetector(
                         onTap:
                             () => _copyToClipboard(
@@ -584,15 +511,15 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                               'Bitcoin address',
                             ),
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: EdgeInsets.all(8.w),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.copy,
                             color: Colors.white,
-                            size: 18,
+                            size: 18.sp,
                           ),
                         ),
                       ),
@@ -601,10 +528,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 52.h,
             child: ElevatedButton(
               onPressed:
                   _bitcoinAddress == null
@@ -616,12 +543,12 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Share Bitcoin Address',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
               ),
             ),
           ),
@@ -634,7 +561,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       children: [
         SizedBox(
           width: double.infinity,
-          height: 50,
+          height: 50.h,
           child: ElevatedButton(
             onPressed:
                 _bolt11 == null
@@ -648,26 +575,26 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Share Invoice',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
             ),
           ),
         ),
         if (selectedAmount != null) ...[
-          const SizedBox(height: 17),
+          SizedBox(height: 17.h),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 52.h,
             child: OutlinedButton(
               onPressed: _creating ? null : _createInvoice,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
+                side: BorderSide(color: AppColors.primary),
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
               child: Text(

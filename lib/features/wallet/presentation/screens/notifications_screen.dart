@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
 
@@ -115,7 +116,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             Icon(
                               Icons.notifications_off_outlined,
                               size: 80,
-                              color: AppColors.textSecondary.withOpacity(0.3),
+                              color: AppColors.textSecondary.withValues(
+                                alpha: .3,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             const Text(
@@ -164,7 +167,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final unreadCount = _notifications.where((n) => !n.isRead).length;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: EdgeInsets.all(20.h),
       child: Row(
         children: [
           IconButton(
@@ -273,11 +276,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       key: Key(notification.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        margin: EdgeInsets.only(bottom: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
         decoration: BoxDecoration(
           color: Colors.red,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
         ),
         alignment: Alignment.centerRight,
         child: const Icon(Icons.delete_outline, color: Colors.white),
@@ -290,35 +293,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.all(16.h),
           decoration: BoxDecoration(
             color:
                 notification.isRead
                     ? AppColors.surface
-                    : AppColors.surface.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(16),
+                    : AppColors.surface.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
               color:
                   notification.isRead
                       ? Colors.transparent
-                      : AppColors.primary.withOpacity(0.3),
-              width: 1,
+                      : AppColors.primary.withValues(alpha: 0.3),
+              width: 1.w,
             ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 48.w,
+                height: 48.h,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: iconColor, size: 24),
+                child: Icon(icon, color: iconColor, size: 24.sp),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,7 +333,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             notification.title,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 15,
+                              fontSize: 15.sp,
                               fontWeight:
                                   notification.isRead
                                       ? FontWeight.w500
@@ -340,8 +343,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         if (!notification.isRead)
                           Container(
-                            width: 8,
-                            height: 8,
+                            width: 8.w,
+                            height: 8.w,
                             decoration: const BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
@@ -349,20 +352,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4.h),
                     Text(
                       notification.message,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 13,
+                        fontSize: 13.sp,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Text(
                       timeStr,
                       style: TextStyle(
-                        color: AppColors.textSecondary.withOpacity(0.7),
-                        fontSize: 11,
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                        fontSize: 11.sp,
                       ),
                     ),
                   ],
