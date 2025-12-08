@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/constants/api_config.dart';
 import 'package:sabi_wallet/core/services/api_client.dart';
@@ -64,7 +65,9 @@ class _SendScreenState extends State<SendScreen>
       final nairaToBtc = rates['naira_to_btc'];
       if (nairaToBtc != null) {
         final nairaPerBtc =
-            nairaToBtc is num ? (1 / nairaToBtc) : (1 / double.parse('$nairaToBtc'));
+            nairaToBtc is num
+                ? (1 / nairaToBtc)
+                : (1 / double.parse('$nairaToBtc'));
         _ngnPerSat = nairaPerBtc / 100000000;
       }
     } catch (_) {
@@ -102,10 +105,7 @@ class _SendScreenState extends State<SendScreen>
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: AppColors.surface,
-      ),
+      SnackBar(content: Text(msg), backgroundColor: AppColors.surface),
     );
   }
 
@@ -134,11 +134,7 @@ class _SendScreenState extends State<SendScreen>
     }
 
     setState(() {
-      _recipient = Recipient(
-        name: input,
-        identifier: input,
-        type: type,
-      );
+      _recipient = Recipient(name: input, identifier: input, type: type);
       _step = _SendStep.amount;
     });
 
@@ -152,9 +148,10 @@ class _SendScreenState extends State<SendScreen>
       _recipient = Recipient(
         name: contact.displayName,
         identifier: contact.identifier,
-        type: contact.type == 'phone'
-            ? RecipientType.phone
-            : RecipientType.lightning,
+        type:
+            contact.type == 'phone'
+                ? RecipientType.phone
+                : RecipientType.lightning,
       );
       _recipientController.text = contact.identifier;
       _step = _SendStep.amount;
@@ -183,9 +180,10 @@ class _SendScreenState extends State<SendScreen>
   void _setQuickAmount(int value) {
     setState(() {
       _quickIndex = value;
-      final amounts = _mode == _CurrencyMode.sats
-          ? [1000, 5000, 10000, 50000]
-          : [1000, 5000, 10000, 50000];
+      final amounts =
+          _mode == _CurrencyMode.sats
+              ? [1000, 5000, 10000, 50000]
+              : [1000, 5000, 10000, 50000];
       _amountText = amounts[value].toString();
     });
   }
@@ -262,37 +260,37 @@ class _SendScreenState extends State<SendScreen>
     await showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (_) {
         return Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20.h),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Enter 4-digit street PIN',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Colors.white, fontSize: 16.sp),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               TextField(
                 controller: _pinController,
                 keyboardType: TextInputType.number,
                 maxLength: 4,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'PIN',
                   counterText: '',
                   filled: true,
                   fillColor: AppColors.background,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderRadius: BorderRadius.all(Radius.circular(12.r)),
                   ),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.r),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -307,7 +305,7 @@ class _SendScreenState extends State<SendScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
                   ),
                   child: const Text('Continue'),
@@ -356,32 +354,36 @@ class _SendScreenState extends State<SendScreen>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 25.sp,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Text(
                     _step == _SendStep.recipient
                         ? 'Send – Choose Recipient'
                         : _step == _SendStep.amount
-                            ? 'Send – Enter Amount'
-                            : 'Send – Confirm',
-                    style: const TextStyle(
+                        ? 'Send – Enter Amount'
+                        : 'Send – Confirm',
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
                   if (_isSending)
-                    const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    SizedBox(
+                      height: 22.h,
+                      width: 22.w,
+                      child: CircularProgressIndicator(strokeWidth: 2.w),
                     ),
                 ],
               ),
@@ -415,7 +417,7 @@ class _SendScreenState extends State<SendScreen>
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -423,14 +425,14 @@ class _SendScreenState extends State<SendScreen>
                   controller: _recipientController,
                   decoration: InputDecoration(
                     hintText: 'Paste phone, @handle, npub, LN address',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                     ),
                     filled: true,
                     fillColor: AppColors.surface,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                       borderSide: BorderSide.none,
                     ),
                     suffixIcon: IconButton(
@@ -441,22 +443,31 @@ class _SendScreenState extends State<SendScreen>
                       onPressed: _openQRScanner,
                     ),
                   ),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
                   onSubmitted: _selectRecipientFromInput,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 Row(
+                  spacing: 12.w,
                   children: [
                     Expanded(
-                      child: _outlinedButton('Paste', Icons.content_paste, _onPaste),
+                      child: _outlinedButton(
+                        'Paste',
+                        Icons.content_paste,
+                        _onPaste,
+                      ),
                     ),
-                    const SizedBox(width: 12),
+
                     Expanded(
-                      child: _outlinedButton('Contacts', Icons.contacts, _importContacts),
+                      child: _outlinedButton(
+                        'Contacts',
+                        Icons.contacts,
+                        _importContacts,
+                      ),
                     ),
-                    const SizedBox(width: 12),
+
                     Expanded(
-                      child: _outlinedButton('Paste', Icons.history, () {
+                      child: _outlinedButton('Recent', Icons.history, () {
                         if (_recent.isEmpty) {
                           _showSnack('No recent recipients');
                           return;
@@ -466,35 +477,37 @@ class _SendScreenState extends State<SendScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
                 if (_loadingContacts)
-                  const Center(
+                  Center(
                     child: Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      padding: EdgeInsets.all(12.h),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 if (_contacts.isNotEmpty) ...[
-                  const Text(
+                  Text(
                     'Contacts',
                     style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10.h),
                   ..._contacts.take(5).map((c) => _contactTile(c)),
                 ],
                 if (_recent.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  const Text(
+                  SizedBox(height: 20.h),
+                  Text(
                     'Recent',
                     style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10.h),
                   ..._recent.take(5).map((c) => _contactTile(c)),
                 ],
               ],
@@ -502,23 +515,24 @@ class _SendScreenState extends State<SendScreen>
           ),
         ),
         Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20.h),
           child: SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 56.h,
             child: ElevatedButton(
-              onPressed: () => _selectRecipientFromInput(_recipientController.text),
+              onPressed:
+                  () => _selectRecipientFromInput(_recipientController.text),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14.r),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Continue',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -539,7 +553,7 @@ class _SendScreenState extends State<SendScreen>
       builder: (_) {
         return SafeArea(
           child: ListView(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12.h),
             children: _recent.map(_contactTile).toList(),
           ),
         );
@@ -548,16 +562,17 @@ class _SendScreenState extends State<SendScreen>
   }
 
   Widget _buildAmountStep() {
-    final quickLabels = _mode == _CurrencyMode.sats
-        ? ['1k', '5k', '10k', '50k']
-        : ['₦1k', '₦5k', '₦10k', '₦50k'];
+    final quickLabels =
+        _mode == _CurrencyMode.sats
+            ? ['1k', '5k', '10k', '50k']
+            : ['₦1k', '₦5k', '₦10k', '₦50k'];
 
     final ngn = _amountNgn();
     final sats = _amountSats();
 
     return SingleChildScrollView(
       key: const ValueKey('amount'),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(22.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -566,44 +581,52 @@ class _SendScreenState extends State<SendScreen>
             children: [
               Text(
                 _recipient?.name ?? 'Recipient',
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Colors.white, fontSize: 16.sp),
               ),
               TextButton(
                 onPressed: _toggleMode,
                 child: Text(
-                  _mode == _CurrencyMode.sats ? 'Switch to ₦' : 'Switch to sats',
+                  _mode == _CurrencyMode.sats
+                      ? 'Switch to ₦'
+                      : 'Switch to sats',
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
           Center(
             child: Column(
               children: [
                 Text(
                   _mode == _CurrencyMode.sats ? 'sats' : '₦',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 18.sp,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6.h),
                 Text(
                   _amountText,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 46,
+                    fontSize: 46.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6.h),
                 Text(
-                    _mode == _CurrencyMode.sats
+                  _mode == _CurrencyMode.sats
                       ? '≈ ₦${ngn.toStringAsFixed(0)}'
                       : '≈ $sats sats',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14.sp,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18.h),
           Slider(
             value: _quickIndex.toDouble(),
             min: 0,
@@ -614,43 +637,46 @@ class _SendScreenState extends State<SendScreen>
             activeColor: AppColors.primary,
             inactiveColor: AppColors.surface,
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: quickLabels
-                .asMap()
-                .entries
-                .map(
-                  (e) => GestureDetector(
-                    onTap: () => _setQuickAmount(e.key),
-                    child: Chip(
-                      label: Text(e.value),
-                      backgroundColor: _quickIndex == e.key
-                          ? AppColors.primary.withValues(alpha: 0.2)
-                          : AppColors.surface,
-                      labelStyle: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                )
-                .toList(),
+            children:
+                quickLabels
+                    .asMap()
+                    .entries
+                    .map(
+                      (e) => GestureDetector(
+                        onTap: () => _setQuickAmount(e.key),
+                        child: Chip(
+                          label: Text(e.value),
+                          backgroundColor:
+                              _quickIndex == e.key
+                                  ? AppColors.primary.withValues(alpha: 0.2)
+                                  : AppColors.surface,
+                          labelStyle: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    )
+                    .toList(),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           TextField(
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: _mode == _CurrencyMode.sats ? 'Amount (sats)' : 'Amount (₦)',
+              labelText:
+                  _mode == _CurrencyMode.sats ? 'Amount (sats)' : 'Amount (₦)',
               labelStyle: const TextStyle(color: AppColors.textSecondary),
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(14.r),
                 borderSide: BorderSide.none,
               ),
             ),
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+            style: TextStyle(color: Colors.white, fontSize: 18.sp),
             onChanged: (v) => setState(() => _amountText = v.isEmpty ? '0' : v),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14.h),
           TextField(
             controller: _memoController,
             decoration: InputDecoration(
@@ -659,22 +685,22 @@ class _SendScreenState extends State<SendScreen>
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(14.r),
                 borderSide: BorderSide.none,
               ),
             ),
             style: const TextStyle(color: Colors.white),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24.h),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 52.h,
             child: ElevatedButton(
               onPressed: _nextFromAmount,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14.r),
                 ),
               ),
               child: const Text('Continue'),
@@ -691,21 +717,25 @@ class _SendScreenState extends State<SendScreen>
 
     return SingleChildScrollView(
       key: const ValueKey('confirm'),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.h),
       child: Column(
+        spacing: 10.h,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _summaryRow('To', _recipient?.name ?? ''),
-          const SizedBox(height: 10),
+
           _summaryRow('Identifier', _recipient?.identifier ?? ''),
-          const SizedBox(height: 10),
+
           _summaryRow('Amount', '$sats sats (₦${ngn.toStringAsFixed(0)})'),
-          const SizedBox(height: 10),
-          _summaryRow('Memo', _memoController.text.isEmpty ? '—' : _memoController.text),
-          const SizedBox(height: 24),
+
+          _summaryRow(
+            'Memo',
+            _memoController.text.isEmpty ? '—' : _memoController.text,
+          ),
+          SizedBox(height: 24.h),
           SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 56.h,
             child: ElevatedButton(
               onPressed: _isSending ? null : _confirmAndSend,
               style: ElevatedButton.styleFrom(
@@ -729,7 +759,7 @@ class _SendScreenState extends State<SendScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
@@ -737,8 +767,8 @@ class _SendScreenState extends State<SendScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: Colors.white),
-            const SizedBox(width: 6),
+            Icon(icon, size: 16.sp, color: Colors.white),
+            SizedBox(width: 6.h),
             Text(label, style: const TextStyle(color: Colors.white)),
           ],
         ),
@@ -750,21 +780,21 @@ class _SendScreenState extends State<SendScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: EdgeInsets.symmetric(vertical: 14.h),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.primary, width: 1.5),
-          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.primary, width: 1.5.w),
+          borderRadius: BorderRadius.circular(24.r),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: AppColors.primary),
-            const SizedBox(width: 8),
+            Icon(icon, size: 18.sp, color: AppColors.primary),
+            SizedBox(width: 8.w),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.primary,
-                fontSize: 14,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -778,19 +808,21 @@ class _SendScreenState extends State<SendScreen>
     return InkWell(
       onTap: () => _selectRecipient(c),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 8.h),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 40.w,
+              height: 40.h,
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: Text(
-                  c.displayName.isNotEmpty ? c.displayName[0].toUpperCase() : 'C',
+                  c.displayName.isNotEmpty
+                      ? c.displayName[0].toUpperCase()
+                      : 'C',
                   style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 18,
@@ -799,25 +831,25 @@ class _SendScreenState extends State<SendScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     c.displayName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
+                      fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2.h),
                   Text(
                     c.identifier,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 13,
+                      fontSize: 13.sp,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -839,7 +871,7 @@ class _SendScreenState extends State<SendScreen>
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
+            style: TextStyle(color: Colors.white, fontSize: 15.sp),
           ),
         ),
       ],

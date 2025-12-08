@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/send_progress_screen.dart';
@@ -26,28 +27,32 @@ class SendConfirmationScreen extends StatelessWidget {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(30),
+                padding: EdgeInsets.all(30.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 25.sp,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const SizedBox(width: 10),
-                        const Text(
+                        SizedBox(width: 10.w),
+                        Text(
                           'Confirm',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 17,
+                            fontSize: 17.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                     _buildConfirmationCard(),
                   ],
                 ),
@@ -62,10 +67,10 @@ class SendConfirmationScreen extends StatelessWidget {
 
   Widget _buildConfirmationCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(24.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -76,16 +81,20 @@ class SendConfirmationScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildRow('To', transaction.recipient.name, transaction.recipient.identifier),
-          const SizedBox(height: 16),
+          _buildRow(
+            'To',
+            transaction.recipient.name,
+            transaction.recipient.identifier,
+          ),
+          SizedBox(height: 16.h),
           _buildRow(
             'Amount',
             '₦${transaction.amount.toStringAsFixed(0)}',
             '~ ${transaction.amountInSats.toStringAsFixed(0)} sats',
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           _buildFeeRow(),
-          const Divider(color: AppColors.surface, height: 32),
+          Divider(color: AppColors.surface, height: 32.h),
           _buildTotalRow(),
         ],
       ),
@@ -99,29 +108,23 @@ class SendConfirmationScreen extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14.h),
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 14,
+                fontSize: 14.sp,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4.h),
             Text(
               subtitle,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
             ),
           ],
         ),
@@ -133,19 +136,13 @@ class SendConfirmationScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Fee',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14.sp),
         ),
         Text(
           '${transaction.feeInSats.toStringAsFixed(0)} sats (~₦${transaction.fee.toStringAsFixed(0)})',
-          style: const TextStyle(
-            color: AppColors.accentGreen,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: AppColors.accentGreen, fontSize: 12.sp),
         ),
       ],
     );
@@ -155,19 +152,19 @@ class SendConfirmationScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Total',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w500,
           ),
         ),
         Text(
           '₦${transaction.total.toStringAsFixed(0)}',
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 17,
+            fontSize: 17.sp,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -177,23 +174,23 @@ class SendConfirmationScreen extends StatelessWidget {
 
   Widget _buildSendButton(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+      padding: EdgeInsets.fromLTRB(30.w, 0, 30.w, 30.h),
       child: SizedBox(
         width: double.infinity,
-        height: 50,
+        height: 50.h,
         child: ElevatedButton(
           onPressed: () => _sendNow(context),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
             ),
           ),
-          child: const Text(
+          child: Text(
             'Send now',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w500,
             ),
           ),

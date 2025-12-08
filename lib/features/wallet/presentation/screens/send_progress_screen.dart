@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/send_success_screen.dart';
@@ -40,24 +41,27 @@ class _SendProgressScreenState extends State<SendProgressScreen>
     try {
       // Convert NGN amount to sats (using the amountInSats from transaction model)
       final amountSats = widget.transaction.amountInSats.toInt();
-      
+
       // Send payment via Breez Spark SDK with amount
       final result = await BreezSparkService.sendPayment(
         widget.transaction.recipient.identifier,
         sats: amountSats,
       );
-      
+
       // Extract actual fees and amounts from SDK response
       final actualAmountSats = BreezSparkService.extractSendAmountSats(result);
       final actualFeeSats = BreezSparkService.extractSendFeeSats(result);
-      
-      debugPrint('✅ Payment sent: $actualAmountSats sats, fee: $actualFeeSats sats');
-      
+
+      debugPrint(
+        '✅ Payment sent: $actualAmountSats sats, fee: $actualFeeSats sats',
+      );
+
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => SendSuccessScreen(transaction: widget.transaction),
+            builder:
+                (context) => SendSuccessScreen(transaction: widget.transaction),
           ),
         );
       }
@@ -84,48 +88,50 @@ class _SendProgressScreenState extends State<SendProgressScreen>
         body: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(30),
+              padding: EdgeInsets.all(30.h),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: Colors.red,
-                    size: 80,
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
+                  Icon(Icons.error_outline, color: Colors.red, size: 80.sp),
+                  SizedBox(height: 24.h),
+                  Text(
                     'Payment Failed',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16.h),
                   Text(
                     _errorMessage,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 14,
+                      fontSize: 14.sp,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  SizedBox(height: 40.h),
                   ElevatedButton(
-                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                    onPressed:
+                        () => Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentRed,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 40.w,
+                        vertical: 16.h,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Go Back',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -157,53 +163,50 @@ class _SendProgressScreenState extends State<SendProgressScreen>
                   alignment: Alignment.center,
                   children: [
                     Container(
-                      width: 201,
-                      height: 201,
+                      width: 201.w,
+                      height: 201.h,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.3),
-                          width: 4,
+                          width: 4.w,
                         ),
                       ),
                     ),
                     Container(
-                      width: 128,
-                      height: 128,
+                      width: 128.w,
+                      height: 128.h,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.flash_on,
                         color: Colors.white,
-                        size: 64,
+                        size: 64.sp,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 66),
-              const Text(
+              SizedBox(height: 66.h),
+              Text(
                 'Sending...',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
+                  fontSize: 26.sp,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 29),
-              const Text(
+              SizedBox(height: 29.h),
+              Text(
                 'Please wait',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 14.sp),
               ),
-              const SizedBox(height: 29),
+              SizedBox(height: 29.h),
               SizedBox(
-                width: 160,
-                height: 50,
+                width: 160.w,
+                height: 50.h,
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -212,15 +215,12 @@ class _SendProgressScreenState extends State<SendProgressScreen>
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
                     side: BorderSide.none,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
                   ),
                 ),
               ),

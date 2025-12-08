@@ -100,7 +100,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: EdgeInsets.fromLTRB(30, 20, 30, 0),
+      padding: EdgeInsets.fromLTRB(30.w, 20.h, 30.w, 0),
       child: Column(
         children: [
           Row(
@@ -223,7 +223,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final displayData = _selectedTab == 'lightning' ? _bolt11 : _bitcoinAddress;
 
     return Container(
-      height: 310.h,
+      height: 315.h,
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -235,12 +235,12 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             displayData != null
                 ? Image.network(
                   'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(displayData)}',
-                  width: 245.w,
-                  height: 265.h,
+                  width: 255.w,
+                  height: 275.h,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      width: 240.w,
+                      width: 245.w,
                       height: 240.h,
                       color: Colors.grey[330],
                       child: Center(
@@ -318,37 +318,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             ],
           ),
         ),
-        // const SizedBox(height: 4),
-        // Padding(
-        //   padding: const EdgeInsets.symmetric(horizontal: 112),
-        //   child: Row(
-        //     mainAxisAlignment: MainAxisAlignment.center,
-        //     children: [
-        //       const Text(
-        //         'auwalrg@sabi.ng',
-        //         style: TextStyle(
-        //           color: AppColors.textSecondary,
-        //           fontSize: 12,
-        //           fontWeight: FontWeight.w400,
-        //         ),
-        //       ),
-        //       const SizedBox(width: 8),
-        //       GestureDetector(
-        //         onTap: () => _copyToClipboard('auwalrg@sabi.ng', 'Email'),
-        //         child: Container(
-        //           width: 22,
-        //           height: 22,
-        //           padding: const EdgeInsets.all(4),
-        //           child: Icon(
-        //             Icons.copy,
-        //             color: AppColors.textSecondary,
-        //             size: 14,
-        //           ),
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // ),
       ],
     );
   }
