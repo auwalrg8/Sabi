@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 
@@ -64,16 +65,16 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16.r),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close,
                           color: Colors.white,
-                          size: 28,
+                          size: 28.sp,
                         ),
                       ),
                       IconButton(
@@ -81,28 +82,28 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                         icon: Icon(
                           _torchEnabled ? Icons.flash_on : Icons.flash_off,
                           color: Colors.white,
-                          size: 28,
+                          size: 28.sp,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
-                const Text(
+                SizedBox(height: 40.h),
+                Text(
                   'Scan QR Code',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 24.sp,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 40),
+                SizedBox(height: 12.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 40.h),
                   child: Text(
                     'Align the QR code within the frame to scan',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: Colors.white70, fontSize: 14.sp),
                   ),
                 ),
               ],
@@ -118,20 +119,19 @@ class ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double scanAreaSize = size.width * 0.7;
-    final double left = (size.width - scanAreaSize) / 2;
-    final double top = (size.height - scanAreaSize) / 2;
+    final double left = (size.width - scanAreaSize) / 2.w;
+    final double top = (size.height - scanAreaSize) / 2.h;
     final Rect scanArea = Rect.fromLTWH(left, top, scanAreaSize, scanAreaSize);
 
     // Draw semi-transparent overlay
     final Paint backgroundPaint =
-        Paint()..color = Colors.black.withOpacity(0.5);
+        Paint()..color = Colors.black.withValues(alpha: 0.5);
     canvas.drawPath(
       Path.combine(
         PathOperation.difference,
         Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
-        Path()..addRRect(
-          RRect.fromRectAndRadius(scanArea, const Radius.circular(16)),
-        ),
+        Path()
+          ..addRRect(RRect.fromRectAndRadius(scanArea, Radius.circular(16.r))),
       ),
       backgroundPaint,
     );
@@ -143,8 +143,8 @@ class ScannerOverlayPainter extends CustomPainter {
           ..strokeWidth = 4
           ..style = PaintingStyle.stroke;
 
-    final double cornerLength = 30;
-    final double cornerRadius = 16;
+    final double cornerLength = 30.h;
+    final double cornerRadius = 16.r;
 
     // Top-left corner
     canvas.drawPath(
