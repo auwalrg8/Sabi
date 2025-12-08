@@ -67,8 +67,8 @@ class _PaymentReceivedScreenState extends State<PaymentReceivedScreen>
     // Start falling sats animation
     _startFallingSats();
     
-    // Auto close after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
+    // Auto close after 6 seconds
+    Future.delayed(const Duration(seconds: 6), () {
       if (mounted) Navigator.of(context).pop();
     });
   }
