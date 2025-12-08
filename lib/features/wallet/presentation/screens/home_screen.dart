@@ -9,6 +9,7 @@ import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart'
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/zaps/presentation/screens/zaps_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
+import 'package:sabi_wallet/core/widgets/skeleton_loader.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -557,39 +558,56 @@ class _HomeContent extends ConsumerWidget {
               // Balance card with direct Breez SDK balance
               Consumer(
                 builder: (context, ref, _) {
-                  final balance = ref.watch(balanceNotifierProvider);
+                  final balanceAsync = ref.watch(balanceNotifierProvider);
 
-                  return FutureBuilder<String?>(
-                    future: ref
-                        .read(secureStorageServiceProvider)
-                        .read(key: 'first_payment_confetti_pending'),
-                    builder: (context, confettiSnapshot) {
-                      final showConfetti = confettiSnapshot.data == 'true';
+                  return balanceAsync.when(
+                    loading: () => const BalanceCardSkeleton(),
+                    error: (_, __) => BalanceCard(
+                      balanceSats: 0,
+                      showConfetti: false,
+                      isOnline:
+                          ref.watch(eventStreamServiceProvider).isConnected,
+                      isBalanceHidden: !isBalanceVisible,
+                      onToggleHide: onToggleBalance,
+                    ),
+                    data: (balance) {
+                      return FutureBuilder<String?>(
+                        future: ref
+                            .read(secureStorageServiceProvider)
+                            .read(key: 'first_payment_confetti_pending'),
+                        builder: (context, confettiSnapshot) {
+                          final showConfetti = confettiSnapshot.data == 'true';
 
-                      // Mark confetti as shown if displaying
-                      if (showConfetti) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) async {
-                          final storage = ref.read(
-                            secureStorageServiceProvider,
-                          );
-                          await storage.write(
-                            key: 'first_payment_confetti_shown',
-                            value: 'true',
-                          );
-                          await storage.write(
-                            key: 'first_payment_confetti_pending',
-                            value: 'false',
-                          );
-                        });
-                      }
+                          // Mark confetti as shown if displaying
+                          if (showConfetti) {
+                            WidgetsBinding.instance.addPostFrameCallback(
+                              (_) async {
+                                final storage = ref.read(
+                                  secureStorageServiceProvider,
+                                );
+                                await storage.write(
+                                  key: 'first_payment_confetti_shown',
+                                  value: 'true',
+                                );
+                                await storage.write(
+                                  key: 'first_payment_confetti_pending',
+                                  value: 'false',
+                                );
+                              },
+                            );
+                          }
 
-                      return BalanceCard(
-                        balanceSats: balance,
-                        showConfetti: showConfetti,
-                        isOnline:
-                            ref.watch(eventStreamServiceProvider).isConnected,
-                        isBalanceHidden: !isBalanceVisible,
-                        onToggleHide: onToggleBalance,
+                          return BalanceCard(
+                            balanceSats: balance,
+                            showConfetti: showConfetti,
+                            isOnline:
+                                ref
+                                    .watch(eventStreamServiceProvider)
+                                    .isConnected,
+                            isBalanceHidden: !isBalanceVisible,
+                            onToggleHide: onToggleBalance,
+                          );
+                        },
                       );
                     },
                   );
@@ -672,6 +690,24 @@ class _HomeContent extends ConsumerWidget {
                   final paymentsAsync = ref.watch(recentTransactionsProvider);
 
                   return paymentsAsync.when(
+                    loading: () => Column(
+                      children: List.generate(
+                        3,
+                        (index) => const TransactionItemSkeleton(),
+                      ),
+                    ),
+                    error: (_, __) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text(
+                          'Failed to load transactions',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      ),
+                    ),
                     data: (payments) {
                       if (payments.isEmpty) {
                         return Center(
@@ -753,16 +789,24 @@ class _HomeContent extends ConsumerWidget {
                             }).toList(),
                       );
                     },
-                    loading:
-                        () => Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(40.h),
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
+                    loading: () => Column(
+                      children: List.generate(
+                        3,
+                        (index) => const TransactionItemSkeleton(),
+                      ),
+                    ),
+                    error: (_, __) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text(
+                          'Failed to load transactions',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14.sp,
                           ),
                         ),
-                    error: (_, __) => _buildMockTransactions(),
+                      ),
+                    ),
                   );
                 },
               ),

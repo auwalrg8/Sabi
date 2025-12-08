@@ -10,22 +10,22 @@ final balanceProvider = FutureProvider<int>((ref) async {
   }
 });
 
-/// Provider to manually refresh balance
-final balanceNotifierProvider = StateNotifierProvider<BalanceNotifier, int>((ref) {
+/// Provider to manually refresh balance with loading state
+final balanceNotifierProvider = StateNotifierProvider<BalanceNotifier, AsyncValue<int>>((ref) {
   return BalanceNotifier();
 });
 
-class BalanceNotifier extends StateNotifier<int> {
-  BalanceNotifier() : super(0) {
+class BalanceNotifier extends StateNotifier<AsyncValue<int>> {
+  BalanceNotifier() : super(const AsyncValue.loading()) {
     _loadBalance();
   }
 
   Future<void> _loadBalance() async {
     try {
       final balance = await BreezSparkService.getBalance();
-      state = balance;
-    } catch (e) {
-      state = 0;
+      state = AsyncValue.data(balance);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
     }
   }
 
