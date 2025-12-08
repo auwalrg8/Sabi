@@ -13,6 +13,7 @@ import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/app_state_service.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/balance_provider.dart';
@@ -241,6 +242,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Save app state when app goes to background
+      AppStateService.saveLastScreen('/home');
+    }
+    
     if (state == AppLifecycleState.resumed) {
       // Refresh wallet data when app comes back to foreground
       ref.read(walletInfoProvider.notifier).refresh();
@@ -265,8 +272,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: const Text('Cancel'),
               ),
               TextButton(
-                onPressed: () {
-                  // Save all data before exiting
+                onPressed: () async {
+                  // Save app state before exiting
+                  await AppStateService.saveLastScreen('/home');
                   Navigator.of(context).pop(true);
                 },
                 child: const Text('Exit'),

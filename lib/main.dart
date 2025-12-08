@@ -6,6 +6,7 @@ import 'services/breez_spark_service.dart';
 import 'services/contact_service.dart';
 import 'services/notification_service.dart';
 import 'services/profile_service.dart';
+import 'services/app_state_service.dart';
 import 'features/wallet/presentation/screens/home_screen.dart';
 import 'features/onboarding/presentation/screens/splash_screen.dart';
 import 'features/onboarding/presentation/screens/entry_screen.dart';
@@ -19,6 +20,7 @@ void main() async {
   
   // Initialize services
   await SecureStorage.init();
+  await AppStateService.init(); // Initialize app state first
   await BreezSparkService.initPersistence();
   
   // Auto-recover wallet if exists
@@ -36,6 +38,9 @@ void main() async {
   await NotificationService.init();
   await ProfileService.init();
   
+  // Mark app as opened
+  await AppStateService.markAppOpened();
+  
   runApp(const ProviderScope(child: SabiWalletApp()));
 }
 
@@ -44,12 +49,14 @@ class SabiWalletApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if wallet exists (created/restored) by checking for mnemonic
-    final hasMnemonic = BreezSparkService.mnemonic != null;
+    // Check if user has created/restored a wallet using app state service
+    final hasWallet = AppStateService.hasWallet;
+    
+    debugPrint('🔍 App State Check - hasWallet: $hasWallet');
     
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: hasMnemonic
+      home: hasWallet
           ? const HomeScreen()      // Wallet exists → go to home
           : const SplashScreen(),   // No wallet → show onboarding
       routes: {
