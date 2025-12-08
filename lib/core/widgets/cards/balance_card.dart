@@ -204,17 +204,6 @@ class _BalanceCardState extends State<BalanceCard>
                   );
                 },
               ),
-            const SizedBox(height: 16),
-            // Subtitle: press to flip
-            const Text(
-              'Press to convert',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
           ],
         ),
       ),
@@ -230,7 +219,7 @@ class _BalanceCardState extends State<BalanceCard>
           _formatSats(widget.balanceSats),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 80,
+            fontSize: 56,
             fontWeight: FontWeight.w700,
             height: 0.9,
           ),
@@ -258,7 +247,7 @@ class _BalanceCardState extends State<BalanceCard>
           '₦${_formatNumber(widget.balanceNgn)}',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 80,
+            fontSize: 56,
             fontWeight: FontWeight.w700,
             height: 0.9,
           ),

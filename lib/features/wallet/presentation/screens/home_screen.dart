@@ -54,6 +54,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Initialize Breez SDK first, then poll payments
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _initializeBreezSDK();
+      // Sync and get balance immediately after init
+      await BreezSparkService.syncAndGetBalance();
+      // Refresh wallet provider to get the balance
+      await ref.read(walletInfoProvider.notifier).refresh();
       _pollPaymentsForConfetti();
       _initEventStream();
       _startAutoRefresh();
