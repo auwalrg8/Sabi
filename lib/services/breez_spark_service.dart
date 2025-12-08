@@ -363,14 +363,47 @@ class BreezSparkService {
         request: ListPaymentsRequest(limit: limit),
       );
 
+      debugPrint('📋 Total payments: ${response.payments.length}');
+
       // Loop through .payments list (not .map)
       final records = <PaymentRecord>[];
       for (var p in response.payments) {
+        // DEBUG: Log raw values
+        debugPrint('💾 Payment: id=${p.id}');
+        debugPrint('   amount=${p.amount} (type: ${p.amount.runtimeType})');
+        debugPrint('   fees=${p.fees} (type: ${p.fees.runtimeType})');
+        debugPrint('   timestamp=${p.timestamp}');
+        debugPrint('   type=${p.paymentType}');
+
+        // Try multiple conversion approaches for debugging
+        int amountSats;
+        if (p.amount > BigInt.from(999999)) {
+          // If amount is large, assume it's in millisatoshis
+          amountSats = (p.amount ~/ BigInt.from(1000)).toInt();
+          debugPrint('   ✓ Using msat→sat conversion (dividing by 1000): $amountSats sats');
+        } else if (p.amount > BigInt.zero) {
+          // If amount is small, assume it's already in satoshis
+          amountSats = p.amount.toInt();
+          debugPrint('   ✓ Using direct conversion (already sats): $amountSats sats');
+        } else {
+          // Try to extract from details if amount is zero
+          amountSats = _extractAmountFromDetails(p.details, p.amount);
+          if (amountSats == 0) {
+            debugPrint('   ⚠️ Amount is zero - no fallback found');
+          } else {
+            debugPrint('   ✓ Extracted from details: $amountSats sats');
+          }
+        }
+
+        final feeSats = (p.fees ~/ BigInt.from(1000)).toInt();
+        
+        debugPrint('   Final: amountSats=$amountSats, feeSats=$feeSats');
+
         records.add(
           PaymentRecord(
             id: p.id,
-            amountSats: (p.amount ~/ BigInt.from(1000)).toInt(),
-            feeSats: (p.fees ~/ BigInt.from(1000)).toInt(),
+            amountSats: amountSats,
+            feeSats: feeSats,
             timestamp: DateTime.fromMillisecondsSinceEpoch(
               (p.timestamp ~/ BigInt.from(1000)).toInt(),
             ),
@@ -381,6 +414,7 @@ class BreezSparkService {
           ),
         );
       }
+      debugPrint('✅ Processed ${records.length} payment records');
       return records;
     } catch (e) {
       debugPrint('❌ List payments error: $e');
@@ -401,6 +435,23 @@ class BreezSparkService {
     // Invoice info is in the sealed class variants
     // For now return null - actual invoice is from payment request
     return null;
+  }
+
+  // Helper to extract amount from payment details if p.amount is 0
+  static int _extractAmountFromDetails(PaymentDetails? details, BigInt amount) {
+    // If we have amount directly, use it
+    if (amount > BigInt.zero) {
+      // Check if it's likely in msat (large number) or sats (small number)
+      if (amount > BigInt.from(999999)) {
+        return (amount ~/ BigInt.from(1000)).toInt();
+      } else {
+        return amount.toInt();
+      }
+    }
+    
+    // If amount is 0, try to extract from details if available
+    // For now, return 0 - we'd need to parse the invoice from details
+    return 0;
   }
 
   // ============================================================================

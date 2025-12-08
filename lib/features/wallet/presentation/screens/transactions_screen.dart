@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/payment_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_detail_screen.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/payment_debug_screen.dart';
 
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
@@ -237,21 +238,37 @@ class TransactionsScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 10),
-          const Text(
-            'All Transactions',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+            const SizedBox(width: 10),
+            const Text(
+              'All Transactions',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            // Debug button - tap 3 times to show
+            Material(
+              color: Colors.transparent,
+              child: Tooltip(
+                message: 'Payment Debug Info',
+                child: IconButton(
+                  icon: const Icon(Icons.bug_report_outlined, color: AppColors.primary),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PaymentDebugScreen()),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
