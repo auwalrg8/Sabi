@@ -13,6 +13,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../config/breez_config.dart';
+import 'app_state_service.dart';
 
 /// Local wrapper class for payment history display
 class PaymentRecord {
@@ -195,7 +196,12 @@ class BreezSparkService {
       // Mark onboarding as complete and save wallet initialization timestamp
       await _box.put('has_completed_onboarding', true);
       await _box.put('wallet_initialized_at', DateTime.now().millisecondsSinceEpoch);
+      
+      // Mark wallet as created in app state
+      await AppStateService.markWalletCreated();
+      
       debugPrint('🔒 ONBOARDING FLAG SAVED — WILL NEVER SHOW AGAIN');
+      debugPrint('✅ Wallet state saved to AppStateService');
       
       // Start payment polling to detect new incoming/outgoing payments
       _startPaymentPolling();

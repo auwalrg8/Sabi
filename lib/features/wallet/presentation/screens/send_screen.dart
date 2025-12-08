@@ -7,6 +7,7 @@ import 'package:sabi_wallet/core/services/api_client.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
+import 'qr_scanner_screen.dart';
 
 enum _SendStep { recipient, amount, confirm }
 
@@ -218,6 +219,22 @@ class _SendScreenState extends State<SendScreen>
     _selectRecipientFromInput(text);
   }
 
+  Future<void> _openQRScanner() async {
+    try {
+      final String? scannedCode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+      );
+
+      if (scannedCode != null && scannedCode.isNotEmpty && mounted) {
+        _recipientController.text = scannedCode;
+        _selectRecipientFromInput(scannedCode);
+      }
+    } catch (e) {
+      _showSnack('QR Scanner error: $e');
+    }
+  }
+
   void _nextFromAmount() {
     if (_recipient == null) {
       _showSnack('Select a recipient first');
@@ -393,69 +410,102 @@ class _SendScreenState extends State<SendScreen>
   }
 
   Widget _buildRecipientStep() {
-    return SingleChildScrollView(
+    return Column(
       key: const ValueKey('recipient'),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _recipientController,
-            decoration: InputDecoration(
-              hintText: 'Paste phone, @handle, npub, LNURL, lightning address',
-              hintStyle: const TextStyle(color: AppColors.textSecondary),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.paste, color: AppColors.textSecondary),
-                onPressed: _onPaste,
-              ),
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _recipientController,
+                  decoration: InputDecoration(
+                    hintText: 'Paste phone, @handle, npub, LN address',
+                    hintStyle: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(
+                        Icons.qr_code_scanner,
+                        color: AppColors.textSecondary,
+                      ),
+                      onPressed: _openQRScanner,
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  onSubmitted: _selectRecipientFromInput,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _outlinedButton('Paste', Icons.content_paste, _onPaste),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _outlinedButton('Contacts', Icons.contacts, _importContacts),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _outlinedButton('Paste', Icons.history, () {
+                        if (_recent.isEmpty) {
+                          _showSnack('No recent recipients');
+                          return;
+                        }
+                        _showRecentBottomSheet();
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                if (_loadingContacts)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                  ),
+                if (_contacts.isNotEmpty) ...[
+                  const Text(
+                    'Contacts',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._contacts.take(5).map((c) => _contactTile(c)),
+                ],
+                if (_recent.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Recent',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._recent.take(5).map((c) => _contactTile(c)),
+                ],
+              ],
             ),
-            style: const TextStyle(color: Colors.white),
-            onSubmitted: _selectRecipientFromInput,
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            children: [
-              _pillButton('Paste', Icons.content_paste, _onPaste),
-              _pillButton('Contacts', Icons.contacts, _importContacts),
-              _pillButton('Recent', Icons.history, () {
-                if (_recent.isEmpty) {
-                  _showSnack('No recent recipients');
-                  return;
-                }
-                _showRecentBottomSheet();
-              }),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_loadingContacts)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            ),
-          if (_contacts.isNotEmpty) ...[
-            const Text('Phone contacts', style: TextStyle(color: Colors.white)),
-            const SizedBox(height: 10),
-            ..._contacts.take(5).map((c) => _contactTile(c)),
-          ],
-          if (_recent.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            const Text('Recent', style: TextStyle(color: Colors.white)),
-            const SizedBox(height: 10),
-            ..._recent.take(5).map((c) => _contactTile(c)),
-          ],
-          const SizedBox(height: 30),
-          SizedBox(
+        ),
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 56,
             child: ElevatedButton(
               onPressed: () => _selectRecipientFromInput(_recipientController.text),
               style: ElevatedButton.styleFrom(
@@ -464,11 +514,18 @@ class _SendScreenState extends State<SendScreen>
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Text('Continue'),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -689,19 +746,87 @@ class _SendScreenState extends State<SendScreen>
     );
   }
 
-  Widget _contactTile(ContactInfo c) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-        child: Text(
-          c.displayName.isNotEmpty ? c.displayName[0].toUpperCase() : '?',
-          style: const TextStyle(color: Colors.white),
+  Widget _outlinedButton(String label, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
-      title: Text(c.displayName, style: const TextStyle(color: Colors.white)),
-      subtitle: Text(c.identifier, style: const TextStyle(color: AppColors.textSecondary)),
+    );
+  }
+
+  Widget _contactTile(ContactInfo c) {
+    return InkWell(
       onTap: () => _selectRecipient(c),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  c.displayName.isNotEmpty ? c.displayName[0].toUpperCase() : 'C',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    c.displayName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    c.identifier,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
