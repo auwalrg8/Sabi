@@ -53,6 +53,10 @@ class BreezSparkService {
       StreamController.broadcast();
   static Stream<int> get balanceStream => _balanceStream.stream;
   static Timer? _balancePollingTimer;
+  
+  // Payment polling to detect new payments
+  static Timer? _paymentPollingTimer;
+  static String? _lastPaymentId;
 
   // Start balance polling
   static void _startBalancePolling() {
@@ -66,10 +70,35 @@ class BreezSparkService {
       }
     });
   }
+  
+  // Start payment polling to detect new payments
+  static void _startPaymentPolling() {
+    _paymentPollingTimer?.cancel();
+    _paymentPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final payments = await listPayments(limit: 1);
+        if (payments.isNotEmpty) {
+          final latestPayment = payments.first;
+          if (_lastPaymentId != latestPayment.id) {
+            debugPrint('🔔 New payment detected: ${latestPayment.id}');
+            _lastPaymentId = latestPayment.id;
+            _paymentStream.add(latestPayment);
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Payment polling error: $e');
+      }
+    });
+  }
 
   // Stop balance polling
   static void stopBalancePolling() {
     _balancePollingTimer?.cancel();
+  }
+  
+  // Stop payment polling
+  static void stopPaymentPolling() {
+    _paymentPollingTimer?.cancel();
   }
 
   // ============================================================================
@@ -167,6 +196,10 @@ class BreezSparkService {
       await _box.put('has_completed_onboarding', true);
       await _box.put('wallet_initialized_at', DateTime.now().millisecondsSinceEpoch);
       debugPrint('🔒 ONBOARDING FLAG SAVED — WILL NEVER SHOW AGAIN');
+      
+      // Start payment polling to detect new incoming/outgoing payments
+      _startPaymentPolling();
+      debugPrint('🔔 Payment polling started');
       
       _isInitializing = false;
       

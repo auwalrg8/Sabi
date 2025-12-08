@@ -119,8 +119,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ref.read(walletInfoProvider.notifier).refresh();
     });
 
-    // Listen to payment notifications
+    // Listen to Breez SDK payment stream directly for more reliable detection
+    BreezSparkService.paymentStream.listen((payment) async {
+      debugPrint('🔔 Payment stream event: ${payment.isIncoming ? "incoming" : "outgoing"} ${payment.amountSats} sats');
+      
+      // Refresh transaction providers
+      ref.read(recentTransactionsProvider.notifier).refresh();
+      ref.read(allTransactionsNotifierProvider.notifier).refresh();
+      
+      if (payment.isIncoming) {
+        // Trigger confetti for incoming payments
+        final storage = ref.read(secureStorageServiceProvider);
+        await storage.write(
+          key: 'first_payment_confetti_pending',
+          value: 'true',
+        );
+        
+        // Refresh balance to show confetti
+        ref.read(balanceNotifierProvider.notifier).refresh();
+        
+        // Add to notification service
+        NotificationService.addPaymentNotification(
+          isInbound: true,
+          amountSats: payment.amountSats,
+          description: payment.description,
+        );
+
+        // Show payment received screen with animation
+        if (mounted) {
+          debugPrint('🎉 Showing payment received screen: ${payment.amountSats} sats');
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              opaque: false,
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  PaymentReceivedScreen(
+                amountSats: payment.amountSats,
+                description: payment.description,
+              ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+            ),
+          );
+        }
+      }
+      
+      // Refresh wallet info and balance
+      ref.read(balanceNotifierProvider.notifier).refresh();
+      ref.read(walletInfoProvider.notifier).refresh();
+    });
+
+    // Also listen to payment notifications from event service as backup
     eventService.paymentNotifications.listen((payment) async {
+      debugPrint('🔔 Event service notification: ${payment.inbound ? "incoming" : "outgoing"} ${payment.amountSats} sats');
+      
       // Refresh recent transactions when new payment arrives
       ref.read(recentTransactionsProvider.notifier).refresh();
       // Also refresh all transactions
@@ -147,6 +203,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         // Show payment received screen with animation
         if (mounted) {
+          debugPrint('🎉 Showing payment received screen (from event service): ${payment.amountSats} sats');
           Navigator.of(context).push(
             PageRouteBuilder(
               opaque: false,
