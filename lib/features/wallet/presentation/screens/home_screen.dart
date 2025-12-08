@@ -14,6 +14,7 @@ import 'package:sabi_wallet/services/profile_service.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/payment_provider.dart';
+import '../providers/balance_provider.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
@@ -56,6 +57,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _initializeBreezSDK();
       // Sync and get balance immediately after init
       await BreezSparkService.syncAndGetBalance();
+      // Refresh balance provider to get the balance
+      await ref.read(balanceNotifierProvider.notifier).refresh();
       // Refresh wallet provider to get the balance
       await ref.read(walletInfoProvider.notifier).refresh();
       _pollPaymentsForConfetti();
@@ -71,7 +74,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         try {
           // Fetch fresh balance from Breez SDK
           await BreezSparkService.getBalance();
-          // Refresh the wallet info provider
+          // Refresh the balance provider directly
+          ref.read(balanceNotifierProvider.notifier).refresh();
+          // Also refresh wallet info provider
           ref.read(walletInfoProvider.notifier).refresh();
         } catch (e) {
           debugPrint('⚠️ Balance refresh error: $e');
@@ -100,7 +105,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Listen to balance updates
     eventService.balanceUpdates.listen((balance) {
-      // Refresh wallet info when balance updates
+      // Refresh both balance and wallet info when balance updates
+      ref.read(balanceNotifierProvider.notifier).refresh();
       ref.read(walletInfoProvider.notifier).refresh();
     });
 
@@ -417,11 +423,11 @@ class _HomeContent extends ConsumerWidget {
               // Spark inbound status / first-channel loading banner
               _InboundStatusBanner(walletAsync: walletAsync),
               const SizedBox(height: 12),
-              // Replace inline balance view with reusable BalanceCard
-              StreamBuilder<PaymentRecord>(
-                stream: BreezSparkService.paymentStream,
-                builder: (context, paymentSnapshot) {
-                  // Rebuild when payments occur to refresh balance
+              // Balance card with direct Breez SDK balance
+              Consumer(
+                builder: (context, ref, _) {
+                  final balance = ref.watch(balanceNotifierProvider);
+                  
                   return FutureBuilder<String?>(
                     future: ref
                         .read(secureStorageServiceProvider)
@@ -444,23 +450,12 @@ class _HomeContent extends ConsumerWidget {
                         });
                       }
 
-                      return walletAsync.when(
-                        data: (model) {
-                          final sats = model?.balanceSats ?? 0;
-                          return BalanceCard(
-                            balanceSats: sats,
-                            showConfetti: showConfetti,
-                            isOnline: ref.watch(eventStreamServiceProvider).isConnected,
-                            isBalanceHidden: !isBalanceVisible,
-                            onToggleHide: onToggleBalance,
-                          );
-                        },
-                        loading: () => const BalanceCard(
-                          balanceSats: 0,
-                        ),
-                        error: (_, __) => const BalanceCard(
-                          balanceSats: 0,
-                        ),
+                      return BalanceCard(
+                        balanceSats: balance,
+                        showConfetti: showConfetti,
+                        isOnline: ref.watch(eventStreamServiceProvider).isConnected,
+                        isBalanceHidden: !isBalanceVisible,
+                        onToggleHide: onToggleBalance,
                       );
                     },
                   );
