@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
 import '../providers/cash_provider.dart';
 import 'add_bank_account_screen.dart';
 import 'cash_history_screen.dart';
@@ -17,6 +18,7 @@ class CashScreen extends ConsumerStatefulWidget {
 class _CashScreenState extends ConsumerState<CashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _refreshController;
+  double? _liveBtcRate;
 
   final List<double> _quickAmounts = [
     5000,
@@ -34,6 +36,16 @@ class _CashScreenState extends ConsumerState<CashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
+    _loadLiveRate();
+  }
+
+  Future<void> _loadLiveRate() async {
+    final rate = await RateService.getBtcToNgnRate();
+    if (mounted) {
+      setState(() {
+        _liveBtcRate = rate;
+      });
+    }
   }
 
   @override
@@ -45,6 +57,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
   void _refreshPrice() {
     _refreshController.forward(from: 0);
     ref.read(cashProvider.notifier).refreshPrice();
+    _loadLiveRate(); // Also refresh BTC rate
   }
 
   @override
@@ -152,11 +165,22 @@ class _CashScreenState extends ConsumerState<CashScreen>
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            '1 BTC = ₦ ${formatter.format(cashState.btcPrice.toInt())}',
+                            _liveBtcRate != null
+                                ? '1 BTC = ₦${formatter.format(_liveBtcRate!.toInt())}'
+                                : '1 BTC = ₦ ${formatter.format(cashState.btcPrice.toInt())}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _liveBtcRate != null ? 'Live market rate' : 'Loading rate...',
+                            style: TextStyle(
+                              color: AppColors.accentGreen.withValues(alpha: 0.8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           const SizedBox(height: 10),

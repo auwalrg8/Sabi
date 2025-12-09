@@ -1,34 +1,34 @@
 {
-  "@@locale": "en",
+  "@@locale": "pcm",
   
   "appTitle": "Sabi Wallet",
   "@appTitle": {
-    "description": "The title of the application"
+    "description": "Di name of di application"
   },
 
   "welcome": "Welcome",
   "welcomeDescription": "Keep your Bitcoin safe. Nobody fit block your money or freeze your account.",
-  "letsStart": "Let's Sabi ₿",
+  "letsStart": "Make we start Sabi ₿",
   "restore": "Restore",
   
-  "totalBalance": "Total Balance",
+  "totalBalance": "Total Money",
   "sats": "sats",
   "send": "Send",
   "receive": "Receive",
   "transactions": "Transactions",
-  "airtime": "Airtime",
+  "airtime": "Buy Airtime",
   "payBills": "Pay Bills",
   "recentTransactions": "Recent Transactions",
   "seeAll": "See All",
   "failedToLoadTransactions": "Failed to load transactions",
-  "receivedPayment": "Received Payment",
-  "sentPayment": "Sent Payment",
-  "chooseRecipient": "Choose Recipient",
+  "receivedPayment": "Money Don Enter",
+  "sentPayment": "Money Don Go Out",
+  "chooseRecipient": "Pick Who You Send To",
   "enterAmount": "Enter Amount",
   "lightning": "Lightning",
   "bitcoin": "Bitcoin",
-  "account": "Account",
-  "preferences": "Preferences",
+  "account": "Your Account",
+  "preferences": "Your Preferences",
   "cash": "Cash",
   "zaps": "Zaps",
   "profile": "Profile",
@@ -54,27 +54,27 @@
   "description": "Description",
   "invoice": "Invoice",
   
-  "completed": "Completed",
-  "pending": "Pending",
-  "failed": "Failed",
+  "completed": "Don finish",
+  "pending": "Dey wait",
+  "failed": "E no work",
   
-  "sent": "Sent",
-  "received": "Received",
+  "sent": "Don send",
+  "received": "Don receive",
   
   "today": "Today",
   "yesterday": "Yesterday",
-  "at": "at",
+  "at": "for",
   
   "continueButton": "Continue",
   "cancel": "Cancel",
   "confirm": "Confirm",
-  "done": "Done",
-  "retry": "Retry",
-  "exit": "Exit",
+  "done": "Don finish",
+  "retry": "Try again",
+  "exit": "Comot",
   "share": "Share",
   
-  "copyToClipboard": "Copy to clipboard",
-  "copiedToClipboard": "{item} copied to clipboard",
+  "copyToClipboard": "Copy am",
+  "copiedToClipboard": "{item} don copy",
   "@copiedToClipboard": {
     "placeholders": {
       "item": {
@@ -84,26 +84,26 @@
   },
   
   "enterAmount": "Enter Amount",
-  "enterRecipient": "Enter recipient address or invoice",
+  "enterRecipient": "Enter person address or invoice",
   "scanQR": "Scan QR",
   "paste": "Paste",
   
-  "paymentSuccess": "Payment Successful",
-  "paymentFailed": "Payment Failed",
-  "paymentPending": "Payment Pending",
+  "paymentSuccess": "Payment Don Work",
+  "paymentFailed": "Payment No Work",
+  "paymentPending": "Payment Dey Wait",
   
   "createInvoice": "Create Invoice",
   "generateInvoice": "Generate Invoice",
   "shareInvoice": "Share Invoice",
   
   "backupWallet": "Backup Wallet",
-  "recoveryPhrase": "Recovery Phrase",
-  "seedPhrase": "Seed Phrase",
-  "writeDownSeedPhrase": "Write down your seed phrase",
-  "verifySeedPhrase": "Verify seed phrase",
+  "recoveryPhrase": "Recovery Words",
+  "seedPhrase": "Seed Words",
+  "writeDownSeedPhrase": "Write your seed words",
+  "verifySeedPhrase": "Check your seed words",
   
   "editProfile": "Edit Profile",
-  "displayName": "Display Name",
+  "displayName": "Your Name",
   "phoneNumber": "Phone Number",
   "email": "Email",
   
@@ -113,18 +113,18 @@
   "help": "Help",
   "logout": "Logout",
   
-  "switchWallet": "Switch Wallet",
+  "switchWallet": "Change Wallet",
   "createNewWallet": "Create New Wallet",
   "restoreWallet": "Restore Wallet",
   
   "error": "Error",
-  "success": "Success",
+  "success": "E don work",
   "warning": "Warning",
   "info": "Info",
   
-  "loading": "Loading...",
-  "pleaseWait": "Please wait",
-  "processing": "Processing",
+  "loading": "Dey load...",
+  "pleaseWait": "Abeg wait",
+  "processing": "Dey process...",
   
   "lightningNetwork": "Lightning Network",
   "bitcoinAddress": "Bitcoin Address",
@@ -134,27 +134,27 @@
   "addContact": "Add Contact",
   
   "quickAmounts": "Quick Amounts",
-  "customAmount": "Custom Amount",
+  "customAmount": "Your Own Amount",
   
   "livePrice": "Live Price",
   "buyRate": "Buy rate",
   "sellRate": "Sell rate",
   
-  "tapToSwitch": "Tap to switch currency",
+  "tapToSwitch": "Press to change currency",
   "liveMarketRate": "Live market rate",
   
-  "exitWallet": "Exit Sabi Wallet",
-  "exitWalletConfirm": "Do you really want to quit Sabi Wallet?",
+  "exitWallet": "Comot from Sabi Wallet",
+  "exitWalletConfirm": "You sure say you wan comot from Sabi Wallet?",
   
-  "noTransactions": "No transactions yet",
+  "noTransactions": "No transaction yet",
   "noNotifications": "No notifications",
   
-  "paymentReceived": "Payment Received",
-  "paymentSent": "Payment Sent",
+  "paymentReceived": "Money Don Enter",
+  "paymentSent": "Money Don Comot",
   
-  "insufficientBalance": "Insufficient balance",
-  "invalidAddress": "Invalid address",
-  "invalidInvoice": "Invalid invoice",
+  "insufficientBalance": "Money no reach",
+  "invalidAddress": "Address no correct",
+  "invalidInvoice": "Invoice no correct",
   
   "economy": "Economy",
   "normal": "Normal",

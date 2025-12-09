@@ -16,6 +16,8 @@ import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/services/app_state_service.dart';
+import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
+import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/balance_provider.dart';
@@ -619,7 +621,7 @@ class _HomeContent extends ConsumerWidget {
                 children: [
                   _ActionButton(
                     icon: _SendIcon(),
-                    label: 'Send',
+                    label: AppLocalizations.of(context)!.send,
                     onTap:
                         () => Navigator.push(
                           context,
@@ -628,7 +630,7 @@ class _HomeContent extends ConsumerWidget {
                   ),
                   _ActionButton(
                     icon: _ReceiveIcon(),
-                    label: 'Receive',
+                    label: AppLocalizations.of(context)!.receive,
                     onTap:
                         () => Navigator.push(
                           context,
@@ -639,12 +641,12 @@ class _HomeContent extends ConsumerWidget {
                   ),
                   _ActionButton(
                     icon: _AirtimeIcon(),
-                    label: 'Airtime',
+                    label: AppLocalizations.of(context)!.airtime,
                     onTap: () {},
                   ),
                   _ActionButton(
                     icon: _PayBillsIcon(),
-                    label: 'Pay Bills',
+                    label: AppLocalizations.of(context)!.payBills,
                     onTap: () {},
                   ),
                 ],
@@ -654,7 +656,7 @@ class _HomeContent extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Recent Transactions',
+                    AppLocalizations.of(context)!.recentTransactions,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 15.sp,
@@ -672,7 +674,7 @@ class _HomeContent extends ConsumerWidget {
                       );
                     },
                     child: Text(
-                      'See All',
+                      AppLocalizations.of(context)!.seeAll,
                       style: TextStyle(
                         color: AppColors.primary,
                         fontSize: 12.sp,
@@ -700,7 +702,7 @@ class _HomeContent extends ConsumerWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(40),
                         child: Text(
-                          'Failed to load transactions',
+                          AppLocalizations.of(context)!.failedToLoadTransactions,
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14.sp,
@@ -714,7 +716,7 @@ class _HomeContent extends ConsumerWidget {
                           child: Padding(
                             padding: const EdgeInsets.all(40),
                             child: Text(
-                              'No transactions yet',
+                              AppLocalizations.of(context)!.noTransactions,
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 14.sp,
@@ -738,23 +740,7 @@ class _HomeContent extends ConsumerWidget {
                                       : const Color(0xFFFF4D4F);
                               final amountPrefix = isInbound ? '+' : '-';
 
-                              final now = DateTime.now();
-                              final paymentTime = payment.timestamp;
-                              String timeStr;
-                              if (paymentTime.year == now.year &&
-                                  paymentTime.month == now.month &&
-                                  paymentTime.day == now.day) {
-                                timeStr =
-                                    'Today, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
-                              } else if (paymentTime.year == now.year &&
-                                  paymentTime.month == now.month &&
-                                  paymentTime.day == now.day - 1) {
-                                timeStr =
-                                    'Yesterday, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
-                              } else {
-                                timeStr =
-                                    '${_monthName(paymentTime.month)} ${paymentTime.day}, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
-                              }
+                              final timeStr = date_utils.formatTransactionTime(payment.paymentTime);
 
                               final String amountDisplay =
                                   '$amountPrefix${_formatSats(payment.amountSats)} sats';
@@ -762,8 +748,8 @@ class _HomeContent extends ConsumerWidget {
                                   payment.description.isNotEmpty
                                       ? payment.description
                                       : (isInbound
-                                          ? 'Received Payment'
-                                          : 'Sent Payment');
+                                          ? AppLocalizations.of(context)!.receivedPayment
+                                          : AppLocalizations.of(context)!.sentPayment);
 
                               return Padding(
                                 padding: EdgeInsets.only(bottom: 12.h),
@@ -789,24 +775,6 @@ class _HomeContent extends ConsumerWidget {
                             }).toList(),
                       );
                     },
-                    loading: () => Column(
-                      children: List.generate(
-                        3,
-                        (index) => const TransactionItemSkeleton(),
-                      ),
-                    ),
-                    error: (_, __) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text(
-                          'Failed to load transactions',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      ),
-                    ),
                   );
                 },
               ),
@@ -818,59 +786,10 @@ class _HomeContent extends ConsumerWidget {
     );
   }
 
-  String _monthName(int month) {
-    const months = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return months[month];
-  }
-
   String _formatSats(int amount) {
     return amount.toString().replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]},',
-    );
-  }
-
-  Widget _buildMockTransactions() {
-    return Column(
-      children: [
-        _TransactionItem(
-          icon: _ReceiveTransactionIcon(),
-          title: 'From Mubarak',
-          time: 'Today, 2:34 PM',
-          amount: '+₦25,000',
-          amountColor: AppColors.accentGreen,
-        ),
-        const SizedBox(height: 12),
-        _TransactionItem(
-          icon: _SendTransactionIcon(),
-          title: 'To Blessing',
-          time: 'Yesterday, 5:12 PM',
-          amount: '-₦12,500',
-          amountColor: const Color(0xFFFF4D4F),
-        ),
-        const SizedBox(height: 12),
-        _TransactionItem(
-          icon: _ZapIcon(),
-          title: 'Zap to Podcast',
-          time: 'Aug 24, 10:45 AM',
-          amount: '-₦500',
-          amountColor: AppColors.primary,
-        ),
-      ],
     );
   }
 }

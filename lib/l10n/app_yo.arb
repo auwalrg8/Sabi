@@ -1,0 +1,162 @@
+{
+  "@@locale": "yo",
+  
+  "appTitle": "Sabi Wallet",
+  "@appTitle": {
+    "description": "Orukọ ohun elo naa"
+  },
+
+  "welcome": "Kaabo",
+  "welcomeDescription": "Pa Bitcoin rẹ mọ ni ailewu. Ko si ẹnikan ti o le dena owo rẹ tabi di akọọlẹ rẹ.",
+  "letsStart": "Jẹ ki a bẹrẹ Sabi ₿",
+  "restore": "Mu pada",
+  
+  "totalBalance": "Apapọ Owo",
+  "sats": "sats",
+  "send": "Firanṣẹ",
+  "receive": "Gba",
+  "transactions": "Awọn Iṣowo",
+  "airtime": "Ayelujara",
+  "payBills": "Sanwo Owo",
+  "recentTransactions": "Awọn Iṣowo Ológ",
+  "seeAll": "Wò Gbogbo",
+  "failedToLoadTransactions": "Kuna sise nini awọn iṣowo",
+  "receivedPayment": "Ọ Gba Owo",
+  "sentPayment": "Ọ Firanṣẹ Owo",
+  "chooseRecipient": "Yan Olugba",
+  "enterAmount": "Tẹ Iye",
+  "lightning": "Lightning",
+  "bitcoin": "Bitcoin",
+  "account": "Akáwo",
+  "preferences": "Awọn Ẹniti O Fẹran",
+  "cash": "Owo",
+  "zaps": "Zaps",
+  "profile": "Profaili",
+  
+  "settings": "Eto",
+  "language": "Ede",
+  "currency": "Owo Orile-ede",
+  "biometric": "Biometric",
+  "notifications": "Awọn ikede",
+  "networkFee": "Owo Nẹtiwọọki",
+  "transactionLimit": "Opin Iṣowo",
+  
+  "english": "Gẹẹsi",
+  "hausa": "Hausa",
+  "yoruba": "Yoruba",
+  "pidgin": "Pidgin",
+  
+  "amount": "Iye",
+  "fees": "Awọn owo",
+  "time": "Akoko",
+  "status": "Ipo",
+  "type": "Iru",
+  "description": "Apejuwe",
+  "invoice": "Iwe-ifowopamọ",
+  
+  "completed": "Ti pari",
+  "pending": "N duro",
+  "failed": "O kuna",
+  
+  "sent": "Ti firanṣẹ",
+  "received": "Ti gba",
+  
+  "today": "Loni",
+  "yesterday": "Lana",
+  "at": "ni",
+  
+  "continueButton": "Tẹsiwaju",
+  "cancel": "Fagilee",
+  "confirm": "Jẹrisi",
+  "done": "Ti pari",
+  "retry": "Tun gbiyanju",
+  "exit": "Jade",
+  "share": "Pin",
+  
+  "copyToClipboard": "Daakọ si clipboard",
+  "copiedToClipboard": "{item} ti daakọ si clipboard",
+  "@copiedToClipboard": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "enterAmount": "Tẹ Iye sii",
+  "enterRecipient": "Tẹ adirẹsi olugba tabi invoice sii",
+  "scanQR": "Scan QR",
+  "paste": "Lẹ",
+  
+  "paymentSuccess": "Isanwo Ṣaṣeyọri",
+  "paymentFailed": "Isanwo Kuna",
+  "paymentPending": "Isanwo N duro",
+  
+  "createInvoice": "Ṣẹda Invoice",
+  "generateInvoice": "Ṣe Invoice",
+  "shareInvoice": "Pin Invoice",
+  
+  "backupWallet": "Ṣe afipamọ Wallet",
+  "recoveryPhrase": "Awọn ọrọ Imudani",
+  "seedPhrase": "Awọn ọrọ Irugbin",
+  "writeDownSeedPhrase": "Kọ awọn ọrọ irugbin rẹ silẹ",
+  "verifySeedPhrase": "Jẹrisi awọn ọrọ irugbin",
+  
+  "editProfile": "Ṣatunkọ Profaili",
+  "displayName": "Orukọ",
+  "phoneNumber": "Nọmba Foonu",
+  "email": "Imeeli",
+  
+  "security": "Aabo",
+  "privacy": "Aṣiri",
+  "about": "Nipa",
+  "help": "Iranlọwọ",
+  "logout": "Jade",
+  
+  "switchWallet": "Yipada Wallet",
+  "createNewWallet": "Ṣẹda Wallet Tuntun",
+  "restoreWallet": "Mu Wallet pada",
+  
+  "error": "Aṣiṣe",
+  "success": "Aṣeyọri",
+  "warning": "Ikilọ",
+  "info": "Alaye",
+  
+  "loading": "N ṣiṣẹ...",
+  "pleaseWait": "Jọwọ duro",
+  "processing": "N ṣiṣẹ...",
+  
+  "lightningNetwork": "Lightning Network",
+  "bitcoinAddress": "Adirẹsi Bitcoin",
+  
+  "contacts": "Awọn olubasọrọ",
+  "recentContacts": "Awọn Olubasọrọ Laipe",
+  "addContact": "Fi Olubasọrọ kun",
+  
+  "quickAmounts": "Awọn Iye Yara",
+  "customAmount": "Iye Ti ara ẹni",
+  
+  "livePrice": "Idiyele Lọwọlọwọ",
+  "buyRate": "Oṣuwọn Rira",
+  "sellRate": "Oṣuwọn Tita",
+  
+  "tapToSwitch": "Tẹ lati yipada owo",
+  "liveMarketRate": "Oṣuwọn ọja lọwọlọwọ",
+  
+  "exitWallet": "Jade kuro ninu Sabi Wallet",
+  "exitWalletConfirm": "Ṣe o fẹ jade kuro ninu Sabi Wallet nitootọ?",
+  
+  "noTransactions": "Ko si awọn iṣowo ṣibẹ",
+  "noNotifications": "Ko si awọn ikede",
+  
+  "paymentReceived": "Isanwo Ti gba",
+  "paymentSent": "Isanwo Ti firanṣẹ",
+  
+  "insufficientBalance": "Owo ko to",
+  "invalidAddress": "Adirẹsi ko tọ",
+  "invalidInvoice": "Invoice ko tọ",
+  
+  "economy": "Eto-ọrọ aje",
+  "normal": "Deede",
+  "priority": "Pataki"
+}

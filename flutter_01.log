@@ -1,0 +1,132 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter gen-l10n
+
+## exception
+
+ProcessException: ProcessException: `dart format` failed with exit code 65
+
+stdout:
+Formatted no files in 0.25 seconds.
+
+
+stderr:
+Could not format because the source could not be parsed:
+
+line 132, column 14 of c:/Dev/sabi_wallet/lib/l10n/app_localizations_en.dart: 'continue' can't be used as an identifier because it's a keyword.
+    â•·
+132 â”‚   String get continue => 'Continue';
+    â”‚              ^^^^^^^^
+    â•µ
+Could not format because the source could not be parsed:
+
+line 132, column 14 of c:/Dev/sabi_wallet/lib/l10n/app_localizations_ha.dart: 'continue' can't be used as an identifier because it's a keyword.
+    â•·
+132 â”‚   String get continue => 'Ci gaba';
+    â”‚              ^^^^^^^^
+    â•µ
+Could not format because the source could not be parsed:
+
+line 132, column 14 of c:/Dev/sabi_wallet/lib/l10n/app_localizations_pcm.dart: 'continue' can't be used as an identifier because it's a keyword.
+    â•·
+132 â”‚   String get continue => 'Continue';
+    â”‚              ^^^^^^^^
+    â•µ
+Could not format because the source could not be parsed:
+
+line 132, column 14 of c:/Dev/sabi_wallet/lib/l10n/app_localizations_yo.dart: 'continue' can't be used as an identifier because it's a keyword.
+    â•·
+132 â”‚   String get continue => 'Táº¹siwaju';
+    â”‚              ^^^^^^^^
+    â•µ
+Could not format because the source could not be parsed:
+
+line 346, column 14 of c:/Dev/sabi_wallet/lib/l10n/app_localizations.dart: 'continue' can't be used as an identifier because it's a keyword.
+    â•·
+346 â”‚   String get continue;
+    â”‚              ^^^^^^^^
+    â•µ
+
+  Command: C:\Dev\flutter\bin\cache\dart-sdk\bin\dart.exe C:\Dev\flutter\bin\cache\dart-sdk\bin\dart.exe format C:\Dev\sabi_wallet\lib\l10n\app_localizations_en.dart C:\Dev\sabi_wallet\lib\l10n\app_localizations_ha.dart C:\Dev\sabi_wallet\lib\l10n\app_localizations_pcm.dart C:\Dev\sabi_wallet\lib\l10n\app_localizations_yo.dart C:\Dev\sabi_wallet\lib\l10n\app_localizations.dart
+
+```
+#0      generateLocalizations (package:flutter_tools/src/localizations/gen_l10n.dart:96:7)
+<asynchronous suspension>
+#1      GenerateLocalizationsCommand.runCommand (package:flutter_tools/src/commands/generate_localizations.dart:263:5)
+<asynchronous suspension>
+#2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1559:27)
+<asynchronous suspension>
+#3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#4      CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:487:9)
+<asynchronous suspension>
+#6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:422:5)
+<asynchronous suspension>
+#8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+<asynchronous suspension>
+#9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#10     main (package:flutter_tools/executable.dart:103:3)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[32m[✓][39m Flutter (Channel stable, 3.38.3, on Microsoft Windows [Version
+    10.0.19045.6466], locale en-US) [2.5s]
+    [32m•[39m Flutter version 3.38.3 on channel stable at C:\Dev\flutter
+    [32m•[39m Upstream repository https://github.com/flutter/flutter.git
+    [32m•[39m Framework revision 19074d12f7 (3 weeks ago), 2025-11-20 17:53:13 -0500
+    [32m•[39m Engine revision 13e658725d
+    [32m•[39m Dart version 3.10.1
+    [32m•[39m DevTools version 2.51.1
+    [32m•[39m Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop,
+      enable-windows-desktop, enable-android, enable-ios, cli-animations,
+      enable-native-assets, omit-legacy-version-file, enable-lldb-debugging
+
+[32m[✓][39m Windows Version (10 Pro 64-bit, 22H2, 2009) [25.7s]
+
+[32m[✓][39m Android toolchain - develop for Android devices (Android SDK version 36.0.0)
+    [22.1s]
+    [32m•[39m Android SDK at C:\Users\auwalrg\AppData\Local\Android\sdk
+    [32m•[39m Emulator version 35.5.10.0 (build_id 13402964) (CL:N/A)
+    [32m•[39m Platform android-36, build-tools 36.0.0
+    [32m•[39m Java binary at: C:\Program Files\Android\Android Studio\jbr\bin\java
+      This is the JDK bundled with the latest Android Studio installation on this
+      machine.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    [32m•[39m Java version OpenJDK Runtime Environment (build 21.0.6+-13368085-b895.109)
+    [32m•[39m All Android licenses accepted.
+
+[32m[✓][39m Chrome - develop for the web [960ms]
+    [32m•[39m Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[32m[✓][39m Visual Studio - develop Windows apps (Visual Studio Build Tools 2026 18.0.2)
+    [956ms]
+    [32m•[39m Visual Studio at C:\Program Files (x86)\Microsoft Visual
+      Studio\18\BuildTools
+    [32m•[39m Visual Studio Build Tools 2026 version 18.0.11222.15
+    [32m•[39m Windows 10 SDK version 10.0.26100.0
+
+[32m[✓][39m Connected device (4 available) [3.4s]
+    [32m•[39m SM A155F (mobile) • RF8WC0B7HEL • android-arm64  • Android 15 (API 35)
+    [32m•[39m Windows (desktop) • windows     • windows-x64    • Microsoft Windows
+      [Version 10.0.19045.6466]
+    [32m•[39m Chrome (web)      • chrome      • web-javascript • Google Chrome
+      143.0.7499.40
+    [32m•[39m Edge (web)        • edge        • web-javascript • Microsoft Edge
+      143.0.3650.66
+
+[32m[✓][39m Network resources [1,286ms]
+    [32m•[39m All expected network resources are available.
+
+[32m•[39m No issues found!
+```

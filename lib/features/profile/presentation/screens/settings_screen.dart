@@ -4,6 +4,8 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
+import 'package:sabi_wallet/l10n/language_provider.dart';
+import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -51,9 +53,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Settings',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.settings,
+                    style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontFamily: 'Inter',
                       fontSize: 20,
@@ -72,7 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Account Section
-                    const _SectionHeader(title: 'Account'),
+                    _SectionHeader(title: AppLocalizations.of(context)!.account),
                     const SizedBox(height: 12),
                     _SettingTile(
                       icon: Icons.lock_outline,
@@ -115,7 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 32),
 
                     // Security Section
-                    const _SectionHeader(title: 'Security'),
+                    _SectionHeader(title: AppLocalizations.of(context)!.security),
                     const SizedBox(height: 12),
                     _SettingValueTile(
                       icon: Icons.account_balance_wallet_outlined,
@@ -129,7 +131,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 32),
 
                     // Preferences Section
-                    const _SectionHeader(title: 'Preferences'),
+                    _SectionHeader(title: AppLocalizations.of(context)!.preferences),
                     const SizedBox(height: 12),
                     _SettingValueTile(
                       icon: Icons.language_outlined,
@@ -284,7 +286,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showLanguagePicker(BuildContext context, WidgetRef ref) {
-    final languages = ['English', 'Yoruba', 'Hausa', 'Igbo'];
+    final languages = ['English', 'Hausa', 'Yoruba', 'Pidgin'];
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -327,6 +329,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () {
                       ref
                           .read(settingsNotifierProvider.notifier)
+                          .setLanguage(language);
+                      // Also update the app locale
+                      ref
+                          .read(languageProvider.notifier)
                           .setLanguage(language);
                       Navigator.pop(context);
                     },

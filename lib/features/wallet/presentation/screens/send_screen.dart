@@ -1,18 +1,15 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/core/constants/api_config.dart';
-import 'package:sabi_wallet/core/services/api_client.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/l10n/app_localizations.dart';
+import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'qr_scanner_screen.dart';
-
-enum _SendStep { recipient, amount, confirm }
-
-enum _CurrencyMode { sats, ngn }
 
 class SendScreen extends StatefulWidget {
   final String? initialAddress;
@@ -22,6 +19,10 @@ class SendScreen extends StatefulWidget {
   @override
   State<SendScreen> createState() => _SendScreenState();
 }
+
+enum _SendStep { recipient, amount, confirm }
+
+enum _CurrencyMode { sats, ngn }
 
 class _SendScreenState extends State<SendScreen>
     with SingleTickerProviderStateMixin {
@@ -60,17 +61,10 @@ class _SendScreenState extends State<SendScreen>
 
   Future<void> _fetchRate() async {
     try {
-      final api = ApiClient();
-      final rates = await api.get(ApiEndpoints.rates);
-      final nairaToBtc = rates['naira_to_btc'];
-      if (nairaToBtc != null) {
-        final nairaPerBtc =
-            nairaToBtc is num
-                ? (1 / nairaToBtc)
-                : (1 / double.parse('$nairaToBtc'));
-        _ngnPerSat = nairaPerBtc / 100000000;
-      }
-    } catch (_) {
+      final btcToNgn = await RateService.getBtcToNgnRate();
+      _ngnPerSat = btcToNgn / 100000000;
+    } catch (e) {
+      debugPrint('Failed to fetch rate: $e');
       _ngnPerSat = null;
     }
   }
@@ -148,14 +142,26 @@ class _SendScreenState extends State<SendScreen>
       _recipient = Recipient(
         name: contact.displayName,
         identifier: contact.identifier,
-        type:
-            contact.type == 'phone'
-                ? RecipientType.phone
-                : RecipientType.lightning,
+        type: _recipientTypeFromString(contact.type),
       );
       _recipientController.text = contact.identifier;
       _step = _SendStep.amount;
     });
+  }
+
+  RecipientType _recipientTypeFromString(String type) {
+    switch (type) {
+      case 'phone':
+        return RecipientType.phone;
+      case 'npub':
+        return RecipientType.npub;
+      case 'lnAddress':
+        return RecipientType.lnAddress;
+      case 'sabi':
+        return RecipientType.sabiName;
+      default:
+        return RecipientType.lightning;
+    }
   }
 
   double _parsedAmount() {
@@ -331,8 +337,12 @@ class _SendScreenState extends State<SendScreen>
 
     setState(() => _isSending = true);
     try {
+      final paymentIdentifier = await _resolvePaymentIdentifier(
+        _recipient!,
+        sats,
+      );
       await BreezSparkService.sendPayment(
-        _recipient!.identifier,
+        paymentIdentifier,
         sats: sats,
         comment: _memoController.text,
       );
@@ -344,6 +354,20 @@ class _SendScreenState extends State<SendScreen>
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
+  }
+
+  Future<String> _resolvePaymentIdentifier(
+    Recipient recipient,
+    int sats,
+  ) async {
+    if (recipient.type == RecipientType.lnAddress) {
+      return await LnAddressService.fetchInvoice(
+        lnAddress: recipient.identifier,
+        sats: sats,
+        memo: _memoController.text,
+      );
+    }
+    return recipient.identifier;
   }
 
   @override
@@ -368,10 +392,10 @@ class _SendScreenState extends State<SendScreen>
                   SizedBox(width: 8.w),
                   Text(
                     _step == _SendStep.recipient
-                        ? 'Send – Choose Recipient'
+                        ? '${AppLocalizations.of(context)!.send} – ${AppLocalizations.of(context)!.chooseRecipient}'
                         : _step == _SendStep.amount
-                        ? 'Send – Enter Amount'
-                        : 'Send – Confirm',
+                        ? '${AppLocalizations.of(context)!.send} – ${AppLocalizations.of(context)!.enterAmount}'
+                        : '${AppLocalizations.of(context)!.send} – ${AppLocalizations.of(context)!.confirm}',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16.sp,
@@ -448,16 +472,7 @@ class _SendScreenState extends State<SendScreen>
                 ),
                 SizedBox(height: 16.h),
                 Row(
-                  spacing: 12.w,
                   children: [
-                    Expanded(
-                      child: _outlinedButton(
-                        'Paste',
-                        Icons.content_paste,
-                        _onPaste,
-                      ),
-                    ),
-
                     Expanded(
                       child: _outlinedButton(
                         'Contacts',
@@ -465,7 +480,7 @@ class _SendScreenState extends State<SendScreen>
                         _importContacts,
                       ),
                     ),
-
+                    SizedBox(width: 10.w),
                     Expanded(
                       child: _outlinedButton('Recent', Icons.history, () {
                         if (_recent.isEmpty) {

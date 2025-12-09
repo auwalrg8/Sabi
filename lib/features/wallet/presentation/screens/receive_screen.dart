@@ -5,6 +5,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 class ReceiveScreen extends ConsumerStatefulWidget {
   const ReceiveScreen({super.key});
@@ -167,7 +168,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    '⚡ Lightning',
+                    '⚡ ${AppLocalizations.of(context)!.lightning}',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14.sp,
@@ -200,7 +201,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    '₿ Bitcoin',
+                    '₿ ${AppLocalizations.of(context)!.bitcoin}',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14.sp,

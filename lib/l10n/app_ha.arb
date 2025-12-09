@@ -1,0 +1,162 @@
+{
+  "@@locale": "ha",
+  
+  "appTitle": "Sabi Wallet",
+  "@appTitle": {
+    "description": "Sunan application"
+  },
+
+  "welcome": "Barka da zuwa",
+  "welcomeDescription": "Ka kiyaye Bitcoin ɗinka cikin aminci. Babu wanda zai iya toshe kuɗinka ko daskare asusun ka.",
+  "letsStart": "Mu fara Sabi ₿",
+  "restore": "Maido",
+  
+  "totalBalance": "Jimlar Kuɗi",
+  "sats": "sats",
+  "send": "Aika",
+  "receive": "Karɓa",
+  "transactions": "Ma'amaloli",
+  "airtime": "Airin",
+  "payBills": "Biya Jajaye",
+  "recentTransactions": "Ma'amalolin Kwanan Nan",
+  "seeAll": "Duba Duka",
+  "failedToLoadTransactions": "Kaza bugi ma'amaloli",
+  "receivedPayment": "An Karɓi Bayani",
+  "sentPayment": "An Aika Bayani",
+  "chooseRecipient": "Zaɓi Mai Karɓa",
+  "enterAmount": "Shigar da Adadi",
+  "lightning": "Lightning",
+  "bitcoin": "Bitcoin",
+  "account": "Asusun",
+  "preferences": "Zaɓin",
+  "cash": "Kuɗi",
+  "zaps": "Zaps",
+  "profile": "Bayanai",
+  
+  "settings": "Saitunan",
+  "language": "Harshe",
+  "currency": "Kuɗin Ƙasa",
+  "biometric": "Biometric",
+  "notifications": "Sanarwa",
+  "networkFee": "Kuɗin Hanyar Sadarwa",
+  "transactionLimit": "Iyakar Ma'amala",
+  
+  "english": "Turanci",
+  "hausa": "Hausa",
+  "yoruba": "Yarbawa",
+  "pidgin": "Pidgin",
+  
+  "amount": "Adadi",
+  "fees": "Kudade",
+  "time": "Lokaci",
+  "status": "Matsayi",
+  "type": "Irin",
+  "description": "Bayani",
+  "invoice": "Lissafin Biyan Kuɗi",
+  
+  "completed": "An Kammala",
+  "pending": "Ana Jira",
+  "failed": "Ya Kasa",
+  
+  "sent": "An Aika",
+  "received": "An Karɓa",
+  
+  "today": "Yau",
+  "yesterday": "Jiya",
+  "at": "a",
+  
+  "continueButton": "Ci gaba",
+  "cancel": "Soke",
+  "confirm": "Tabbatar",
+  "done": "An Gama",
+  "retry": "Sake gwadawa",
+  "exit": "Fita",
+  "share": "Raba",
+  
+  "copyToClipboard": "Kwafi zuwa clipboard",
+  "copiedToClipboard": "An kwafi {item} zuwa clipboard",
+  "@copiedToClipboard": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "enterAmount": "Shigar da Adadi",
+  "enterRecipient": "Shigar da adireshin mai karɓa ko invoice",
+  "scanQR": "Scan QR",
+  "paste": "Manna",
+  
+  "paymentSuccess": "Biyan Kuɗi Ya Yi Nasara",
+  "paymentFailed": "Biyan Kuɗi Ya Kasa",
+  "paymentPending": "Ana Jiran Biyan Kuɗi",
+  
+  "createInvoice": "Ƙirƙiri Invoice",
+  "generateInvoice": "Samar da Invoice",
+  "shareInvoice": "Raba Invoice",
+  
+  "backupWallet": "Ajiye Wallet",
+  "recoveryPhrase": "Kalmomin Dawo da Asali",
+  "seedPhrase": "Kalmomin Iri",
+  "writeDownSeedPhrase": "Rubuta kalmomin iri naka",
+  "verifySeedPhrase": "Tabbatar da kalmomin iri",
+  
+  "editProfile": "Gyara Bayanai",
+  "displayName": "Suna",
+  "phoneNumber": "Lambar Waya",
+  "email": "Imel",
+  
+  "security": "Tsaro",
+  "privacy": "Keɓantacce",
+  "about": "Game da",
+  "help": "Taimako",
+  "logout": "Fita",
+  
+  "switchWallet": "Canza Wallet",
+  "createNewWallet": "Ƙirƙiri Sabon Wallet",
+  "restoreWallet": "Maido da Wallet",
+  
+  "error": "Kuskure",
+  "success": "Nasara",
+  "warning": "Gargaɗi",
+  "info": "Bayani",
+  
+  "loading": "Ana lodi...",
+  "pleaseWait": "Don Allah jira",
+  "processing": "Ana aiki...",
+  
+  "lightningNetwork": "Lightning Network",
+  "bitcoinAddress": "Adireshin Bitcoin",
+  
+  "contacts": "Lambobi",
+  "recentContacts": "Lambobin Kwanan Nan",
+  "addContact": "Ƙara Lamba",
+  
+  "quickAmounts": "Adadi Mai Sauri",
+  "customAmount": "Adadin Keɓancewa",
+  
+  "livePrice": "Farashin Yanzu",
+  "buyRate": "Farashin Siye",
+  "sellRate": "Farashin Sayarwa",
+  
+  "tapToSwitch": "Danna don canza kuɗin ƙasa",
+  "liveMarketRate": "Farashin kasuwa yanzu",
+  
+  "exitWallet": "Fita daga Sabi Wallet",
+  "exitWalletConfirm": "Kana son fita da gaske daga Sabi Wallet?",
+  
+  "noTransactions": "Babu ma'amaloli tukuna",
+  "noNotifications": "Babu sanarwa",
+  
+  "paymentReceived": "An Karɓi Kuɗi",
+  "paymentSent": "An Aika Kuɗi",
+  
+  "insufficientBalance": "Kuɗin bai isa ba",
+  "invalidAddress": "Adireshin ba daidai ba ne",
+  "invalidInvoice": "Invoice ba daidai ba ne",
+  
+  "economy": "Tattalin Arziki",
+  "normal": "Na yau da kullun",
+  "priority": "Fifiko"
+}

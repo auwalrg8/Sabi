@@ -58,8 +58,8 @@ class PaymentDebugScreen extends ConsumerWidget {
                     _InfoRow('Fee (sats)', '${payment.feeSats}'),
                     _InfoRow('Type', payment.isIncoming ? 'RECEIVE' : 'SEND'),
                     _InfoRow(
-                      'Timestamp',
-                      '${payment.timestamp}',
+                      'Timestamp (Unix seconds)',
+                      '${payment.paymentTime}',
                     ),
                     _InfoRow('Description', payment.description.isEmpty ? '(empty)' : payment.description),
                     if (payment.bolt11 != null)

@@ -3,16 +3,49 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
-import 'package:intl/intl.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 
-class PaymentDetailScreen extends StatelessWidget {
+class PaymentDetailScreen extends StatefulWidget {
   final PaymentRecord payment;
 
   const PaymentDetailScreen({super.key, required this.payment});
 
   @override
+  State<PaymentDetailScreen> createState() => _PaymentDetailScreenState();
+}
+
+class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
+  double? _btcToNgnRate;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRate();
+  }
+
+  Future<void> _loadRate() async {
+    final rate = await RateService.getBtcToNgnRate();
+    if (mounted) {
+      setState(() {
+        _btcToNgnRate = rate;
+      });
+    }
+  }
+
+  String _getNairaValue(int sats) {
+    if (_btcToNgnRate == null) return 'Loading...';
+    final btc = sats / 100000000;
+    final naira = btc * _btcToNgnRate!;
+    return '₦${naira.toStringAsFixed(2).replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]},',
+    )}';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isInbound = payment.isIncoming;
+    final isInbound = widget.payment.isIncoming;
     final amountColor =
         isInbound ? AppColors.accentGreen : const Color(0xFFFF4D4F);
     final amountPrefix = isInbound ? '+' : '-';
@@ -49,7 +82,7 @@ class PaymentDetailScreen extends StatelessWidget {
                     SizedBox(height: 24.h),
                     // Amount
                     Text(
-                      '$amountPrefix${payment.amountSats} sats',
+                      '$amountPrefix${widget.payment.amountSats} sats',
                       style: TextStyle(
                         color: amountColor,
                         fontSize: 36.sp,
@@ -92,43 +125,69 @@ class PaymentDetailScreen extends StatelessWidget {
                           Divider(color: AppColors.textSecondary, height: 32.h),
                           _buildDetailRow(
                             'Time',
-                            _formatDateTime(payment.timestamp),
+                            date_utils.formatFullDateTime(widget.payment.paymentTime),
                             Icons.access_time,
                             AppColors.textSecondary,
                           ),
                           Divider(color: AppColors.textSecondary, height: 32.h),
                           _buildDetailRow(
                             'Amount',
-                            '${payment.amountSats} sats',
+                            '${widget.payment.amountSats} sats',
                             Icons.bolt,
                             AppColors.textSecondary,
                           ),
+                          if (_btcToNgnRate != null) ...[
+                            Padding(
+                              padding: EdgeInsets.only(left: 40.w, top: 4.h),
+                              child: Text(
+                                _getNairaValue(widget.payment.amountSats),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                           Divider(color: AppColors.textSecondary, height: 32.h),
                           _buildDetailRow(
                             'Fees',
-                            '${payment.feeSats} sats',
+                            '${widget.payment.feeSats} sats',
                             Icons.receipt,
                             AppColors.textSecondary,
                           ),
-                          if (payment.description.isNotEmpty) ...[
+                          if (_btcToNgnRate != null && widget.payment.feeSats > 0) ...[
+                            Padding(
+                              padding: EdgeInsets.only(left: 40.w, top: 4.h),
+                              child: Text(
+                                _getNairaValue(widget.payment.feeSats),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (widget.payment.description.isNotEmpty) ...[
                             Divider(
                               color: AppColors.textSecondary,
                               height: 32.h,
                             ),
                             _buildDetailRow(
                               'Description',
-                              payment.description,
+                              widget.payment.description,
                               Icons.description,
                               AppColors.textSecondary,
                             ),
                           ],
-                          if (payment.bolt11 != null &&
-                              payment.bolt11!.isNotEmpty) ...[
+                          if (widget.payment.bolt11 != null &&
+                              widget.payment.bolt11!.isNotEmpty) ...[
                             Divider(
                               color: AppColors.textSecondary,
                               height: 32.h,
                             ),
-                            _buildInvoiceRow(context, payment.bolt11!),
+                            _buildInvoiceRow(context, widget.payment.bolt11!),
                           ],
                         ],
                       ),
@@ -284,23 +343,5 @@ class PaymentDetailScreen extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _formatDateTime(DateTime dt) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final paymentDate = DateTime(dt.year, dt.month, dt.day);
-
-    final timeFormat = DateFormat('h:mm a');
-    final dateFormat = DateFormat('MMM d, yyyy');
-
-    if (paymentDate == today) {
-      return 'Today, ${timeFormat.format(dt)}';
-    } else if (paymentDate == yesterday) {
-      return 'Yesterday, ${timeFormat.format(dt)}';
-    } else {
-      return '${dateFormat.format(dt)}, ${timeFormat.format(dt)}';
-    }
   }
 }

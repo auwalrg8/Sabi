@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'l10n/localization.dart';
+import 'l10n/language_provider.dart';
 import 'services/secure_storage.dart';
 import 'services/breez_spark_service.dart';
 import 'services/contact_service.dart';
@@ -54,18 +56,28 @@ void main() async {
   );
 }
 
-class SabiWalletApp extends StatelessWidget {
+class SabiWalletApp extends ConsumerWidget {
   const SabiWalletApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Check if user has created/restored a wallet using app state service
     final hasWallet = AppStateService.hasWallet;
     
+    // Watch the current locale
+    final locale = ref.watch(languageProvider);
+    
     debugPrint('🔍 App State Check - hasWallet: $hasWallet');
+    debugPrint('🌍 Current locale: ${locale.languageCode}');
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      
+      // Localization setup
+      localizationsDelegates: Localization.delegates,
+      supportedLocales: Localization.supportedLocales,
+      locale: locale,
+      
       home: hasWallet
           ? const HomeScreen()      // Wallet exists → go to home
           : const SplashScreen(),   // No wallet → show onboarding

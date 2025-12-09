@@ -4,6 +4,8 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/recent_transactions_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_detail_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_debug_screen.dart';
+import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
+import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
@@ -72,23 +74,7 @@ class TransactionsScreen extends ConsumerWidget {
                             isInbound ? AppColors.accentGreen : const Color(0xFFFF4D4F);
                         final amountPrefix = isInbound ? '+' : '-';
 
-                        final now = DateTime.now();
-                        final paymentTime = payment.timestamp;
-                        String timeStr;
-                        if (paymentTime.year == now.year &&
-                            paymentTime.month == now.month &&
-                            paymentTime.day == now.day) {
-                          timeStr =
-                              'Today, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
-                        } else if (paymentTime.year == now.year &&
-                            paymentTime.month == now.month &&
-                            paymentTime.day == now.day - 1) {
-                          timeStr =
-                              'Yesterday, ${paymentTime.hour}:${paymentTime.minute.toString().padLeft(2, '0')}';
-                        } else {
-                          timeStr =
-                              '${paymentTime.day}/${paymentTime.month}/${paymentTime.year}';
-                        }
+                        final timeStr = date_utils.formatTransactionTime(payment.paymentTime);
 
                         return GestureDetector(
                           onTap: () {
@@ -131,7 +117,7 @@ class TransactionsScreen extends ConsumerWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isInbound ? 'Received' : 'Sent',
+                                        isInbound ? AppLocalizations.of(context)!.received : AppLocalizations.of(context)!.sent,
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 15,

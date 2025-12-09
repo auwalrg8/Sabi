@@ -4,9 +4,9 @@ import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
 
-/// The translations for English (`en`).
-class AppLocalizationsEn extends AppLocalizations {
-  AppLocalizationsEn([String locale = 'en']) : super(locale);
+/// The translations for Nigerian Pidgin (`pcm`).
+class AppLocalizationsPcm extends AppLocalizations {
+  AppLocalizationsPcm([String locale = 'pcm']) : super(locale);
 
   @override
   String get appTitle => 'Sabi Wallet';
@@ -19,13 +19,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keep your Bitcoin safe. Nobody fit block your money or freeze your account.';
 
   @override
-  String get letsStart => 'Let\'s Sabi ₿';
+  String get letsStart => 'Make we start Sabi ₿';
 
   @override
   String get restore => 'Restore';
 
   @override
-  String get totalBalance => 'Total Balance';
+  String get totalBalance => 'Total Money';
 
   @override
   String get sats => 'sats';
@@ -40,7 +40,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transactions => 'Transactions';
 
   @override
-  String get airtime => 'Airtime';
+  String get airtime => 'Buy Airtime';
 
   @override
   String get payBills => 'Pay Bills';
@@ -55,13 +55,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get failedToLoadTransactions => 'Failed to load transactions';
 
   @override
-  String get receivedPayment => 'Received Payment';
+  String get receivedPayment => 'Money Don Enter';
 
   @override
-  String get sentPayment => 'Sent Payment';
+  String get sentPayment => 'Money Don Go Out';
 
   @override
-  String get chooseRecipient => 'Choose Recipient';
+  String get chooseRecipient => 'Pick Who You Send To';
 
   @override
   String get enterAmount => 'Enter Amount';
@@ -73,10 +73,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bitcoin => 'Bitcoin';
 
   @override
-  String get account => 'Account';
+  String get account => 'Your Account';
 
   @override
-  String get preferences => 'Preferences';
+  String get preferences => 'Your Preferences';
 
   @override
   String get cash => 'Cash';
@@ -142,19 +142,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invoice => 'Invoice';
 
   @override
-  String get completed => 'Completed';
+  String get completed => 'Don finish';
 
   @override
-  String get pending => 'Pending';
+  String get pending => 'Dey wait';
 
   @override
-  String get failed => 'Failed';
+  String get failed => 'E no work';
 
   @override
-  String get sent => 'Sent';
+  String get sent => 'Don send';
 
   @override
-  String get received => 'Received';
+  String get received => 'Don receive';
 
   @override
   String get today => 'Today';
@@ -163,7 +163,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yesterday => 'Yesterday';
 
   @override
-  String get at => 'at';
+  String get at => 'for';
 
   @override
   String get continueButton => 'Continue';
@@ -175,27 +175,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirm => 'Confirm';
 
   @override
-  String get done => 'Done';
+  String get done => 'Don finish';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Try again';
 
   @override
-  String get exit => 'Exit';
+  String get exit => 'Comot';
 
   @override
   String get share => 'Share';
 
   @override
-  String get copyToClipboard => 'Copy to clipboard';
+  String get copyToClipboard => 'Copy am';
 
   @override
   String copiedToClipboard(String item) {
-    return '$item copied to clipboard';
+    return '$item don copy';
   }
 
   @override
-  String get enterRecipient => 'Enter recipient address or invoice';
+  String get enterRecipient => 'Enter person address or invoice';
 
   @override
   String get scanQR => 'Scan QR';
@@ -204,13 +204,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paste => 'Paste';
 
   @override
-  String get paymentSuccess => 'Payment Successful';
+  String get paymentSuccess => 'Payment Don Work';
 
   @override
-  String get paymentFailed => 'Payment Failed';
+  String get paymentFailed => 'Payment No Work';
 
   @override
-  String get paymentPending => 'Payment Pending';
+  String get paymentPending => 'Payment Dey Wait';
 
   @override
   String get createInvoice => 'Create Invoice';
@@ -225,22 +225,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupWallet => 'Backup Wallet';
 
   @override
-  String get recoveryPhrase => 'Recovery Phrase';
+  String get recoveryPhrase => 'Recovery Words';
 
   @override
-  String get seedPhrase => 'Seed Phrase';
+  String get seedPhrase => 'Seed Words';
 
   @override
-  String get writeDownSeedPhrase => 'Write down your seed phrase';
+  String get writeDownSeedPhrase => 'Write your seed words';
 
   @override
-  String get verifySeedPhrase => 'Verify seed phrase';
+  String get verifySeedPhrase => 'Check your seed words';
 
   @override
   String get editProfile => 'Edit Profile';
 
   @override
-  String get displayName => 'Display Name';
+  String get displayName => 'Your Name';
 
   @override
   String get phoneNumber => 'Phone Number';
@@ -264,7 +264,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logout => 'Logout';
 
   @override
-  String get switchWallet => 'Switch Wallet';
+  String get switchWallet => 'Change Wallet';
 
   @override
   String get createNewWallet => 'Create New Wallet';
@@ -276,7 +276,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error => 'Error';
 
   @override
-  String get success => 'Success';
+  String get success => 'E don work';
 
   @override
   String get warning => 'Warning';
@@ -285,13 +285,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get info => 'Info';
 
   @override
-  String get loading => 'Loading...';
+  String get loading => 'Dey load...';
 
   @override
-  String get pleaseWait => 'Please wait';
+  String get pleaseWait => 'Abeg wait';
 
   @override
-  String get processing => 'Processing';
+  String get processing => 'Dey process...';
 
   @override
   String get lightningNetwork => 'Lightning Network';
@@ -312,7 +312,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickAmounts => 'Quick Amounts';
 
   @override
-  String get customAmount => 'Custom Amount';
+  String get customAmount => 'Your Own Amount';
 
   @override
   String get livePrice => 'Live Price';
@@ -324,37 +324,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sellRate => 'Sell rate';
 
   @override
-  String get tapToSwitch => 'Tap to switch currency';
+  String get tapToSwitch => 'Press to change currency';
 
   @override
   String get liveMarketRate => 'Live market rate';
 
   @override
-  String get exitWallet => 'Exit Sabi Wallet';
+  String get exitWallet => 'Comot from Sabi Wallet';
 
   @override
-  String get exitWalletConfirm => 'Do you really want to quit Sabi Wallet?';
+  String get exitWalletConfirm =>
+      'You sure say you wan comot from Sabi Wallet?';
 
   @override
-  String get noTransactions => 'No transactions yet';
+  String get noTransactions => 'No transaction yet';
 
   @override
   String get noNotifications => 'No notifications';
 
   @override
-  String get paymentReceived => 'Payment Received';
+  String get paymentReceived => 'Money Don Enter';
 
   @override
-  String get paymentSent => 'Payment Sent';
+  String get paymentSent => 'Money Don Comot';
 
   @override
-  String get insufficientBalance => 'Insufficient balance';
+  String get insufficientBalance => 'Money no reach';
 
   @override
-  String get invalidAddress => 'Invalid address';
+  String get invalidAddress => 'Address no correct';
 
   @override
-  String get invalidInvoice => 'Invalid invoice';
+  String get invalidInvoice => 'Invoice no correct';
 
   @override
   String get economy => 'Economy';

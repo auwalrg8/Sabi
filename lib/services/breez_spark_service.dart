@@ -20,7 +20,7 @@ class PaymentRecord {
   final String id;
   final int amountSats;
   final int feeSats;
-  final DateTime timestamp;
+  final int paymentTime; // Unix timestamp in seconds from Breez SDK
   final String description;
   final String? bolt11;
   final bool isIncoming;
@@ -29,7 +29,7 @@ class PaymentRecord {
     required this.id,
     required this.amountSats,
     this.feeSats = 0,
-    required this.timestamp,
+    required this.paymentTime,
     this.description = '',
     this.bolt11,
     this.isIncoming = true,
@@ -445,9 +445,7 @@ class BreezSparkService {
             id: p.id,
             amountSats: amountSats,
             feeSats: feeSats,
-            timestamp: DateTime.fromMillisecondsSinceEpoch(
-              (p.timestamp ~/ BigInt.from(1000)).toInt(),
-            ),
+            paymentTime: (p.timestamp ~/ BigInt.from(1000)).toInt(), // Store as Unix seconds
             description: _extractDescription(p.details),
             bolt11: _extractInvoice(p.details),
             // isIncoming: check if amount indicates incoming

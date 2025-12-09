@@ -1,0 +1,62 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:hive_flutter/hive_flutter.dart';
+
+class RateService {
+  // Best free API in 2025 — no key needed, unlimited calls
+  static const String _url = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/btc.json';
+
+  static Future<double> getBtcToNgnRate() async {
+    final box = Hive.box('app_box');
+    final cached = box.get('btc_ngn_rate');
+    final lastUpdate = box.get('rate_timestamp');
+
+    // Use cached rate if less than 5 minutes old
+    if (cached != null && lastUpdate != null) {
+      final minutesAgo = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastUpdate)).inMinutes;
+      if (minutesAgo < 5) return cached;
+    }
+
+    try {
+      final response = await http.get(Uri.parse(_url)).timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rate = data['btc']['ngn'] as double;
+        await box.put('btc_ngn_rate', rate);
+        await box.put('rate_timestamp', DateTime.now().millisecondsSinceEpoch);
+        return rate;
+      }
+    } catch (e) {
+      print('Rate fetch failed: $e');
+    }
+
+    // Fallback rate (today's rate)
+    return 130401317.0;
+  }
+
+  static String formatNaira(double naira) {
+    return "₦${naira.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}";
+  }
+
+  /// Convert satoshis to BTC
+  static double satsToBtc(int sats) {
+    return sats / 100000000;
+  }
+
+  /// Convert satoshis to NGN using live rate
+  static Future<double> satsToNgn(int sats) async {
+    final btc = satsToBtc(sats);
+    final rate = await getBtcToNgnRate();
+    return btc * rate;
+  }
+
+  /// Get cached rate synchronously (returns null if not cached)
+  static double? getCachedRate() {
+    try {
+      final box = Hive.box('app_box');
+      return box.get('btc_ngn_rate');
+    } catch (e) {
+      return null;
+    }
+  }
+}

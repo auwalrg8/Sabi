@@ -68,23 +68,29 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    Image.asset(
+                      'assets/images/sabi_logo.png',
+                      width: 132.w,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(height: 32.h),
                     Text(
-                      'Welcome to Sabi Wallet',
+                      'Welcome',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 32.sp,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w800,
                         height: 1.2.h,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 16.h),
+                    SizedBox(height: 14.h),
                     Text(
-                      'Self-custodial Bitcoin & Lightning in your pocket',
+                      'Keep your Bitcoin safe. Nobody fit block your money or freeze your account.',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 16.sp,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                         height: 1.5.h,
                       ),
                       textAlign: TextAlign.center,
