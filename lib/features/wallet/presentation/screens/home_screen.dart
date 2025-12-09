@@ -279,25 +279,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<bool> _showExitDialog() async {
     return await showDialog<bool>(
           context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('Exit Sabi Wallet'),
-                content: const Text('Do you really want to quit Sabi Wallet?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      // Save app state before exiting
-                      await AppStateService.saveLastScreen('/home');
-                      Navigator.of(context).pop(true);
-                    },
-                    child: const Text('Exit'),
-                  ),
-                ],
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Exit Sabi Wallet'),
+            content: const Text('Do you really want to quit Sabi Wallet?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
               ),
+              TextButton(
+                onPressed: () async {
+                  await AppStateService.saveLastScreen('/home');
+                  if (!mounted) return;
+                  Navigator.of(dialogContext).pop(true);
+                },
+                child: const Text('Exit'),
+              ),
+            ],
+          ),
         ) ??
         false;
   }
@@ -442,14 +441,14 @@ class _HomeContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final walletAsync = ref.watch(walletInfoProvider);
 
-    Future<void> _refreshWithSync() async {
+    Future<void> refreshWithSync() async {
       // First, sync with blockchain to detect Bitcoin receives
       await BreezSparkService.syncAndGetBalance();
       // Then refresh the UI
       await ref.read(walletInfoProvider.notifier).refresh();
     }
 
-    Future<void> _openQRScanner(BuildContext context, WidgetRef ref) async {
+    Future<void> openQRScanner(BuildContext context, WidgetRef ref) async {
       try {
         final String? scannedCode = await Navigator.push<String>(
           context,
@@ -477,8 +476,10 @@ class _HomeContent extends ConsumerWidget {
       }
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshWithSync,
+    final isWalletLoading = walletAsync.isLoading;
+
+    final mainContent = RefreshIndicator(
+      onRefresh: refreshWithSync,
       color: AppColors.primary,
       backgroundColor: AppColors.surface,
       child: SafeArea(
@@ -536,7 +537,7 @@ class _HomeContent extends ConsumerWidget {
                     children: [
                       _HeaderIcon(
                         icon: Icons.qr_code_scanner_outlined,
-                        onTap: () => _openQRScanner(context, ref),
+                        onTap: () => openQRScanner(context, ref),
                       ),
                       SizedBox(width: 30.w),
                       _NotificationIcon(
@@ -784,12 +785,120 @@ class _HomeContent extends ConsumerWidget {
         ),
       ),
     );
+
+    return Stack(
+      children: [
+        mainContent,
+        if (isWalletLoading) const _HomeSkeletonOverlay(),
+      ],
+    );
   }
 
   String _formatSats(int amount) {
     return amount.toString().replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]},',
+    );
+  }
+}
+
+class _HomeSkeletonOverlay extends StatelessWidget {
+  const _HomeSkeletonOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          color: AppColors.background.withValues(alpha: 0.85),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.all(30.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: SkeletonLoader(
+                          height: 20.h,
+                          width: 150.w,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      SkeletonLoader(
+                        width: 24.w,
+                        height: 24.h,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      SizedBox(width: 10.w),
+                      SkeletonLoader(
+                        width: 24.w,
+                        height: 24.h,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 30.h),
+                  SkeletonLoader(
+                    height: 60.h,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  SizedBox(height: 12.h),
+                  const BalanceCardSkeleton(),
+                  SizedBox(height: 20.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(
+                      4,
+                      (_) => Column(
+                        children: [
+                          SkeletonLoader(
+                            width: 48.w,
+                            height: 48.h,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          SizedBox(height: 6.h),
+                          SkeletonLoader(
+                            width: 32.w,
+                            height: 12.h,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 30.h),
+                  SkeletonLoader(
+                    width: 100.w,
+                    height: 15.h,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  SizedBox(height: 12.h),
+                  Column(
+                    children: List.generate(
+                      3,
+                      (_) => Padding(
+                        padding: EdgeInsets.only(bottom: 12.h),
+                        child: SkeletonLoader(
+                          height: 80.h,
+                          width: double.infinity,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 100.h),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

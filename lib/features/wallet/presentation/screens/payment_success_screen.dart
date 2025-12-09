@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:share_plus/share_plus.dart';
@@ -195,9 +193,7 @@ Shared as: $option''';
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildDetailRow(AppLocalizations.of(context)!.recipient, widget.transaction.recipient.name),
-                    const SizedBox(height: 12),
-                    _buildDetailRow(AppLocalizations.of(context)!.identifier, widget.transaction.recipient.identifier),
+                    _buildRecipientDetailRow(),
                     const SizedBox(height: 12),
                     _buildDetailRow(AppLocalizations.of(context)!.amount, amountText),
                     const SizedBox(height: 12),
@@ -254,6 +250,31 @@ Shared as: $option''';
         Text(
           value,
           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecipientDetailRow() {
+    final identifier = widget.transaction.recipient.identifier;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.recipient,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          widget.transaction.recipient.name,
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          identifier,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.8), fontSize: 12.sp),
         ),
       ],
     );

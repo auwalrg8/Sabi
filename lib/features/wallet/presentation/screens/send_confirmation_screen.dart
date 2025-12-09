@@ -81,11 +81,7 @@ class SendConfirmationScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildRow(
-            'To',
-            transaction.recipient.name,
-            transaction.recipient.identifier,
-          ),
+          _buildRecipientRow(),
           SizedBox(height: 16.h),
           _buildRow(
             'Amount',
@@ -125,6 +121,47 @@ class SendConfirmationScreen extends StatelessWidget {
             Text(
               subtitle,
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecipientRow() {
+    final identifier = transaction.recipient.identifier;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'To',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 14.h),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              transaction.recipient.name,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 4.h),
+            SizedBox(
+              width: 150.w,
+              child: Text(
+                identifier,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12.sp,
+                ),
+              ),
             ),
           ],
         ),

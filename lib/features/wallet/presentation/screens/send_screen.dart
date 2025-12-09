@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
+import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'qr_scanner_screen.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/payment_success_screen.dart';
 
 class SendScreen extends StatefulWidget {
   final String? initialAddress;
@@ -127,9 +128,16 @@ class _SendScreenState extends State<SendScreen>
       type = RecipientType.lightning;
     }
 
+    final parsedInvoiceSats = _parseBolt11AmountSats(input);
     setState(() {
       _recipient = Recipient(name: input, identifier: input, type: type);
-      _step = _SendStep.amount;
+      if (parsedInvoiceSats != null) {
+        _mode = _CurrencyMode.sats;
+        _amountText = parsedInvoiceSats.toString();
+        _step = _SendStep.confirm;
+      } else {
+        _step = _SendStep.amount;
+      }
     });
 
     ContactService.addRecentContact(
@@ -167,6 +175,34 @@ class _SendScreenState extends State<SendScreen>
   double _parsedAmount() {
     final cleaned = _amountText.replaceAll(',', '').trim();
     return double.tryParse(cleaned) ?? 0;
+  }
+
+  int? _parseBolt11AmountSats(String invoice) {
+    final normalized = invoice.trim().toLowerCase();
+    final match = RegExp(r'^ln(?:bc|tb|bcrt)(\d+)([munp]?)').firstMatch(normalized);
+    if (match == null) return null;
+    final digits = match.group(1);
+    final unit = match.group(2);
+    if (digits == null || digits.isEmpty) return null;
+    final amountValue = double.tryParse(digits);
+    if (amountValue == null || amountValue <= 0) return null;
+    final sats = (amountValue * _bolt11UnitMultiplier(unit) * 100000000).round();
+    return sats > 0 ? sats : null;
+  }
+
+  double _bolt11UnitMultiplier(String? unit) {
+    switch (unit?.toLowerCase()) {
+      case 'm':
+        return 0.001;
+      case 'u':
+        return 0.000001;
+      case 'n':
+        return 0.000000001;
+      case 'p':
+        return 0.000000000001;
+      default:
+        return 1;
+    }
   }
 
   int _amountSats() {
@@ -210,17 +246,6 @@ class _SendScreenState extends State<SendScreen>
         _mode = _CurrencyMode.sats;
       }
     });
-  }
-
-  Future<void> _onPaste() async {
-    final clip = await Clipboard.getData('text/plain');
-    final text = clip?.text?.trim();
-    if (text == null || text.isEmpty) {
-      _showSnack('Clipboard is empty');
-      return;
-    }
-    _recipientController.text = text;
-    _selectRecipientFromInput(text);
   }
 
   Future<void> _openQRScanner() async {
@@ -349,8 +374,26 @@ class _SendScreenState extends State<SendScreen>
       );
       if (!mounted) return;
       final feeSats = BreezSparkService.extractSendFeeSats(result);
-      _showSnack('Payment sent • Fee: $feeSats sats');
-      Navigator.pop(context);
+      final amountSats = BreezSparkService.extractSendAmountSats(result);
+      final feeNgn = _ngnPerSat != null ? feeSats * _ngnPerSat! : 0.0;
+      final amountNgn = _ngnPerSat != null ? _amountNgn() : 0.0;
+      final transactionId = (result['payment'] as dynamic?)?.id as String?;
+      final transaction = SendTransaction(
+        recipient: _recipient!,
+        amount: amountNgn,
+        memo: _memoController.text.isEmpty ? null : _memoController.text,
+        fee: feeNgn,
+        transactionId: transactionId,
+        amountSats: amountSats,
+        feeSats: feeSats,
+        bolt11: _recipient?.identifier,
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(transaction: transaction),
+        ),
+      );
     } catch (e) {
       _showSnack('Send failed: $e');
     } finally {
@@ -768,27 +811,6 @@ class _SendScreenState extends State<SendScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _pillButton(String label, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16.sp, color: Colors.white),
-            SizedBox(width: 6.h),
-            Text(label, style: const TextStyle(color: Colors.white)),
-          ],
-        ),
       ),
     );
   }

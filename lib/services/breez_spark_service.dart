@@ -14,7 +14,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../config/breez_config.dart';
 import 'app_state_service.dart';
-import 'package:sabi_wallet/core/services/logger_service.dart';
 
 /// Local wrapper class for payment history display
 class PaymentRecord {
@@ -92,19 +91,6 @@ class BreezSparkService {
       _emitPendingPayments();
     }
   }
-
-  static const String _logTag = '[BreezSpark]';
-
-  static void _logDebug(String message) => LoggerService.debug(message, tag: _logTag);
-  static void _logInfo(String message) => LoggerService.info(message, tag: _logTag);
-  static void _logWarn(String message, {dynamic error, StackTrace? stackTrace}) {
-    LoggerService.warn(message, tag: _logTag);
-    if (error != null || stackTrace != null) {
-      LoggerService.error('Details for warning: $message', tag: _logTag, error: error, stackTrace: stackTrace);
-    }
-  }
-  static void _logError(String message, {dynamic error, StackTrace? stackTrace}) =>
-      LoggerService.error(message, tag: _logTag, error: error, stackTrace: stackTrace);
 
   static final BigInt _msatThreshold = BigInt.from(999999);
   static final BigInt _msatPerSat = BigInt.from(1000);
@@ -523,7 +509,7 @@ class BreezSparkService {
             id: p.id,
             amountSats: amountSats,
             feeSats: feeSats,
-            paymentTime: p.timestamp.toInt(),
+            paymentTime: _timestampToMillis(p.timestamp),
             description: _extractDescription(p.details),
             bolt11: _extractInvoice(p.details),
             // isIncoming: check if amount indicates incoming
@@ -564,6 +550,10 @@ class BreezSparkService {
     // If amount is 0, try to extract from details if available
     // For now, return 0 - we'd need to parse the invoice from details
     return 0;
+  }
+
+  static int _timestampToMillis(BigInt timestamp) {
+    return timestamp.toInt() * 1000;
   }
 
   // ============================================================================

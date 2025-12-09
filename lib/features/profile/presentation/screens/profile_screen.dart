@@ -5,7 +5,6 @@ import 'package:sabi_wallet/features/profile/presentation/screens/backup_recover
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
