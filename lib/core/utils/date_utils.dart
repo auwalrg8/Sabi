@@ -1,11 +1,10 @@
 // lib/core/utils/date_utils.dart
 
-/// Formats a Unix timestamp (in seconds) from Breez SDK for transaction list display
+/// Formats a Unix timestamp (in milliseconds) from Breez SDK for transaction list display
 /// Returns "Today at HH:MM", "Yesterday at HH:MM", or "DD/MM/YYYY HH:MM"
-String formatTransactionTime(int unixTimestampSeconds) {
-  // Breez SDK gives seconds → convert to milliseconds
+String formatTransactionTime(int unixTimestampMillis) {
   final DateTime date = DateTime.fromMillisecondsSinceEpoch(
-    unixTimestampSeconds * 1000,
+    unixTimestampMillis,
     isUtc: true,
   );
 
@@ -28,9 +27,9 @@ String formatTransactionTime(int unixTimestampSeconds) {
 
 /// Formats a Unix timestamp (in seconds) for full date display in detail screens
 /// Returns "DD Mon YYYY • HH:MM" format
-String formatFullDateTime(int unixTimestampSeconds) {
+String formatFullDateTime(int unixTimestampMillis) {
   final date = DateTime.fromMillisecondsSinceEpoch(
-    unixTimestampSeconds * 1000,
+    unixTimestampMillis,
     isUtc: true,
   ).toLocal();
 

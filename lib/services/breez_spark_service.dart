@@ -14,13 +14,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../config/breez_config.dart';
 import 'app_state_service.dart';
+import 'package:sabi_wallet/core/services/logger_service.dart';
 
 /// Local wrapper class for payment history display
 class PaymentRecord {
   final String id;
   final int amountSats;
   final int feeSats;
-  final int paymentTime; // Unix timestamp in seconds from Breez SDK
+  final int paymentTime; // Unix timestamp in milliseconds from Breez SDK
   final String description;
   final String? bolt11;
   final bool isIncoming;
@@ -36,12 +37,77 @@ class PaymentRecord {
   });
 }
 
+enum PendingPaymentStatus { pending, completed, failed }
+
+class PendingPaymentRecord {
+  final String id;
+  final String recipientName;
+  final String recipientIdentifier;
+  final int amountSats;
+  final DateTime startedAt;
+  final PendingPaymentStatus status;
+  final String? memo;
+
+  const PendingPaymentRecord({
+    required this.id,
+    required this.recipientName,
+    required this.recipientIdentifier,
+    required this.amountSats,
+    required this.startedAt,
+    this.status = PendingPaymentStatus.pending,
+    this.memo,
+  });
+}
+
 class BreezSparkService {
   static const _boxName = 'breez_spark_data';
   static late Box _box;
   static BreezSdk? _sdk;
   static final StreamController<PaymentRecord> _paymentStream =
       StreamController.broadcast();
+  static final Map<String, PendingPaymentRecord> _pendingPayments = {};
+  static final StreamController<List<PendingPaymentRecord>> _pendingPaymentsController =
+      StreamController<List<PendingPaymentRecord>>.broadcast();
+  static final Stream<List<PendingPaymentRecord>> _pendingPaymentsStream =
+      Stream.multi((controller) {
+    controller.add(_pendingPayments.values.toList());
+    final sub = _pendingPaymentsController.stream.listen(controller.add);
+    controller.onCancel = sub.cancel;
+  }, isBroadcast: true);
+
+  static Stream<List<PendingPaymentRecord>> get pendingPaymentsStream => _pendingPaymentsStream;
+
+  static void _emitPendingPayments() {
+    if (_pendingPaymentsController.isClosed) return;
+    _pendingPaymentsController.add(_pendingPayments.values.toList());
+  }
+
+  static void _registerPendingPayment(PendingPaymentRecord record) {
+    _pendingPayments[record.id] = record;
+    _emitPendingPayments();
+  }
+
+  static void _removePendingPayment(String id) {
+    if (_pendingPayments.remove(id) != null) {
+      _emitPendingPayments();
+    }
+  }
+
+  static const String _logTag = '[BreezSpark]';
+
+  static void _logDebug(String message) => LoggerService.debug(message, tag: _logTag);
+  static void _logInfo(String message) => LoggerService.info(message, tag: _logTag);
+  static void _logWarn(String message, {dynamic error, StackTrace? stackTrace}) {
+    LoggerService.warn(message, tag: _logTag);
+    if (error != null || stackTrace != null) {
+      LoggerService.error('Details for warning: $message', tag: _logTag, error: error, stackTrace: stackTrace);
+    }
+  }
+  static void _logError(String message, {dynamic error, StackTrace? stackTrace}) =>
+      LoggerService.error(message, tag: _logTag, error: error, stackTrace: stackTrace);
+
+  static final BigInt _msatThreshold = BigInt.from(999999);
+  static final BigInt _msatPerSat = BigInt.from(1000);
 
   // Prevent double initialization
   static bool _isInitializing = false;
@@ -54,7 +120,7 @@ class BreezSparkService {
       StreamController.broadcast();
   static Stream<int> get balanceStream => _balanceStream.stream;
   static Timer? _balancePollingTimer;
-  
+
   // Payment polling to detect new payments
   static Timer? _paymentPollingTimer;
   static String? _lastPaymentId;
@@ -62,7 +128,9 @@ class BreezSparkService {
   // Start balance polling
   static void _startBalancePolling() {
     _balancePollingTimer?.cancel();
-    _balancePollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    _balancePollingTimer = Timer.periodic(const Duration(seconds: 3), (
+      _,
+    ) async {
       try {
         final balance = await getBalance();
         _balanceStream.add(balance);
@@ -71,11 +139,13 @@ class BreezSparkService {
       }
     });
   }
-  
+
   // Start payment polling to detect new payments
   static void _startPaymentPolling() {
     _paymentPollingTimer?.cancel();
-    _paymentPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+    _paymentPollingTimer = Timer.periodic(const Duration(seconds: 2), (
+      _,
+    ) async {
       try {
         final payments = await listPayments(limit: 1);
         if (payments.isNotEmpty) {
@@ -96,7 +166,7 @@ class BreezSparkService {
   static void stopBalancePolling() {
     _balancePollingTimer?.cancel();
   }
-  
+
   // Stop payment polling
   static void stopPaymentPolling() {
     _paymentPollingTimer?.cancel();
@@ -179,7 +249,9 @@ class BreezSparkService {
       try {
         debugPrint('🔍 Validating SDK connection with getInfo()...');
         final info = await _sdk!.getInfo(request: GetInfoRequest());
-        debugPrint('✅ API validation SUCCESS - Balance: ${info.balanceSats} sats');
+        debugPrint(
+          '✅ API validation SUCCESS - Balance: ${info.balanceSats} sats',
+        );
       } catch (e) {
         _sdk = null;
         debugPrint('❌ API validation FAILED: $e');
@@ -195,23 +267,26 @@ class BreezSparkService {
 
       // Mark onboarding as complete and save wallet initialization timestamp
       await _box.put('has_completed_onboarding', true);
-      await _box.put('wallet_initialized_at', DateTime.now().millisecondsSinceEpoch);
-      
+      await _box.put(
+        'wallet_initialized_at',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+
       // Mark wallet as created in app state
       await AppStateService.markWalletCreated();
-      
+
       debugPrint('🔒 ONBOARDING FLAG SAVED — WILL NEVER SHOW AGAIN');
       debugPrint('✅ Wallet state saved to AppStateService');
-      
+
       // Start payment polling to detect new incoming/outgoing payments
       _startPaymentPolling();
       debugPrint('🔔 Payment polling started');
-      
+
       _isInitializing = false;
-      
+
       // Start balance polling immediately
       _startBalancePolling();
-      
+
       debugPrint('✅✅✅ SPARK SDK INITIALIZED ✅✅✅');
     } catch (e) {
       _isInitializing = false;
@@ -253,11 +328,13 @@ class BreezSparkService {
     }
     try {
       // Use ensure_synced: true to get network-fresh balance instead of cached
-      final info = await _sdk!.getInfo(request: GetInfoRequest(ensureSynced: true));
-      
+      final info = await _sdk!.getInfo(
+        request: GetInfoRequest(ensureSynced: true),
+      );
+
       // balanceSats is already in sats (not msat)
       final balanceSats = info.balanceSats.toInt();
-      
+
       debugPrint('💰 Balance: $balanceSats sats (raw: ${info.balanceSats})');
       return balanceSats;
     } catch (e) {
@@ -290,10 +367,11 @@ class BreezSparkService {
       final response = await _sdk!.receivePayment(request: req);
 
       debugPrint('✅ Invoice: ${response.paymentRequest}');
-      
+
       // Poll balance after creating invoice (will update when payment received)
       Timer.periodic(const Duration(seconds: 2), (timer) async {
-        if (timer.tick > 30) { // Stop after 60 seconds
+        if (timer.tick > 30) {
+          // Stop after 60 seconds
           timer.cancel();
           return;
         }
@@ -304,7 +382,7 @@ class BreezSparkService {
           debugPrint('⚠️ Balance check error: $e');
         }
       });
-      
+
       return response.paymentRequest; // Returns bolt11 string
     } catch (e) {
       debugPrint('❌ Invoice creation failed: $e');
@@ -315,7 +393,9 @@ class BreezSparkService {
   // ============================================================================
   // Prepare Send Payment (for showing confirmation before sending)
   // ============================================================================
-  static Future<PrepareSendPaymentResponse> prepareSendPayment(String identifier) async {
+  static Future<PrepareSendPaymentResponse> prepareSendPayment(
+    String identifier,
+  ) async {
     // Guard: ensure SDK is initialized
     if (_sdk == null) {
       debugPrint('❌ SDK not initialized - cannot prepare payment');
@@ -329,7 +409,7 @@ class BreezSparkService {
         amount: null,
       );
       final prepResponse = await _sdk!.prepareSendPayment(request: prepReq);
-      
+
       debugPrint('✅ Payment prepared successfully');
       return prepResponse;
     } catch (e) {
@@ -345,12 +425,23 @@ class BreezSparkService {
     String identifier, {
     int? sats,
     String comment = '',
+    String? recipientName,
   }) async {
     // Guard: ensure SDK is initialized
     if (_sdk == null) {
       debugPrint('❌ SDK not initialized - cannot send payment');
       throw Exception('SDK not initialized');
     }
+    final pendingId = const Uuid().v4();
+    final pendingAmountSats = sats ?? 0;
+    _registerPendingPayment(PendingPaymentRecord(
+      id: pendingId,
+      recipientName: recipientName ?? identifier,
+      recipientIdentifier: identifier,
+      amountSats: pendingAmountSats,
+      startedAt: DateTime.now(),
+      memo: comment.isEmpty ? null : comment,
+    ));
     try {
       debugPrint('💸 Sending to: $identifier');
 
@@ -374,11 +465,11 @@ class BreezSparkService {
       final sendResponse = await _sdk!.sendPayment(request: sendReq);
 
       debugPrint('✅ Payment sent: ${sendResponse.payment.id}');
-      
+
       // Update balance immediately after send
       final balance = await getBalance();
       _balanceStream.add(balance);
-      
+
       return {
         'payment': sendResponse.payment,
         'amount': sendResponse.payment.amount,
@@ -387,6 +478,8 @@ class BreezSparkService {
     } catch (e) {
       debugPrint('❌ Send failed: $e');
       rethrow;
+    } finally {
+      _removePendingPayment(pendingId);
     }
   }
 
@@ -417,27 +510,12 @@ class BreezSparkService {
         debugPrint('   type=${p.paymentType}');
 
         // Try multiple conversion approaches for debugging
-        int amountSats;
-        if (p.amount > BigInt.from(999999)) {
-          // If amount is large, assume it's in millisatoshis
-          amountSats = (p.amount ~/ BigInt.from(1000)).toInt();
-          debugPrint('   ✓ Using msat→sat conversion (dividing by 1000): $amountSats sats');
-        } else if (p.amount > BigInt.zero) {
-          // If amount is small, assume it's already in satoshis
-          amountSats = p.amount.toInt();
-          debugPrint('   ✓ Using direct conversion (already sats): $amountSats sats');
-        } else {
-          // Try to extract from details if amount is zero
-          amountSats = _extractAmountFromDetails(p.details, p.amount);
-          if (amountSats == 0) {
-            debugPrint('   ⚠️ Amount is zero - no fallback found');
-          } else {
-            debugPrint('   ✓ Extracted from details: $amountSats sats');
-          }
-        }
+        final amountSats =
+            p.amount > BigInt.zero
+                ? _toSats(p.amount)
+                : _extractAmountFromDetails(p.details, p.amount);
+        final feeSats = _toSats(p.fees);
 
-        final feeSats = (p.fees ~/ BigInt.from(1000)).toInt();
-        
         debugPrint('   Final: amountSats=$amountSats, feeSats=$feeSats');
 
         records.add(
@@ -445,7 +523,7 @@ class BreezSparkService {
             id: p.id,
             amountSats: amountSats,
             feeSats: feeSats,
-            paymentTime: (p.timestamp ~/ BigInt.from(1000)).toInt(), // Store as Unix seconds
+            paymentTime: p.timestamp.toInt(),
             description: _extractDescription(p.details),
             bolt11: _extractInvoice(p.details),
             // isIncoming: check if amount indicates incoming
@@ -480,14 +558,9 @@ class BreezSparkService {
   static int _extractAmountFromDetails(PaymentDetails? details, BigInt amount) {
     // If we have amount directly, use it
     if (amount > BigInt.zero) {
-      // Check if it's likely in msat (large number) or sats (small number)
-      if (amount > BigInt.from(999999)) {
-        return (amount ~/ BigInt.from(1000)).toInt();
-      } else {
-        return amount.toInt();
-      }
+      return _toSats(amount);
     }
-    
+
     // If amount is 0, try to extract from details if available
     // For now, return 0 - we'd need to parse the invoice from details
     return 0;
@@ -504,19 +577,33 @@ class BreezSparkService {
   // Extract amounts from send response
   // ============================================================================
   static int extractSendAmountSats(Map<String, dynamic> result) {
-    if (result.containsKey('payment')) {
-      final payment = result['payment'] as Payment;
-      return (payment.amount ~/ BigInt.from(1000)).toInt();
+    final payment = result['payment'];
+    if (payment is Payment) {
+      return _toSats(payment.amount);
     }
+    final amount = result['amount'];
+    if (amount is BigInt) return _toSats(amount);
+    if (amount is int) return amount;
     return 0;
   }
 
   static int extractSendFeeSats(Map<String, dynamic> result) {
-    if (result.containsKey('payment')) {
-      final payment = result['payment'] as Payment;
-      return (payment.fees ~/ BigInt.from(1000)).toInt();
+    final payment = result['payment'];
+    if (payment is Payment) {
+      return _toSats(payment.fees);
     }
+    final fees = result['fees'];
+    if (fees is BigInt) return _toSats(fees);
+    if (fees is int) return fees;
     return 0;
+  }
+
+  static int _toSats(BigInt value) {
+    if (value <= BigInt.zero) return 0;
+    if (value > _msatThreshold) {
+      return (value ~/ _msatPerSat).toInt();
+    }
+    return value.toInt();
   }
 
   // ============================================================================
@@ -535,7 +622,10 @@ class BreezSparkService {
 
   static Future<void> setOnboardingComplete() async {
     await _box.put('has_completed_onboarding', true);
-    await _box.put('wallet_initialized_at', DateTime.now().millisecondsSinceEpoch);
+    await _box.put(
+      'wallet_initialized_at',
+      DateTime.now().millisecondsSinceEpoch,
+    );
     debugPrint('🔒 Onboarding marked complete');
   }
 
@@ -548,7 +638,9 @@ class BreezSparkService {
   // Compat methods (deprecated)
   // ============================================================================
   @Deprecated('Use listPayments() instead')
-  static Future<List<PaymentRecord>> listPaymentDetails({int limit = 50}) async {
+  static Future<List<PaymentRecord>> listPaymentDetails({
+    int limit = 50,
+  }) async {
     return await listPayments(limit: limit);
   }
 

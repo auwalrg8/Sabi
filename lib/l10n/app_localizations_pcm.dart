@@ -213,6 +213,43 @@ class AppLocalizationsPcm extends AppLocalizations {
   String get paymentPending => 'Payment Dey Wait';
 
   @override
+  String get paymentSentHeadline =>
+      'Payment don go! We go still dey watch wetin dey happen for background.';
+
+  @override
+  String get shareOptionsTitle => 'How you wan share?';
+
+  @override
+  String get shareImage => 'Share as Image';
+
+  @override
+  String get sharePdf => 'Share as PDF';
+
+  @override
+  String get shareImageSubtitle => 'Send receipt snapshot';
+
+  @override
+  String get sharePdfSubtitle => 'Generate PDF summary';
+
+  @override
+  String get recipient => 'Recipient';
+
+  @override
+  String get identifier => 'Identifier';
+
+  @override
+  String get transactionTime => 'Transaction time';
+
+  @override
+  String get memo => 'Memo';
+
+  @override
+  String get backToHome => 'Go back home';
+
+  @override
+  String get shareReceipt => 'Share receipt';
+
+  @override
   String get createInvoice => 'Create Invoice';
 
   @override

@@ -213,6 +213,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paymentPending => 'Payment Pending';
 
   @override
+  String get paymentSentHeadline =>
+      'Payment sent! We keep tracking the status in the background.';
+
+  @override
+  String get shareOptionsTitle => 'How do you want to share?';
+
+  @override
+  String get shareImage => 'Share as Image';
+
+  @override
+  String get sharePdf => 'Share as PDF';
+
+  @override
+  String get shareImageSubtitle => 'Send a quick snapshot of the receipt';
+
+  @override
+  String get sharePdfSubtitle => 'Generate and send a PDF summary';
+
+  @override
+  String get recipient => 'Recipient';
+
+  @override
+  String get identifier => 'Identifier';
+
+  @override
+  String get transactionTime => 'Transaction time';
+
+  @override
+  String get memo => 'Memo';
+
+  @override
+  String get backToHome => 'Back to home';
+
+  @override
+  String get shareReceipt => 'Share receipt';
+
+  @override
   String get createInvoice => 'Create Invoice';
 
   @override

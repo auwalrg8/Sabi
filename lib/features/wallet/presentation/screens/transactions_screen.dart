@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/pending_payments_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/recent_transactions_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_detail_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_debug_screen.dart';
 import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 import 'package:sabi_wallet/l10n/app_localizations.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
@@ -13,6 +15,8 @@ class TransactionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsAsync = ref.watch(allTransactionsNotifierProvider);
+    final pendingAsync = ref.watch(pendingPaymentsProvider);
+    final pendingPayments = pendingAsync.valueOrNull ?? const <PendingPaymentRecord>[];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -20,6 +24,8 @@ class TransactionsScreen extends ConsumerWidget {
         child: Column(
           children: [
             _buildHeader(context),
+            if (pendingPayments.isNotEmpty)
+              _buildPendingSection(context, pendingPayments),
             Expanded(
               child: paymentsAsync.when(
                 data: (payments) {
@@ -250,4 +256,112 @@ class TransactionsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildPendingSection(BuildContext context, List<PendingPaymentRecord> pendingPayments) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                l10n.paymentPending,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${pendingPayments.length} ${l10n.pending.toLowerCase()}',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Column(
+            children: pendingPayments
+                .map((payment) => _buildPendingTile(context, payment))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingTile(BuildContext context, PendingPaymentRecord payment) {
+    final statusText = _formatPendingDuration(payment.startedAt);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.accentYellow.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.hourglass_top,
+              color: AppColors.accentYellow,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  payment.recipientName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${AppLocalizations.of(context)!.pending} • $statusText',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${payment.amountSats} sats',
+            style: TextStyle(
+              color: AppColors.accentYellow,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPendingDuration(DateTime startedAt) {
+    final diff = DateTime.now().difference(startedAt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
 }

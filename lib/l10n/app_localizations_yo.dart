@@ -213,6 +213,43 @@ class AppLocalizationsYo extends AppLocalizations {
   String get paymentPending => 'Isanwo N duro';
 
   @override
+  String get paymentSentHeadline =>
+      'Sisan ti ja! A ṣi ń ṣọ ipo rẹ́ ní abẹ́lẹ́.';
+
+  @override
+  String get shareOptionsTitle => 'Báwo lẹ fẹ́ pín?';
+
+  @override
+  String get shareImage => 'Pín gẹ́gẹ́ bi Aworan';
+
+  @override
+  String get sharePdf => 'Pín gẹ́gẹ́ bi PDF';
+
+  @override
+  String get shareImageSubtitle => 'Firanṣẹ́ àwòrán ìwé ìrísí';
+
+  @override
+  String get sharePdfSubtitle => 'Ṣẹda PDF ìkólẹ̀kí àti firanṣẹ́';
+
+  @override
+  String get recipient => 'Olùgbà';
+
+  @override
+  String get identifier => 'Àpẹẹrẹ';
+
+  @override
+  String get transactionTime => 'Àkókò ìbánisọ̀rọ̀';
+
+  @override
+  String get memo => 'Àkọsílẹ̀';
+
+  @override
+  String get backToHome => 'Padà sí ilé';
+
+  @override
+  String get shareReceipt => 'Pín ìwé ìrísí';
+
+  @override
   String get createInvoice => 'Ṣẹda Invoice';
 
   @override

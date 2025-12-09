@@ -213,6 +213,43 @@ class AppLocalizationsHa extends AppLocalizations {
   String get paymentPending => 'Ana Jiran Biyan Kuɗi';
 
   @override
+  String get paymentSentHeadline =>
+      'Biyan ya fita! Muna ci gaba da bibiyar matsayin a bango.';
+
+  @override
+  String get shareOptionsTitle => 'Ta yaya kake son raba?';
+
+  @override
+  String get shareImage => 'Raba a matsayin Hoton';
+
+  @override
+  String get sharePdf => 'Raba a matsayin PDF';
+
+  @override
+  String get shareImageSubtitle => 'Aika hoton shaidar biyan';
+
+  @override
+  String get sharePdfSubtitle => 'Kirkiri da aika takardar PDF';
+
+  @override
+  String get recipient => 'Mai karɓa';
+
+  @override
+  String get identifier => 'Mai tantancewa';
+
+  @override
+  String get transactionTime => 'Lokacin ciniki';
+
+  @override
+  String get memo => 'Memo';
+
+  @override
+  String get backToHome => 'Komawa gida';
+
+  @override
+  String get shareReceipt => 'Raba shaidar biyan';
+
+  @override
   String get createInvoice => 'Ƙirƙiri Invoice';
 
   @override

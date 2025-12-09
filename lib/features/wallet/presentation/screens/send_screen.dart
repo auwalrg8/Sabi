@@ -341,13 +341,15 @@ class _SendScreenState extends State<SendScreen>
         _recipient!,
         sats,
       );
-      await BreezSparkService.sendPayment(
+      final result = await BreezSparkService.sendPayment(
         paymentIdentifier,
         sats: sats,
         comment: _memoController.text,
+        recipientName: _recipient?.name,
       );
       if (!mounted) return;
-      _showSnack('Payment sent');
+      final feeSats = BreezSparkService.extractSendFeeSats(result);
+      _showSnack('Payment sent • Fee: $feeSats sats');
       Navigator.pop(context);
     } catch (e) {
       _showSnack('Send failed: $e');

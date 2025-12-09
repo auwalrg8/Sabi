@@ -107,6 +107,7 @@ If balance increased, your Bitcoin receive is working!
       final response = await BreezSparkService.sendPayment(
         _identifierController.text,
         sats: amount,
+        recipientName: _identifierController.text,
       );
       setState(() {
         _statusText = '''

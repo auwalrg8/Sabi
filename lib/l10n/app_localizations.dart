@@ -504,6 +504,78 @@ abstract class AppLocalizations {
   /// **'Payment Pending'**
   String get paymentPending;
 
+  /// No description provided for @paymentSentHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment sent! We keep tracking the status in the background.'**
+  String get paymentSentHeadline;
+
+  /// No description provided for @shareOptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How do you want to share?'**
+  String get shareOptionsTitle;
+
+  /// No description provided for @shareImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Share as Image'**
+  String get shareImage;
+
+  /// No description provided for @sharePdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Share as PDF'**
+  String get sharePdf;
+
+  /// No description provided for @shareImageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a quick snapshot of the receipt'**
+  String get shareImageSubtitle;
+
+  /// No description provided for @sharePdfSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate and send a PDF summary'**
+  String get sharePdfSubtitle;
+
+  /// No description provided for @recipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient'**
+  String get recipient;
+
+  /// No description provided for @identifier.
+  ///
+  /// In en, this message translates to:
+  /// **'Identifier'**
+  String get identifier;
+
+  /// No description provided for @transactionTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction time'**
+  String get transactionTime;
+
+  /// No description provided for @memo.
+  ///
+  /// In en, this message translates to:
+  /// **'Memo'**
+  String get memo;
+
+  /// No description provided for @backToHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to home'**
+  String get backToHome;
+
+  /// No description provided for @shareReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Share receipt'**
+  String get shareReceipt;
+
   /// No description provided for @createInvoice.
   ///
   /// In en, this message translates to:

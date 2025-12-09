@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
-import 'package:sabi_wallet/features/wallet/presentation/screens/send_success_screen.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/payment_success_screen.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 class SendProgressScreen extends StatefulWidget {
@@ -20,6 +22,8 @@ class _SendProgressScreenState extends State<SendProgressScreen>
   late Animation<double> _scaleAnimation;
   bool _hasError = false;
   String _errorMessage = '';
+  Timer? _successTimer;
+  bool _navigatedToSuccess = false;
 
   @override
   void initState() {
@@ -43,10 +47,15 @@ class _SendProgressScreenState extends State<SendProgressScreen>
       final amountSats = widget.transaction.amountInSats.toInt();
 
       // Send payment via Breez Spark SDK with amount
-      final result = await BreezSparkService.sendPayment(
+      final sendFuture = BreezSparkService.sendPayment(
         widget.transaction.recipient.identifier,
         sats: amountSats,
+        recipientName: widget.transaction.recipient.name,
       );
+
+      _successTimer = Timer(const Duration(seconds: 5), _navigateToSuccess);
+
+      final result = await sendFuture;
 
       // Extract actual fees and amounts from SDK response
       final actualAmountSats = BreezSparkService.extractSendAmountSats(result);
@@ -56,17 +65,10 @@ class _SendProgressScreenState extends State<SendProgressScreen>
         '✅ Payment sent: $actualAmountSats sats, fee: $actualFeeSats sats',
       );
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => SendSuccessScreen(transaction: widget.transaction),
-          ),
-        );
-      }
     } catch (e) {
       debugPrint('❌ Payment failed: $e');
+      _successTimer?.cancel();
+      if (_navigatedToSuccess) return;
       setState(() {
         _hasError = true;
         _errorMessage = e.toString();
@@ -74,9 +76,22 @@ class _SendProgressScreenState extends State<SendProgressScreen>
     }
   }
 
+  void _navigateToSuccess() {
+    if (_navigatedToSuccess || !mounted) return;
+    _navigatedToSuccess = true;
+    _successTimer?.cancel();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentSuccessScreen(transaction: widget.transaction),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
+    _successTimer?.cancel();
     super.dispose();
   }
 

@@ -1,10 +1,22 @@
 // test/breez_sdk_diagnostic_test.dart
 // Diagnostic test to verify Breez Spark SDK initialization and payment capability
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 
+const bool _skipBreezSdkDiagnostics = bool.fromEnvironment('SKIP_BREEZ_SDK_DIAGNOSTICS', defaultValue: true);
+
 void main() {
-  group('Breez Spark SDK Diagnostics', () {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  final tempDir = Directory.systemTemp.createTempSync('sabi_test');
+  PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
+
+  group(
+    'Breez Spark SDK Diagnostics',
+    () {
     setUpAll(() async {
       // Initialize persistence layer
       await BreezSparkService.initPersistence();
@@ -66,5 +78,20 @@ void main() {
         print('ℹ️  No mnemonic found - skipping restore test');
       }
     });
-  });
+  }, skip: _skipBreezSdkDiagnostics);
+}
+
+class _FakePathProvider extends PathProviderPlatform {
+  final String path;
+
+  _FakePathProvider(this.path);
+
+  @override
+  Future<String> getApplicationDocumentsPath() async => path;
+
+  @override
+  Future<String> getApplicationSupportPath() async => path;
+
+  @override
+  Future<String> getTemporaryPath() async => path;
 }

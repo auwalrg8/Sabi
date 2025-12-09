@@ -5,9 +5,9 @@ void main() {
   group('Date Utilities Tests', () {
     test('formatTransactionTime - today', () {
       final now = DateTime.now();
-      final todaySeconds = now.millisecondsSinceEpoch ~/ 1000;
+      final todayMillis = now.millisecondsSinceEpoch;
       
-      final result = formatTransactionTime(todaySeconds);
+      final result = formatTransactionTime(todayMillis);
       
       expect(result, contains('Today at'));
       expect(result, contains(':'));
@@ -15,9 +15,9 @@ void main() {
 
     test('formatTransactionTime - yesterday', () {
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
-      final yesterdaySeconds = yesterday.millisecondsSinceEpoch ~/ 1000;
+      final yesterdayMillis = yesterday.millisecondsSinceEpoch;
       
-      final result = formatTransactionTime(yesterdaySeconds);
+      final result = formatTransactionTime(yesterdayMillis);
       
       expect(result, contains('Yesterday at'));
       expect(result, contains(':'));
@@ -25,9 +25,9 @@ void main() {
 
     test('formatTransactionTime - older date', () {
       final oldDate = DateTime(2025, 1, 15, 14, 30);
-      final oldDateSeconds = oldDate.millisecondsSinceEpoch ~/ 1000;
+      final oldDateMillis = oldDate.millisecondsSinceEpoch;
       
-      final result = formatTransactionTime(oldDateSeconds);
+      final result = formatTransactionTime(oldDateMillis);
       
       expect(result, contains('15/1/2025'));
       expect(result, contains(':'));
@@ -35,9 +35,9 @@ void main() {
 
     test('formatFullDateTime - correct format', () {
       final testDate = DateTime(2025, 12, 9, 14, 30);
-      final testSeconds = testDate.millisecondsSinceEpoch ~/ 1000;
+      final testMillis = testDate.millisecondsSinceEpoch;
       
-      final result = formatFullDateTime(testSeconds);
+      final result = formatFullDateTime(testMillis);
       
       expect(result, contains('9 Dec 2025'));
       expect(result, contains('•'));
@@ -46,21 +46,19 @@ void main() {
 
     test('formatFullDateTime - handles single digit time', () {
       final testDate = DateTime(2025, 1, 5, 9, 5);
-      final testSeconds = testDate.millisecondsSinceEpoch ~/ 1000;
+      final testMillis = testDate.millisecondsSinceEpoch;
       
-      final result = formatFullDateTime(testSeconds);
+      final result = formatFullDateTime(testMillis);
       
       // Should pad hours and minutes with leading zeros
       expect(result, contains('09:05'));
     });
 
     test('Breez SDK timestamp conversion - seconds to milliseconds', () {
-      // Breez SDK returns Unix timestamp in seconds
-      const breezTimestampSeconds = 1733750400; // Dec 9, 2025 12:00:00 GMT
-      
-      // Our function should multiply by 1000 to convert to milliseconds
+      // Breez SDK now gives timestamps in milliseconds directly
+      const breezTimestampMillis = 1733750400000; // Dec 9, 2025 12:00:00 GMT
       final dateTime = DateTime.fromMillisecondsSinceEpoch(
-        breezTimestampSeconds * 1000,
+        breezTimestampMillis,
         isUtc: true,
       );
       
