@@ -179,14 +179,17 @@ class _SendScreenState extends State<SendScreen>
 
   int? _parseBolt11AmountSats(String invoice) {
     final normalized = invoice.trim().toLowerCase();
-    final match = RegExp(r'^ln(?:bc|tb|bcrt)(\d+)([munp]?)').firstMatch(normalized);
+    final match = RegExp(
+      r'^ln(?:bc|tb|bcrt)(\d+)([munp]?)',
+    ).firstMatch(normalized);
     if (match == null) return null;
     final digits = match.group(1);
     final unit = match.group(2);
     if (digits == null || digits.isEmpty) return null;
     final amountValue = double.tryParse(digits);
     if (amountValue == null || amountValue <= 0) return null;
-    final sats = (amountValue * _bolt11UnitMultiplier(unit) * 100000000).round();
+    final sats =
+        (amountValue * _bolt11UnitMultiplier(unit) * 100000000).round();
     return sats > 0 ? sats : null;
   }
 
@@ -227,6 +230,35 @@ class _SendScreenState extends State<SendScreen>
               ? [1000, 5000, 10000, 50000]
               : [1000, 5000, 10000, 50000];
       _amountText = amounts[value].toString();
+    });
+  }
+
+  void _appendDigit(String digit) {
+    setState(() {
+      if (digit == '.' && _amountText.contains('.')) return;
+      if (_amountText == '0' && digit != '.') {
+        _amountText = digit;
+      } else {
+        _amountText = '$_amountText$digit';
+      }
+      if (_amountText.startsWith('0') && !_amountText.startsWith('0.')) {
+        _amountText = _amountText.replaceFirst(RegExp(r'^0+'), '');
+        if (_amountText.isEmpty) _amountText = '0';
+      }
+    });
+  }
+
+  void _deleteDigit() {
+    setState(() {
+      if (_amountText.length <= 1) {
+        _amountText = '0';
+        return;
+      }
+      _amountText = _amountText.substring(0, _amountText.length - 1);
+      if (_amountText.endsWith('.')) {
+        _amountText = _amountText.substring(0, _amountText.length - 1);
+      }
+      if (_amountText.isEmpty) _amountText = '0';
     });
   }
 
@@ -636,22 +668,9 @@ class _SendScreenState extends State<SendScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _recipient?.name ?? 'Recipient',
-                style: TextStyle(color: Colors.white, fontSize: 16.sp),
-              ),
-              TextButton(
-                onPressed: _toggleMode,
-                child: Text(
-                  _mode == _CurrencyMode.sats
-                      ? 'Switch to ₦'
-                      : 'Switch to sats',
-                ),
-              ),
-            ],
+          Text(
+            _recipient?.name ?? 'Recipient',
+            style: TextStyle(color: Colors.white, fontSize: 16.sp),
           ),
           SizedBox(height: 12.h),
           Center(
@@ -669,7 +688,7 @@ class _SendScreenState extends State<SendScreen>
                   _amountText,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 46.sp,
+                    fontSize: 56.sp,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -686,18 +705,7 @@ class _SendScreenState extends State<SendScreen>
               ],
             ),
           ),
-          SizedBox(height: 18.h),
-          Slider(
-            value: _quickIndex.toDouble(),
-            min: 0,
-            max: 3,
-            divisions: 3,
-            label: quickLabels[_quickIndex],
-            onChanged: (v) => _setQuickAmount(v.toInt()),
-            activeColor: AppColors.primary,
-            inactiveColor: AppColors.surface,
-          ),
-          SizedBox(height: 10.h),
+          SizedBox(height: 20.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children:
@@ -705,43 +713,42 @@ class _SendScreenState extends State<SendScreen>
                     .asMap()
                     .entries
                     .map(
-                      (e) => GestureDetector(
-                        onTap: () => _setQuickAmount(e.key),
-                        child: Chip(
-                          label: Text(e.value),
-                          backgroundColor:
-                              _quickIndex == e.key
-                                  ? AppColors.primary.withValues(alpha: 0.2)
-                                  : AppColors.surface,
-                          labelStyle: const TextStyle(color: Colors.white),
+                      (e) => Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4.w),
+                          child: GestureDetector(
+                            onTap: () => _setQuickAmount(e.key),
+                            child: Container(
+                              height: 42.h,
+                              decoration: BoxDecoration(
+                                color:
+                                    _quickIndex == e.key
+                                        ? AppColors.primary
+                                        : AppColors.surface,
+                                borderRadius: BorderRadius.circular(32.r),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                e.value,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     )
                     .toList(),
           ),
-          SizedBox(height: 16.h),
-          TextField(
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText:
-                  _mode == _CurrencyMode.sats ? 'Amount (sats)' : 'Amount (₦)',
-              labelStyle: const TextStyle(color: AppColors.textSecondary),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14.r),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            style: TextStyle(color: Colors.white, fontSize: 18.sp),
-            onChanged: (v) => setState(() => _amountText = v.isEmpty ? '0' : v),
-          ),
-          SizedBox(height: 14.h),
+          SizedBox(height: 18.h),
           TextField(
             controller: _memoController,
             decoration: InputDecoration(
-              labelText: 'Memo (optional)',
-              labelStyle: const TextStyle(color: AppColors.textSecondary),
+              hintText: 'Memo (optional)',
+              hintStyle: const TextStyle(color: AppColors.textSecondary),
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
@@ -751,10 +758,22 @@ class _SendScreenState extends State<SendScreen>
             ),
             style: const TextStyle(color: Colors.white),
           ),
-          SizedBox(height: 24.h),
+          SizedBox(height: 12.h),
+          TextButton(
+            onPressed: _toggleMode,
+            child: Text(
+              _mode == _CurrencyMode.sats
+                  ? 'Switch to naira'
+                  : 'Switch to sats',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+          SizedBox(height: 12.h),
+          _buildKeypad(),
+          SizedBox(height: 16.h),
           SizedBox(
             width: double.infinity,
-            height: 52.h,
+            height: 56.h,
             child: ElevatedButton(
               onPressed: _nextFromAmount,
               style: ElevatedButton.styleFrom(
@@ -840,6 +859,78 @@ class _SendScreenState extends State<SendScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildKeypad() {
+    final rows = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      ['.', '0', '⌫'],
+    ];
+
+    return Column(
+      children:
+          rows
+              .map(
+                (row) => Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4.h),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children:
+                        row
+                            .map(
+                              (value) => Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 6.w,
+                                  ),
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      if (value == '⌫') {
+                                        _deleteDigit();
+                                        return;
+                                      }
+                                      _appendDigit(value);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 18.h,
+                                      ),
+                                      backgroundColor: AppColors.surface,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          16.r,
+                                        ),
+                                        side: const BorderSide(
+                                          color: Colors.transparent,
+                                        ),
+                                      ),
+                                    ),
+                                    child:
+                                        value == '⌫'
+                                            ? Icon(
+                                              Icons.backspace,
+                                              color: Colors.white,
+                                            )
+                                            : Text(
+                                              value,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 24.sp,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ),
+              )
+              .toList(),
     );
   }
 
