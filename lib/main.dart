@@ -40,7 +40,7 @@ void main() async {
   await ContactService.init();
   await NotificationService.init();
   await ProfileService.init();
-  
+
   // Mark app as opened
   await AppStateService.markAppOpened();
 
@@ -63,24 +63,25 @@ class SabiWalletApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Check if user has created/restored a wallet using app state service
     final hasWallet = AppStateService.hasWallet;
-    
+
     // Watch the current locale
     final locale = ref.watch(languageProvider);
-    
+
     debugPrint('🔍 App State Check - hasWallet: $hasWallet');
     debugPrint('🌍 Current locale: ${locale.languageCode}');
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      
+
       // Localization setup
       localizationsDelegates: Localization.delegates,
       supportedLocales: Localization.supportedLocales,
       locale: locale,
-      
-      home: hasWallet
-          ? const HomeScreen()      // Wallet exists → go to home
-          : const SplashScreen(),   // No wallet → show onboarding
+
+      home:
+          hasWallet
+              ? const HomeScreen() // Wallet exists → go to home
+              : const SplashScreen(), // No wallet → show onboarding
       routes: {
         '/home': (context) => const HomeScreen(),
         '/splash': (context) => const EntryScreen(),
