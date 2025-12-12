@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
@@ -42,23 +43,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back,
                       color: AppColors.textPrimary,
+                      size: 24.sp,
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Text(
                     AppLocalizations.of(context)!.settings,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontFamily: 'Inter',
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       fontWeight: FontWeight.w700,
                       height: 1.4,
                     ),
@@ -66,16 +68,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
             ),
-            // Settings Content
+
+            // Content
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(30, 10, 30, 30),
+                padding: EdgeInsets.fromLTRB(30.w, 10.h, 30.w, 30.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Account Section
-                    _SectionHeader(title: AppLocalizations.of(context)!.account),
-                    const SizedBox(height: 12),
+                    _SectionHeader(
+                      title: AppLocalizations.of(context)!.account,
+                    ),
+                    SizedBox(height: 12.h),
+
                     _SettingTile(
                       icon: Icons.lock_outline,
                       iconColor: AppColors.primary,
@@ -88,81 +93,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 (_) => ChangePinScreen(isCreate: !_hasPinCode),
                           ),
                         );
-                        // Recheck PIN status after returning
                         _checkPinCode();
                       },
                     ),
-                    const SizedBox(height: 12),
+
+                    SizedBox(height: 12.h),
+
                     _SettingToggleTile(
                       icon: Icons.fingerprint,
                       iconColor: AppColors.accentGreen,
                       title: 'Biometric Login',
                       value: settings.biometricEnabled,
-                      onChanged: (value) {
-                        ref
-                            .read(settingsNotifierProvider.notifier)
-                            .toggleBiometric(value);
-                      },
+                      onChanged:
+                          (value) => ref
+                              .read(settingsNotifierProvider.notifier)
+                              .toggleBiometric(value),
                     ),
-                    const SizedBox(height: 12),
+
+                    SizedBox(height: 12.h),
+
                     _SettingValueTile(
                       icon: Icons.currency_exchange,
                       iconColor: AppColors.accentYellow,
                       title: 'Currency Preference',
                       value: settings.currency,
-                      onTap: () {
-                        _showCurrencyPicker(context, ref);
-                      },
+                      onTap: () => _showCurrencyPicker(context, ref),
                     ),
-                    const SizedBox(height: 32),
 
-                    // Security Section
-                    _SectionHeader(title: AppLocalizations.of(context)!.security),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 32.h),
+
+                    _SectionHeader(
+                      title: AppLocalizations.of(context)!.security,
+                    ),
+                    SizedBox(height: 12.h),
+
                     _SettingValueTile(
                       icon: Icons.account_balance_wallet_outlined,
                       iconColor: AppColors.accentRed,
                       title: 'Transaction Limits',
                       value: settings.transactionLimit,
-                      onTap: () {
-                        _showTransactionLimitPicker(context, ref);
-                      },
+                      onTap: () => _showTransactionLimitPicker(context, ref),
                     ),
-                    const SizedBox(height: 32),
 
-                    // Preferences Section
-                    _SectionHeader(title: AppLocalizations.of(context)!.preferences),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 32.h),
+
+                    _SectionHeader(
+                      title: AppLocalizations.of(context)!.preferences,
+                    ),
+                    SizedBox(height: 12.h),
+
                     _SettingValueTile(
                       icon: Icons.language_outlined,
                       iconColor: AppColors.primary,
                       title: 'Language',
                       value: settings.language,
-                      onTap: () {
-                        _showLanguagePicker(context, ref);
-                      },
+                      onTap: () => _showLanguagePicker(context, ref),
                     ),
-                    const SizedBox(height: 12),
+
+                    SizedBox(height: 12.h),
+
                     _SettingToggleTile(
                       icon: Icons.notifications_outlined,
                       iconColor: AppColors.accentYellow,
                       title: 'Notifications',
                       value: settings.notificationsEnabled,
-                      onChanged: (value) {
-                        ref
-                            .read(settingsNotifierProvider.notifier)
-                            .toggleNotifications(value);
-                      },
+                      onChanged:
+                          (value) => ref
+                              .read(settingsNotifierProvider.notifier)
+                              .toggleNotifications(value),
                     ),
-                    const SizedBox(height: 12),
+
+                    SizedBox(height: 12.h),
+
                     _SettingValueTile(
                       icon: Icons.speed_outlined,
                       iconColor: AppColors.accentGreen,
                       title: 'Network Fees',
                       value: settings.networkFee,
-                      onTap: () {
-                        _showNetworkFeePicker(context, ref);
-                      },
+                      onTap: () => _showNetworkFeePicker(context, ref),
                     ),
                   ],
                 ),
@@ -174,28 +182,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // Bottom sheets remain structurally same—just scaled
+
   void _showCurrencyPicker(BuildContext context, WidgetRef ref) {
     final currencies = ['NGN', 'USD', 'EUR', 'GBP'];
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder:
-          (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+          (_) => Padding(
+            padding: EdgeInsets.symmetric(vertical: 20.h),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 10.h,
+                  ),
                   child: Text(
                     'Select Currency',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontFamily: 'Inter',
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -205,15 +218,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   (currency) => ListTile(
                     title: Text(
                       currency,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontFamily: 'Inter',
-                        fontSize: 16,
+                        fontSize: 16.sp,
                       ),
                     ),
                     trailing:
                         ref.watch(settingsNotifierProvider).currency == currency
-                            ? const Icon(Icons.check, color: AppColors.primary)
+                            ? Icon(
+                              Icons.check,
+                              color: AppColors.primary,
+                              size: 22.sp,
+                            )
                             : null,
                     onTap: () {
                       ref
@@ -234,23 +250,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder:
-          (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+          (_) => Padding(
+            padding: EdgeInsets.symmetric(vertical: 20.h),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 10.h,
+                  ),
                   child: Text(
                     'Transaction Limit',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontFamily: 'Inter',
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -260,16 +278,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   (limit) => ListTile(
                     title: Text(
                       limit,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontFamily: 'Inter',
-                        fontSize: 16,
+                        fontSize: 16.sp,
                       ),
                     ),
                     trailing:
                         ref.watch(settingsNotifierProvider).transactionLimit ==
                                 limit
-                            ? const Icon(Icons.check, color: AppColors.primary)
+                            ? Icon(
+                              Icons.check,
+                              color: AppColors.primary,
+                              size: 22.sp,
+                            )
                             : null,
                     onTap: () {
                       ref
@@ -290,23 +311,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder:
-          (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+          (_) => Padding(
+            padding: EdgeInsets.symmetric(vertical: 20.h),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 10.h,
+                  ),
                   child: Text(
                     'Select Language',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontFamily: 'Inter',
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -316,24 +339,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   (language) => ListTile(
                     title: Text(
                       language,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontFamily: 'Inter',
-                        fontSize: 16,
+                        fontSize: 16.sp,
                       ),
                     ),
                     trailing:
                         ref.watch(settingsNotifierProvider).language == language
-                            ? const Icon(Icons.check, color: AppColors.primary)
+                            ? Icon(
+                              Icons.check,
+                              color: AppColors.primary,
+                              size: 22.sp,
+                            )
                             : null,
                     onTap: () {
                       ref
                           .read(settingsNotifierProvider.notifier)
                           .setLanguage(language);
-                      // Also update the app locale
-                      ref
-                          .read(languageProvider.notifier)
-                          .setLanguage(language);
+                      ref.read(languageProvider.notifier).setLanguage(language);
                       Navigator.pop(context);
                     },
                   ),
@@ -350,26 +373,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       {'label': 'Standard', 'subtitle': 'Balanced fee and speed'},
       {'label': 'Priority', 'subtitle': 'Higher fee, faster confirmation'},
     ];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder:
-          (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+          (_) => Padding(
+            padding: EdgeInsets.symmetric(vertical: 20.h),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 10.h,
+                  ),
                   child: Text(
                     'Network Fees',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontFamily: 'Inter',
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -379,25 +405,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   (fee) => ListTile(
                     title: Text(
                       fee['label']!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontFamily: 'Inter',
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
                       fee['subtitle']!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontFamily: 'Inter',
-                        fontSize: 14,
+                        fontSize: 14.sp,
                       ),
                     ),
                     trailing:
                         ref.watch(settingsNotifierProvider).networkFee ==
                                 fee['label']
-                            ? const Icon(Icons.check, color: AppColors.primary)
+                            ? Icon(
+                              Icons.check,
+                              color: AppColors.primary,
+                              size: 22.sp,
+                            )
                             : null,
                     onTap: () {
                       ref
@@ -416,17 +444,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-
   const _SectionHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.textSecondary,
         fontFamily: 'Inter',
-        fontSize: 12,
+        fontSize: 12.sp,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
       ),
@@ -451,32 +478,31 @@ class _SettingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20.r),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20.r),
         ),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 24),
-            const SizedBox(width: 16),
+            Icon(icon, color: iconColor, size: 24.sp),
+            SizedBox(width: 16.w),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontFamily: 'Inter',
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               color: AppColors.textSecondary,
-              size: 24,
+              size: 24.sp,
             ),
           ],
         ),
@@ -504,42 +530,32 @@ class _SettingValueTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20.r),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20.r),
         ),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 24),
-            const SizedBox(width: 16),
+            Icon(icon, color: iconColor, size: 24.sp),
+            SizedBox(width: 16.w),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                ),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 16.sp),
               ),
             ),
             Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontFamily: 'Inter',
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14.sp),
             ),
-            const SizedBox(width: 8),
-            const Icon(
+            SizedBox(width: 8.w),
+            Icon(
               Icons.chevron_right,
               color: AppColors.textSecondary,
-              size: 24,
+              size: 24.sp,
             ),
           ],
         ),
@@ -566,24 +582,19 @@ class _SettingToggleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
       ),
       child: Row(
         children: [
-          Icon(icon, color: iconColor, size: 24),
-          const SizedBox(width: 16),
+          Icon(icon, color: iconColor, size: 24.sp),
+          SizedBox(width: 16.w),
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontFamily: 'Inter',
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-              ),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16.sp),
             ),
           ),
           Switch(

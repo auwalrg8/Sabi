@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/wallet_creation_animation_screen.dart';
 import '../providers/onboarding_provider.dart';
@@ -16,7 +17,7 @@ class BackupChoiceScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 29),
+          padding: EdgeInsets.symmetric(horizontal: 31.w, vertical: 29.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -27,22 +28,22 @@ class BackupChoiceScreen extends ConsumerWidget {
                     child: Icon(
                       Icons.arrow_back,
                       color: AppColors.textPrimary,
-                      size: 24,
+                      size: 24.w,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  const Text(
+                  SizedBox(width: 10.w),
+                  Text(
                     'Choose your backup method',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
                       height: 1.78,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28.h),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
@@ -51,9 +52,12 @@ class BackupChoiceScreen extends ConsumerWidget {
                         recommended: true,
                         icon: Icons.people_outline,
                         iconColor: AppColors.primary,
-                        iconBackgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                        iconBackgroundColor: AppColors.primary.withValues(
+                          alpha: 0.2,
+                        ),
                         title: 'Pick 3 trusted guys',
-                        description: 'No seed phrase. Your guys wey dey use \nBitcoin/Nostr go help you recover.',
+                        description:
+                            'No seed phrase. Your guys wey dey use \nBitcoin/Nostr go help you recover.',
                         featureText: 'Most secure for Nigerian users',
                         featureIcon: Icons.check_circle_outline,
                         featureIconColor: AppColors.accentGreen,
@@ -62,29 +66,35 @@ class BackupChoiceScreen extends ConsumerWidget {
                         buttonTextColor: AppColors.textPrimary,
                         borderColor: AppColors.primary,
                         onTap: () async {
-                          ref.read(onboardingNotifierProvider.notifier).setBackupMethod(BackupMethod.socialRecovery);
-                          
-                            // Create wallet with backup_type='social' (handles errors silently)
-                            await WalletCreationHelper.createWalletWithBackupType(
-                              ref: ref,
-                              backupType: 'social',
-                            );
-                          
+                          ref
+                              .read(onboardingNotifierProvider.notifier)
+                              .setBackupMethod(BackupMethod.socialRecovery);
+
+                          await WalletCreationHelper.createWalletWithBackupType(
+                            ref: ref,
+                            backupType: 'social',
+                          );
+
                           if (context.mounted) {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const SocialRecoveryScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => const SocialRecoveryScreen(),
+                              ),
                             );
                           }
                         },
                       ),
-                      const SizedBox(height: 30),
+                      SizedBox(height: 30.h),
                       _BackupOptionCard(
                         icon: Icons.vpn_key_outlined,
                         iconColor: AppColors.textTertiary,
-                        iconBackgroundColor: AppColors.borderColor.withValues(alpha: 0.5),
+                        iconBackgroundColor: AppColors.borderColor.withValues(
+                          alpha: 0.5,
+                        ),
                         title: 'Classic 12-word backup',
-                        description: 'Old-school seed phrase. You go write am \ndown yourself.',
+                        description:
+                            'Old-school seed phrase. You go write am \ndown yourself.',
                         featureText: 'You must keep the paper safe',
                         featureIcon: Icons.warning_amber_outlined,
                         featureIconColor: AppColors.accentYellow,
@@ -92,29 +102,35 @@ class BackupChoiceScreen extends ConsumerWidget {
                         buttonColor: AppColors.surface,
                         buttonTextColor: AppColors.textPrimary,
                         onTap: () async {
-                          ref.read(onboardingNotifierProvider.notifier).setBackupMethod(BackupMethod.seedPhrase);
-                          
-                            // Create wallet with backup_type='seed' (handles errors silently)
-                            await WalletCreationHelper.createWalletWithBackupType(
-                              ref: ref,
-                              backupType: 'seed',
-                            );
-                          
+                          ref
+                              .read(onboardingNotifierProvider.notifier)
+                              .setBackupMethod(BackupMethod.seedPhrase);
+
+                          await WalletCreationHelper.createWalletWithBackupType(
+                            ref: ref,
+                            backupType: 'seed',
+                          );
+
                           if (context.mounted) {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const SeedPhraseScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => const SeedPhraseScreen(),
+                              ),
                             );
                           }
                         },
                       ),
-                      const SizedBox(height: 30),
+                      SizedBox(height: 30.h),
                       _BackupOptionCard(
                         icon: Icons.warning_amber_outlined,
                         iconColor: AppColors.accentRed,
-                        iconBackgroundColor: AppColors.accentRed.withValues(alpha: 0.2),
+                        iconBackgroundColor: AppColors.accentRed.withValues(
+                          alpha: 0.2,
+                        ),
                         title: 'Skip for now',
-                        description: 'You fit set am later for Settings. But if phone \nloss, money go loss forever o.',
+                        description:
+                            'You fit set am later for Settings. But if phone \nloss, money go loss forever o.',
                         featureText: 'Very dangerous - not recommended',
                         featureIcon: Icons.warning_amber_outlined,
                         featureIconColor: AppColors.accentRed,
@@ -124,18 +140,22 @@ class BackupChoiceScreen extends ConsumerWidget {
                         buttonTextColor: AppColors.primary,
                         borderColor: AppColors.primary,
                         onTap: () async {
-                          ref.read(onboardingNotifierProvider.notifier).setBackupMethod(BackupMethod.skip);
+                          ref
+                              .read(onboardingNotifierProvider.notifier)
+                              .setBackupMethod(BackupMethod.skip);
 
-                          // Create wallet with backup_type=none
                           await WalletCreationHelper.createWalletWithBackupType(
                             ref: ref,
                             backupType: 'none',
                           );
 
-                          // Show wallet creation animation, then navigate to home
                           if (context.mounted) {
                             Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => const WalletCreationAnimationScreen()),
+                              MaterialPageRoute(
+                                builder:
+                                    (_) =>
+                                        const WalletCreationAnimationScreen(),
+                              ),
                               (route) => false,
                             );
                           }
@@ -191,18 +211,16 @@ class _BackupOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(25),
+      padding: EdgeInsets.all(25.w),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: borderColor != null
-            ? Border.all(color: borderColor!)
-            : null,
+        borderRadius: BorderRadius.circular(20.r),
+        border: borderColor != null ? Border.all(color: borderColor!) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 8.r,
+            offset: Offset(0, 4.h),
           ),
         ],
       ),
@@ -214,30 +232,29 @@ class _BackupOptionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 48.w,
+                height: 48.w,
                 decoration: BoxDecoration(
                   color: iconBackgroundColor,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 24,
-                ),
+                child: Icon(icon, color: iconColor, size: 24.sp),
               ),
               if (recommended)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(9999),
+                    borderRadius: BorderRadius.circular(9999.r),
                   ),
-                  child: const Text(
+                  child: Text(
                     'RECOMMENDED',
                     style: TextStyle(
                       color: AppColors.primary,
-                      fontSize: 10,
+                      fontSize: 10.sp,
                       fontWeight: FontWeight.w700,
                       height: 1.6,
                     ),
@@ -245,67 +262,67 @@ class _BackupOptionCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14.h),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 17,
+              fontSize: 17.sp,
               fontWeight: FontWeight.w700,
               height: 1.65,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14.h),
           Text(
             description,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textTertiary,
-              fontSize: 12,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w400,
               height: 1.83,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14.h),
           Row(
             children: [
-              Icon(
-                featureIcon,
-                color: featureIconColor,
-                size: 16,
-              ),
-              const SizedBox(width: 8),
+              Icon(featureIcon, color: featureIconColor, size: 16.sp),
+              SizedBox(width: 8.w),
               Text(
                 featureText,
                 style: TextStyle(
                   color: featureTextColor ?? AppColors.textTertiary,
-                  fontSize: 10,
-                  fontWeight: featureTextColor != null ? FontWeight.w500 : FontWeight.w400,
+                  fontSize: 10.sp,
+                  fontWeight:
+                      featureTextColor != null
+                          ? FontWeight.w500
+                          : FontWeight.w400,
                   height: 1.6,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14.h),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 50.h,
             child: ElevatedButton(
               onPressed: onTap,
               style: ElevatedButton.styleFrom(
                 backgroundColor: buttonColor,
                 foregroundColor: buttonTextColor,
                 elevation: 0,
-                side: buttonColor == Colors.transparent && borderColor != null
-                    ? BorderSide(color: borderColor!)
-                    : null,
+                side:
+                    buttonColor == Colors.transparent && borderColor != null
+                        ? BorderSide(color: borderColor!)
+                        : null,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
               child: Text(
                 buttonText,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                   height: 1.71,
                   color: buttonTextColor,

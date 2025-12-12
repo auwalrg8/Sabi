@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
@@ -52,27 +53,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _switchWallet() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Switch Wallet?'),
-        content: const Text(
-          'This will take you back to the wallet selection screen. Your wallet data will remain secure.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Switch Wallet?', style: TextStyle(fontSize: 18.sp)),
+            content: Text(
+              'This will take you back to the wallet selection screen. Your wallet data will remain secure.',
+              style: TextStyle(fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  'Switch',
+                  style: TextStyle(color: Colors.red, fontSize: 14.sp),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Switch', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true && mounted) {
-      // Go back to entry screen
-      Navigator.of(context).pushNamedAndRemoveUntil('/splash', (route) => false);
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil('/splash', (route) => false);
     }
   }
 
@@ -94,38 +101,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(30, 30, 30, 30),
+            padding: EdgeInsets.fromLTRB(30.w, 30.h, 30.w, 30.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Profile',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontFamily: 'Inter',
-                    fontSize: 20,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.w700,
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: 30.h),
+
                 // Profile Card
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24.w,
+                    vertical: 32.h,
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Column(
                     children: [
                       // Avatar
                       Container(
-                        width: 80,
-                        height: 80,
+                        width: 80.w,
+                        height: 80.w,
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
@@ -144,60 +152,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ? Center(
                                   child: Text(
                                     profile.initial,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
                                       fontFamily: 'Inter',
-                                      fontSize: 32,
+                                      fontSize: 32.sp,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 )
                                 : null,
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
+
                       // Name
                       Text(
                         profile.fullName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textPrimary,
                           fontFamily: 'Inter',
-                          fontSize: 20,
+                          fontSize: 20.sp,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8.h),
+
                       // Username
                       Text(
                         profile.sabiUsername,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSecondary,
                           fontFamily: 'Inter',
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: 24),
+
+                      SizedBox(height: 24.h),
+
                       // Edit Profile Button
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: _navigateToEditProfile,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
+                            side: BorderSide(
                               color: AppColors.primary,
-                              width: 1,
+                              width: 1.w,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(16.r),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Edit Profile',
                             style: TextStyle(
                               color: AppColors.primary,
                               fontFamily: 'Inter',
-                              fontSize: 14,
+                              fontSize: 14.sp,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -206,7 +218,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+
+                SizedBox(height: 24.h),
+
                 // Menu Items
                 _MenuItemTile(
                   icon: Icons.settings_outlined,
@@ -219,7 +233,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
+
                 _MenuItemTile(
                   icon: Icons.shield_outlined,
                   iconColor: AppColors.accentYellow,
@@ -233,25 +248,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
+
                 _MenuItemTile(
                   icon: Icons.people_outline,
                   iconColor: AppColors.accentGreen,
                   title: 'Agent Mode',
-                  onTap: () {
-                    // TODO: Navigate to agent mode screen
-                  },
+                  onTap: () {},
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
+
                 _MenuItemTile(
                   icon: Icons.card_giftcard_outlined,
                   iconColor: AppColors.accentRed,
                   title: 'Earn Rewards',
-                  onTap: () {
-                    // TODO: Navigate to earn rewards screen
-                  },
+                  onTap: () {},
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
+
                 _MenuItemTile(
                   icon: Icons.swap_horiz,
                   iconColor: Colors.orange,
@@ -284,32 +298,32 @@ class _MenuItemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20.r),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20.r),
         ),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 24),
-            const SizedBox(width: 16),
+            Icon(icon, color: iconColor, size: 24.sp),
+            SizedBox(width: 16.w),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontFamily: 'Inter',
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               color: AppColors.textSecondary,
-              size: 24,
+              size: 24.sp,
             ),
           ],
         ),

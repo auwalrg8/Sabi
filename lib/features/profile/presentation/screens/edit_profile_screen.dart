@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
@@ -52,7 +53,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (image != null) {
-        // Copy to app directory
         final appDir = await getApplicationDocumentsDirectory();
         final fileName =
             'profile_${DateTime.now().millisecondsSinceEpoch}${path.extension(image.path)}';
@@ -67,8 +67,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to pick image: $e'),
-          backgroundColor: AppColors.surface,
+          content: Text(
+            'Failed to pick image: $e',
+            style: TextStyle(color: AppColors.surface),
+          ),
+          backgroundColor: AppColors.accentRed,
         ),
       );
     }
@@ -84,7 +87,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (photo != null) {
-        // Copy to app directory
         final appDir = await getApplicationDocumentsDirectory();
         final fileName =
             'profile_${DateTime.now().millisecondsSinceEpoch}${path.extension(photo.path)}';
@@ -99,8 +101,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to take photo: $e'),
-          backgroundColor: AppColors.surface,
+          content: Text(
+            'Failed to take photo: $e',
+            style: TextStyle(color: AppColors.surface),
+          ),
+          backgroundColor: AppColors.accentRed,
         ),
       );
     }
@@ -110,33 +115,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder:
           (context) => SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Choose Profile Picture',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
                   ListTile(
-                    leading: const Icon(
-                      Icons.photo_library,
+                    leading: Icon(
+                      Icons.photo_library_outlined,
                       color: AppColors.primary,
+                      size: 24.sp,
                     ),
-                    title: const Text(
+                    title: Text(
                       'Choose from Gallery',
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 16.sp),
                     ),
                     onTap: () {
                       Navigator.pop(context);
@@ -144,13 +150,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.camera_alt,
                       color: AppColors.primary,
+                      size: 24.sp,
                     ),
-                    title: const Text(
+                    title: Text(
                       'Take a Photo',
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 16.sp),
                     ),
                     onTap: () {
                       Navigator.pop(context);
@@ -159,10 +166,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   if (_profilePicturePath != null)
                     ListTile(
-                      leading: const Icon(Icons.delete, color: Colors.red),
-                      title: const Text(
+                      leading: Icon(
+                        Icons.delete,
+                        color: Colors.red,
+                        size: 24.sp,
+                      ),
+                      title: Text(
                         'Remove Picture',
-                        style: TextStyle(color: Colors.red),
+                        style: TextStyle(color: Colors.red, fontSize: 16.sp),
                       ),
                       onTap: () {
                         Navigator.pop(context);
@@ -193,19 +204,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile updated successfully'),
+        SnackBar(
+          content: Text(
+            'Profile updated successfully',
+            style: TextStyle(fontSize: 14.sp, color: AppColors.surface),
+          ),
           backgroundColor: AppColors.accentGreen,
         ),
       );
 
-      Navigator.pop(context, true); // Return true to indicate update
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to update profile: $e'),
-          backgroundColor: AppColors.surface,
+          content: Text(
+            'Failed to update profile: $e',
+            style: TextStyle(fontSize: 14.sp, color: AppColors.surface),
+          ),
+          backgroundColor: AppColors.accentRed,
         ),
       );
     } finally {
@@ -223,17 +240,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(30),
+                padding: EdgeInsets.all(30.w),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     children: [
                       _buildProfilePicture(),
-                      const SizedBox(height: 40),
+                      SizedBox(height: 40.h),
                       _buildNameField(),
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20.h),
                       _buildUsernameField(),
-                      const SizedBox(height: 40),
+                      SizedBox(height: 40.h),
                       _buildSaveButton(),
                     ],
                   ),
@@ -248,19 +265,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: Colors.white, size: 24.sp),
             onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 10),
-          const Text(
+          SizedBox(width: 10.w),
+          Text(
             'Edit Profile',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 20.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -275,8 +292,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Stack(
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 140.w,
+            height: 140.w,
             decoration: BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
@@ -294,10 +311,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Text(
                         _nameController.text.isNotEmpty
                             ? _nameController.text[0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
+                            : 'User',
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 48,
+                          fontSize: 48.sp,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -308,17 +325,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             bottom: 0,
             right: 0,
             child: Container(
-              width: 36,
-              height: 36,
+              width: 36.w,
+              height: 36.w,
               decoration: BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.background, width: 3),
+                border: Border.all(color: AppColors.background, width: 3.w),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.camera_alt,
-                color: Colors.white,
-                size: 18,
+                color: AppColors.surface,
+                size: 18.sp,
               ),
             ),
           ),
@@ -331,30 +348,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Full Name',
           style: TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         TextFormField(
           controller: _nameController,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: TextStyle(color: Colors.white, fontSize: 16.sp),
           decoration: InputDecoration(
             hintText: 'Enter your full name',
-            hintStyle: const TextStyle(color: AppColors.textTertiary),
+            hintStyle: TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 14.sp,
+            ),
             filled: true,
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 20.w,
+              vertical: 16.h,
             ),
           ),
           validator: (value) {
@@ -366,7 +386,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             }
             return null;
           },
-          onChanged: (value) => setState(() {}), // Update initial
+          onChanged: (value) => setState(() {}),
         ),
       ],
     );
@@ -376,36 +396,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Username',
           style: TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         TextFormField(
           controller: _usernameController,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: TextStyle(color: Colors.white, fontSize: 16.sp),
           decoration: InputDecoration(
             hintText: 'Enter username',
-            hintStyle: const TextStyle(color: AppColors.textTertiary),
+            hintStyle: TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 14.sp,
+            ),
             filled: true,
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 20.w,
+              vertical: 16.h,
             ),
             prefixText: '@sabi/',
-            prefixStyle: const TextStyle(
-              color: AppColors.primary,
-              fontSize: 16,
-            ),
+            prefixStyle: TextStyle(color: AppColors.primary, fontSize: 16.sp),
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
@@ -420,10 +440,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             return null;
           },
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Text(
           'Your unique Sabi wallet address: @sabi/${_usernameController.text}',
-          style: const TextStyle(color: AppColors.textTertiary, fontSize: 12),
+          style: TextStyle(color: AppColors.textTertiary, fontSize: 12.sp),
         ),
       ],
     );
@@ -432,31 +452,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildSaveButton() {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 52.h,
       child: ElevatedButton(
         onPressed: _isSaving ? null : _saveProfile,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
         ),
         child:
             _isSaving
-                ? const SizedBox(
-                  width: 20,
-                  height: 20,
+                ? SizedBox(
+                  width: 20.w,
+                  height: 20.h,
                   child: CircularProgressIndicator(
                     color: Colors.white,
-                    strokeWidth: 2,
+                    strokeWidth: 2.sp,
                   ),
                 )
-                : const Text(
+                : Text(
                   'Save Changes',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+                    color: AppColors.surface,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

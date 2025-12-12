@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
@@ -17,70 +18,68 @@ class BackupRecoveryScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          padding: EdgeInsets.fromLTRB(24.w, 24.h, 24.w, 32.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppColors.textPrimary,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Backup & Recovery',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Wallet backed up card
+              _buildHeader(context),
+              SizedBox(height: 20.h),
               _BackupStatusCard(storage: storage),
-              const SizedBox(height: 24),
-
-              const Text(
+              SizedBox(height: 24.h),
+              Text(
                 'Your Recovery Guys',
                 style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 16),
-
+              SizedBox(height: 16.h),
               const _HealthCard(),
-              const SizedBox(height: 16),
-
+              SizedBox(height: 16.h),
               const _SocialRecoveryCard(),
-              const SizedBox(height: 28),
-
-              const Text(
+              SizedBox(height: 28.h),
+              Text(
                 'Manual Backup',
                 style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 12),
-
+              SizedBox(height: 12.h),
               _ManualBackupCard(storage: storage),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: AppColors.textPrimary,
+            size: 24.sp,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        SizedBox(width: 8.w),
+        Text(
+          'Backup & Recovery',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 20.sp,
+            fontWeight: FontWeight.w700,
+            height: 1.4,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -107,17 +106,17 @@ class _BackupStatusCard extends StatelessWidget {
                 : 'Set up a backup to protect your funds';
 
         return Container(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(18.w),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor, width: 1.2),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: borderColor, width: 1.2.w),
           ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 44.w,
+                height: 44.w,
                 decoration: BoxDecoration(
                   color: borderColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
@@ -125,29 +124,29 @@ class _BackupStatusCard extends StatelessWidget {
                 child: Icon(
                   Icons.shield_moon_outlined,
                   color: borderColor,
-                  size: 24,
+                  size: 24.sp,
                 ),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: 14.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w700,
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4.h),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                         height: 1.6,
                       ),
@@ -157,18 +156,20 @@ class _BackupStatusCard extends StatelessWidget {
               ),
               if (!isBackedUp)
                 TextButton(
-                  onPressed:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const BackupChoiceScreen(),
-                        ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const BackupChoiceScreen(),
                       ),
-                  child: const Text(
+                    );
+                  },
+                  child: Text(
                     'Set up',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ),
@@ -186,18 +187,18 @@ class _HealthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accentGreen, width: 1.2),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColors.accentGreen, width: 1.2.w),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -205,17 +206,17 @@ class _HealthCard extends StatelessWidget {
                       'Health: Strong',
                       style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w700,
                         height: 1.5,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 4.h),
                     Text(
                       '3 contacts online last 7 days',
                       style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                         height: 1.6,
                       ),
@@ -224,30 +225,28 @@ class _HealthCard extends StatelessWidget {
                 ),
               ),
               Container(
-                width: 36,
-                height: 36,
+                width: 36.w,
+                height: 36.w,
                 decoration: BoxDecoration(
                   color: AppColors.accentGreen.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.shield_outlined,
                   color: AppColors.accentGreen,
-                  size: 20,
+                  size: 20.sp,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
             child: LinearProgressIndicator(
               value: 0.85,
-              minHeight: 6,
+              minHeight: 6.h,
               backgroundColor: AppColors.surface.withValues(alpha: 0.4),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppColors.accentGreen,
-              ),
+              valueColor: AlwaysStoppedAnimation(AppColors.accentGreen),
             ),
           ),
         ],
@@ -268,10 +267,10 @@ class _SocialRecoveryCard extends StatelessWidget {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B1C),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,20 +278,20 @@ class _SocialRecoveryCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 36.w,
+                height: 36.w,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.groups_outlined,
                   color: AppColors.primary,
-                  size: 18,
+                  size: 18.sp,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
+              SizedBox(width: 12.w),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -300,31 +299,32 @@ class _SocialRecoveryCard extends StatelessWidget {
                       'Social Recovery',
                       style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 4.h),
                     Text(
-                      '3 trusted contacts',
+                      '${contacts.length} trusted contacts',
                       style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.keyboard_arrow_right,
-                color: AppColors.textSecondary,
-              ),
+              // Icon(
+              //   Icons.keyboard_arrow_right,
+              //   color: AppColors.textSecondary,
+              //   size: 24.sp,
+              // ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           ...contacts.map((c) => _ContactTile(contact: c)),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           Row(
             children: [
               Expanded(
@@ -338,22 +338,23 @@ class _SocialRecoveryCard extends StatelessWidget {
                     );
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary, width: 1),
+                    side: BorderSide(color: AppColors.primary, width: 1.w),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: 14.h),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Manage Contacts',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.w),
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
@@ -367,18 +368,19 @@ class _SocialRecoveryCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                       color: AppColors.textSecondary.withValues(alpha: 0.4),
-                      width: 1,
+                      width: 1.w,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: 14.h),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Test Recovery',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
+                      fontSize: 14.sp,
                     ),
                   ),
                 ),
@@ -402,7 +404,11 @@ class _ManualBackupCard extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No seed phrase found. Please set up backup first.'),
+          backgroundColor: AppColors.accentRed,
+          content: Text(
+            'No seed phrase found. Please set up backup first.',
+            style: TextStyle(color: AppColors.surface),
+          ),
           duration: Duration(seconds: 2),
         ),
       );
@@ -419,10 +425,10 @@ class _ManualBackupCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18.w),
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B1C),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,20 +436,20 @@ class _ManualBackupCard extends ConsumerWidget {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 36.w,
+                height: 36.w,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.key_outlined,
                   color: AppColors.primary,
-                  size: 18,
+                  size: 18.sp,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
+              SizedBox(width: 12.w),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -451,45 +457,47 @@ class _ManualBackupCard extends ConsumerWidget {
                       'Seed Phrase',
                       style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 4.h),
                     Text(
                       '12-word recovery phrase',
                       style: TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.keyboard_arrow_right,
-                color: AppColors.textSecondary,
-              ),
+              // Icon(
+              //   Icons.keyboard_arrow_right,
+              //   color: AppColors.textSecondary,
+              //   size: 24.sp,
+              // ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () => _viewSeedPhrase(context, ref),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary, width: 1),
+                side: BorderSide(color: AppColors.primary, width: 1.w),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: EdgeInsets.symmetric(vertical: 14.h),
               ),
-              child: const Text(
+              child: Text(
                 'View Seed Phrase',
                 style: TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w600,
+                  fontSize: 14.sp,
                 ),
               ),
             ),
@@ -508,17 +516,17 @@ class _ContactTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: EdgeInsets.only(bottom: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1024),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 36.w,
+            height: 36.w,
             decoration: const BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
@@ -526,44 +534,40 @@ class _ContactTile extends StatelessWidget {
             child: Center(
               child: Text(
                 contact.initial,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   contact.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
-                    fontSize: 13,
+                    fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2.h),
                 Text(
                   contact.lastActive,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 11,
+                    fontSize: 11.sp,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.check_circle,
-            color: AppColors.accentGreen,
-            size: 20,
-          ),
+          Icon(Icons.check_circle, color: AppColors.accentGreen, size: 20.sp),
         ],
       ),
     );
