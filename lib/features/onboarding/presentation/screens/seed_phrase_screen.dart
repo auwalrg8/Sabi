@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/wallet_creation_animation_screen.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
@@ -9,11 +10,8 @@ import 'package:bip39/bip39.dart' as bip39;
 
 class SeedPhraseScreen extends ConsumerStatefulWidget {
   final bool isRestoring;
-  
-  const SeedPhraseScreen({
-    super.key,
-    this.isRestoring = false,
-  });
+
+  const SeedPhraseScreen({super.key, this.isRestoring = false});
 
   @override
   ConsumerState<SeedPhraseScreen> createState() => _SeedPhraseScreenState();
@@ -35,23 +33,25 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
       // Try to get existing mnemonic from secure storage
       final storage = ref.read(secureStorageServiceProvider);
       String? mnemonic = await storage.getMnemonic();
-      
+
       // If no mnemonic exists, generate a new one (shouldn't happen in normal flow)
       if (mnemonic == null || mnemonic.isEmpty) {
         mnemonic = bip39.generateMnemonic(strength: 256); // 256 bits = 24 words
         await storage.saveMnemonic(mnemonic);
       }
-      
+
       setState(() {
         _seedWords = mnemonic!.split(' ');
         _isLoading = false;
       });
     } catch (e) {
       // Fallback: generate new mnemonic
-      final mnemonic = bip39.generateMnemonic(strength: 256); // 256 bits = 24 words
+      final mnemonic = bip39.generateMnemonic(
+        strength: 256,
+      ); // 256 bits = 24 words
       final storage = ref.read(secureStorageServiceProvider);
       await storage.saveMnemonic(mnemonic);
-      
+
       setState(() {
         _seedWords = mnemonic.split(' ');
         _isLoading = false;
@@ -72,8 +72,11 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
     Clipboard.setData(ClipboardData(text: seedPhrase));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Seed phrase copied to clipboard'),
-        backgroundColor: AppColors.primary,
+        content: Text(
+          'Seed phrase copied to clipboard',
+          style: TextStyle(color: AppColors.surface),
+        ),
+        backgroundColor: AppColors.accentGreen,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -100,12 +103,12 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
         ),
       );
     }
-    
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(31, 29, 31, 30),
+          padding: EdgeInsets.fromLTRB(31.w, 29.h, 31.w, 30.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -114,23 +117,21 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CustomPaint(
-                        painter: BackArrowPainter(),
-                      ),
+                      width: 24.w,
+                      height: 24.h,
+                      child: CustomPaint(painter: BackArrowPainter()),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Your 24-Word Backup',
                           style: TextStyle(
                             color: AppColors.textPrimary,
-                            fontSize: 18,
+                            fontSize: 18.sp,
                             fontWeight: FontWeight.w500,
                             height: 32 / 18,
                           ),
@@ -138,8 +139,8 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
                         Text(
                           'Write down all 24 words in order',
                           style: TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 12,
+                            color: AppColors.textTertiary,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w400,
                             height: 20 / 12,
                           ),
@@ -149,21 +150,20 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28.h),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
+                    spacing: 25.h,
                     children: [
                       _buildWarningCard(),
-                      const SizedBox(height: 30),
                       _buildSeedPhraseCard(),
-                      const SizedBox(height: 30),
                       _buildSecurityTipsCard(),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24.h),
               _buildBottomButton(),
             ],
           ),
@@ -174,10 +174,10 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
 
   Widget _buildWarningCard() {
     return Container(
-      padding: const EdgeInsets.all(21),
+      padding: EdgeInsets.all(21.h),
       decoration: BoxDecoration(
         color: Color(0xFF111128).withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
         border: Border.all(color: AppColors.accentRed, width: 1),
         boxShadow: [
           BoxShadow(
@@ -191,32 +191,30 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 24,
-            height: 24,
-            child: CustomPaint(
-              painter: WarningIconPainter(),
-            ),
+            width: 24.w,
+            height: 24.h,
+            child: CustomPaint(painter: WarningIconPainter()),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Never share your seed phrase',
                   style: TextStyle(
                     color: AppColors.accentRed,
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
                     height: 24 / 14,
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7.h),
                 Text(
                   'Anyone with these 12 words can steal your Bitcoin. Write am down for paper and keep am safe.',
                   style: TextStyle(
                     color: Color(0xFFD1D5DB),
-                    fontSize: 12,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w400,
                     height: 22 / 12,
                   ),
@@ -231,10 +229,10 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
 
   Widget _buildSeedPhraseCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(24.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -251,22 +249,17 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
               if (!_isRevealed)
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        color: Colors.transparent,
-                      ),
+                      child: Container(color: Colors.transparent),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (!_isRevealed)
-            _buildRevealButton()
-          else
-            _buildActionButtons(),
+          SizedBox(height: 16.h),
+          if (!_isRevealed) _buildRevealButton() else _buildActionButtons(),
         ],
       ),
     );
@@ -285,10 +278,10 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
       itemCount: _seedWords.length,
       itemBuilder: (context, index) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
           decoration: BoxDecoration(
             color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
           ),
           child: Row(
             children: [
@@ -296,17 +289,17 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
                 '${index + 1}.',
                 style: TextStyle(
                   color: Color(0xFF6B7280),
-                  fontSize: 12,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w400,
                   height: 20 / 12,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.w),
               Text(
                 _seedWords[index],
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                   height: 24 / 14,
                 ),
@@ -321,7 +314,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
   Widget _buildRevealButton() {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 52.h,
       child: ElevatedButton(
         onPressed: _onRevealPressed,
         style: ElevatedButton.styleFrom(
@@ -329,24 +322,23 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
           foregroundColor: AppColors.textPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              width: 20,
-              height: 20,
-              child: CustomPaint(
-                painter: EyeIconPainter(),
-              ),
+              width: 20.w,
+              height: 20.h,
+              child: CustomPaint(painter: EyeIconPainter()),
             ),
-            const SizedBox(width: 8),
-            const Text(
+            SizedBox(width: 8.w),
+            Text(
               'Reveal Seed Phrase',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 14.sp,
+                color: AppColors.surface,
                 fontWeight: FontWeight.w500,
                 height: 24 / 14,
               ),
@@ -362,7 +354,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
       children: [
         SizedBox(
           width: double.infinity,
-          height: 50,
+          height: 52.h,
           child: OutlinedButton(
             onPressed: _onHidePressed,
             style: OutlinedButton.styleFrom(
@@ -371,24 +363,22 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
               elevation: 0,
               backgroundColor: Colors.transparent,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CustomPaint(
-                    painter: EyeOffIconPainter(),
-                  ),
+                  width: 20.w,
+                  height: 20.h,
+                  child: CustomPaint(painter: EyeOffIconPainter()),
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8.w),
+                Text(
                   'Hide Seed Phrase',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
                     height: 24 / 14,
                   ),
@@ -397,10 +387,10 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         SizedBox(
           width: double.infinity,
-          height: 50,
+          height: 52.h,
           child: ElevatedButton(
             onPressed: _onCopyToClipboard,
             style: ElevatedButton.styleFrom(
@@ -408,24 +398,23 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
               foregroundColor: AppColors.textPrimary,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CustomPaint(
-                    painter: CopyIconPainter(),
-                  ),
+                  width: 20.w,
+                  height: 20.h,
+                  child: CustomPaint(painter: CopyIconPainter()),
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8.w),
+                Text(
                   'Copy to Clipboard',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.sp,
+                    color: AppColors.textPrimary.withValues(alpha: 0.75),
                     fontWeight: FontWeight.w500,
                     height: 24 / 14,
                   ),
@@ -440,10 +429,10 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
 
   Widget _buildSecurityTipsCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -453,23 +442,22 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
         ],
       ),
       child: Column(
+        spacing: 11.h,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Security Tips',
             style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 14,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w500,
               height: 24 / 14,
             ),
           ),
-          const SizedBox(height: 12),
+
           _buildSecurityTip('Write am down for paper, no screenshot'),
-          const SizedBox(height: 12),
-          _buildSecurityTip('Keep multiple copies for different safe\nplaces'),
-          const SizedBox(height: 12),
-          _buildSecurityTip('Never share am with anybody, even Sabi\nsupport'),
+          _buildSecurityTip('Keep multiple copies for different safe places'),
+          _buildSecurityTip('Never share am with anybody, even Sabi support'),
         ],
       ),
     );
@@ -484,18 +472,16 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
           child: SizedBox(
             width: 16,
             height: 16,
-            child: CustomPaint(
-              painter: CheckIconPainter(),
-            ),
+            child: CustomPaint(painter: CheckIconPainter()),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12.w),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
               color: Color(0xFF9CA3AF),
-              fontSize: 12,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w400,
               height: 20 / 12,
             ),
@@ -508,22 +494,22 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
   Widget _buildBottomButton() {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 52.h,
       child: ElevatedButton(
         onPressed: _isRevealed ? _onWroteThemDown : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           disabledBackgroundColor: AppColors.disabled,
-          foregroundColor: AppColors.textPrimary,
+          foregroundColor: AppColors.surface,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
         ),
-        child: const Text(
+        child: Text(
           'I Wrote Them Down',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 14.sp,
             fontWeight: FontWeight.w500,
             height: 24 / 14,
           ),
@@ -536,10 +522,7 @@ class _SeedPhraseScreenState extends ConsumerState<SeedPhraseScreen> {
 class VerifyBackupScreen extends StatefulWidget {
   final List<String> seedWords;
 
-  const VerifyBackupScreen({
-    super.key,
-    required this.seedWords,
-  });
+  const VerifyBackupScreen({super.key, required this.seedWords});
 
   @override
   State<VerifyBackupScreen> createState() => _VerifyBackupScreenState();
@@ -583,10 +566,15 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Incorrect words. Please try again.'),
+          content: Text(
+            'Incorrect words. Please try again.',
+            style: TextStyle(color: AppColors.surface),
+          ),
           backgroundColor: AppColors.accentRed,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.r),
+          ),
         ),
       );
     }
@@ -598,7 +586,7 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(31, 29, 31, 30),
+          padding: EdgeInsets.fromLTRB(31.w, 29.h, 31.w, 30.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -607,23 +595,21 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CustomPaint(
-                        painter: BackArrowPainter(),
-                      ),
+                      width: 24.w,
+                      height: 24.h,
+                      child: CustomPaint(painter: BackArrowPainter()),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Verify Your Backup',
                           style: TextStyle(
                             color: AppColors.textPrimary,
-                            fontSize: 18,
+                            fontSize: 18.sp,
                             fontWeight: FontWeight.w500,
                             height: 32 / 18,
                           ),
@@ -632,7 +618,7 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
                           'Enter the missing words to confirm',
                           style: TextStyle(
                             color: Color(0xFF9CA3AF),
-                            fontSize: 12,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w400,
                             height: 20 / 12,
                           ),
@@ -642,14 +628,17 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28.h),
               Expanded(
                 child: SingleChildScrollView(
                   child: Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 24.w,
+                      vertical: 24.h,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(20.r),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.15),
@@ -659,32 +648,30 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
                       ],
                     ),
                     child: Column(
+                      spacing: 16.h,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Enter the missing words to verify you wrote them down correctly',
                           style: TextStyle(
                             color: Color(0xFF9CA3AF),
-                            fontSize: 12,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w400,
                             height: 20 / 12,
                           ),
                         ),
-                        const SizedBox(height: 16),
                         _buildWordInput('Word #3', _word3Controller),
-                        const SizedBox(height: 16),
                         _buildWordInput('Word #7', _word7Controller),
-                        const SizedBox(height: 16),
                         _buildWordInput('Word #11', _word11Controller),
                       ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24.h),
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52.h,
                 child: ElevatedButton(
                   onPressed: _canVerify() ? _onVerify : null,
                   style: ElevatedButton.styleFrom(
@@ -693,13 +680,13 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
                     foregroundColor: AppColors.textPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Verify & Continue',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
                       height: 24 / 14,
                     ),
@@ -721,37 +708,37 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
           label,
           style: TextStyle(
             color: Color(0xFF9CA3AF),
-            fontSize: 12,
+            fontSize: 12.sp,
             fontWeight: FontWeight.w400,
             height: 20 / 12,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Container(
-          height: 50,
+          height: 52.h,
           decoration: BoxDecoration(
             color: AppColors.background,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
             border: Border.all(color: Color(0xFF374151), width: 1),
           ),
           child: TextField(
             controller: controller,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 16,
+              fontSize: 16.sp,
               fontWeight: FontWeight.w400,
             ),
             decoration: InputDecoration(
               hintText: 'Enter word',
               hintStyle: TextStyle(
                 color: Color(0xFFCCCCCC),
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w400,
               ),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 17,
-                vertical: 13,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 17.w,
+                vertical: 13.h,
               ),
             ),
             onChanged: (_) => setState(() {}),
@@ -765,12 +752,13 @@ class _VerifyBackupScreenState extends State<VerifyBackupScreen> {
 class BackArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path = Path();
     path.moveTo(size.width * 0.5, size.width * 0.79);
@@ -793,77 +781,114 @@ class BackArrowPainter extends CustomPainter {
 class WarningIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentRed
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = AppColors.accentRed
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path = Path();
     path.moveTo(size.width * 0.906, size.width * 0.75);
     path.lineTo(size.width * 0.572, size.width * 0.167);
     path.cubicTo(
-      size.width * 0.565, size.width * 0.154,
-      size.width * 0.543, size.width * 0.145,
-      size.width * 0.540, size.width * 0.136,
+      size.width * 0.565,
+      size.width * 0.154,
+      size.width * 0.543,
+      size.width * 0.145,
+      size.width * 0.540,
+      size.width * 0.136,
     );
     path.cubicTo(
-      size.width * 0.529, size.width * 0.125,
-      size.width * 0.518, size.width * 0.124,
-      size.width * 0.495, size.width * 0.124,
+      size.width * 0.529,
+      size.width * 0.125,
+      size.width * 0.518,
+      size.width * 0.124,
+      size.width * 0.495,
+      size.width * 0.124,
     );
     path.cubicTo(
-      size.width * 0.485, size.width * 0.124,
-      size.width * 0.471, size.width * 0.125,
-      size.width * 0.458, size.width * 0.136,
+      size.width * 0.485,
+      size.width * 0.124,
+      size.width * 0.471,
+      size.width * 0.125,
+      size.width * 0.458,
+      size.width * 0.136,
     );
     path.cubicTo(
-      size.width * 0.448, size.width * 0.145,
-      size.width * 0.427, size.width * 0.154,
-      size.width * 0.427, size.width * 0.167,
+      size.width * 0.448,
+      size.width * 0.145,
+      size.width * 0.427,
+      size.width * 0.154,
+      size.width * 0.427,
+      size.width * 0.167,
     );
     path.lineTo(size.width * 0.094, size.width * 0.75);
     path.cubicTo(
-      size.width * 0.086, size.width * 0.763,
-      size.width * 0.083, size.width * 0.780,
-      size.width * 0.083, size.width * 0.794,
+      size.width * 0.086,
+      size.width * 0.763,
+      size.width * 0.083,
+      size.width * 0.780,
+      size.width * 0.083,
+      size.width * 0.794,
     );
     path.cubicTo(
-      size.width * 0.083, size.width * 0.807,
-      size.width * 0.087, size.width * 0.824,
-      size.width * 0.094, size.width * 0.837,
+      size.width * 0.083,
+      size.width * 0.807,
+      size.width * 0.087,
+      size.width * 0.824,
+      size.width * 0.094,
+      size.width * 0.837,
     );
     path.cubicTo(
-      size.width * 0.101, size.width * 0.851,
-      size.width * 0.114, size.width * 0.864,
-      size.width * 0.125, size.width * 0.874,
+      size.width * 0.101,
+      size.width * 0.851,
+      size.width * 0.114,
+      size.width * 0.864,
+      size.width * 0.125,
+      size.width * 0.874,
     );
     path.cubicTo(
-      size.width * 0.138, size.width * 0.883,
-      size.width * 0.153, size.width * 0.888,
-      size.width * 0.167, size.width * 0.875,
+      size.width * 0.138,
+      size.width * 0.883,
+      size.width * 0.153,
+      size.width * 0.888,
+      size.width * 0.167,
+      size.width * 0.875,
     );
     path.lineTo(size.width * 0.833, size.width * 0.875);
     path.cubicTo(
-      size.width * 0.848, size.width * 0.875,
-      size.width * 0.862, size.width * 0.870,
-      size.width * 0.875, size.width * 0.861,
+      size.width * 0.848,
+      size.width * 0.875,
+      size.width * 0.862,
+      size.width * 0.870,
+      size.width * 0.875,
+      size.width * 0.861,
     );
     path.cubicTo(
-      size.width * 0.888, size.width * 0.851,
-      size.width * 0.898, size.width * 0.838,
-      size.width * 0.906, size.width * 0.825,
+      size.width * 0.888,
+      size.width * 0.851,
+      size.width * 0.898,
+      size.width * 0.838,
+      size.width * 0.906,
+      size.width * 0.825,
     );
     path.cubicTo(
-      size.width * 0.913, size.width * 0.812,
-      size.width * 0.917, size.width * 0.796,
-      size.width * 0.917, size.width * 0.783,
+      size.width * 0.913,
+      size.width * 0.812,
+      size.width * 0.917,
+      size.width * 0.796,
+      size.width * 0.917,
+      size.width * 0.783,
     );
     path.cubicTo(
-      size.width * 0.917, size.width * 0.770,
-      size.width * 0.913, size.width * 0.763,
-      size.width * 0.906, size.width * 0.75,
+      size.width * 0.917,
+      size.width * 0.770,
+      size.width * 0.913,
+      size.width * 0.763,
+      size.width * 0.906,
+      size.width * 0.75,
     );
     path.close();
 
@@ -889,64 +914,91 @@ class WarningIconPainter extends CustomPainter {
 class EyeIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = AppColors.surface
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path1 = Path();
     path1.moveTo(size.width * 0.086, size.width * 0.515);
     path1.cubicTo(
-      size.width * 0.120, size.width * 0.403,
-      size.width * 0.177, size.width * 0.333,
-      size.width * 0.251, size.width * 0.284,
+      size.width * 0.120,
+      size.width * 0.403,
+      size.width * 0.177,
+      size.width * 0.333,
+      size.width * 0.251,
+      size.width * 0.284,
     );
     path1.cubicTo(
-      size.width * 0.325, size.width * 0.235,
-      size.width * 0.411, size.width * 0.208,
-      size.width * 0.500, size.width * 0.208,
+      size.width * 0.325,
+      size.width * 0.235,
+      size.width * 0.411,
+      size.width * 0.208,
+      size.width * 0.500,
+      size.width * 0.208,
     );
     path1.cubicTo(
-      size.width * 0.589, size.width * 0.208,
-      size.width * 0.675, size.width * 0.235,
-      size.width * 0.749, size.width * 0.284,
+      size.width * 0.589,
+      size.width * 0.208,
+      size.width * 0.675,
+      size.width * 0.235,
+      size.width * 0.749,
+      size.width * 0.284,
     );
     path1.cubicTo(
-      size.width * 0.823, size.width * 0.333,
-      size.width * 0.880, size.width * 0.403,
-      size.width * 0.914, size.width * 0.515,
+      size.width * 0.823,
+      size.width * 0.333,
+      size.width * 0.880,
+      size.width * 0.403,
+      size.width * 0.914,
+      size.width * 0.515,
     );
     path1.cubicTo(
-      size.width * 0.880, size.width * 0.597,
-      size.width * 0.823, size.width * 0.666,
-      size.width * 0.749, size.width * 0.716,
+      size.width * 0.880,
+      size.width * 0.597,
+      size.width * 0.823,
+      size.width * 0.666,
+      size.width * 0.749,
+      size.width * 0.716,
     );
     path1.cubicTo(
-      size.width * 0.675, size.width * 0.765,
-      size.width * 0.589, size.width * 0.792,
-      size.width * 0.500, size.width * 0.792,
+      size.width * 0.675,
+      size.width * 0.765,
+      size.width * 0.589,
+      size.width * 0.792,
+      size.width * 0.500,
+      size.width * 0.792,
     );
     path1.cubicTo(
-      size.width * 0.411, size.width * 0.792,
-      size.width * 0.325, size.width * 0.765,
-      size.width * 0.251, size.width * 0.716,
+      size.width * 0.411,
+      size.width * 0.792,
+      size.width * 0.325,
+      size.width * 0.765,
+      size.width * 0.251,
+      size.width * 0.716,
     );
     path1.cubicTo(
-      size.width * 0.177, size.width * 0.666,
-      size.width * 0.120, size.width * 0.597,
-      size.width * 0.086, size.width * 0.515,
+      size.width * 0.177,
+      size.width * 0.666,
+      size.width * 0.120,
+      size.width * 0.597,
+      size.width * 0.086,
+      size.width * 0.515,
     );
     path1.close();
 
     canvas.drawPath(path1, paint);
 
     final path2 = Path();
-    path2.addOval(Rect.fromCircle(
-      center: Offset(size.width * 0.5, size.width * 0.5),
-      radius: size.width * 0.125,
-    ));
+    path2.addOval(
+      Rect.fromCircle(
+        center: Offset(size.width * 0.5, size.width * 0.5),
+        radius: size.width * 0.125,
+      ),
+    );
 
     canvas.drawPath(path2, paint);
   }
@@ -958,24 +1010,31 @@ class EyeIconPainter extends CustomPainter {
 class EyeOffIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = AppColors.primary
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path1 = Path();
     path1.moveTo(size.width * 0.447, size.width * 0.212);
     path1.cubicTo(
-      size.width * 0.544, size.width * 0.199,
-      size.width * 0.642, size.width * 0.205,
-      size.width * 0.727, size.width * 0.270,
+      size.width * 0.544,
+      size.width * 0.199,
+      size.width * 0.642,
+      size.width * 0.205,
+      size.width * 0.727,
+      size.width * 0.270,
     );
     path1.cubicTo(
-      size.width * 0.811, size.width * 0.319,
-      size.width * 0.868, size.width * 0.395,
-      size.width * 0.914, size.width * 0.485,
+      size.width * 0.811,
+      size.width * 0.319,
+      size.width * 0.868,
+      size.width * 0.395,
+      size.width * 0.914,
+      size.width * 0.485,
     );
 
     canvas.drawPath(path1, paint);
@@ -983,24 +1042,36 @@ class EyeOffIconPainter extends CustomPainter {
     final path2 = Path();
     path2.moveTo(size.width * 0.587, size.width * 0.590);
     path2.cubicTo(
-      size.width * 0.563, size.width * 0.613,
-      size.width * 0.532, size.width * 0.625,
-      size.width * 0.499, size.width * 0.625,
+      size.width * 0.563,
+      size.width * 0.613,
+      size.width * 0.532,
+      size.width * 0.625,
+      size.width * 0.499,
+      size.width * 0.625,
     );
     path2.cubicTo(
-      size.width * 0.466, size.width * 0.625,
-      size.width * 0.435, size.width * 0.613,
-      size.width * 0.412, size.width * 0.588,
+      size.width * 0.466,
+      size.width * 0.625,
+      size.width * 0.435,
+      size.width * 0.613,
+      size.width * 0.412,
+      size.width * 0.588,
     );
     path2.cubicTo(
-      size.width * 0.388, size.width * 0.565,
-      size.width * 0.375, size.width * 0.534,
-      size.width * 0.375, size.width * 0.501,
+      size.width * 0.388,
+      size.width * 0.565,
+      size.width * 0.375,
+      size.width * 0.534,
+      size.width * 0.375,
+      size.width * 0.501,
     );
     path2.cubicTo(
-      size.width * 0.375, size.width * 0.468,
-      size.width * 0.387, size.width * 0.437,
-      size.width * 0.410, size.width * 0.413,
+      size.width * 0.375,
+      size.width * 0.468,
+      size.width * 0.387,
+      size.width * 0.437,
+      size.width * 0.410,
+      size.width * 0.413,
     );
 
     canvas.drawPath(path2, paint);
@@ -1008,29 +1079,44 @@ class EyeOffIconPainter extends CustomPainter {
     final path3 = Path();
     path3.moveTo(size.width * 0.729, size.width * 0.729);
     path3.cubicTo(
-      size.width * 0.673, size.width * 0.762,
-      size.width * 0.611, size.width * 0.782,
-      size.width * 0.547, size.width * 0.789,
+      size.width * 0.673,
+      size.width * 0.762,
+      size.width * 0.611,
+      size.width * 0.782,
+      size.width * 0.547,
+      size.width * 0.789,
     );
     path3.cubicTo(
-      size.width * 0.484, size.width * 0.796,
-      size.width * 0.419, size.width * 0.789,
-      size.width * 0.358, size.width * 0.769,
+      size.width * 0.484,
+      size.width * 0.796,
+      size.width * 0.419,
+      size.width * 0.789,
+      size.width * 0.358,
+      size.width * 0.769,
     );
     path3.cubicTo(
-      size.width * 0.297, size.width * 0.748,
-      size.width * 0.241, size.width * 0.715,
-      size.width * 0.194, size.width * 0.671,
+      size.width * 0.297,
+      size.width * 0.748,
+      size.width * 0.241,
+      size.width * 0.715,
+      size.width * 0.194,
+      size.width * 0.671,
     );
     path3.cubicTo(
-      size.width * 0.147, size.width * 0.627,
-      size.width * 0.110, size.width * 0.574,
-      size.width * 0.086, size.width * 0.515,
+      size.width * 0.147,
+      size.width * 0.627,
+      size.width * 0.110,
+      size.width * 0.574,
+      size.width * 0.086,
+      size.width * 0.515,
     );
     path3.cubicTo(
-      size.width * 0.123, size.width * 0.396,
-      size.width * 0.188, size.width * 0.321,
-      size.width * 0.271, size.width * 0.271,
+      size.width * 0.123,
+      size.width * 0.396,
+      size.width * 0.188,
+      size.width * 0.321,
+      size.width * 0.271,
+      size.width * 0.271,
     );
 
     canvas.drawPath(path3, paint);
@@ -1049,38 +1135,51 @@ class EyeOffIconPainter extends CustomPainter {
 class CopyIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary.withValues(alpha: 0.75)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path1 = Path();
     path1.moveTo(size.width * 0.833, size.width * 0.333);
     path1.lineTo(size.width * 0.417, size.width * 0.333);
     path1.cubicTo(
-      size.width * 0.371, size.width * 0.333,
-      size.width * 0.333, size.width * 0.371,
-      size.width * 0.333, size.width * 0.417,
+      size.width * 0.371,
+      size.width * 0.333,
+      size.width * 0.333,
+      size.width * 0.371,
+      size.width * 0.333,
+      size.width * 0.417,
     );
     path1.lineTo(size.width * 0.333, size.width * 0.833);
     path1.cubicTo(
-      size.width * 0.333, size.width * 0.879,
-      size.width * 0.371, size.width * 0.917,
-      size.width * 0.417, size.width * 0.917,
+      size.width * 0.333,
+      size.width * 0.879,
+      size.width * 0.371,
+      size.width * 0.917,
+      size.width * 0.417,
+      size.width * 0.917,
     );
     path1.lineTo(size.width * 0.833, size.width * 0.917);
     path1.cubicTo(
-      size.width * 0.879, size.width * 0.917,
-      size.width * 0.917, size.width * 0.879,
-      size.width * 0.917, size.width * 0.833,
+      size.width * 0.879,
+      size.width * 0.917,
+      size.width * 0.917,
+      size.width * 0.879,
+      size.width * 0.917,
+      size.width * 0.833,
     );
     path1.lineTo(size.width * 0.917, size.width * 0.417);
     path1.cubicTo(
-      size.width * 0.917, size.width * 0.371,
-      size.width * 0.879, size.width * 0.333,
-      size.width * 0.833, size.width * 0.333,
+      size.width * 0.917,
+      size.width * 0.371,
+      size.width * 0.879,
+      size.width * 0.333,
+      size.width * 0.833,
+      size.width * 0.333,
     );
     path1.close();
 
@@ -1089,21 +1188,30 @@ class CopyIconPainter extends CustomPainter {
     final path2 = Path();
     path2.moveTo(size.width * 0.167, size.width * 0.667);
     path2.cubicTo(
-      size.width * 0.121, size.width * 0.667,
-      size.width * 0.083, size.width * 0.629,
-      size.width * 0.083, size.width * 0.583,
+      size.width * 0.121,
+      size.width * 0.667,
+      size.width * 0.083,
+      size.width * 0.629,
+      size.width * 0.083,
+      size.width * 0.583,
     );
     path2.lineTo(size.width * 0.083, size.width * 0.167);
     path2.cubicTo(
-      size.width * 0.083, size.width * 0.121,
-      size.width * 0.121, size.width * 0.083,
-      size.width * 0.167, size.width * 0.083,
+      size.width * 0.083,
+      size.width * 0.121,
+      size.width * 0.121,
+      size.width * 0.083,
+      size.width * 0.167,
+      size.width * 0.083,
     );
     path2.lineTo(size.width * 0.583, size.width * 0.083);
     path2.cubicTo(
-      size.width * 0.629, size.width * 0.083,
-      size.width * 0.667, size.width * 0.121,
-      size.width * 0.667, size.width * 0.167,
+      size.width * 0.629,
+      size.width * 0.083,
+      size.width * 0.667,
+      size.width * 0.121,
+      size.width * 0.667,
+      size.width * 0.167,
     );
 
     canvas.drawPath(path2, paint);
@@ -1116,54 +1224,79 @@ class CopyIconPainter extends CustomPainter {
 class CheckIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Color(0xFF00FFB2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = Color(0xFF00FFB2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path1 = Path();
     path1.moveTo(size.width * 0.908, size.width * 0.417);
     path1.cubicTo(
-      size.width * 0.927, size.width * 0.510,
-      size.width * 0.914, size.width * 0.607,
-      size.width * 0.870, size.width * 0.692,
+      size.width * 0.927,
+      size.width * 0.510,
+      size.width * 0.914,
+      size.width * 0.607,
+      size.width * 0.870,
+      size.width * 0.692,
     );
     path1.cubicTo(
-      size.width * 0.826, size.width * 0.776,
-      size.width * 0.755, size.width * 0.933,
-      size.width * 0.667, size.width * 0.878,
+      size.width * 0.826,
+      size.width * 0.776,
+      size.width * 0.755,
+      size.width * 0.933,
+      size.width * 0.667,
+      size.width * 0.878,
     );
     path1.cubicTo(
-      size.width * 0.580, size.width * 0.823,
-      size.width * 0.482, size.width * 0.894,
-      size.width * 0.390, size.width * 0.902,
+      size.width * 0.580,
+      size.width * 0.823,
+      size.width * 0.482,
+      size.width * 0.894,
+      size.width * 0.390,
+      size.width * 0.902,
     );
     path1.cubicTo(
-      size.width * 0.298, size.width * 0.910,
-      size.width * 0.218, size.width * 0.821,
-      size.width * 0.162, size.width * 0.743,
+      size.width * 0.298,
+      size.width * 0.910,
+      size.width * 0.218,
+      size.width * 0.821,
+      size.width * 0.162,
+      size.width * 0.743,
     );
     path1.cubicTo(
-      size.width * 0.106, size.width * 0.665,
-      size.width * 0.079, size.width * 0.572,
-      size.width * 0.084, size.width * 0.477,
+      size.width * 0.106,
+      size.width * 0.665,
+      size.width * 0.079,
+      size.width * 0.572,
+      size.width * 0.084,
+      size.width * 0.477,
     );
     path1.cubicTo(
-      size.width * 0.089, size.width * 0.382,
-      size.width * 0.127, size.width * 0.291,
-      size.width * 0.191, size.width * 0.220,
+      size.width * 0.089,
+      size.width * 0.382,
+      size.width * 0.127,
+      size.width * 0.291,
+      size.width * 0.191,
+      size.width * 0.220,
     );
     path1.cubicTo(
-      size.width * 0.255, size.width * 0.150,
-      size.width * 0.341, size.width * 0.103,
-      size.width * 0.435, size.width * 0.088,
+      size.width * 0.255,
+      size.width * 0.150,
+      size.width * 0.341,
+      size.width * 0.103,
+      size.width * 0.435,
+      size.width * 0.088,
     );
     path1.cubicTo(
-      size.width * 0.529, size.width * 0.073,
-      size.width * 0.632, size.width * 0.091,
-      size.width * 0.708, size.width * 0.139,
+      size.width * 0.529,
+      size.width * 0.073,
+      size.width * 0.632,
+      size.width * 0.091,
+      size.width * 0.708,
+      size.width * 0.139,
     );
 
     canvas.drawPath(path1, paint);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 
@@ -178,23 +179,24 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 20.w),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back,
                       color: AppColors.textPrimary,
+                      size: 25.sp,
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Text(
                     widget.isCreate ? 'Create PIN' : 'Change PIN',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontFamily: 'Inter',
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       fontWeight: FontWeight.w700,
                       height: 1.4,
                     ),
@@ -205,7 +207,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
 
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -214,27 +216,27 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                     // Title
                     Text(
                       _title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontFamily: 'Inter',
-                        fontSize: 24,
+                        fontSize: 24.sp,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12.h),
 
                     // Subtitle
                     Text(
                       _subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
                         fontFamily: 'Inter',
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 40),
+                    SizedBox(height: 30.h),
 
                     // PIN Dots
                     Row(
@@ -242,9 +244,9 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                       children: List.generate(4, (index) {
                         final isFilled = index < _currentPinInput.length;
                         return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          width: 16,
-                          height: 16,
+                          margin: EdgeInsets.symmetric(horizontal: 8.w),
+                          width: 16.w,
+                          height: 16.h,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color:
@@ -264,17 +266,17 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                     ),
 
                     // Error Message
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20.h),
                     SizedBox(
-                      height: 20,
+                      height: 20.h,
                       child:
                           _errorMessage.isNotEmpty
                               ? Text(
                                 _errorMessage,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.accentRed,
                                   fontFamily: 'Inter',
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                   fontWeight: FontWeight.w400,
                                 ),
                               )
@@ -289,7 +291,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                       onDeletePressed: _onDeletePressed,
                     ),
 
-                    const SizedBox(height: 40),
+                    SizedBox(height: 40.h),
                   ],
                 ),
               ),
@@ -313,25 +315,25 @@ class _NumberPad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      spacing: 16.h,
       children: [
         _buildNumberRow(['1', '2', '3']),
-        const SizedBox(height: 16),
         _buildNumberRow(['4', '5', '6']),
-        const SizedBox(height: 16),
         _buildNumberRow(['7', '8', '9']),
-        const SizedBox(height: 16),
+
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const SizedBox(width: 80, height: 80), // Empty space
+            SizedBox(width: 80.w, height: 80.h), // Empty space
             _NumberButton(number: '0', onPressed: () => onNumberPressed('0')),
             SizedBox(
-              width: 80,
-              height: 80,
+              width: 80.w,
+              height: 80.h,
               child: IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.backspace_outlined,
                   color: AppColors.textPrimary,
+                  size: 25.sp,
                 ),
                 onPressed: onDeletePressed,
               ),
@@ -367,8 +369,8 @@ class _NumberButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 80,
-      height: 80,
+      width: 80.w,
+      height: 80.h,
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
@@ -377,10 +379,10 @@ class _NumberButton extends StatelessWidget {
         ),
         child: Text(
           number,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontFamily: 'Inter',
-            fontSize: 24,
+            fontSize: 24.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
