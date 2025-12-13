@@ -32,7 +32,7 @@ dependencies:
   iconsax: ^0.0.8
   # internet_connection_checker_plus: ^2.9.1+1
   connectivity_plus: ^7.0.0
-  flutter_native_splash: ^2.4.7
+  flutter_native_splash: ^2.4.4
   flutter_launcher_icons: ^0.14.4
   flutter_secure_storage: ^9.2.4
   intl: ^0.20.2
