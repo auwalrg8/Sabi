@@ -115,26 +115,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           children: [
                             Icon(
                               Icons.notifications_off_outlined,
-                              size: 80,
+                              size: 80.sp,
                               color: AppColors.textSecondary.withValues(
                                 alpha: .3,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            const Text(
+                            SizedBox(height: 16.h),
+                            Text(
                               'No notifications',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 16,
+                                fontSize: 16.sp,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
+                            SizedBox(height: 8.h),
+                            Text(
                               'You\'re all caught up!',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 13,
+                                fontSize: 13.sp,
                               ),
                             ),
                           ],
@@ -145,9 +145,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         color: AppColors.primary,
                         onRefresh: _loadNotifications,
                         child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20.w,
+                            vertical: 12.h,
                           ),
                           itemCount: _notifications.length,
                           itemBuilder: (context, index) {
@@ -174,28 +174,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 10),
-          const Text(
+          SizedBox(width: 10.w),
+          Text(
             'Notifications',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 20.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (unreadCount > 0) ...[
-            const SizedBox(width: 8),
+            SizedBox(width: 8.w),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12.r),
               ),
               child: Text(
                 unreadCount.toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
                 ),
               ),

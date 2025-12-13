@@ -341,7 +341,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   Widget _buildUserInfo() {
     final username = _userProfile?.sabiUsername ?? '@sabi/user';
     final registered = _userProfile?.hasLightningAddress ?? false;
-    final description = _userProfile?.lightningAddressDescription ??
+    final description =
+        _userProfile?.lightningAddressDescription ??
         'Share $username to receive Lightning payments instantly.';
 
     return Column(
@@ -380,7 +381,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -402,68 +403,71 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 40.w),
           child: Text(
             description,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 12.sp),
             textAlign: TextAlign.center,
           ),
         ),
         if (_userProfile?.lightningAddress?.lnurl != null) ...[
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 40.w),
             child: Text(
               'LNURL: ${_userProfile!.lightningAddress!.lnurl}',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 10.sp,
-              ),
+              style: TextStyle(color: Colors.white54, fontSize: 10.sp),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
           ),
         ],
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 40.w),
           child: SizedBox(
             width: double.infinity,
-            child: registered
-                ? OutlinedButton(
-                    onPressed:
-                        _isSyncingLightningAddress ? null : _refreshLightningAddress,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+            child:
+                registered
+                    ? OutlinedButton(
+                      onPressed:
+                          _isSyncingLightningAddress
+                              ? null
+                              : _refreshLightningAddress,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.r),
+                        ),
+                      ),
+                      child: Text(
+                        _isSyncingLightningAddress
+                            ? 'Refreshing…'
+                            : 'Refresh Lightning address',
+                        style: const TextStyle(color: AppColors.primary),
+                      ),
+                    )
+                    : ElevatedButton(
+                      onPressed:
+                          _isSyncingLightningAddress
+                              ? null
+                              : _registerLightningAddress,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.r),
+                        ),
+                      ),
+                      child: Text(
+                        _isSyncingLightningAddress
+                            ? 'Registering…'
+                            : 'Register Lightning address',
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
-                    child: Text(
-                      _isSyncingLightningAddress ? 'Refreshing…' : 'Refresh Lightning address',
-                      style: const TextStyle(color: AppColors.primary),
-                    ),
-                  )
-                : ElevatedButton(
-                    onPressed:
-                        _isSyncingLightningAddress ? null : _registerLightningAddress,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Text(
-                      _isSyncingLightningAddress ? 'Registering…' : 'Register Lightning address',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
           ),
         ),
       ],
@@ -555,11 +559,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         SizedBox(
           width: double.infinity,
           child: Container(
-            height: 48,
+            height: 48.h,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               border: Border.all(color: Colors.transparent),
             ),
             child: TextField(
@@ -680,14 +684,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     }
     return Column(
       children: [
-        Text('Your Nostr npub:', style: TextStyle(color: Colors.white70, fontSize: 14)),
-        SelectableText(_nostrNpub ?? 'Not set', style: TextStyle(color: Colors.white, fontSize: 16)),
+        Text(
+          'Your Nostr npub:',
+          style: TextStyle(color: Colors.white70, fontSize: 14.sp),
+        ),
+        SelectableText(
+          _nostrNpub ?? 'Not set',
+          style: TextStyle(color: Colors.white, fontSize: 16.sp),
+        ),
         const SizedBox(height: 24),
         if (_nostrNpub != null)
           Image.network(
             'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(_nostrNpub!)}',
-            width: 200,
-            height: 200,
+            width: 200.w,
+            height: 200.h,
             fit: BoxFit.cover,
           ),
       ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/pending_payments_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/recent_transactions_provider.dart';
@@ -16,7 +17,8 @@ class TransactionsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsAsync = ref.watch(allTransactionsNotifierProvider);
     final pendingAsync = ref.watch(pendingPaymentsProvider);
-    final pendingPayments = pendingAsync.valueOrNull ?? const <PendingPaymentRecord>[];
+    final pendingPayments =
+        pendingAsync.valueOrNull ?? const <PendingPaymentRecord>[];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -36,24 +38,26 @@ class TransactionsScreen extends ConsumerWidget {
                         children: [
                           Icon(
                             Icons.receipt_long_outlined,
-                            size: 80,
-                            color: AppColors.textSecondary.withValues(alpha: 0.3),
+                            size: 80.sp,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.3,
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
+                          SizedBox(height: 16.h),
+                          Text(
                             'No transactions yet',
                             style: TextStyle(
                               color: AppColors.textSecondary,
-                              fontSize: 16,
+                              fontSize: 16.sp,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8.h),
+                          Text(
                             'Your transaction history will appear here',
                             style: TextStyle(
                               color: AppColors.textSecondary,
-                              fontSize: 13,
+                              fontSize: 13.sp,
                             ),
                           ),
                         ],
@@ -65,48 +69,61 @@ class TransactionsScreen extends ConsumerWidget {
                     backgroundColor: AppColors.surface,
                     color: AppColors.primary,
                     onRefresh: () async {
-                      await ref.read(allTransactionsNotifierProvider.notifier).refresh();
+                      await ref
+                          .read(allTransactionsNotifierProvider.notifier)
+                          .refresh();
                     },
                     child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20.w,
+                        vertical: 12.h,
                       ),
                       itemCount: payments.length,
                       itemBuilder: (context, index) {
                         final payment = payments[index];
                         final isInbound = payment.isIncoming;
                         final amountColor =
-                            isInbound ? AppColors.accentGreen : const Color(0xFFFF4D4F);
+                            isInbound
+                                ? AppColors.accentGreen
+                                : const Color(0xFFFF4D4F);
                         final amountPrefix = isInbound ? '+' : '-';
 
-                        final timeStr = date_utils.formatTransactionTime(payment.paymentTime);
+                        final timeStr = date_utils.formatTransactionTime(
+                          payment.paymentTime,
+                        );
 
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => PaymentDetailScreen(payment: payment),
+                                builder:
+                                    (_) =>
+                                        PaymentDetailScreen(payment: payment),
                               ),
                             );
                           },
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
+                            margin: EdgeInsets.only(bottom: 12.h),
+                            padding: EdgeInsets.all(16).w,
                             decoration: BoxDecoration(
                               color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(16.r),
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 48,
-                                  height: 48,
+                                  width: 48.w,
+                                  height: 48.h,
                                   decoration: BoxDecoration(
-                                    color: isInbound
-                                        ? AppColors.accentGreen.withValues(alpha: 0.1)
-                                        : const Color(0xFFFF4D4F).withValues(alpha: 0.1),
+                                    color:
+                                        isInbound
+                                            ? AppColors.accentGreen.withValues(
+                                              alpha: 0.1,
+                                            )
+                                            : const Color(
+                                              0xFFFF4D4F,
+                                            ).withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -114,28 +131,35 @@ class TransactionsScreen extends ConsumerWidget {
                                         ? Icons.arrow_downward_rounded
                                         : Icons.arrow_upward_rounded,
                                     color: amountColor,
-                                    size: 24,
+                                    size: 24.sp,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: 12.w),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isInbound ? AppLocalizations.of(context)!.received : AppLocalizations.of(context)!.sent,
-                                        style: const TextStyle(
+                                        isInbound
+                                            ? AppLocalizations.of(
+                                              context,
+                                            )!.received
+                                            : AppLocalizations.of(
+                                              context,
+                                            )!.sent,
+                                        style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 15,
+                                          fontSize: 15.sp,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      SizedBox(height: 4.h),
                                       Text(
                                         timeStr,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: AppColors.textSecondary,
-                                          fontSize: 12,
+                                          fontSize: 12.sp,
                                         ),
                                       ),
                                     ],
@@ -148,7 +172,7 @@ class TransactionsScreen extends ConsumerWidget {
                                       '$amountPrefix${payment.amountSats} sats',
                                       style: TextStyle(
                                         color: amountColor,
-                                        fontSize: 15,
+                                        fontSize: 15.sp,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -162,51 +186,60 @@ class TransactionsScreen extends ConsumerWidget {
                     ),
                   );
                 },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                  ),
-                ),
-                error: (error, stack) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 60,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Failed to load transactions',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          error.toString(),
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => ref.read(allTransactionsNotifierProvider.notifier).refresh(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                          ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                loading:
+                    () => const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
-                ),
+                error:
+                    (error, stack) => Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.w),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 60.sp,
+                              color: AppColors.textSecondary,
+                            ),
+                            SizedBox(height: 16.h),
+                            Text(
+                              'Failed to load transactions',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 16.sp,
+                              ),
+                            ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              error.toString(),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12.sp,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 16.h),
+                            ElevatedButton(
+                              onPressed:
+                                  () =>
+                                      ref
+                                          .read(
+                                            allTransactionsNotifierProvider
+                                                .notifier,
+                                          )
+                                          .refresh(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                              ),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
               ),
             ),
           ],
@@ -217,19 +250,19 @@ class TransactionsScreen extends ConsumerWidget {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 10),
-          const Text(
+          SizedBox(width: 10.w),
+          Text(
             'All Transactions',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 20.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -240,7 +273,10 @@ class TransactionsScreen extends ConsumerWidget {
             child: Tooltip(
               message: 'Payment Debug Info',
               child: IconButton(
-                icon: const Icon(Icons.bug_report_outlined, color: AppColors.primary),
+                icon: const Icon(
+                  Icons.bug_report_outlined,
+                  color: AppColors.primary,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -257,10 +293,13 @@ class TransactionsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPendingSection(BuildContext context, List<PendingPaymentRecord> pendingPayments) {
+  Widget _buildPendingSection(
+    BuildContext context,
+    List<PendingPaymentRecord> pendingPayments,
+  ) {
     final l10n = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 8.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -268,27 +307,28 @@ class TransactionsScreen extends ConsumerWidget {
             children: [
               Text(
                 l10n.paymentPending,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
               Text(
                 '${pendingPayments.length} ${l10n.pending.toLowerCase()}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
-                  fontSize: 12,
+                  fontSize: 12.sp,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Column(
-            children: pendingPayments
-                .map((payment) => _buildPendingTile(context, payment))
-                .toList(),
+            children:
+                pendingPayments
+                    .map((payment) => _buildPendingTile(context, payment))
+                    .toList(),
           ),
         ],
       ),
@@ -298,17 +338,17 @@ class TransactionsScreen extends ConsumerWidget {
   Widget _buildPendingTile(BuildContext context, PendingPaymentRecord payment) {
     final statusText = _formatPendingDuration(payment.startedAt);
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 10.h),
+      padding: EdgeInsets.all(16.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 48.w,
+            height: 48.h,
             decoration: BoxDecoration(
               color: AppColors.accentYellow.withValues(alpha: 0.15),
               shape: BoxShape.circle,
@@ -316,28 +356,28 @@ class TransactionsScreen extends ConsumerWidget {
             child: Icon(
               Icons.hourglass_top,
               color: AppColors.accentYellow,
-              size: 24,
+              size: 24.sp,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   payment.recipientName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 15,
+                    fontSize: 15.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4.h),
                 Text(
                   '${AppLocalizations.of(context)!.pending} • $statusText',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 12,
+                    fontSize: 12.sp,
                   ),
                 ),
               ],
@@ -347,7 +387,7 @@ class TransactionsScreen extends ConsumerWidget {
             '${payment.amountSats} sats',
             style: TextStyle(
               color: AppColors.accentYellow,
-              fontSize: 15,
+              fontSize: 15.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -363,5 +403,4 @@ class TransactionsScreen extends ConsumerWidget {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
-
 }

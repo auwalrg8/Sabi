@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
@@ -97,7 +98,7 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -111,39 +112,39 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
                           ),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10.w),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Send to ${widget.recipient.name}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 17,
+                                fontSize: 17.sp,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(height: 5),
+                            SizedBox(height: 5.h),
                             Text(
                               widget.recipient.identifier,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 12,
+                                fontSize: 12.sp,
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                     _buildAmountDisplay(),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     _buildQuickAmounts(),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     _buildMemoField(),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     _buildConversionInfo(),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                     _buildNumpad(),
                   ],
                 ),
@@ -168,21 +169,21 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
                 '₦',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 20),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10.w),
               Text(
                 _amount,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 51,
+                  fontSize: 51.sp,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: 8.h),
+          Text(
             '≈ 0 sats',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
           ),
         ],
       ),
@@ -196,21 +197,21 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
         children:
             _quickAmounts.map((amount) {
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: EdgeInsets.only(right: 8.w),
                 child: GestureDetector(
                   onTap: () => _onQuickAmountPressed(amount),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 10.h,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                     ),
                     child: Text(
                       '₦$amount',
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
                     ),
                   ),
                 ),
@@ -222,18 +223,18 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
 
   Widget _buildMemoField() {
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 48.h,
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: TextField(
         controller: _memoController,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-        decoration: const InputDecoration(
+        style: TextStyle(color: Colors.white, fontSize: 16.sp),
+        decoration: InputDecoration(
           hintText: 'Memo (optional)',
-          hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+          hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 16.sp),
           border: InputBorder.none,
         ),
       ),
@@ -241,17 +242,17 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
   }
 
   Widget _buildConversionInfo() {
-    return const Center(
+    return Center(
       child: Column(
         children: [
           Text(
             '1 BTC = ₦162,400,000',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 10.sp),
           ),
-          SizedBox(height: 4),
+          SizedBox(height: 4.h),
           Text(
             '~85 sats (~₦120) · Instant',
-            style: TextStyle(color: AppColors.accentGreen, fontSize: 12),
+            style: TextStyle(color: AppColors.accentGreen, fontSize: 12.sp),
           ),
         ],
       ),
@@ -260,13 +261,14 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
 
   Widget _buildNumpad() {
     return Column(
+      spacing: 14.h,
       children: [
         _buildNumpadRow(['1', '2', '3']),
-        const SizedBox(height: 14),
+
         _buildNumpadRow(['4', '5', '6']),
-        const SizedBox(height: 14),
+
         _buildNumpadRow(['7', '8', '9']),
-        const SizedBox(height: 14),
+
         _buildNumpadRow(['.', '0', 'delete']),
       ],
     );
@@ -278,7 +280,7 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
           numbers.map((number) {
             return Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
                 child: _buildNumpadButton(number),
               ),
             );
@@ -290,17 +292,13 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
     Widget child;
 
     if (value == 'delete') {
-      child = const Icon(
-        Icons.backspace_outlined,
-        color: Colors.white,
-        size: 24,
-      );
+      child = Icon(Icons.backspace_outlined, color: Colors.white, size: 24.sp);
     } else {
       child = Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 20,
+          fontSize: 20.sp,
           fontWeight: FontWeight.w500,
         ),
       );
@@ -319,17 +317,21 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
           }
         },
         borderRadius: BorderRadius.circular(16),
-        child: Container(height: 66, alignment: Alignment.center, child: child),
+        child: Container(
+          height: 66.h,
+          alignment: Alignment.center,
+          child: child,
+        ),
       ),
     );
   }
 
   Widget _buildContinueButton(bool enabled) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+      padding: EdgeInsets.fromLTRB(30.w, 0, 30.w, 30.h),
       child: SizedBox(
         width: double.infinity,
-        height: 50,
+        height: 52.h,
         child: ElevatedButton(
           onPressed: enabled ? _continue : null,
           style: ElevatedButton.styleFrom(
@@ -338,14 +340,14 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
                     ? AppColors.primary
                     : AppColors.primary.withValues(alpha: 0.5),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
             ),
           ),
-          child: const Text(
+          child: Text(
             'Continue',
             style: TextStyle(
               color: AppColors.surface,
-              fontSize: 14,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w500,
             ),
           ),

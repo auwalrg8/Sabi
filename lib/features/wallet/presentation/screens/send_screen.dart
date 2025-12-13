@@ -825,7 +825,7 @@ class _SendScreenState extends State<SendScreen>
               ),
               child: Text(
                 _isSending ? 'Sending…' : 'Send',
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Colors.white, fontSize: 16.sp),
               ),
             ),
           ),
