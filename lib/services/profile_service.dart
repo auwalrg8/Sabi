@@ -2,41 +2,94 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:math';
 
+import '../core/constants/lightning_address.dart';
+
+class StoredLightningAddress {
+  final String address;
+  final String username;
+  final String description;
+  final String lnurl;
+
+  const StoredLightningAddress({
+    required this.address,
+    required this.username,
+    required this.description,
+    required this.lnurl,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'address': address,
+        'username': username,
+        'description': description,
+        'lnurl': lnurl,
+      };
+
+  static StoredLightningAddress? fromMap(Map? map) {
+    if (map == null) return null;
+    final casted = Map<String, dynamic>.from(map);
+    final address = casted['address'] as String?;
+    final username = casted['username'] as String?;
+    final description = casted['description'] as String?;
+    final lnurl = casted['lnurl'] as String?;
+    if (address == null || username == null || description == null || lnurl == null) {
+      return null;
+    }
+    return StoredLightningAddress(
+      address: address,
+      username: username,
+      description: description,
+      lnurl: lnurl,
+    );
+  }
+}
+
 class UserProfile {
   final String fullName;
   final String username;
   final String? profilePicturePath;
+  final StoredLightningAddress? lightningAddress;
 
   UserProfile({
     required this.fullName,
     required this.username,
     this.profilePicturePath,
+    this.lightningAddress,
   });
 
   String get initial => fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
-  String get sabiUsername => '@sabi/$username';
+  String get lightningUsername => formatLightningAddress(username);
+  String get sabiUsername => lightningAddress?.address ?? lightningUsername;
+  bool get hasLightningAddress => lightningAddress != null;
+  String get lightningAddressDescription =>
+      lightningAddress?.description ?? 'Receive sats directly via $lightningUsername';
 
   Map<String, dynamic> toMap() => {
     'fullName': fullName,
     'username': username,
     'profilePicturePath': profilePicturePath,
+    'lightningAddress': lightningAddress?.toMap(),
   };
 
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
     fullName: map['fullName'] as String,
     username: map['username'] as String,
     profilePicturePath: map['profilePicturePath'] as String?,
+    lightningAddress: StoredLightningAddress.fromMap(
+      map['lightningAddress'] as Map?,
+    ),
   );
 
   UserProfile copyWith({
     String? fullName,
     String? username,
     String? profilePicturePath,
+    StoredLightningAddress? lightningAddress,
   }) {
     return UserProfile(
       fullName: fullName ?? this.fullName,
       username: username ?? this.username,
       profilePicturePath: profilePicturePath ?? this.profilePicturePath,
+      lightningAddress: lightningAddress ?? this.lightningAddress,
     );
   }
 }
@@ -147,11 +200,27 @@ class ProfileService {
       final updatedProfile = currentProfile.copyWith(
         fullName: fullName,
         username: username,
+        lightningAddress: currentProfile.lightningAddress,
       );
       await saveProfile(updatedProfile);
       debugPrint('✅ Profile updated');
     } catch (e) {
       debugPrint('❌ Update profile error: $e');
+    }
+  }
+
+  static Future<void> updateLightningAddress(
+    StoredLightningAddress? lightningAddress,
+  ) async {
+    try {
+      final currentProfile = await getProfile();
+      final updatedProfile = currentProfile.copyWith(
+        lightningAddress: lightningAddress,
+      );
+      await saveProfile(updatedProfile);
+      debugPrint('✅ Lightning address updated');
+    } catch (e) {
+      debugPrint('❌ Update lightning address error: $e');
     }
   }
 

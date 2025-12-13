@@ -409,7 +409,7 @@ class _SendScreenState extends State<SendScreen>
       final amountSats = BreezSparkService.extractSendAmountSats(result);
       final feeNgn = _ngnPerSat != null ? feeSats * _ngnPerSat! : 0.0;
       final amountNgn = _ngnPerSat != null ? _amountNgn() : 0.0;
-      final transactionId = (result['payment'] as dynamic?)?.id as String?;
+      final transactionId = (result['payment'] as dynamic)?.id as String?;
       final transaction = SendTransaction(
         recipient: _recipient!,
         amount: amountNgn,

@@ -13,7 +13,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../config/breez_config.dart';
+import '../core/constants/lightning_address.dart';
 import 'app_state_service.dart';
+import 'profile_service.dart';
 
 /// Local wrapper class for payment history display
 class PaymentRecord {
@@ -65,6 +67,8 @@ class BreezSparkService {
   static final StreamController<PaymentRecord> _paymentStream =
       StreamController.broadcast();
   static final Map<String, PendingPaymentRecord> _pendingPayments = {};
+  static StoredLightningAddress? _lightningAddressDetails;
+  static StoredLightningAddress? get lightningAddressDetails => _lightningAddressDetails;
   static final StreamController<List<PendingPaymentRecord>> _pendingPaymentsController =
       StreamController<List<PendingPaymentRecord>>.broadcast();
   static final Stream<List<PendingPaymentRecord>> _pendingPaymentsStream =
@@ -219,6 +223,7 @@ class BreezSparkService {
               preferSparkOverLightning: true,
               useDefaultExternalInputParsers: true,
               privateEnabledDefault: true,
+              lnurlDomain: lightningAddressDomain,
             ),
             seed: Seed.mnemonic(mnemonic: seedMnemonic),
             storageDir: storageDir,
@@ -272,6 +277,8 @@ class BreezSparkService {
 
       // Start balance polling immediately
       _startBalancePolling();
+
+      await _syncLightningAddress();
 
       debugPrint('✅✅✅ SPARK SDK INITIALIZED ✅✅✅');
     } catch (e) {
@@ -327,6 +334,105 @@ class BreezSparkService {
       debugPrint('❌ Get balance error: $e');
       return 0;
     }
+  }
+
+  // ============================================================================
+  // Lightning address helpers
+  // ============================================================================
+  static Future<void> _syncLightningAddress() async {
+    try {
+      await fetchLightningAddress();
+    } catch (e) {
+      debugPrint('⚠️ Lightning address sync failed: $e');
+    }
+  }
+
+  static Future<StoredLightningAddress?> fetchLightningAddress() async {
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot fetch Lightning address');
+      throw Exception('SDK not initialized');
+    }
+    try {
+      final info = await _sdk!.getLightningAddress();
+      final details = info == null ? null : _buildLightningAddressDetails(info);
+      await _cacheLightningAddress(details);
+      return details;
+    } catch (e) {
+      debugPrint('❌ Fetch Lightning address failed: $e');
+      rethrow;
+    }
+  }
+
+  static Future<bool> checkLightningAddressAvailability(String username) async {
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot check Lightning address');
+      throw Exception('SDK not initialized');
+    }
+    final request = CheckLightningAddressRequest(username: username);
+    final available = await _sdk!.checkLightningAddressAvailable(request: request);
+    debugPrint('ℹ️ Lightning username "$username" available: $available');
+    return available;
+  }
+
+  static Future<StoredLightningAddress> registerLightningAddress({
+    required String username,
+    String? description,
+  }) async {
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot register Lightning address');
+      throw Exception('SDK not initialized');
+    }
+    final desc = description ?? 'Receive payments via Sabi wallet for $username';
+    final request = RegisterLightningAddressRequest(
+      username: username,
+      description: desc,
+    );
+    final info = await _sdk!.registerLightningAddress(request: request);
+    final details = _buildLightningAddressDetails(info);
+    await _cacheLightningAddress(details);
+    debugPrint('✅ Lightning address registered: ${details.address}');
+    return details;
+  }
+
+  static Future<void> deleteLightningAddress() async {
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot delete Lightning address');
+      throw Exception('SDK not initialized');
+    }
+    await _sdk!.deleteLightningAddress();
+    await _cacheLightningAddress(null);
+    debugPrint('🗑️ Lightning address deleted');
+  }
+
+  static Future<LnurlReceiveMetadata?> fetchLnurlReceiveMetadata(String paymentId) async {
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot fetch LNURL metadata');
+      throw Exception('SDK not initialized');
+    }
+    final response = await _sdk!.getPayment(
+      request: GetPaymentRequest(paymentId: paymentId),
+    );
+    final details = response.payment.details;
+    if (details case PaymentDetails_Lightning lightningDetails) {
+      return lightningDetails.lnurlReceiveMetadata;
+    }
+    return null;
+  }
+
+  static StoredLightningAddress _buildLightningAddressDetails(LightningAddressInfo info) {
+    return StoredLightningAddress(
+      address: info.lightningAddress,
+      username: info.username,
+      description: info.description,
+      lnurl: info.lnurl,
+    );
+  }
+
+  static Future<void> _cacheLightningAddress(
+    StoredLightningAddress? details,
+  ) async {
+    _lightningAddressDetails = details;
+    await ProfileService.updateLightningAddress(details);
   }
 
   // ============================================================================

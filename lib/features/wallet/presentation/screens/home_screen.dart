@@ -18,6 +18,7 @@ import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/services/app_state_service.dart';
 import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 import 'package:sabi_wallet/l10n/app_localizations.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/balance_provider.dart';
@@ -443,6 +444,9 @@ class _HomeContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final walletAsync = ref.watch(walletInfoProvider);
 
+    // Check if Nostr npub is missing
+    final nostrNpub = NostrService.npub;
+
     Future<void> refreshWithSync() async {
       // First, sync with blockchain to detect Bitcoin receives
       await BreezSparkService.syncAndGetBalance();
@@ -491,6 +495,44 @@ class _HomeContent extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (nostrNpub == null || nostrNpub.isEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.only(bottom: 16.h),
+                  padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 20.w),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade700,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28.sp),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Text(
+                          'Set up your Nostr account to enable zaps and social features.',
+                          style: TextStyle(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.orange.shade700,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text('Set up'),
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1600,37 +1642,3 @@ class _SendTransactionIconPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _ZapIcon extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(size: const Size(20, 20), painter: _ZapIconPainter());
-  }
-}
-
-class _ZapIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.primary
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round;
-
-    final path =
-        Path()
-          ..moveTo(size.width * 0.167, size.width * 0.583)
-          ..lineTo(size.width * 0.547, size.width * 0.109)
-          ..lineTo(size.width * 0.547, size.width * 0.417)
-          ..lineTo(size.width * 0.829, size.width * 0.417)
-          ..lineTo(size.width * 0.453, size.width * 0.891)
-          ..lineTo(size.width * 0.453, size.width * 0.583)
-          ..close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

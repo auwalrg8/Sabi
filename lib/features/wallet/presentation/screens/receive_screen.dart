@@ -5,6 +5,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 class ReceiveScreen extends ConsumerStatefulWidget {
@@ -22,10 +23,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   String? _bolt11;
   bool _creating = false;
-  String? _bitcoinAddress;
-  bool _loadingBitcoinAddress = false;
-  String _selectedTab = 'lightning'; // 'lightning' or 'bitcoin'
+  bool _isSyncingLightningAddress = false;
+  String _selectedTab = 'lightning';
   UserProfile? _userProfile;
+  String? _nostrNpub;
+  bool _isLoadingNostr = false;
 
   final List<int> presetAmounts = [1000, 5000, 10000, 50000, 100000];
   final List<String> expiryOptions = [
@@ -39,12 +41,81 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadNostrNpub();
   }
 
   Future<void> _loadUserProfile() async {
     final profile = await ProfileService.getProfile();
     if (mounted) {
       setState(() => _userProfile = profile);
+    }
+  }
+
+  Future<void> _loadNostrNpub() async {
+    setState(() => _isLoadingNostr = true);
+    await NostrService.init();
+    final npub = NostrService.npub;
+    if (mounted) {
+      setState(() {
+        _nostrNpub = npub;
+        _isLoadingNostr = false;
+      });
+    }
+  }
+
+  Future<void> _registerLightningAddress() async {
+    if (_userProfile == null || _isSyncingLightningAddress) return;
+    setState(() => _isSyncingLightningAddress = true);
+    try {
+      await BreezSparkService.registerLightningAddress(
+        username: _userProfile!.username,
+        description: _userProfile!.lightningAddressDescription,
+      );
+      await BreezSparkService.fetchLightningAddress();
+      await _loadUserProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lightning address registered'),
+          backgroundColor: AppColors.accentGreen,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to register address: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSyncingLightningAddress = false);
+    }
+  }
+
+  Future<void> _refreshLightningAddress() async {
+    if (_userProfile == null || _isSyncingLightningAddress) return;
+    setState(() => _isSyncingLightningAddress = true);
+    try {
+      await BreezSparkService.fetchLightningAddress();
+      await _loadUserProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lightning address refreshed'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh address: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSyncingLightningAddress = false);
     }
   }
 
@@ -78,17 +149,19 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 padding: EdgeInsets.all(30.h),
                 child: Column(
                   children: [
-                    _buildQRCodeSection(),
-                    SizedBox(height: 30.h),
                     if (_selectedTab == 'lightning') ...[
+                      _buildQRCodeSection(),
+                      SizedBox(height: 30.h),
                       _buildUserInfo(),
                       SizedBox(height: 4.h),
                       _buildAmountSelector(),
                       SizedBox(height: 30.h),
                       _buildExpiryAndDescription(),
                       SizedBox(height: 30.h),
+                      _buildActionButtons(),
+                    ] else if (_selectedTab == 'nostr') ...[
+                      _buildNostrReceiveSection(),
                     ],
-                    _buildActionButtons(),
                   ],
                 ),
               ),
@@ -184,29 +257,24 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedTab = 'bitcoin');
-                if (_bitcoinAddress == null && !_loadingBitcoinAddress) {
-                  _loadBitcoinAddress();
-                }
-              },
+              onTap: () => setState(() => _selectedTab = 'nostr'),
               child: Container(
-                height: 42.h,
+                height: 44.h,
                 decoration: BoxDecoration(
                   color:
-                      _selectedTab == 'bitcoin'
+                      _selectedTab == 'nostr'
                           ? AppColors.primary
                           : Colors.transparent,
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
-                    '₿ ${AppLocalizations.of(context)!.bitcoin}',
+                    'Nostr',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14.sp,
                       fontWeight:
-                          _selectedTab == 'bitcoin'
+                          _selectedTab == 'nostr'
                               ? FontWeight.w600
                               : FontWeight.w400,
                     ),
@@ -221,7 +289,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Widget _buildQRCodeSection() {
-    final displayData = _selectedTab == 'lightning' ? _bolt11 : _bitcoinAddress;
+    final displayData = _bolt11;
 
     return Container(
       height: 315.h,
@@ -254,23 +322,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                     );
                   },
                 )
-                : _loadingBitcoinAddress && _selectedTab == 'bitcoin'
-                ? SizedBox(
-                  width: 240.w,
-                  height: 240.h,
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                )
                 : Container(
                   width: 240.w,
                   height: 240.h,
                   color: Colors.grey[330],
                   child: Center(
                     child: Text(
-                      _selectedTab == 'lightning'
-                          ? 'Create invoice to show QR'
-                          : 'Loading...',
+                      'Create invoice to show QR',
                       style: TextStyle(color: Colors.grey, fontSize: 12.sp),
                       textAlign: TextAlign.center,
                     ),
@@ -282,6 +340,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Widget _buildUserInfo() {
     final username = _userProfile?.sabiUsername ?? '@sabi/user';
+    final registered = _userProfile?.hasLightningAddress ?? false;
+    final description = _userProfile?.lightningAddressDescription ??
+        'Share $username to receive Lightning payments instantly.';
 
     return Column(
       children: [
@@ -304,7 +365,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               ),
               SizedBox(width: 8.w),
               GestureDetector(
-                onTap: () => _copyToClipboard(username, 'Username'),
+                onTap: () => _copyToClipboard(username, 'Lightning address'),
                 child: Container(
                   width: 34.w,
                   height: 34.h,
@@ -317,6 +378,92 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              registered ? Icons.check_circle : Icons.lightbulb,
+              color: registered ? AppColors.accentGreen : AppColors.primary,
+              size: 18.sp,
+            ),
+            SizedBox(width: 6.w),
+            Text(
+              registered
+                  ? 'Lightning address registered'
+                  : 'Register to receive via Lightning address',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 40.w),
+          child: Text(
+            description,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12.sp,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (_userProfile?.lightningAddress?.lnurl != null) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40.w),
+            child: Text(
+              'LNURL: ${_userProfile!.lightningAddress!.lnurl}',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 10.sp,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 40.w),
+          child: SizedBox(
+            width: double.infinity,
+            child: registered
+                ? OutlinedButton(
+                    onPressed:
+                        _isSyncingLightningAddress ? null : _refreshLightningAddress,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      _isSyncingLightningAddress ? 'Refreshing…' : 'Refresh Lightning address',
+                      style: const TextStyle(color: AppColors.primary),
+                    ),
+                  )
+                : ElevatedButton(
+                    onPressed:
+                        _isSyncingLightningAddress ? null : _registerLightningAddress,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      _isSyncingLightningAddress ? 'Registering…' : 'Register Lightning address',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
           ),
         ),
       ],
@@ -435,98 +582,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Widget _buildActionButtons() {
-    if (_selectedTab == 'bitcoin') {
-      return Column(
-        children: [
-          if (_bitcoinAddress != null)
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(16.h),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16.r),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bitcoin Address',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _bitcoinAddress!,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'monospace',
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(width: 8.w),
-                      GestureDetector(
-                        onTap:
-                            () => _copyToClipboard(
-                              _bitcoinAddress!,
-                              'Bitcoin address',
-                            ),
-                        child: Container(
-                          padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.copy,
-                            color: Colors.white,
-                            size: 18.sp,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          SizedBox(height: 16.h),
-          SizedBox(
-            width: double.infinity,
-            height: 52.h,
-            child: ElevatedButton(
-              onPressed:
-                  _bitcoinAddress == null
-                      ? null
-                      : () =>
-                          _copyToClipboard(_bitcoinAddress!, 'Bitcoin address'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-              ),
-              child: Text(
-                'Share Bitcoin Address',
-                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Lightning tab
     return Column(
       children: [
         SizedBox(
@@ -578,29 +633,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     );
   }
 
-  Future<void> _loadBitcoinAddress() async {
-    setState(() => _loadingBitcoinAddress = true);
-    try {
-      final address = await BreezSparkService.generateBitcoinAddress();
-      if (!mounted) return;
-
-      setState(() {
-        _bitcoinAddress = address;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to generate Bitcoin address: $e'),
-          backgroundColor: AppColors.surface,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _loadingBitcoinAddress = false);
-    }
-  }
-
   Future<void> _createInvoice() async {
     if (selectedAmount == null) return;
     setState(() => _creating = true);
@@ -640,5 +672,25 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     } finally {
       if (mounted) setState(() => _creating = false);
     }
+  }
+
+  Widget _buildNostrReceiveSection() {
+    if (_isLoadingNostr) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: [
+        Text('Your Nostr npub:', style: TextStyle(color: Colors.white70, fontSize: 14)),
+        SelectableText(_nostrNpub ?? 'Not set', style: TextStyle(color: Colors.white, fontSize: 16)),
+        const SizedBox(height: 24),
+        if (_nostrNpub != null)
+          Image.network(
+            'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(_nostrNpub!)}',
+            width: 200,
+            height: 200,
+            fit: BoxFit.cover,
+          ),
+      ],
+    );
   }
 }
