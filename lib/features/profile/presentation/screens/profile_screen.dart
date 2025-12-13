@@ -361,15 +361,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-<<<<<<< HEAD
-
-                      SizedBox(height: 24.h),
-
-=======
                       const SizedBox(height: 12),
                       _buildLightningAddressCard(profile),
                       const SizedBox(height: 24),
->>>>>>> 2ada74a (Add lightning address persistence)
                       // Edit Profile Button
                       SizedBox(
                         width: double.infinity,
@@ -421,9 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   iconColor: AppColors.accentYellow,
                   title: 'Backup & Recovery',
                   onTap: () {
-                      SizedBox(height: 12.h),
-                      _buildLightningAddressCard(profile),
-                      SizedBox(height: 24.h),
+                    Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const BackupRecoveryScreen(),
