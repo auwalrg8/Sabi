@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import '../providers/cash_provider.dart';
+import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.dart';
 
 class SellSuccessScreen extends ConsumerWidget {
   const SellSuccessScreen({super.key});
@@ -11,74 +12,74 @@ class SellSuccessScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cashState = ref.watch(cashProvider);
     final formatter = NumberFormat('#,###');
-    final latestTransaction = cashState.transactions.isNotEmpty
-        ? cashState.transactions.first
-        : null;
+    final latestTransaction =
+        cashState.transactions.isNotEmpty ? cashState.transactions.first : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 21, vertical: 69.5),
+          padding: EdgeInsets.symmetric(horizontal: 21.w, vertical: 69.5.h),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 children: [
                   Container(
-                    width: 128,
-                    height: 128,
-                    padding: const EdgeInsets.all(24),
+                    width: 128.w,
+                    height: 128.h,
+                    padding: EdgeInsets.all(24.w),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.accentGreen.withValues(alpha: 0.2),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.check,
-                      size: 80,
+                      size: 80.sp,
                       color: AppColors.accentGreen,
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  SizedBox(height: 30.h),
                   Text(
-                    '${formatter.format(latestTransaction?.amountSats ?? 0)} sats received!',
-                    style: const TextStyle(
+                    '${formatter.format(latestTransaction?.amountSats ?? 0)} sats received !',
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.w700,
                       height: 1.67,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10.h),
                   RichText(
                     textAlign: TextAlign.center,
                     text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: 17,
+                      style: TextStyle(
+                        fontSize: 17.sp,
                         color: AppColors.textTertiary,
                         fontFamily: 'Inter',
                       ),
                       children: [
                         TextSpan(
-                          text: '₦${formatter.format(cashState.amountToReceive.toInt())}',
-                          style: const TextStyle(fontSize: 15),
+                          text:
+                              '₦ ${formatter.format(cashState.amountToReceive.toInt())}',
+                          style: TextStyle(fontSize: 15.sp),
                         ),
-                        const TextSpan(text: ' in on the road to your bank'),
+                        TextSpan(text: ' on the road to your bank'),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  SizedBox(height: 30.h),
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(20.w),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: const [
+                      borderRadius: BorderRadius.circular(20.r),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
+                          color: const Color(0x26000000),
+                          blurRadius: 8.r,
+                          offset: Offset(0, 4.h),
                         ),
                       ],
                     ),
@@ -86,28 +87,29 @@ class SellSuccessScreen extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.access_time,
                               color: AppColors.primary,
-                              size: 20,
+                              size: 20.sp,
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: 12.w),
                             Expanded(
                               child: Column(
+                                spacing: 2.h,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Expected arrival',
                                     style: TextStyle(
                                       color: AppColors.textTertiary,
-                                      fontSize: 12,
+                                      fontSize: 13.sp,
                                     ),
                                   ),
-                                  const Text(
-                                    'Within 2–5 minutes',
+                                  Text(
+                                    'Within 2 – 5 minutes',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 14,
+                                      fontSize: 14.sp,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -116,23 +118,20 @@ class SellSuccessScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Container(
-                          height: 1,
-                          color: const Color(0xFF1F2937),
-                        ),
-                        const SizedBox(height: 15),
+                        SizedBox(height: 16.h),
+                        Divider(height: 1.h, color: const Color(0xFF1F2937)),
+                        SizedBox(height: 15.h),
                         _buildDetailRow(
                           'Bitcoin sent',
                           '${formatter.format(latestTransaction?.amountSats ?? 0)} sats',
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8.h),
                         _buildDetailRow(
                           'Naira to receive',
                           '₦${formatter.format(cashState.amountToReceive.toInt())}',
                           isHighlighted: true,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8.h),
                         _buildDetailRow(
                           'Bank account',
                           cashState.accountNumber ?? '0707479453',
@@ -145,70 +144,77 @@ class SellSuccessScreen extends ConsumerWidget {
               Column(
                 children: [
                   SizedBox(
-                    width: 350,
-                    height: 50,
+                    width: 350.w,
+                    height: 52.h,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16.r),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Sell Again',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
+                          color: AppColors.surface,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  SizedBox(height: 15.h),
                   TextButton.icon(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Receipt sharing functionality'),
+                          content: Text(
+                            'TODO: Receipt sharing functionality',
+                            style: TextStyle(color: AppColors.surface),
+                          ),
                           backgroundColor: AppColors.accentGreen,
                         ),
                       );
                     },
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.share,
-                      color: Color(0xCCFFFFFF),
-                      size: 16,
+                      color: const Color(0xCCFFFFFF),
+                      size: 16.sp,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Share Receipt',
                       style: TextStyle(
-                        color: Color(0xCCFFFFFF),
-                        fontSize: 12,
+                        color: const Color(0xCCFFFFFF),
+                        fontSize: 12.sp,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  SizedBox(height: 15.h),
                   SizedBox(
-                    width: 350,
-                    height: 50,
+                    width: 350.w,
+                    height: 50.h,
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
                       },
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.primary),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16.r),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Done',
                         style: TextStyle(
                           color: AppColors.primary,
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -223,23 +229,23 @@ class SellSuccessScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value,
-      {bool isHighlighted = false}) {
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    bool isHighlighted = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textTertiary,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: AppColors.textTertiary, fontSize: 13.sp),
         ),
         Text(
           value,
           style: TextStyle(
             color: isHighlighted ? AppColors.accentGreen : Colors.white,
-            fontSize: 12,
+            fontSize: 14.sp,
             fontWeight: isHighlighted ? FontWeight.w500 : FontWeight.w400,
           ),
         ),

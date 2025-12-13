@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 
 enum PinChangeStep { enterCurrent, enterNew, confirmNew }
 
@@ -162,12 +163,17 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
           widget.isCreate
               ? 'PIN created successfully'
               : 'PIN changed successfully',
+          style: TextStyle(color: AppColors.surface),
         ),
         backgroundColor: AppColors.accentGreen,
       ),
     );
 
-    Navigator.pop(context);
+    widget.isCreate
+        ? Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()))
+        : Navigator.pop(context);
   }
 
   @override

@@ -259,12 +259,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       // Save app state when app goes to background
       AppStateService.saveLastScreen('/home');
     }
-    
+
     if (state == AppLifecycleState.resumed) {
       // Refresh wallet data when app comes back to foreground
       ref.read(walletInfoProvider.notifier).refresh();
@@ -280,24 +281,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<bool> _showExitDialog() async {
     return await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Exit Sabi Wallet'),
-            content: const Text('Do you really want to quit Sabi Wallet?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Cancel'),
+          builder:
+              (dialogContext) => AlertDialog(
+                title: const Text('Exit Sabi Wallet'),
+                content: const Text('Do you really want to quit Sabi Wallet?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await AppStateService.saveLastScreen('/home');
+                      if (!mounted) return;
+                      Navigator.of(dialogContext).pop(true);
+                    },
+                    child: const Text('Exit'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () async {
-                  await AppStateService.saveLastScreen('/home');
-                  if (!mounted) return;
-                  Navigator.of(dialogContext).pop(true);
-                },
-                child: const Text('Exit'),
-              ),
-            ],
-          ),
         ) ??
         false;
   }
@@ -606,15 +608,16 @@ class _HomeContent extends ConsumerWidget {
                   final balanceAsync = ref.watch(balanceNotifierProvider);
 
                   return balanceAsync.when(
-                    loading: () => const BalanceCardSkeleton(),
-                    error: (_, __) => BalanceCard(
-                      balanceSats: 0,
-                      showConfetti: false,
-                      isOnline:
-                          ref.watch(eventStreamServiceProvider).isConnected,
-                      isBalanceHidden: !isBalanceVisible,
-                      onToggleHide: onToggleBalance,
-                    ),
+                    loading: () => const CircularProgressIndicator.adaptive(),
+                    error:
+                        (_, __) => BalanceCard(
+                          balanceSats: 0,
+                          showConfetti: false,
+                          isOnline:
+                              ref.watch(eventStreamServiceProvider).isConnected,
+                          isBalanceHidden: !isBalanceVisible,
+                          onToggleHide: onToggleBalance,
+                        ),
                     data: (balance) {
                       return FutureBuilder<String?>(
                         future: ref
@@ -625,21 +628,21 @@ class _HomeContent extends ConsumerWidget {
 
                           // Mark confetti as shown if displaying
                           if (showConfetti) {
-                            WidgetsBinding.instance.addPostFrameCallback(
-                              (_) async {
-                                final storage = ref.read(
-                                  secureStorageServiceProvider,
-                                );
-                                await storage.write(
-                                  key: 'first_payment_confetti_shown',
-                                  value: 'true',
-                                );
-                                await storage.write(
-                                  key: 'first_payment_confetti_pending',
-                                  value: 'false',
-                                );
-                              },
-                            );
+                            WidgetsBinding.instance.addPostFrameCallback((
+                              _,
+                            ) async {
+                              final storage = ref.read(
+                                secureStorageServiceProvider,
+                              );
+                              await storage.write(
+                                key: 'first_payment_confetti_shown',
+                                value: 'true',
+                              );
+                              await storage.write(
+                                key: 'first_payment_confetti_pending',
+                                value: 'false',
+                              );
+                            });
                           }
 
                           return BalanceCard(
@@ -735,24 +738,29 @@ class _HomeContent extends ConsumerWidget {
                   final paymentsAsync = ref.watch(recentTransactionsProvider);
 
                   return paymentsAsync.when(
-                    loading: () => Column(
-                      children: List.generate(
-                        3,
-                        (index) => const TransactionItemSkeleton(),
-                      ),
-                    ),
-                    error: (_, __) => Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text(
-                          AppLocalizations.of(context)!.failedToLoadTransactions,
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14.sp,
+                    loading:
+                        () => Column(
+                          children: List.generate(
+                            3,
+                            (index) =>
+                                const CircularProgressIndicator.adaptive(),
                           ),
                         ),
-                      ),
-                    ),
+                    error:
+                        (_, __) => Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.failedToLoadTransactions,
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
+                        ),
                     data: (payments) {
                       if (payments.isEmpty) {
                         return Center(
@@ -783,7 +791,9 @@ class _HomeContent extends ConsumerWidget {
                                       : const Color(0xFFFF4D4F);
                               final amountPrefix = isInbound ? '+' : '-';
 
-                              final timeStr = date_utils.formatTransactionTime(payment.paymentTime);
+                              final timeStr = date_utils.formatTransactionTime(
+                                payment.paymentTime,
+                              );
 
                               final String amountDisplay =
                                   '$amountPrefix${_formatSats(payment.amountSats)} sats';
@@ -791,8 +801,12 @@ class _HomeContent extends ConsumerWidget {
                                   payment.description.isNotEmpty
                                       ? payment.description
                                       : (isInbound
-                                          ? AppLocalizations.of(context)!.receivedPayment
-                                          : AppLocalizations.of(context)!.sentPayment);
+                                          ? AppLocalizations.of(
+                                            context,
+                                          )!.receivedPayment
+                                          : AppLocalizations.of(
+                                            context,
+                                          )!.sentPayment);
 
                               return Padding(
                                 padding: EdgeInsets.only(bottom: 12.h),
@@ -831,7 +845,7 @@ class _HomeContent extends ConsumerWidget {
     return Stack(
       children: [
         mainContent,
-        if (isWalletLoading) const _HomeSkeletonOverlay(),
+        if (isWalletLoading) const CircularProgressIndicator.adaptive(),
       ],
     );
   }
@@ -844,106 +858,106 @@ class _HomeContent extends ConsumerWidget {
   }
 }
 
-class _HomeSkeletonOverlay extends StatelessWidget {
-  const _HomeSkeletonOverlay();
+// class _HomeSkeletonOverlay extends StatelessWidget {
+//   const _HomeSkeletonOverlay();
 
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        child: Container(
-          color: AppColors.background.withValues(alpha: 0.85),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.all(30.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: SkeletonLoader(
-                          height: 20.h,
-                          width: 150.w,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      SizedBox(width: 10.w),
-                      SkeletonLoader(
-                        width: 24.w,
-                        height: 24.h,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      SizedBox(width: 10.w),
-                      SkeletonLoader(
-                        width: 24.w,
-                        height: 24.h,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 30.h),
-                  SkeletonLoader(
-                    height: 60.h,
-                    width: double.infinity,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  SizedBox(height: 12.h),
-                  const BalanceCardSkeleton(),
-                  SizedBox(height: 20.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(
-                      4,
-                      (_) => Column(
-                        children: [
-                          SkeletonLoader(
-                            width: 48.w,
-                            height: 48.h,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          SizedBox(height: 6.h),
-                          SkeletonLoader(
-                            width: 32.w,
-                            height: 12.h,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 30.h),
-                  SkeletonLoader(
-                    width: 100.w,
-                    height: 15.h,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  SizedBox(height: 12.h),
-                  Column(
-                    children: List.generate(
-                      3,
-                      (_) => Padding(
-                        padding: EdgeInsets.only(bottom: 12.h),
-                        child: SkeletonLoader(
-                          height: 80.h,
-                          width: double.infinity,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 100.h),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Positioned.fill(
+//       child: IgnorePointer(
+//         child: Container(
+//           color: AppColors.background.withValues(alpha: 0.85),
+//           child: SafeArea(
+//             child: SingleChildScrollView(
+//               physics: const NeverScrollableScrollPhysics(),
+//               padding: EdgeInsets.all(30.h),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: [
+//                       Expanded(
+//                         child: SkeletonLoader(
+//                           height: 20.h,
+//                           width: 150.w,
+//                           borderRadius: BorderRadius.circular(12),
+//                         ),
+//                       ),
+//                       SizedBox(width: 10.w),
+//                       SkeletonLoader(
+//                         width: 24.w,
+//                         height: 24.h,
+//                         borderRadius: BorderRadius.circular(12),
+//                       ),
+//                       SizedBox(width: 10.w),
+//                       SkeletonLoader(
+//                         width: 24.w,
+//                         height: 24.h,
+//                         borderRadius: BorderRadius.circular(12),
+//                       ),
+//                     ],
+//                   ),
+//                   SizedBox(height: 30.h),
+//                   SkeletonLoader(
+//                     height: 60.h,
+//                     width: double.infinity,
+//                     borderRadius: BorderRadius.circular(16),
+//                   ),
+//                   SizedBox(height: 12.h),
+//                   const BalanceCardSkeleton(),
+//                   SizedBox(height: 20.h),
+//                   Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                     children: List.generate(
+//                       4,
+//                       (_) => Column(
+//                         children: [
+//                           SkeletonLoader(
+//                             width: 48.w,
+//                             height: 48.h,
+//                             borderRadius: BorderRadius.circular(999),
+//                           ),
+//                           SizedBox(height: 6.h),
+//                           SkeletonLoader(
+//                             width: 32.w,
+//                             height: 12.h,
+//                             borderRadius: BorderRadius.circular(6),
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+//                   ),
+//                   SizedBox(height: 30.h),
+//                   SkeletonLoader(
+//                     width: 100.w,
+//                     height: 15.h,
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                   SizedBox(height: 12.h),
+//                   Column(
+//                     children: List.generate(
+//                       3,
+//                       (_) => Padding(
+//                         padding: EdgeInsets.only(bottom: 12.h),
+//                         child: SkeletonLoader(
+//                           height: 80.h,
+//                           width: double.infinity,
+//                           borderRadius: BorderRadius.circular(20),
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                   SizedBox(height: 100.h),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class _InboundStatusBanner extends StatelessWidget {
   final AsyncValue<WalletModel?> walletAsync;

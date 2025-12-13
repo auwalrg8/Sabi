@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/providers/wallet_creation_provider.dart';
@@ -81,7 +82,11 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-              Image.asset('assets/images/logo.png', width: 165, height: 60),
+              Image.asset(
+                'assets/images/sabi_logo.png',
+                width: 165.w,
+                height: 120.h,
+              ),
               const SizedBox(height: 30),
 
               const Text(

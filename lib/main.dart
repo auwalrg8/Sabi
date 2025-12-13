@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
+import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
 import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
 import 'services/secure_storage.dart';
@@ -50,7 +52,10 @@ void main() async {
         designSize: Size(412, 917),
         minTextAdapt: true,
         splitScreenMode: true,
-        child: SabiWalletApp(),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: ConnectivityBanner(child: SabiWalletApp()),
+        ),
       ),
     ),
   );
@@ -66,7 +71,6 @@ class SabiWalletApp extends ConsumerWidget {
 
     // Watch the current locale
     final locale = ref.watch(languageProvider);
-
     debugPrint('🔍 App State Check - hasWallet: $hasWallet');
     debugPrint('🌍 Current locale: ${locale.languageCode}');
 
@@ -80,7 +84,9 @@ class SabiWalletApp extends ConsumerWidget {
 
       home:
           hasWallet
-              ? const HomeScreen() // Wallet exists → go to home
+              ? BiometricAuthScreen(
+                child: const HomeScreen(),
+              ) // Wallet exists → authenticate with pin/biometrics → go to home
               : const SplashScreen(), // No wallet → show onboarding
       routes: {
         '/home': (context) => const HomeScreen(),

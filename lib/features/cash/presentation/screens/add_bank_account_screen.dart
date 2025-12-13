@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import '../providers/cash_provider.dart';
 import 'review_sale_screen.dart';
@@ -63,43 +64,43 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(30),
+              padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 24,
-                      height: 24,
+                      width: 24.w,
+                      height: 24.h,
                       decoration: const BoxDecoration(
                         color: Colors.transparent,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_back,
                         color: Colors.white,
-                        size: 24,
+                        size: 24.sp,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10.w),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Add Bank Account',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 17,
+                            fontSize: 17.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        const Text(
+                        SizedBox(height: 5.h),
+                        Text(
                           'Where you want to collect your Naira?',
                           style: TextStyle(
                             color: AppColors.textTertiary,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ],
@@ -110,55 +111,56 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    Text(
                       'Bank name',
                       style: TextStyle(
                         color: AppColors.textTertiary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Container(
-                      height: 50,
-                      padding: const EdgeInsets.symmetric(horizontal: 17),
+                      height: 52.h,
+                      padding: EdgeInsets.symmetric(horizontal: 17.w),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A2942),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16.r),
                         border: Border.all(color: const Color(0xFF374151)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedBank,
-                          hint: const Text(
+                          hint: Text(
                             'Select your bank',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 16.sp,
                             ),
                           ),
                           isExpanded: true,
                           dropdownColor: const Color(0xFF1A2942),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.keyboard_arrow_down,
                             color: Colors.white,
-                            size: 16,
+                            size: 16.sp,
                           ),
-                          items: _banks.map((bank) {
-                            return DropdownMenuItem<String>(
-                              value: bank,
-                              child: Text(
-                                bank,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            );
-                          }).toList(),
+                          items:
+                              _banks.map((bank) {
+                                return DropdownMenuItem<String>(
+                                  value: bank,
+                                  child: Text(
+                                    bank,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16.sp,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                           onChanged: (value) {
                             setState(() {
                               _selectedBank = value;
@@ -172,29 +174,29 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 17),
-                    const Text(
+                    SizedBox(height: 17.h),
+                    Text(
                       'Account number',
                       style: TextStyle(
                         color: AppColors.textTertiary,
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Container(
-                      height: 50,
-                      padding: const EdgeInsets.symmetric(horizontal: 17),
+                      height: 52.h,
+                      padding: EdgeInsets.symmetric(horizontal: 17.w),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A2942),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16.r),
                         border: Border.all(color: const Color(0xFF374151)),
                       ),
                       child: TextField(
                         controller: _accountNumberController,
                         keyboardType: TextInputType.number,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Color(0xFFCCCCCC),
-                          fontSize: 18,
+                          fontSize: 18.sp,
                         ),
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
@@ -216,13 +218,16 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     if (_isVerifying)
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 16.h,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(20.r),
                           boxShadow: const [
                             BoxShadow(
                               color: Color(0x26000000),
@@ -231,21 +236,24 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                             ),
                           ],
                         ),
-                        child: const Text(
+                        child: Text(
                           'Verifying account...',
                           style: TextStyle(
                             color: AppColors.textTertiary,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                           textAlign: TextAlign.center,
                         ),
                       ),
                     if (_isVerified && _accountName != null)
                       Container(
-                        padding: const EdgeInsets.all(17),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 17.w,
+                          vertical: 17.h,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0x1A111128),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(20.r),
                           border: Border.all(color: AppColors.accentGreen),
                           boxShadow: const [
                             BoxShadow(
@@ -256,23 +264,23 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                           ],
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: EdgeInsets.symmetric(horizontal: 12.w),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Account Name',
                                 style: TextStyle(
                                   color: AppColors.textTertiary,
-                                  fontSize: 10,
+                                  fontSize: 10.sp,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4.h),
                               Text(
                                 _accountName!,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -285,39 +293,43 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(31, 0, 31, 30),
+              padding: EdgeInsets.fromLTRB(31.w, 0, 31.w, 30.h),
               child: SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52.h,
                 child: ElevatedButton(
-                  onPressed: canSave
-                      ? () {
-                          ref.read(cashProvider.notifier).setBankAccount(
-                                bankName: _selectedBank!,
-                                accountNumber: _accountNumberController.text,
-                                accountName: _accountName!,
-                              );
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ReviewSaleScreen(),
-                            ),
-                          );
-                        }
-                      : null,
+                  onPressed:
+                      canSave
+                          ? () {
+                            ref
+                                .read(cashProvider.notifier)
+                                .setBankAccount(
+                                  bankName: _selectedBank!,
+                                  accountNumber: _accountNumberController.text,
+                                  accountName: _accountName!,
+                                );
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ReviewSaleScreen(),
+                              ),
+                            );
+                          }
+                          : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: canSave
-                        ? AppColors.primary
-                        : AppColors.primary.withValues(alpha: 0.5),
+                    backgroundColor:
+                        canSave
+                            ? AppColors.primary
+                            : AppColors.primary.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Save This Bank',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
+                      color: AppColors.surface,
+                      fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

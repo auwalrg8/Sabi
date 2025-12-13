@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/models/cash_transaction.dart';
+import 'package:sabi_wallet/features/cash/domain/models/cash_transaction.dart';
 
 class CashState {
   final bool isBuying;
@@ -136,7 +136,7 @@ class CashNotifier extends StateNotifier<CashState> {
   Future<void> processPayment() async {
     state = state.copyWith(isProcessing: true);
     await Future.delayed(const Duration(seconds: 3));
-    
+
     final transaction = CashTransaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: state.isBuying ? CashTransactionType.buy : CashTransactionType.sell,
