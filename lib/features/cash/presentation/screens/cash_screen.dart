@@ -72,7 +72,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
         child: Column(
           children: [
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
+              padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 15.h),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

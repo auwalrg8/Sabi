@@ -54,25 +54,25 @@ Shared as: $option''';
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 AppLocalizations.of(context)!.shareOptionsTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               ListTile(
                 onTap: () {
                   Navigator.pop(context);
@@ -85,7 +85,10 @@ Shared as: $option''';
                 ),
                 subtitle: Text(
                   AppLocalizations.of(context)!.shareImageSubtitle,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.sp,
+                  ),
                 ),
               ),
               ListTile(
@@ -93,14 +96,20 @@ Shared as: $option''';
                   Navigator.pop(context);
                   _shareReceipt('PDF');
                 },
-                leading: const Icon(Icons.picture_as_pdf, color: AppColors.primary),
+                leading: const Icon(
+                  Icons.picture_as_pdf,
+                  color: AppColors.primary,
+                ),
                 title: Text(
                   AppLocalizations.of(context)!.sharePdf,
                   style: const TextStyle(color: Colors.white),
                 ),
                 subtitle: Text(
                   AppLocalizations.of(context)!.sharePdfSubtitle,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.sp,
+                  ),
                 ),
               ),
             ],
@@ -112,8 +121,10 @@ Shared as: $option''';
 
   @override
   Widget build(BuildContext context) {
-    final amountText = '${widget.transaction.amountInSats.toStringAsFixed(0)} sats';
-    final timeText = '${_completedAt.day}/${_completedAt.month}/${_completedAt.year} • ${_completedAt.hour.toString().padLeft(2, '0')}:${_completedAt.minute.toString().padLeft(2, '0')}';
+    final amountText =
+        '${widget.transaction.amountInSats.toStringAsFixed(0)} sats';
+    final timeText =
+        '${_completedAt.day}/${_completedAt.month}/${_completedAt.year} • ${_completedAt.hour.toString().padLeft(2, '0')}:${_completedAt.minute.toString().padLeft(2, '0')}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -126,7 +137,7 @@ Shared as: $option''';
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SizedBox(width: 44),
+                  SizedBox(width: 44.w),
                   Text(
                     AppLocalizations.of(context)!.paymentSuccess,
                     style: TextStyle(
@@ -136,7 +147,10 @@ Shared as: $option''';
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                    onPressed:
+                        () => Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst),
                     icon: const Icon(Icons.close, color: Colors.white),
                   ),
                 ],
@@ -163,17 +177,17 @@ Shared as: $option''';
                         ),
                       ],
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Icon(
                         Icons.check,
                         color: Colors.white,
-                        size: 64,
+                        size: 64.sp,
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28.h),
               Text(
                 AppLocalizations.of(context)!.paymentSentHeadline,
                 textAlign: TextAlign.center,
@@ -182,53 +196,79 @@ Shared as: $option''';
                   fontSize: 14.sp,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24.h),
               Container(
                 padding: EdgeInsets.all(20.h),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(20.r),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Column(
+                  spacing: 12.h,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildRecipientDetailRow(),
-                    const SizedBox(height: 12),
-                    _buildDetailRow(AppLocalizations.of(context)!.amount, amountText),
-                    const SizedBox(height: 12),
-                    _buildDetailRow(AppLocalizations.of(context)!.transactionTime, timeText),
-                    if (widget.transaction.memo != null && widget.transaction.memo!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _buildDetailRow(AppLocalizations.of(context)!.memo, widget.transaction.memo!),
+
+                    _buildDetailRow(
+                      AppLocalizations.of(context)!.amount,
+                      amountText,
+                    ),
+
+                    _buildDetailRow(
+                      AppLocalizations.of(context)!.transactionTime,
+                      timeText,
+                    ),
+                    if (widget.transaction.memo != null &&
+                        widget.transaction.memo!.isNotEmpty) ...[
+                      _buildDetailRow(
+                        AppLocalizations.of(context)!.memo,
+                        widget.transaction.memo!,
+                      ),
                     ],
                   ],
                 ),
               ),
               const Spacer(),
               ElevatedButton(
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                onPressed:
+                    () => Navigator.of(
+                      context,
+                    ).popUntil((route) => route.isFirst),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: EdgeInsets.symmetric(vertical: 16.h),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
                 ),
                 child: Text(
                   AppLocalizations.of(context)!.backToHome,
-                  style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               OutlinedButton(
                 onPressed: _showShareOptions,
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.primary),
                   padding: EdgeInsets.symmetric(vertical: 16.h),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
                 ),
                 child: Text(
                   AppLocalizations.of(context)!.shareReceipt,
-                  style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: AppColors.primary),
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
@@ -244,12 +284,16 @@ Shared as: $option''';
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6.h),
         Text(
           value,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -262,19 +306,26 @@ Shared as: $option''';
       children: [
         Text(
           AppLocalizations.of(context)!.recipient,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6.h),
         Text(
           widget.transaction.recipient.name,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4.h),
         Text(
           identifier,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.8), fontSize: 12.sp),
+          style: TextStyle(
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
+            fontSize: 12.sp,
+          ),
         ),
       ],
     );

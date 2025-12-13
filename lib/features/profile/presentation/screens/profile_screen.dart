@@ -18,25 +18,27 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-    Future<void> _editNostrKeys() async {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EditNostrScreen(
-            initialNpub: _nostrNpub,
-            initialNsec: NostrService.nsec,
-          ),
-        ),
-      );
-      if (result is Map && mounted) {
-        final npub = result['npub'] as String?;
-        final nsec = result['nsec'] as String?;
-        if (npub != null && nsec != null && npub.isNotEmpty && nsec.isNotEmpty) {
-          await NostrService.importKeys(nsec: nsec, npub: npub);
-          _loadNostrStats();
-        }
+  Future<void> _editNostrKeys() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => EditNostrScreen(
+              initialNpub: _nostrNpub,
+              initialNsec: NostrService.nsec,
+            ),
+      ),
+    );
+    if (result is Map && mounted) {
+      final npub = result['npub'] as String?;
+      final nsec = result['nsec'] as String?;
+      if (npub != null && nsec != null && npub.isNotEmpty && nsec.isNotEmpty) {
+        await NostrService.importKeys(nsec: nsec, npub: npub);
+        _loadNostrStats();
       }
     }
+  }
+
   UserProfile? _profile;
   bool _isLoading = true;
   bool _isSyncingLightning = false;
@@ -142,7 +144,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-
   Future<void> _refreshProfileSilently() async {
     final profile = await ProfileService.getProfile();
     if (!mounted) return;
@@ -204,57 +205,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _isSyncingLightning = false);
     }
   }
-  
+
   Widget _buildLightningAddressCard(UserProfile profile) {
     final registered = profile.hasLightningAddress;
     final address = profile.sabiUsername;
-    final statusText = registered
-        ? 'Lightning address registered'
-        : 'Lightning address not yet claimed';
-    final button = registered
-        ? OutlinedButton(
-            onPressed: _isSyncingLightning ? null : _refreshLightningAddress,
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+    final statusText =
+        registered
+            ? 'Lightning address registered'
+            : 'Lightning address not yet claimed';
+    final button =
+        registered
+            ? OutlinedButton(
+              onPressed: _isSyncingLightning ? null : _refreshLightningAddress,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 14, horizontal: 10.w),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            child: Text(
-              _isSyncingLightning ? 'Refreshing…' : 'Refresh Lightning address',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              child: Text(
+                _isSyncingLightning
+                    ? 'Refreshing…'
+                    : 'Refresh Lightning address',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          )
-        : ElevatedButton(
-            onPressed: _isSyncingLightning ? null : _registerLightningAddress,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            )
+            : ElevatedButton(
+              onPressed: _isSyncingLightning ? null : _registerLightningAddress,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 12.w),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            child: Text(
-              _isSyncingLightning ? 'Registering…' : 'Register Lightning address',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              child: Text(
+                _isSyncingLightning
+                    ? 'Registering…'
+                    : 'Register Lightning address',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          );
+            );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,57 +271,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(
                 Icons.lightbulb,
                 color: registered ? AppColors.accentGreen : AppColors.primary,
-                size: 20,
+                size: 20.sp,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   statusText,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontFamily: 'Inter',
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.w),
           Text(
             address,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSecondary,
               fontFamily: 'Inter',
-              fontSize: 12,
+              fontSize: 12.sp,
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6.h),
           Text(
             profile.lightningAddressDescription,
-            style: const TextStyle(
-              color: AppColors.textTertiary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: AppColors.textTertiary, fontSize: 12.sp),
           ),
           if (profile.lightningAddress?.lnurl != null) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: 6.h),
             Text(
               'LNURL: ${profile.lightningAddress!.lnurl}',
-              style: const TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 10,
-              ),
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 10.sp),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: 12.sp),
           button,
         ],
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -332,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(30.w, 30.h, 30.w, 30.h),
+            padding: EdgeInsets.fromLTRB(30.w, 10.h, 30.w, 30.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -346,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 1.4,
                   ),
                 ),
-                SizedBox(height: 30.h),
+                SizedBox(height: 15.h),
 
                 // Profile Card
                 Container(
@@ -417,9 +419,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12.h),
                       _buildLightningAddressCard(profile),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12.h),
                       // Nostr npub and zap stats
                       if (_isLoadingNostr)
                         const Padding(
@@ -427,7 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: CircularProgressIndicator(),
                         )
                       else ...[
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12.h),
                         Row(
                           children: [
                             Expanded(
@@ -438,47 +440,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     'Nostr npub:',
                                     style: TextStyle(
                                       color: AppColors.textSecondary,
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                     ),
                                   ),
                                   SelectableText(
                                     _nostrNpub ?? 'Not set',
                                     style: TextStyle(
                                       color: AppColors.textPrimary,
-                                      fontSize: 13,
+                                      fontSize: 13.sp,
                                       fontFamily: 'Inter',
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            SizedBox(width: 8.w),
+                            SizedBox(
+                              height: 35.h,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 14.w,
+                                    vertical: 10.h,
+                                  ),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              ),
-                              onPressed: _editNostrKeys,
-                              child: const Text(
-                                'Add/Edit Nostr',
-                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                onPressed: _editNostrKeys,
+                                child: Text(
+                                  'Add/Edit Nostr',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 10.h),
                         Text(
                           'Zapped $_zapCount times · $_zapTotal sats received',
                           style: TextStyle(
                             color: AppColors.textSecondary,
-                            fontSize: 12,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ],
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24.h),
                       // Edit Profile Button
                       SizedBox(
                         width: double.infinity,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/zaps/presentation/providers/zaps_provider.dart';
 import 'package:sabi_wallet/features/zaps/domain/models/post.dart';
@@ -25,13 +26,13 @@ class ZapsScreen extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(30, 30, 30, 0),
+                    padding: EdgeInsets.fromLTRB(30.w, 15.h, 30.w, 0),
                     child: Text(
                       'Zaps & Feed',
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontFamily: 'Inter',
-                        fontSize: 20,
+                        fontSize: 20.sp,
                         fontWeight: FontWeight.w700,
                         height: 1.4,
                       ),
@@ -39,94 +40,110 @@ class ZapsScreen extends ConsumerWidget {
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(30, 30, 30, 100),
+                  padding: EdgeInsets.fromLTRB(30.w, 30.h, 30.w, 100.h),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 17),
-                          child: PostCard(
-                            post: posts[index],
-                            onLike: () {
-                              ref.read(zapsNotifierProvider.notifier).toggleLike(posts[index].id);
-                            },
-                            onComment: () {},
-                            onZap: () async {
-                              int selectedAmount = 1000;
-                              await showDialog(
-                                context: context,
-                                builder: (ctx) {
-                                  return AlertDialog(
-                                    title: const Text('Send Zap'),
-                                    content: ZapSlider(
-                                      initialValue: 1000,
-                                      onChanged: (val) => selectedAmount = val,
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 17.h),
+                        child: PostCard(
+                          post: posts[index],
+                          onLike: () {
+                            ref
+                                .read(zapsNotifierProvider.notifier)
+                                .toggleLike(posts[index].id);
+                          },
+                          onComment: () {},
+                          onZap: () async {
+                            int selectedAmount = 1000;
+                            await showDialog(
+                              context: context,
+                              builder: (ctx) {
+                                return AlertDialog(
+                                  title: const Text('Send Zap'),
+                                  content: ZapSlider(
+                                    initialValue: 1000,
+                                    onChanged: (val) => selectedAmount = val,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Cancel'),
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.pop(ctx, true),
-                                        child: const Text('Zap!'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                              if (selectedAmount > 0) {
-                                final npub = 'npub1...'; // TODO: get real npub from post
-                                try {
-                                  await NostrService.init();
-                                  await NostrService.sendZap(toNpub: npub, amount: selectedAmount);
-                                  // Haptic feedback
-                                  HapticFeedback.mediumImpact();
-                                  // Play zap sound
-                                  final player = AudioPlayer();
-                                  await player.play(AssetSource('audio/zap_success.mp3'));
-                                  // Show animated zap icon
-                                  showDialog(
-                                    context: context,
-                                    barrierDismissible: false,
-                                    builder: (ctx) => Center(
-                                      child: TweenAnimationBuilder<double>(
-                                        tween: Tween(begin: 1.0, end: 1.5),
-                                        duration: const Duration(milliseconds: 600),
-                                        curve: Curves.elasticOut,
-                                        builder: (context, scale, child) => Transform.scale(
-                                          scale: scale,
-                                          child: Icon(Icons.bolt, color: Colors.amber, size: 120),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Zap!'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            if (selectedAmount > 0) {
+                              final npub =
+                                  'npub1...'; // TODO: get real npub from post
+                              try {
+                                await NostrService.init();
+                                await NostrService.sendZap(
+                                  toNpub: npub,
+                                  amount: selectedAmount,
+                                );
+                                // Haptic feedback
+                                HapticFeedback.mediumImpact();
+                                // Play zap sound
+                                final player = AudioPlayer();
+                                await player.play(
+                                  AssetSource('audio/zap_success.mp3'),
+                                );
+                                // Show animated zap icon
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder:
+                                      (ctx) => Center(
+                                        child: TweenAnimationBuilder<double>(
+                                          tween: Tween(begin: 1.0, end: 1.5),
+                                          duration: const Duration(
+                                            milliseconds: 600,
+                                          ),
+                                          curve: Curves.elasticOut,
+                                          builder:
+                                              (context, scale, child) =>
+                                                  Transform.scale(
+                                                    scale: scale,
+                                                    child: Icon(
+                                                      Icons.bolt,
+                                                      color: Colors.amber,
+                                                      size: 120.sp,
+                                                    ),
+                                                  ),
+                                          onEnd: () => Navigator.of(ctx).pop(),
                                         ),
-                                        onEnd: () => Navigator.of(ctx).pop(),
                                       ),
-                                    ),
-                                  );
-                                  // Add notification
-                                  await NotificationService.addNotification(
-                                    NotificationModel(
-                                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                                      title: 'Zap Sent',
-                                      message: 'You zapped $selectedAmount sats!',
-                                      timestamp: DateTime.now(),
-                                      type: 'zap',
-                                    ),
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Zap sent! ⚡')),
-                                  );
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Zap failed: $e')),
-                                  );
-                                }
+                                );
+                                // Add notification
+                                await NotificationService.addNotification(
+                                  NotificationModel(
+                                    id:
+                                        DateTime.now().millisecondsSinceEpoch
+                                            .toString(),
+                                    title: 'Zap Sent',
+                                    message: 'You zapped $selectedAmount sats!',
+                                    timestamp: DateTime.now(),
+                                    type: 'zap',
+                                  ),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Zap sent! ⚡')),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Zap failed: $e')),
+                                );
                               }
-                            },
-                          ),
-                        );
-                      },
-                      childCount: posts.length,
-                    ),
+                            }
+                          },
+                        ),
+                      );
+                    }, childCount: posts.length),
                   ),
                 ),
               ],
@@ -139,11 +156,7 @@ class ZapsScreen extends ConsumerWidget {
                 backgroundColor: AppColors.primary,
                 shape: const CircleBorder(),
                 elevation: 4,
-                child: const Icon(
-                  Icons.bolt,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                child: Icon(Icons.bolt, color: Colors.white, size: 24.sp),
               ),
             ),
           ],
@@ -170,10 +183,10 @@ class PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -189,23 +202,23 @@ class PostCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 8.h),
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(9999),
                 ),
                 child: Text(
                   post.authorInitial,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.primary,
                     fontFamily: 'Inter',
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
                     height: 1.71,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.h),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,28 +228,28 @@ class PostCard extends StatelessWidget {
                       children: [
                         Text(
                           post.authorName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textPrimary,
                             fontFamily: 'Inter',
-                            fontSize: 14,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
                             height: 1.71,
                           ),
                         ),
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.bolt,
                               color: AppColors.primary,
-                              size: 14,
+                              size: 14.sp,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4.w),
                             Text(
                               post.zapAmount,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.primary,
                                 fontFamily: 'Inter',
-                                fontSize: 12,
+                                fontSize: 12.sp,
                                 fontWeight: FontWeight.w500,
                                 height: 1.67,
                               ),
@@ -245,13 +258,13 @@ class PostCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6.h),
                     Text(
                       post.timestamp,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
                         fontFamily: 'Inter',
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w400,
                         height: 1.67,
                       ),
@@ -259,10 +272,10 @@ class PostCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       post.content,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontFamily: 'Inter',
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                         height: 1.71,
                       ),
@@ -272,33 +285,33 @@ class PostCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
           Container(
             decoration: const BoxDecoration(
               border: Border(
-                top: BorderSide(
-                  color: AppColors.surface,
-                  width: 1,
-                ),
+                top: BorderSide(color: AppColors.surface, width: 1),
               ),
             ),
-            padding: const EdgeInsets.only(top: 12),
+            padding: EdgeInsets.only(top: 12.h),
             child: Row(
               children: [
                 _ActionButton(
                   icon: post.isLiked ? Icons.favorite : Icons.favorite_border,
                   label: post.likes.toString(),
-                  color: post.isLiked ? AppColors.primary : AppColors.textSecondary,
+                  color:
+                      post.isLiked
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
                   onTap: onLike,
                 ),
-                const SizedBox(width: 24),
+                SizedBox(width: 24.w),
                 _ActionButton(
                   icon: Icons.chat_bubble_outline,
                   label: post.comments.toString(),
                   color: AppColors.textSecondary,
                   onTap: onComment,
                 ),
-                const SizedBox(width: 24),
+                SizedBox(width: 24.w),
                 _ActionButton(
                   icon: Icons.bolt,
                   label: 'Zap',
@@ -333,18 +346,14 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 18,
-          ),
-          const SizedBox(width: 4),
+          Icon(icon, color: color, size: 18.sp),
+          SizedBox(width: 4.w),
           Text(
             label,
             style: TextStyle(
               color: color,
               fontFamily: 'Inter',
-              fontSize: 12,
+              fontSize: 12.sp,
               fontWeight: FontWeight.w400,
               height: 1.67,
             ),

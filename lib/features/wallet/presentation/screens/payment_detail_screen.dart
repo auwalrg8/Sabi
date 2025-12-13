@@ -37,10 +37,7 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
     if (_btcToNgnRate == null) return 'Loading...';
     final btc = sats / 100000000;
     final naira = btc * _btcToNgnRate!;
-    return '₦${naira.toStringAsFixed(2).replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (match) => '${match[1]},',
-    )}';
+    return '₦${naira.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')}';
   }
 
   @override
@@ -125,7 +122,9 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                           Divider(color: AppColors.textSecondary, height: 32.h),
                           _buildDetailRow(
                             'Time',
-                            date_utils.formatFullDateTime(widget.payment.paymentTime),
+                            date_utils.formatFullDateTime(
+                              widget.payment.paymentTime,
+                            ),
                             Icons.access_time,
                             AppColors.textSecondary,
                           ),
@@ -142,7 +141,9 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                               child: Text(
                                 _getNairaValue(widget.payment.amountSats),
                                 style: TextStyle(
-                                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -156,13 +157,16 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                             Icons.receipt,
                             AppColors.textSecondary,
                           ),
-                          if (_btcToNgnRate != null && widget.payment.feeSats > 0) ...[
+                          if (_btcToNgnRate != null &&
+                              widget.payment.feeSats > 0) ...[
                             Padding(
                               padding: EdgeInsets.only(left: 40.w, top: 4.h),
                               child: Text(
                                 _getNairaValue(widget.payment.feeSats),
                                 style: TextStyle(
-                                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -204,7 +208,7 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
       child: Row(
         children: [
           GestureDetector(
