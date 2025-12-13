@@ -5,6 +5,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 class ReceiveScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   bool _isSyncingLightningAddress = false;
   String _selectedTab = 'lightning';
   UserProfile? _userProfile;
+  String? _nostrNpub;
+  bool _isLoadingNostr = false;
 
   final List<int> presetAmounts = [1000, 5000, 10000, 50000, 100000];
   final List<String> expiryOptions = [
@@ -38,12 +41,25 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadNostrNpub();
   }
 
   Future<void> _loadUserProfile() async {
     final profile = await ProfileService.getProfile();
     if (mounted) {
       setState(() => _userProfile = profile);
+    }
+  }
+
+  Future<void> _loadNostrNpub() async {
+    setState(() => _isLoadingNostr = true);
+    await NostrService.init();
+    final npub = NostrService.npub;
+    if (mounted) {
+      setState(() {
+        _nostrNpub = npub;
+        _isLoadingNostr = false;
+      });
     }
   }
 
@@ -133,17 +149,19 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 padding: EdgeInsets.all(30.h),
                 child: Column(
                   children: [
-                    _buildQRCodeSection(),
-                    SizedBox(height: 30.h),
                     if (_selectedTab == 'lightning') ...[
+                      _buildQRCodeSection(),
+                      SizedBox(height: 30.h),
                       _buildUserInfo(),
                       SizedBox(height: 4.h),
                       _buildAmountSelector(),
                       SizedBox(height: 30.h),
                       _buildExpiryAndDescription(),
                       SizedBox(height: 30.h),
+                      _buildActionButtons(),
+                    ] else if (_selectedTab == 'nostr') ...[
+                      _buildNostrReceiveSection(),
                     ],
-                    _buildActionButtons(),
                   ],
                 ),
               ),
@@ -239,27 +257,26 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Bitcoin is coming soon.'),
-                    backgroundColor: AppColors.surface,
-                  ),
-                );
-              },
+              onTap: () => setState(() => _selectedTab = 'nostr'),
               child: Container(
-                height: 42.h,
+                height: 44.h,
                 decoration: BoxDecoration(
-                  color: Colors.transparent,
+                  color:
+                      _selectedTab == 'nostr'
+                          ? AppColors.primary
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
-                    '₿ Coming soon',
+                    'Nostr',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Colors.white,
                       fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
+                      fontWeight:
+                          _selectedTab == 'nostr'
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                     ),
                   ),
                 ),
@@ -655,5 +672,25 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     } finally {
       if (mounted) setState(() => _creating = false);
     }
+  }
+
+  Widget _buildNostrReceiveSection() {
+    if (_isLoadingNostr) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: [
+        Text('Your Nostr npub:', style: TextStyle(color: Colors.white70, fontSize: 14)),
+        SelectableText(_nostrNpub ?? 'Not set', style: TextStyle(color: Colors.white, fontSize: 16)),
+        const SizedBox(height: 24),
+        if (_nostrNpub != null)
+          Image.network(
+            'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(_nostrNpub!)}',
+            width: 200,
+            height: 200,
+            fit: BoxFit.cover,
+          ),
+      ],
+    );
   }
 }

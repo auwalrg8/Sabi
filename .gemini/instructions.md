@@ -13,13 +13,13 @@ Add complete Nostr integration to Sabi Wallet using nostr_sdk Flutter package. F
 1. Add dependency to pubspec.yaml:
    nostr_sdk: ^0.32.0
 
-2. Create new file: lib/services/nostr_service.dart
+2. Create/update file: lib/services/nostr_service.dart
    - Generate or import npub/nsec
    - Save to Hive (encrypted)
    - Add relay list (wss://relay.damus.io, wss://nostr-pub.wellorder.net, etc.)
    - Implement getProfile(), sendZap(), listenForZaps()
 
-3. Create new/update screens (all in Moniepoint style):
+3. Create/update screens (all in Moniepoint style):
    - ProfileScreen: show npub (shortened), copy button, orange “Add/Edit Nostr” button
    - EditNostrScreen: paste npub/nsec, scan QR, Nostr Wallet Connect
    - ZapsTab: clean feed with avatar left, orange ⚡ zap button right

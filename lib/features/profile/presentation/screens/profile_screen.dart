@@ -7,6 +7,8 @@ import 'package:sabi_wallet/features/profile/presentation/screens/settings_scree
 import 'package:sabi_wallet/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/edit_nostr_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,14 +18,38 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+    Future<void> _editNostrKeys() async {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EditNostrScreen(
+            initialNpub: _nostrNpub,
+            initialNsec: NostrService.nsec,
+          ),
+        ),
+      );
+      if (result is Map && mounted) {
+        final npub = result['npub'] as String?;
+        final nsec = result['nsec'] as String?;
+        if (npub != null && nsec != null && npub.isNotEmpty && nsec.isNotEmpty) {
+          await NostrService.importKeys(nsec: nsec, npub: npub);
+          _loadNostrStats();
+        }
+      }
+    }
   UserProfile? _profile;
   bool _isLoading = true;
   bool _isSyncingLightning = false;
+  String? _nostrNpub;
+  int _zapCount = 0;
+  int _zapTotal = 0;
+  bool _isLoadingNostr = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadNostrStats();
   }
 
   Future<void> _loadProfile() async {
@@ -33,6 +59,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _profile = profile;
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadNostrStats() async {
+    setState(() => _isLoadingNostr = true);
+    await NostrService.init();
+    final npub = NostrService.npub;
+    int zapCount = 0;
+    int zapTotal = 0;
+    try {
+      await for (final zap in NostrService.listenForZaps()) {
+        zapCount++;
+        // Extract amount from tags
+        final amountTag = zap.tags.firstWhere(
+          (tag) => tag is List && tag.isNotEmpty && tag[0] == 'amount',
+          orElse: () => null,
+        );
+        int amount = 0;
+        if (amountTag != null && amountTag.length > 1) {
+          amount = int.tryParse(amountTag[1].toString()) ?? 0;
+        }
+        zapTotal += amount;
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _nostrNpub = npub;
+        _zapCount = zapCount;
+        _zapTotal = zapTotal;
+        _isLoadingNostr = false;
       });
     }
   }
@@ -268,7 +325,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     }
-
     final profile = _profile!;
 
     return Scaffold(
@@ -363,6 +419,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 12),
                       _buildLightningAddressCard(profile),
+                      const SizedBox(height: 12),
+                      // Nostr npub and zap stats
+                      if (_isLoadingNostr)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12),
+                          child: CircularProgressIndicator(),
+                        )
+                      else ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Nostr npub:',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  SelectableText(
+                                    _nostrNpub ?? 'Not set',
+                                    style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 13,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              ),
+                              onPressed: _editNostrKeys,
+                              child: const Text(
+                                'Add/Edit Nostr',
+                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Zapped $_zapCount times · $_zapTotal sats received',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       // Edit Profile Button
                       SizedBox(

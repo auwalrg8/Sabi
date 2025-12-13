@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/zaps/presentation/providers/zaps_provider.dart';
 import 'package:sabi_wallet/features/zaps/domain/models/post.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
+import 'package:sabi_wallet/features/zaps/presentation/widgets/zap_slider.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
+import 'package:sabi_wallet/services/notification_service.dart';
 
 class ZapsScreen extends ConsumerWidget {
   const ZapsScreen({super.key});
@@ -43,12 +48,80 @@ class ZapsScreen extends ConsumerWidget {
                           child: PostCard(
                             post: posts[index],
                             onLike: () {
-                              ref
-                                  .read(zapsNotifierProvider.notifier)
-                                  .toggleLike(posts[index].id);
+                              ref.read(zapsNotifierProvider.notifier).toggleLike(posts[index].id);
                             },
                             onComment: () {},
-                            onZap: () {},
+                            onZap: () async {
+                              int selectedAmount = 1000;
+                              await showDialog(
+                                context: context,
+                                builder: (ctx) {
+                                  return AlertDialog(
+                                    title: const Text('Send Zap'),
+                                    content: ZapSlider(
+                                      initialValue: 1000,
+                                      onChanged: (val) => selectedAmount = val,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Zap!'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              if (selectedAmount > 0) {
+                                final npub = 'npub1...'; // TODO: get real npub from post
+                                try {
+                                  await NostrService.init();
+                                  await NostrService.sendZap(toNpub: npub, amount: selectedAmount);
+                                  // Haptic feedback
+                                  HapticFeedback.mediumImpact();
+                                  // Play zap sound
+                                  final player = AudioPlayer();
+                                  await player.play(AssetSource('audio/zap_success.mp3'));
+                                  // Show animated zap icon
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (ctx) => Center(
+                                      child: TweenAnimationBuilder<double>(
+                                        tween: Tween(begin: 1.0, end: 1.5),
+                                        duration: const Duration(milliseconds: 600),
+                                        curve: Curves.elasticOut,
+                                        builder: (context, scale, child) => Transform.scale(
+                                          scale: scale,
+                                          child: Icon(Icons.bolt, color: Colors.amber, size: 120),
+                                        ),
+                                        onEnd: () => Navigator.of(ctx).pop(),
+                                      ),
+                                    ),
+                                  );
+                                  // Add notification
+                                  await NotificationService.addNotification(
+                                    NotificationModel(
+                                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                      title: 'Zap Sent',
+                                      message: 'You zapped $selectedAmount sats!',
+                                      timestamp: DateTime.now(),
+                                      type: 'zap',
+                                    ),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Zap sent! ⚡')),
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Zap failed: $e')),
+                                  );
+                                }
+                              }
+                            },
                           ),
                         );
                       },

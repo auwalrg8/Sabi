@@ -7,6 +7,8 @@ import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_scr
 import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
 import 'package:sabi_wallet/l10n/language_provider.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/edit_nostr_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +38,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsNotifierProvider);
 
+    // Get Nostr keys
+    final npub = NostrService.npub;
+    final nsec = NostrService.nsec;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -64,6 +70,74 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       fontWeight: FontWeight.w700,
                       height: 1.4,
                     ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Nostr Profile Section
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 8.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Nostr Profile',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                      )),
+                  SizedBox(height: 10.h),
+                  Row(
+                    children: [
+                      Icon(Icons.key, color: AppColors.primary, size: 22.sp),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Text(
+                          npub != null && npub.isNotEmpty ? npub : 'Not set',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14.sp,
+                            fontFamily: 'RobotoMono',
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EditNostrScreen(
+                                initialNpub: npub,
+                                initialNsec: nsec,
+                              ),
+                            ),
+                          );
+                          setState(() {});
+                        },
+                        child: const Text('Edit'),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  Row(
+                    children: [
+                      Icon(Icons.lock, color: AppColors.accentRed, size: 20.sp),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Text(
+                          nsec != null && nsec.isNotEmpty ? '••••••••••••••••••••••••••••••••' : 'Not set',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14.sp,
+                            fontFamily: 'RobotoMono',
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 48),
+                    ],
                   ),
                 ],
               ),
