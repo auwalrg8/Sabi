@@ -149,8 +149,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       _pickImage();
                     },
                   ),
-                  ListTile(
-                    leading: Icon(
+                    suffixText: '@sabiwallet.xyz',
+                    suffixStyle: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 16.sp,
+                    ),
                       Icons.camera_alt,
                       color: AppColors.primary,
                       size: 24.sp,
@@ -193,7 +196,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final updatedProfile = UserProfile(
+      final updatedProfile = widget.currentProfile.copyWith(
         fullName: _nameController.text.trim(),
         username: _usernameController.text.trim(),
         profilePicturePath: _profilePicturePath,
@@ -248,7 +251,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       _buildProfilePicture(),
                       SizedBox(height: 40.h),
                       _buildNameField(),
-                      SizedBox(height: 20.h),
+                        'Your Lightning address: ${_usernameController.text}@sabiwallet.xyz',
                       _buildUsernameField(),
                       SizedBox(height: 40.h),
                       _buildSaveButton(),
@@ -424,8 +427,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               horizontal: 20.w,
               vertical: 16.h,
             ),
+<<<<<<< HEAD
             prefixText: '@sabi/',
             prefixStyle: TextStyle(color: AppColors.primary, fontSize: 16.sp),
+=======
+            suffixText: '@sabiwallet.xyz',
+            suffixStyle: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 16,
+            ),
+>>>>>>> 2ada74a (Add lightning address persistence)
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
@@ -442,8 +453,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         SizedBox(height: 8.h),
         Text(
+<<<<<<< HEAD
           'Your unique Sabi wallet address: @sabi/${_usernameController.text}',
           style: TextStyle(color: AppColors.textTertiary, fontSize: 12.sp),
+=======
+          'Your Lightning address: ${_usernameController.text}@sabiwallet.xyz',
+          style: const TextStyle(color: AppColors.textTertiary, fontSize: 12),
+>>>>>>> 2ada74a (Add lightning address persistence)
         ),
       ],
     );

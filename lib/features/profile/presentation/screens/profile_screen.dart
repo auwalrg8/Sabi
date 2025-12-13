@@ -5,6 +5,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   UserProfile? _profile;
   bool _isLoading = true;
+  bool _isSyncingLightning = false;
 
   @override
   void initState() {
@@ -83,6 +85,179 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
+  Future<void> _refreshProfileSilently() async {
+    final profile = await ProfileService.getProfile();
+    if (!mounted) return;
+    setState(() => _profile = profile);
+  }
+
+  Future<void> _registerLightningAddress() async {
+    if (_profile == null || _isSyncingLightning) return;
+    setState(() => _isSyncingLightning = true);
+    try {
+      await BreezSparkService.registerLightningAddress(
+        username: _profile!.username,
+        description: _profile!.lightningAddressDescription,
+      );
+      await BreezSparkService.fetchLightningAddress();
+      await _refreshProfileSilently();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lightning address registered successfully'),
+          backgroundColor: AppColors.accentGreen,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to register address: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSyncingLightning = false);
+    }
+  }
+
+  Future<void> _refreshLightningAddress() async {
+    if (_profile == null || _isSyncingLightning) return;
+    setState(() => _isSyncingLightning = true);
+    try {
+      await BreezSparkService.fetchLightningAddress();
+      await _refreshProfileSilently();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lightning address refreshed'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh address: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSyncingLightning = false);
+    }
+  }
+  
+  Widget _buildLightningAddressCard(UserProfile profile) {
+    final registered = profile.hasLightningAddress;
+    final address = profile.sabiUsername;
+    final statusText = registered
+        ? 'Lightning address registered'
+        : 'Lightning address not yet claimed';
+    final button = registered
+        ? OutlinedButton(
+            onPressed: _isSyncingLightning ? null : _refreshLightningAddress,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              _isSyncingLightning ? 'Refreshing…' : 'Refresh Lightning address',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          )
+        : ElevatedButton(
+            onPressed: _isSyncingLightning ? null : _registerLightningAddress,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              _isSyncingLightning ? 'Registering…' : 'Register Lightning address',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lightbulb,
+                color: registered ? AppColors.accentGreen : AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  statusText,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            address,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontFamily: 'Inter',
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            profile.lightningAddressDescription,
+            style: const TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 12,
+            ),
+          ),
+          if (profile.lightningAddress?.lnurl != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'LNURL: ${profile.lightningAddress!.lnurl}',
+              style: const TextStyle(
+                color: AppColors.textTertiary,
+                fontSize: 10,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 12),
+          button,
+        ],
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -186,9 +361,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
+<<<<<<< HEAD
 
                       SizedBox(height: 24.h),
 
+=======
+                      const SizedBox(height: 12),
+                      _buildLightningAddressCard(profile),
+                      const SizedBox(height: 24),
+>>>>>>> 2ada74a (Add lightning address persistence)
                       // Edit Profile Button
                       SizedBox(
                         width: double.infinity,
@@ -240,7 +421,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   iconColor: AppColors.accentYellow,
                   title: 'Backup & Recovery',
                   onTap: () {
-                    Navigator.push(
+                      SizedBox(height: 12.h),
+                      _buildLightningAddressCard(profile),
+                      SizedBox(height: 24.h),
                       context,
                       MaterialPageRoute(
                         builder: (_) => const BackupRecoveryScreen(),
