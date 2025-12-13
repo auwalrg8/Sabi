@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import '../providers/cash_provider.dart';
+import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.dart';
 import 'pay_invoice_screen.dart';
 
 class ReviewSaleScreen extends ConsumerWidget {
@@ -19,26 +20,26 @@ class ReviewSaleScreen extends ConsumerWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(30),
+              padding: EdgeInsets.all(30.w),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 24,
-                      height: 24,
+                      width: 24.w,
+                      height: 24.h,
                       decoration: const BoxDecoration(
                         color: Colors.transparent,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_back,
                         color: Colors.white,
-                        size: 24,
+                        size: 24.sp,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  const Expanded(
+                  SizedBox(width: 10.w),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -46,7 +47,7 @@ class ReviewSaleScreen extends ConsumerWidget {
                           'Review Sale',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 17,
+                            fontSize: 17.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -56,26 +57,28 @@ class ReviewSaleScreen extends ConsumerWidget {
                 ],
               ),
             ),
+
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    Text(
                       'Receiving Account',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
+
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: EdgeInsets.all(20.r),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x26000000),
@@ -87,38 +90,39 @@ class ReviewSaleScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 48.w,
+                            height: 48.h,
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          SizedBox(width: 16.w),
                           Expanded(
                             child: Column(
+                              spacing: 3.h,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   cashState.bankName ?? 'Access Bank',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 Text(
                                   cashState.accountNumber ?? '0707479453',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.textTertiary,
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                   ),
                                 ),
                                 Text(
                                   cashState.accountName ?? 'Auwal Abubakar',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.textTertiary,
-                                    fontSize: 12,
+                                    fontSize: 12.sp,
                                   ),
                                 ),
                               ],
@@ -127,12 +131,14 @@ class ReviewSaleScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+
+                    SizedBox(height: 17.h),
+
                     Container(
-                      padding: const EdgeInsets.all(17),
+                      padding: EdgeInsets.all(17.r),
                       decoration: BoxDecoration(
                         color: const Color(0x1A111128),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(color: AppColors.primary),
                         boxShadow: const [
                           BoxShadow(
@@ -142,26 +148,28 @@ class ReviewSaleScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: const Column(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'We go generate Lightning invoice. Pay from your Sabi balance, then we send Naira to your bank within 2–5 minutes.',
                             style: TextStyle(
                               color: Color(0xFFD1D5DB),
-                              fontSize: 12,
+                              fontSize: 12.sp,
                               height: 1.5,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+
+                    SizedBox(height: 17.h),
+
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: EdgeInsets.all(20.r),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x26000000),
@@ -171,64 +179,63 @@ class ReviewSaleScreen extends ConsumerWidget {
                         ],
                       ),
                       child: Column(
+                        spacing: 12.h,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'You send',
                                 style: TextStyle(
                                   color: AppColors.textTertiary,
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                 ),
                               ),
                               Text(
                                 '~${formatter.format(cashState.bitcoinToSell)} sats',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 17,
+                                  fontSize: 17.sp,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'You receive',
                                 style: TextStyle(
                                   color: AppColors.textTertiary,
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                 ),
                               ),
                               Text(
                                 '₦${formatter.format(cashState.amountToReceive.toInt())}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.accentGreen,
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'Fee',
                                 style: TextStyle(
                                   color: Color(0xFF6B7280),
-                                  fontSize: 12,
+                                  fontSize: 13.sp,
                                 ),
                               ),
                               Text(
                                 '₦${formatter.format(cashState.fee.toInt())}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textTertiary,
-                                  fontSize: 12,
+                                  fontSize: 13.sp,
                                 ),
                               ),
                             ],
@@ -236,16 +243,18 @@ class ReviewSaleScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+
+                    SizedBox(height: 30.h),
                   ],
                 ),
               ),
             ),
+
             Padding(
-              padding: const EdgeInsets.fromLTRB(31, 0, 31, 30),
+              padding: EdgeInsets.fromLTRB(31.w, 0, 31.w, 30.h),
               child: SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52.h,
                 child: ElevatedButton(
                   onPressed: () {
                     ref.read(cashProvider.notifier).generateReference();
@@ -259,14 +268,14 @@ class ReviewSaleScreen extends ConsumerWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Generate Invoice',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
+                      color: AppColors.surface,
+                      fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

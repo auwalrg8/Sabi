@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -71,15 +72,15 @@ class _CashScreenState extends ConsumerState<CashScreen>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(30),
+              padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Cash',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 20.sp,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -93,15 +94,15 @@ class _CashScreenState extends ConsumerState<CashScreen>
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: EdgeInsets.all(10.h),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A2942),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.history,
                         color: AppColors.textTertiary,
-                        size: 20,
+                        size: 20.sp,
                       ),
                     ),
                   ),
@@ -110,15 +111,15 @@ class _CashScreenState extends ConsumerState<CashScreen>
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(17),
+                      padding: EdgeInsets.all(17.h),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(color: const Color(0xFF1F2937)),
                         boxShadow: const [
                           BoxShadow(
@@ -135,17 +136,17 @@ class _CashScreenState extends ConsumerState<CashScreen>
                             children: [
                               Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.trending_up,
                                     color: AppColors.accentGreen,
-                                    size: 16,
+                                    size: 16.sp,
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                  SizedBox(width: 8.w),
+                                  Text(
                                     'Live Price',
                                     style: TextStyle(
                                       color: AppColors.textTertiary,
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                     ),
                                   ),
                                 ],
@@ -154,54 +155,58 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                 onTap: _refreshPrice,
                                 child: RotationTransition(
                                   turns: _refreshController,
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.refresh,
                                     color: Color(0xFF6B7280),
-                                    size: 17,
+                                    size: 17.sp,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          SizedBox(height: 10.h),
                           Text(
                             _liveBtcRate != null
                                 ? '1 BTC = ₦${formatter.format(_liveBtcRate!.toInt())}'
                                 : '1 BTC = ₦ ${formatter.format(cashState.btcPrice.toInt())}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 15,
+                              fontSize: 15.sp,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4.h),
                           Text(
-                            _liveBtcRate != null ? 'Live market rate' : 'Loading rate...',
+                            _liveBtcRate != null
+                                ? 'Live market rate'
+                                : 'Loading rate...',
                             style: TextStyle(
-                              color: AppColors.accentGreen.withValues(alpha: 0.8),
-                              fontSize: 11,
+                              color: AppColors.accentGreen.withValues(
+                                alpha: 0.8,
+                              ),
+                              fontSize: 11.sp,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          SizedBox(height: 10.h),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Buy rate',
                                     style: TextStyle(
                                       color: Color(0xFF6B7280),
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: 8.w),
                                   Text(
                                     '₦ ${cashState.buyRate.toStringAsFixed(0)}/USDT',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -209,19 +214,19 @@ class _CashScreenState extends ConsumerState<CashScreen>
                               ),
                               Row(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Sell rate',
                                     style: TextStyle(
                                       color: Color(0xFF6B7280),
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: 8.w),
                                   Text(
                                     '₦ ${cashState.sellRate.toStringAsFixed(0)}/USDT',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -232,9 +237,12 @@ class _CashScreenState extends ConsumerState<CashScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 4.h,
+                        horizontal: 4.w,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A2942),
                         borderRadius: BorderRadius.circular(9999),
@@ -243,26 +251,28 @@ class _CashScreenState extends ConsumerState<CashScreen>
                         children: [
                           Expanded(
                             child: GestureDetector(
-                              onTap: () => ref
-                                  .read(cashProvider.notifier)
-                                  .toggleBuySell(true),
+                              onTap:
+                                  () => ref
+                                      .read(cashProvider.notifier)
+                                      .toggleBuySell(true),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 13),
+                                padding: EdgeInsets.symmetric(vertical: 13.h),
                                 decoration: BoxDecoration(
-                                  color: cashState.isBuying
-                                      ? AppColors.primary
-                                      : Colors.transparent,
+                                  color:
+                                      cashState.isBuying
+                                          ? AppColors.primary
+                                          : Colors.transparent,
                                   borderRadius: BorderRadius.circular(9999),
                                 ),
                                 child: Text(
                                   '◉ Buy Bitcoin',
                                   style: TextStyle(
-                                    color: cashState.isBuying
-                                        ? Colors.white
-                                        : AppColors.textTertiary,
-                                    fontSize: 14,
+                                    color:
+                                        cashState.isBuying
+                                            ? Colors.white
+                                            : AppColors.textTertiary,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
                                   ),
                                   textAlign: TextAlign.center,
@@ -272,26 +282,28 @@ class _CashScreenState extends ConsumerState<CashScreen>
                           ),
                           Expanded(
                             child: GestureDetector(
-                              onTap: () => ref
-                                  .read(cashProvider.notifier)
-                                  .toggleBuySell(false),
+                              onTap:
+                                  () => ref
+                                      .read(cashProvider.notifier)
+                                      .toggleBuySell(false),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 13),
+                                padding: EdgeInsets.symmetric(vertical: 13.h),
                                 decoration: BoxDecoration(
-                                  color: !cashState.isBuying
-                                      ? AppColors.primary
-                                      : Colors.transparent,
+                                  color:
+                                      !cashState.isBuying
+                                          ? AppColors.primary
+                                          : Colors.transparent,
                                   borderRadius: BorderRadius.circular(9999),
                                 ),
                                 child: Text(
                                   '○ Sell Bitcoin',
                                   style: TextStyle(
-                                    color: !cashState.isBuying
-                                        ? Colors.white
-                                        : AppColors.textTertiary,
-                                    fontSize: 14,
+                                    color:
+                                        !cashState.isBuying
+                                            ? Colors.white
+                                            : AppColors.textTertiary,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
                                   ),
                                   textAlign: TextAlign.center,
@@ -302,12 +314,15 @@ class _CashScreenState extends ConsumerState<CashScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 17.h,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x26000000),
@@ -323,36 +338,38 @@ class _CashScreenState extends ConsumerState<CashScreen>
                             cashState.isBuying
                                 ? 'How much you wan buy?'
                                 : 'How much you wan sell?',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textTertiary,
-                              fontSize: 12,
+                              fontSize: 12.sp,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12.h),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const Text(
+                              Text(
                                 '₦',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 41,
+                                  fontSize: 41.sp,
                                   fontWeight: FontWeight.w700,
                                   height: 1,
                                 ),
                               ),
-                              const SizedBox(width: 15),
+                              SizedBox(width: 15.w),
                               Expanded(
                                 child: Text(
                                   cashState.selectedAmount > 0
                                       ? formatter.format(
-                                          cashState.selectedAmount.toInt())
+                                        cashState.selectedAmount.toInt(),
+                                      )
                                       : '0.00',
                                   style: TextStyle(
-                                    color: cashState.selectedAmount > 0
-                                        ? Colors.white
-                                        : const Color(0xFFCCCCCC),
-                                    fontSize: 48,
+                                    color:
+                                        cashState.selectedAmount > 0
+                                            ? Colors.white
+                                            : const Color(0xFFCCCCCC),
+                                    fontSize: 48.sp,
                                     fontWeight: FontWeight.w700,
                                     height: 1,
                                   ),
@@ -360,17 +377,17 @@ class _CashScreenState extends ConsumerState<CashScreen>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12.h),
                           GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
-                              childAspectRatio: 2.5,
-                            ),
+                                  crossAxisCount: 3,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 2.5,
+                                ),
                             itemCount: _quickAmounts.length,
                             itemBuilder: (context, index) {
                               final amount = _quickAmounts[index];
@@ -378,19 +395,21 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                   cashState.selectedAmount == amount;
 
                               return GestureDetector(
-                                onTap: () => ref
-                                    .read(cashProvider.notifier)
-                                    .setAmount(amount),
+                                onTap:
+                                    () => ref
+                                        .read(cashProvider.notifier)
+                                        .setAmount(amount),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 9,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16.w,
+                                    vertical: 9.h,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : AppColors.background,
+                                    color:
+                                        isSelected
+                                            ? AppColors.primary
+                                            : AppColors.background,
                                     borderRadius: BorderRadius.circular(9999),
                                   ),
                                   child: FittedBox(
@@ -398,10 +417,11 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                     child: Text(
                                       '₦ ${formatter.format(amount.toInt())}',
                                       style: TextStyle(
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppColors.textTertiary,
-                                        fontSize: 12,
+                                        color:
+                                            isSelected
+                                                ? Colors.white
+                                                : AppColors.textTertiary,
+                                        fontSize: 12.sp,
                                         fontWeight: FontWeight.w500,
                                       ),
                                       textAlign: TextAlign.center,
@@ -412,77 +432,80 @@ class _CashScreenState extends ConsumerState<CashScreen>
                             },
                           ),
                           if (cashState.selectedAmount > 0) ...[
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12.h),
                             Container(
                               height: 1,
                               color: const Color(0xFF1F2937),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12.sp),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  cashState.isBuying ? 'You\'ll receive' : 'You\'ll receive',
-                                  style: const TextStyle(
+                                  cashState.isBuying
+                                      ? 'You\'ll receive'
+                                      : 'You\'ll receive',
+                                  style: TextStyle(
                                     color: AppColors.textTertiary,
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                   ),
                                 ),
                                 Text(
                                   cashState.isBuying
                                       ? '~${formatter.format(cashState.estimatedSats)} sats'
                                       : '₦${formatter.format(cashState.amountToReceive.toInt())}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: 12.h),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Fee',
                                   style: TextStyle(
                                     color: AppColors.textTertiary,
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                   ),
                                 ),
                                 Text(
                                   '0.6% + ₦100 = ₦ ${formatter.format(cashState.fee.toInt())}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.accentGreen,
-                                    fontSize: 12,
+                                    fontSize: 12.sp,
                                   ),
                                 ),
                               ],
                             ),
                             if (cashState.isBuying) ...[
-                              const SizedBox(height: 12),
+                              SizedBox(height: 12.h),
                               Container(
                                 height: 1,
                                 color: const Color(0xFF1F2937),
                               ),
-                              const SizedBox(height: 12),
+                              SizedBox(height: 12.h),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Total to pay',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 14,
+                                      fontSize: 14.sp,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   Text(
                                     '₦${formatter.format(cashState.totalToPay.toInt())}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 15,
+                                      fontSize: 15.sp,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -493,12 +516,15 @@ class _CashScreenState extends ConsumerState<CashScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     Container(
-                      padding: const EdgeInsets.all(17),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 17.w,
+                        vertical: 17.h,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0x1A111128),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(color: AppColors.primary),
                         boxShadow: const [
                           BoxShadow(
@@ -511,69 +537,72 @@ class _CashScreenState extends ConsumerState<CashScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Daily limit: ₦100k used of ₦5M',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 12,
+                              fontSize: 12.sp,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
+                          SizedBox(height: 4.h),
+                          Text(
                             'Link BVN to increase limit →',
                             style: TextStyle(
                               color: AppColors.textTertiary,
-                              fontSize: 10,
+                              fontSize: 10.sp,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(31, 0, 31, 30),
+              padding: EdgeInsets.fromLTRB(31.w, 0, 31.w, 30.h),
               child: SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52.h,
                 child: ElevatedButton(
-                  onPressed: cashState.selectedAmount > 0
-                      ? () {
-                          ref.read(cashProvider.notifier).generateReference();
-                          if (cashState.isBuying) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ReviewPayScreen(),
-                              ),
-                            );
-                          } else {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AddBankAccountScreen(),
-                              ),
-                            );
+                  onPressed:
+                      cashState.selectedAmount > 0
+                          ? () {
+                            ref.read(cashProvider.notifier).generateReference();
+                            if (cashState.isBuying) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ReviewPayScreen(),
+                                ),
+                              );
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const AddBankAccountScreen(),
+                                ),
+                              );
+                            }
                           }
-                        }
-                      : null,
+                          : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: cashState.selectedAmount > 0
-                        ? AppColors.primary
-                        : AppColors.primary.withValues(alpha: 0.5),
+                    backgroundColor:
+                        cashState.selectedAmount > 0
+                            ? AppColors.primary
+                            : AppColors.primary.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16.r),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Continue',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
+                      color: AppColors.surface,
+                      fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

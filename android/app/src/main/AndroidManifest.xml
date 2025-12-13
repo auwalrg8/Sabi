@@ -4,6 +4,15 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required for connectivity_plus to check network state -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Optional: Required for checking WiFi state specifically -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Legacy fingerprint support for Older Android devices -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <!-- Biometric permission for biometric authentication -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <!-- Camera permission for QR scanner -->
     <uses-permission
         android:name="android.permission.CAMERA"/>

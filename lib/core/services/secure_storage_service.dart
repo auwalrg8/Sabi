@@ -76,8 +76,10 @@ class SecureStorageService {
   static const String keyGreenlightDeviceCert = 'greenlight_device_cert';
 
   /// First payment confetti flags
-  static const String keyFirstPaymentConfettiShown = 'first_payment_confetti_shown';
-  static const String keyFirstPaymentConfettiPending = 'first_payment_confetti_pending';
+  static const String keyFirstPaymentConfettiShown =
+      'first_payment_confetti_shown';
+  static const String keyFirstPaymentConfettiPending =
+      'first_payment_confetti_pending';
 
   // ==================== Core Operations ====================
 
@@ -284,7 +286,10 @@ class SecureStorageService {
 
   /// Mark confetti as pending (to be shown on next home load)
   Future<void> setFirstPaymentConfettiPending(bool pending) async {
-    await write(key: keyFirstPaymentConfettiPending, value: pending ? 'true' : 'false');
+    await write(
+      key: keyFirstPaymentConfettiPending,
+      value: pending ? 'true' : 'false',
+    );
   }
 
   /// Check if confetti is pending
@@ -330,6 +335,13 @@ class SecureStorageService {
   // }
 }
 
+extension PinCheck on SecureStorageService {
+  Future<bool> hasPinCode() async {
+    final pin = await getPinCode();
+    return pin != null && pin.isNotEmpty;
+  }
+}
+
 /// Custom exception for secure storage errors
 class SecureStorageException implements Exception {
   final String message;
@@ -339,4 +351,3 @@ class SecureStorageException implements Exception {
   @override
   String toString() => 'SecureStorageException: $message';
 }
-

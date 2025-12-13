@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import '../providers/cash_provider.dart';
@@ -64,9 +65,7 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SellSuccessScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const SellSuccessScreen()),
     );
   }
 
@@ -81,26 +80,26 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(30),
+              padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: _isPaying ? null : () => Navigator.pop(context),
                     child: Container(
-                      width: 24,
-                      height: 24,
+                      width: 24.w,
+                      height: 24.h,
                       decoration: const BoxDecoration(
                         color: Colors.transparent,
                       ),
                       child: Icon(
                         Icons.arrow_back,
                         color: _isPaying ? Colors.grey : Colors.white,
-                        size: 24,
+                        size: 24.sp,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  const Expanded(
+                  SizedBox(width: 10.w),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -108,7 +107,7 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                           'Pay Invoice',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 17,
+                            fontSize: 17.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -120,12 +119,15 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(17),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 17.w,
+                        vertical: 17.h,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0x1A111128),
                         borderRadius: BorderRadius.circular(20),
@@ -140,29 +142,29 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.access_time,
                             color: Color(0xFFFF4D4F),
-                            size: 20,
+                            size: 20.sp,
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10.w),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Complete payment in',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 12,
+                                    fontSize: 12.sp,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 Text(
                                   _formatTime(_remainingSeconds),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Color(0xFFFF4D4F),
-                                    fontSize: 17,
+                                    fontSize: 17.sp,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -172,12 +174,15 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 24.h,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x26000000),
@@ -188,38 +193,41 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                       ),
                       child: Column(
                         children: [
-                          const Text(
+                          Text(
                             'Send',
                             style: TextStyle(
                               color: AppColors.textTertiary,
-                              fontSize: 12,
+                              fontSize: 12.sp,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6.h),
                           Text(
                             formatter.format(cashState.bitcoinToSell),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 31,
+                              fontSize: 31.sp,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'sats',
                             style: TextStyle(
                               color: AppColors.textTertiary,
-                              fontSize: 14,
+                              fontSize: 14.sp,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 24.h,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x26000000),
@@ -231,18 +239,21 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                       child: Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(13),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 13.w,
+                              vertical: 13.h,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(16.r),
                               border: Border.all(
                                 color: AppColors.primary,
-                                width: 4,
+                                width: 4.w,
                               ),
                             ),
                             child: Container(
-                              width: 230,
-                              height: 230,
+                              width: 230.w,
+                              height: 230.h,
                               decoration: BoxDecoration(
                                 color: Colors.grey[300],
                                 borderRadius: BorderRadius.circular(8),
@@ -252,22 +263,22 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                                   Center(
                                     child: Icon(
                                       Icons.qr_code,
-                                      size: 150,
+                                      size: 150.sp,
                                       color: Colors.grey[600],
                                     ),
                                   ),
                                   Center(
                                     child: Container(
-                                      width: 60,
-                                      height: 60,
+                                      width: 60.w,
+                                      height: 60.h,
                                       decoration: const BoxDecoration(
                                         color: AppColors.primary,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.currency_bitcoin,
                                         color: Colors.white,
-                                        size: 30,
+                                        size: 30.sp,
                                       ),
                                     ),
                                   ),
@@ -275,23 +286,26 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
+                          SizedBox(height: 16.h),
+                          Text(
                             'Scan with any Lightning wallet',
                             style: TextStyle(
                               color: AppColors.textTertiary,
-                              fontSize: 12,
+                              fontSize: 12.sp,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 17),
+                    SizedBox(height: 17.h),
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 16.h,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20.r),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x26000000),
@@ -305,11 +319,11 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'Lightning Invoice',
                                 style: TextStyle(
                                   color: AppColors.textTertiary,
-                                  fontSize: 12,
+                                  fontSize: 12.sp,
                                 ),
                               ),
                               GestureDetector(
@@ -322,77 +336,83 @@ class _PayInvoiceScreenState extends ConsumerState<PayInvoiceScreen> {
                                   );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Invoice copied'),
+                                      content: Text(
+                                        'Invoice copied',
+                                        style: TextStyle(
+                                          color: AppColors.surface,
+                                        ),
+                                      ),
                                       backgroundColor: AppColors.accentGreen,
                                     ),
                                   );
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8.w,
+                                    vertical: 8.h,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(8.r),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.copy,
                                     color: AppColors.textTertiary,
-                                    size: 18,
+                                    size: 18.sp,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8.h),
+                          Text(
                             'lnbc617000n1pjk2x3xpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdqqcqzpgxqyz5vqsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs9qyyssqzjqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 10.sp,
                               height: 1.6,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30.h),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(31, 0, 31, 30),
+              padding: EdgeInsets.fromLTRB(31.w, 0, 31.w, 30.h),
               child: Column(
                 children: [
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 52.h,
                     child: ElevatedButton(
                       onPressed: _isPaying ? null : _payFromSabiBalance,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isPaying
-                            ? const Color(0xFF814F1A)
-                            : AppColors.primary,
+                        backgroundColor:
+                            _isPaying
+                                ? const Color(0xFF814F1A)
+                                : AppColors.primary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16.r),
                         ),
                       ),
                       child: Text(
                         _isPaying ? 'Paying...' : 'Pay from Sabi Balance',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
+                        style: TextStyle(
+                          color: AppColors.surface,
+                          fontSize: 15.sp,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
+                  SizedBox(height: 10.h),
+                  Text(
                     'Or scan QR with external wallet',
-                    style: TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 10,
-                    ),
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 10.sp),
                   ),
                 ],
               ),

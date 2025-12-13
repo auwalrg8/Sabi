@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import '../../domain/models/cash_transaction.dart';
@@ -18,19 +19,23 @@ class CashHistoryScreen extends ConsumerWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 25.sp,
+                    ),
                   ),
-                  const SizedBox(width: 10),
-                  const Text(
+                  SizedBox(width: 10.w),
+                  Text(
                     'Cash History',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 17,
+                      fontSize: 17.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -39,12 +44,12 @@ class CashHistoryScreen extends ConsumerWidget {
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: EdgeInsets.symmetric(horizontal: 30.w),
                 itemCount: cashState.transactions.length,
                 itemBuilder: (context, index) {
                   final transaction = cashState.transactions[index];
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
+                    padding: EdgeInsets.only(bottom: 10.h),
                     child: _TransactionCard(transaction: transaction),
                   );
                 },
@@ -66,16 +71,17 @@ class _TransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isBuy = transaction.type == CashTransactionType.buy;
     final iconColor = isBuy ? AppColors.accentGreen : AppColors.accentRed;
-    final iconBgColor = isBuy
-        ? AppColors.accentGreen.withValues(alpha: 0.2)
-        : AppColors.accentRed.withValues(alpha: 0.2);
+    final iconBgColor =
+        isBuy
+            ? AppColors.accentGreen.withValues(alpha: 0.2)
+            : AppColors.accentRed.withValues(alpha: 0.2);
     final formatter = NumberFormat('#,###');
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
         boxShadow: const [
           BoxShadow(
             color: Color(0x26000000),
@@ -87,8 +93,8 @@ class _TransactionCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 40.w,
+            height: 40.h,
             decoration: BoxDecoration(
               color: iconBgColor,
               shape: BoxShape.circle,
@@ -99,25 +105,25 @@ class _TransactionCard extends StatelessWidget {
               size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   isBuy ? 'Bought' : 'Sold',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   transaction.formattedDate,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textTertiary,
-                    fontSize: 12,
+                    fontSize: 12.sp,
                   ),
                 ),
               ],
@@ -130,16 +136,16 @@ class _TransactionCard extends StatelessWidget {
                 '${isBuy ? '+' : '−'}${formatter.format(transaction.amountSats)} sats',
                 style: TextStyle(
                   color: isBuy ? AppColors.accentGreen : Colors.white,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4.h),
               Text(
                 '${isBuy ? '−' : '+'}₦${formatter.format(transaction.amountNGN.toInt())}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textTertiary,
-                  fontSize: 12,
+                  fontSize: 12.sp,
                 ),
               ),
             ],

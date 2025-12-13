@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 
-class PinLoginScreen extends ConsumerStatefulWidget {
-  const PinLoginScreen({super.key});
+class BiometricAuthScreen extends ConsumerStatefulWidget {
+  const BiometricAuthScreen({super.key, required HomeScreen child});
 
   @override
-  ConsumerState<PinLoginScreen> createState() => _PinLoginScreenState();
+  ConsumerState<BiometricAuthScreen> createState() =>
+      _BiometricAuthScreenState();
 }
 
-class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
+class _BiometricAuthScreenState extends ConsumerState<BiometricAuthScreen> {
   String _pin = '';
   String _errorMessage = '';
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -24,6 +27,25 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
     _checkBiometrics();
   }
 
+  Future<void> _checkPinAndAuthenticate() async {
+    final storage = ref.read(secureStorageServiceProvider);
+    final hasPin = await storage.hasPinCode();
+
+    if (!hasPin) {
+      // Navigate to create PIN if wallet exists but no PIN
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ChangePinScreen(isCreate: true),
+          ),
+        );
+      }
+    } else {
+      _validatePin();
+    }
+  }
+
   Future<void> _checkBiometrics() async {
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
@@ -33,7 +55,6 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
         _canUseBiometrics = canCheck && isDeviceSupported;
       });
 
-      // Auto-trigger biometric if available
       if (_canUseBiometrics) {
         await _authenticateWithBiometrics();
       }
@@ -68,7 +89,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
       _pin += number;
 
       if (_pin.length == 4) {
-        _validatePin();
+        _checkPinAndAuthenticate();
       }
     });
   }
@@ -108,54 +129,46 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
+          padding: EdgeInsets.symmetric(horizontal: 30.w),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
 
-              // Logo/Icon
-              const Icon(
-                Icons.lock_outline,
-                color: AppColors.primary,
-                size: 80,
-              ),
-              const SizedBox(height: 40),
+              Icon(Icons.lock_outline, color: AppColors.primary, size: 80.sp),
+              SizedBox(height: 40.h),
 
-              // Title
-              const Text(
+              Text(
                 'Enter PIN',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontFamily: 'Inter',
-                  fontSize: 28,
+                  fontSize: 28.sp,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
 
-              // Subtitle
-              const Text(
+              Text(
                 'Enter your 4-digit PIN to unlock',
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontFamily: 'Inter',
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w400,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
+              SizedBox(height: 40.h),
 
-              // PIN Dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (index) {
                   final isFilled = index < _pin.length;
                   return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    width: 16,
-                    height: 16,
+                    margin: EdgeInsets.symmetric(horizontal: 8.w),
+                    width: 16.w,
+                    height: 16.w,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isFilled ? AppColors.primary : AppColors.surface,
@@ -164,25 +177,24 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
                             isFilled
                                 ? AppColors.primary
                                 : AppColors.borderColor,
-                        width: 2,
+                        width: 2.w,
                       ),
                     ),
                   );
                 }),
               ),
 
-              // Error Message
-              const SizedBox(height: 20),
+              SizedBox(height: 20.h),
               SizedBox(
-                height: 20,
+                height: 20.h,
                 child:
                     _errorMessage.isNotEmpty
                         ? Text(
                           _errorMessage,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.accentRed,
                             fontFamily: 'Inter',
-                            fontSize: 14,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w400,
                           ),
                         )
@@ -191,35 +203,33 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen> {
 
               const Spacer(),
 
-              // Number Pad
               _NumberPad(
                 onNumberPressed: _onNumberPressed,
                 onDeletePressed: _onDeletePressed,
               ),
 
-              // Biometric Button
               if (_canUseBiometrics) ...[
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
                 TextButton.icon(
                   onPressed: _authenticateWithBiometrics,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.fingerprint,
                     color: AppColors.primary,
-                    size: 28,
+                    size: 28.sp,
                   ),
-                  label: const Text(
+                  label: Text(
                     'Use Biometrics',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontFamily: 'Inter',
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
 
-              const SizedBox(height: 40),
+              SizedBox(height: 40.h),
             ],
           ),
         ),
@@ -240,13 +250,12 @@ class _NumberPad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 300,
+      width: 300.w,
       child: Column(
         children: [
-          // Rows 1-3
           for (var row = 0; row < 3; row++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 20),
+              padding: EdgeInsets.only(bottom: 20.h),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -259,11 +268,10 @@ class _NumberPad extends StatelessWidget {
               ),
             ),
 
-          // Bottom row with 0 and delete
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              const SizedBox(width: 70, height: 70), // Spacer
+              SizedBox(width: 70.w, height: 70.h),
               _NumberButton(number: '0', onPressed: onNumberPressed),
               _DeleteButton(onPressed: onDeletePressed),
             ],
@@ -284,22 +292,22 @@ class _NumberButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => onPressed(number),
-      borderRadius: BorderRadius.circular(35),
+      borderRadius: BorderRadius.circular(35.r),
       child: Container(
-        width: 70,
-        height: 70,
+        width: 70.w,
+        height: 70.h,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.surface,
-          border: Border.all(color: AppColors.borderColor, width: 1),
+          border: Border.all(color: AppColors.borderColor, width: 1.w),
         ),
         child: Center(
           child: Text(
             number,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontFamily: 'Inter',
-              fontSize: 24,
+              fontSize: 24.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -318,20 +326,20 @@ class _DeleteButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(35),
+      borderRadius: BorderRadius.circular(35.r),
       child: Container(
-        width: 70,
-        height: 70,
+        width: 70.w,
+        height: 70.h,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.surface,
-          border: Border.all(color: AppColors.borderColor, width: 1),
+          border: Border.all(color: AppColors.borderColor, width: 1.w),
         ),
-        child: const Center(
+        child: Center(
           child: Icon(
             Icons.backspace_outlined,
             color: AppColors.textSecondary,
-            size: 24,
+            size: 24.sp,
           ),
         ),
       ),

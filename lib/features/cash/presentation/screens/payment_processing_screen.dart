@@ -2,8 +2,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import '../providers/cash_provider.dart';
+import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.dart';
 import 'payment_success_screen.dart';
 
 class PaymentProcessingScreen extends ConsumerStatefulWidget {
@@ -59,9 +60,7 @@ class _PaymentProcessingScreenState
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const PaymentSuccessScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const PaymentSuccessScreen()),
       );
     }
   }
@@ -72,11 +71,11 @@ class _PaymentProcessingScreenState
       backgroundColor: AppColors.background,
       body: Center(
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 31),
-          padding: const EdgeInsets.all(24),
+          margin: EdgeInsets.symmetric(horizontal: 31.w),
+          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 24.h),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x26000000),
@@ -90,46 +89,46 @@ class _PaymentProcessingScreenState
             children: [
               RotationTransition(
                 turns: _spinController,
-                child: const Icon(
+                child: Icon(
                   Icons.refresh,
-                  size: 76,
+                  size: 76.sp,
                   color: AppColors.primary,
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16.h),
+              Text(
                 'Checking payment...',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: 20.sp,
                   fontWeight: FontWeight.w700,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16.h),
+              Text(
                 'We will verify your payment. It will take 1-3  minutes. ',
                 style: TextStyle(
                   color: AppColors.textTertiary,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24.h),
               _buildProgressStep(
                 0,
                 'Payment details received',
                 Icons.check_circle,
                 AppColors.accentGreen,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               _buildProgressStep(
                 1,
                 'Verifying with bank...',
                 Icons.refresh,
                 AppColors.primary,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               _buildProgressStep(
                 2,
                 'Crediting your wallet',
@@ -168,34 +167,26 @@ class _PaymentProcessingScreenState
         if (isActive)
           RotationTransition(
             turns: _spinController,
-            child: Icon(
-              icon,
-              size: 20,
-              color: iconColor,
-            ),
+            child: Icon(icon, size: 20.sp, color: iconColor),
           )
         else if (isCompleted)
-          const Icon(
-            Icons.check_circle,
-            size: 20,
-            color: AppColors.accentGreen,
-          )
+          Icon(Icons.check_circle, size: 20.sp, color: AppColors.accentGreen)
         else
           Container(
-            width: 20,
-            height: 20,
+            width: 20.w,
+            height: 20.h,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: iconColor, width: 1),
             ),
           ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12.w),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               color: textColor,
-              fontSize: 12,
+              fontSize: 12.sp,
               fontWeight: fontWeight,
             ),
           ),

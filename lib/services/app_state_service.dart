@@ -11,7 +11,7 @@ class AppStateService {
   /// Initialize the app state service
   static Future<void> init() async {
     if (_isInitialized) return;
-    
+
     await Hive.initFlutter();
     _box = await Hive.openBox(_boxName);
     _isInitialized = true;
