@@ -446,6 +446,8 @@ class _HomeContent extends ConsumerWidget {
 
     // Check if Nostr npub is missing
     final nostrNpub = NostrService.npub;
+    // State to control visibility of the Nostr setup banner
+    bool showNostrBanner = true;
 
     Future<void> refreshWithSync() async {
       // First, sync with blockchain to detect Bitcoin receives
@@ -495,42 +497,49 @@ class _HomeContent extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (nostrNpub == null || nostrNpub.isEmpty)
-                Container(
-                  width: double.infinity,
-                  margin: EdgeInsets.only(bottom: 16.h),
-                  padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 20.w),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28.sp),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Text(
-                          'Set up your Nostr account to enable zaps and social features.',
-                          style: TextStyle(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
+              if ((nostrNpub == null || nostrNpub.isEmpty) && showNostrBanner)
+                StatefulBuilder(
+                  builder: (context, setState) => Container(
+                    width: double.infinity,
+                    margin: EdgeInsets.only(bottom: 16.h),
+                    padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 20.w),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade700,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28.sp),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Text(
+                            'Set up your Nostr account to enable zaps and social features.',
+                            style: TextStyle(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.orange.shade700,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.orange.shade700,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProfileScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text('Set up'),
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProfileScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text('Set up'),
-                      ),
-                    ],
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          tooltip: 'Dismiss',
+                          onPressed: () => setState(() => showNostrBanner = false),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               Row(

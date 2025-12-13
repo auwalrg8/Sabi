@@ -46,7 +46,7 @@ Add complete Nostr integration to Sabi Wallet using nostr_sdk Flutter package. F
 9. Run:
    flutter clean && flutter pub get && flutter run
 
-After completion, reply “Nostr features 100% implemented” with screenshots of:
+After completion, reply “”Nostr features 100% implemented with screenshots of:
 - Profile page with npub
 - Zaps tab with feed
 - Zap slider
