@@ -265,7 +265,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // Save app state when app goes to background
       AppStateService.saveLastScreen('/home');
     }
-
     if (state == AppLifecycleState.resumed) {
       // Refresh wallet data when app comes back to foreground
       ref.read(walletInfoProvider.notifier).refresh();
@@ -674,39 +673,36 @@ class _HomeContent extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _ActionButton(
-                    icon: _SendIcon(),
+                  _FigmaActionButton(
+                    asset: 'assets/icons/Send.png',
                     label: AppLocalizations.of(context)!.send,
-                    onTap:
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SendScreen()),
-                        ),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SendScreen()),
+                    ),
                   ),
-                  _ActionButton(
-                    icon: _ReceiveIcon(),
+                  _FigmaActionButton(
+                    asset: 'assets/icons/receive.png',
                     label: AppLocalizations.of(context)!.receive,
-                    onTap:
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ReceiveScreen(),
-                          ),
-                        ),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReceiveScreen()),
+                    ),
                   ),
-                  _ActionButton(
-                    icon: _AirtimeIcon(),
+                  _FigmaActionButton(
+                    asset: 'assets/icons/airtime.png',
                     label: AppLocalizations.of(context)!.airtime,
                     onTap: () {},
                   ),
-                  _ActionButton(
-                    icon: _PayBillsIcon(),
-                    label: AppLocalizations.of(context)!.payBills,
+                  _FigmaActionButton(
+                    asset: 'assets/icons/data.png',
+                    label: 'Data',
                     onTap: () {},
                   ),
                 ],
               ),
               SizedBox(height: 30.h),
+              // Figma-style Quick Action Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -863,6 +859,60 @@ class _HomeContent extends ConsumerWidget {
     return amount.toString().replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]},',
+    );
+  }
+}
+
+class _FigmaActionButton extends StatelessWidget {
+  final String asset;
+  final String label;
+  final VoidCallback onTap;
+
+  const _FigmaActionButton({
+    required this.asset,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 75,
+            height: 75,
+            decoration: BoxDecoration(
+              color: const Color(0xFF111128),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Center(
+              child: Image.asset(
+                asset,
+                width: 32,
+                height: 32,
+                color: const Color(0xFFA1A1B2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 75,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFFA1A1B2),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

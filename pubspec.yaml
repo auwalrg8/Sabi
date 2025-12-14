@@ -79,8 +79,15 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true # Enable localization generation
-
-  # Add this entire fonts block
+  assets:
+    - assets/icons/send.png
+    - assets/icons/receive.png
+    - assets/icons/airtime.png
+    - assets/icons/data.png
+    - assets/fonts/
+    - assets/images/
+    - assets/anim/
+    - assets/audio/
   fonts:
     - family: Inter
       fonts:
@@ -92,9 +99,3 @@ flutter:
         - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
 
-  # Add the assets folder so Flutter can find the fonts and images
-  assets:
-    - assets/fonts/
-    - assets/images/
-    - assets/anim/
-    - assets/audio/

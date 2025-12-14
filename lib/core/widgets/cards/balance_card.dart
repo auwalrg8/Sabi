@@ -130,9 +130,9 @@ class _BalanceCardState extends State<BalanceCard> {
               '••••',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 56,
+                fontSize: 40,
                 fontWeight: FontWeight.w700,
-                height: 1.0,
+                height: 0.9,
                 letterSpacing: 8,
               ),
             )
@@ -150,7 +150,7 @@ class _BalanceCardState extends State<BalanceCard> {
                       '₦',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 32,
+                        fontSize: 24,
                         fontWeight: FontWeight.w700,
                         height: 0.9,
                       ),
@@ -163,7 +163,7 @@ class _BalanceCardState extends State<BalanceCard> {
                           _formatNaira(widget.balanceSats, _btcToNgnRate!),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 48,
+                            fontSize: 40,
                             fontWeight: FontWeight.w700,
                             height: 0.9,
                           ),
@@ -208,7 +208,7 @@ class _BalanceCardState extends State<BalanceCard> {
                       _formatSats(widget.balanceSats),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 56,
+                        fontSize: 40,
                         fontWeight: FontWeight.w700,
                         height: 0.9,
                       ),
@@ -235,18 +235,18 @@ class _BalanceCardState extends State<BalanceCard> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                if (_btcToNgnRate != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '≈ ${_formatNairaShort(widget.balanceSats, _btcToNgnRate!)}',
-                    style: TextStyle(
-                      color: AppColors.textSecondary.withValues(alpha: 0.8),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                // if (_btcToNgnRate != null) ...[
+                //   const SizedBox(height: 4),
+                //   Text(
+                //     '≈ ${_formatNairaShort(widget.balanceSats, _btcToNgnRate!)}',
+                //     style: TextStyle(
+                //       color: AppColors.textSecondary.withValues(alpha: 0.8),
+                //       fontSize: 14,
+                //       fontWeight: FontWeight.w500,
+                //     ),
+                //     textAlign: TextAlign.center,
+                //   ),
+                // ],
                 const SizedBox(height: 4),
                 Text(
                   'Tap to switch currency',
