@@ -152,7 +152,7 @@ class ContactService {
       final List<ContactInfo> contacts = [];
 
       for (final key in _box.keys) {
-        final data = _box.get(key) as Map;
+        final data = _box.get(key);
         contacts.add(ContactInfo.fromMap(Map<String, dynamic>.from(data)));
       }
 

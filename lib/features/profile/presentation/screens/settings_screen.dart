@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
 import 'package:sabi_wallet/l10n/language_provider.dart';
@@ -171,6 +172,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       },
                     ),
 
+                    if (_hasPinCode)
+                      _SettingTile(
+                        icon: Icons.remove_circle_outline,
+                        iconColor: AppColors.accentRed,
+                        title: 'Disable PIN',
+                        onTap: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Disable PIN'),
+                              content: const Text('Are you sure you want to remove your PIN? You will need to create a new PIN from Settings to re-enable it.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disable')),
+                              ],
+                            ),
+                          );
+
+                          if (confirmed == true) {
+                            final storage = ref.read(secureStorageServiceProvider);
+                            await storage.deletePinCode();
+                            // Also disable biometric when removing PIN
+                            await ref.read(settingsNotifierProvider.notifier).toggleBiometric(false);
+                            setState(() => _hasPinCode = false);
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN removed')));
+                          }
+                        },
+                      ),
+
                     SizedBox(height: 12.h),
 
                     _SettingToggleTile(
@@ -178,10 +208,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       iconColor: AppColors.accentGreen,
                       title: 'Biometric Login',
                       value: settings.biometricEnabled,
-                      onChanged:
-                          (value) => ref
-                              .read(settingsNotifierProvider.notifier)
-                              .toggleBiometric(value),
+                      onChanged: (value) async {
+                        final storage = ref.read(secureStorageServiceProvider);
+                        final hasPin = await storage.hasPinCode();
+                        if (value) {
+                          // Enabling biometric: require device auth to confirm
+                          try {
+                            final localAuth = LocalAuthentication();
+                            final canCheck = await localAuth.canCheckBiometrics;
+                            final supported = await localAuth.isDeviceSupported();
+                            if (!canCheck || !supported) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometrics not available on this device')));
+                              return;
+                            }
+                            final authenticated = await localAuth.authenticate(
+                              localizedReason: 'Confirm to enable biometric login',
+                              options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
+                            );
+                            if (!authenticated) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric verification failed')));
+                              return;
+                            }
+                            // If no PIN is set, inform user that biometric requires PIN to be present
+                            if (!hasPin) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please set a PIN before enabling biometric login')));
+                              return;
+                            }
+                            await ref.read(settingsNotifierProvider.notifier).toggleBiometric(true);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to enable biometrics: $e')));
+                          }
+                        } else {
+                          // Disabling biometric: no auth required
+                          await ref.read(settingsNotifierProvider.notifier).toggleBiometric(false);
+                        }
+                      },
                     ),
 
                     SizedBox(height: 12.h),

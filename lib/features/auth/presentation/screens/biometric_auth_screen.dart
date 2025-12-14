@@ -4,8 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
-import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
+import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
 
 class BiometricAuthScreen extends ConsumerStatefulWidget {
   const BiometricAuthScreen({super.key, required HomeScreen child});
@@ -30,20 +30,15 @@ class _BiometricAuthScreenState extends ConsumerState<BiometricAuthScreen> {
   Future<void> _checkPinAndAuthenticate() async {
     final storage = ref.read(secureStorageServiceProvider);
     final hasPin = await storage.hasPinCode();
-
     if (!hasPin) {
-      // Navigate to create PIN if wallet exists but no PIN
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ChangePinScreen(isCreate: true),
-          ),
-        );
-      }
-    } else {
-      _validatePin();
+      // No PIN set — don't force creation here. Let user set PIN from settings or suggestions.
+      // Proceed to Home directly.
+      if (mounted) _navigateToHome();
+      return;
     }
+
+    // PIN exists -> validate it
+    await _validatePin();
   }
 
   Future<void> _checkBiometrics() async {
@@ -55,7 +50,10 @@ class _BiometricAuthScreenState extends ConsumerState<BiometricAuthScreen> {
         _canUseBiometrics = canCheck && isDeviceSupported;
       });
 
-      if (_canUseBiometrics) {
+      // Only attempt biometric auth if the user enabled it in app settings
+      final settings = ref.read(settingsNotifierProvider);
+      final biometricEnabled = settings.biometricEnabled;
+      if (_canUseBiometrics && biometricEnabled) {
         await _authenticateWithBiometrics();
       }
     } catch (e) {

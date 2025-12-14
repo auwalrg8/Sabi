@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 
-const bool _skipBreezSdkDiagnostics = bool.fromEnvironment('SKIP_BREEZ_SDK_DIAGNOSTICS', defaultValue: true);
+const bool _skipBreezSdkDiagnostics = bool.fromEnvironment('SKIP_BREEZ_SDK_DIAGNOSTICS', defaultValue: false);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

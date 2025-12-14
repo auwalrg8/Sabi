@@ -1,9 +1,9 @@
 package com.example.sabi_wallet
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import java.io.File
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         // Set up working directory for Breez SDK before Flutter initializes
         // The FileProvider in AndroidManifest.xml + Breez file paths configuration

@@ -156,7 +156,7 @@ class ProfileService {
   /// Get current user profile
   static Future<UserProfile> getProfile() async {
     try {
-      final data = _box.get(_profileKey) as Map?;
+      final data = _box.get(_profileKey);
       if (data != null) {
         return UserProfile.fromMap(Map<String, dynamic>.from(data));
       }

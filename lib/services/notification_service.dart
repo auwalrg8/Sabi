@@ -91,7 +91,7 @@ class NotificationService {
       final List<NotificationModel> notifications = [];
 
       for (final key in _box.keys) {
-        final data = _box.get(key) as Map;
+        final data = _box.get(key);
         notifications.add(
           NotificationModel.fromMap(Map<String, dynamic>.from(data)),
         );

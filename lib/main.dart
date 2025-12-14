@@ -16,7 +16,7 @@ import 'services/app_state_service.dart';
 import 'features/wallet/presentation/screens/home_screen.dart';
 import 'features/onboarding/presentation/screens/splash_screen.dart';
 import 'features/onboarding/presentation/screens/entry_screen.dart';
-import 'services/nostr_service.dart';
+// ...existing code...
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,6 +22,7 @@ class _State extends ConsumerState<ConnectivityBanner>
   bool _visible = false;
   bool _listenersAttached = false;
   BackendStatus? _dismissedBackend;
+  Timer? _autoHideTimer;
 
   String _message = '';
   Color _color = Colors.red;
@@ -51,7 +53,7 @@ class _State extends ConsumerState<ConnectivityBanner>
       ) {
         next.whenData((status) {
           if (status == ConnectionStatus.disconnected) {
-            _show('No internet connection', Colors.red, Icons.wifi_off);
+            _show('Check your internet connection', Colors.red, Icons.wifi_off);
           } else {
             _hide();
           }
@@ -94,28 +96,37 @@ class _State extends ConsumerState<ConnectivityBanner>
               position: _slide,
               child: SafeArea(
                 bottom: false,
-                child: Material(
-                  color: _color,
-                  child: ListTile(
-                    leading: Icon(_icon, color: AppColors.surface, size: 25.sp),
-                    title: Text(
-                      _message,
-                      style: TextStyle(
-                        color: AppColors.surface,
-                        fontSize: 17.sp,
-                      ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: _color.withOpacity(0.1), // 10% background
+                      border: Border.all(color: _color.withOpacity(1.0), width: 1), // stroke 100%
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        color: AppColors.surface,
-                        size: 25.sp,
-                      ),
-                      onPressed: () {
-                        _dismissedBackend =
-                            ref.read(backendStatusProvider).value;
-                        _hide();
-                      },
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+                    child: Row(
+                      children: [
+                        Icon(_icon, color: _color, size: 22.sp),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Text(
+                            _message,
+                            style: TextStyle(
+                              color: _color,
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            _dismissedBackend = ref.read(backendStatusProvider).value;
+                            _hide();
+                          },
+                          child: Icon(Icons.close, color: _color, size: 20.sp),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -128,6 +139,9 @@ class _State extends ConsumerState<ConnectivityBanner>
 
   void _show(String msg, Color c, IconData i) {
     if (_visible && _message == msg) return;
+    // cancel any existing auto-hide timer
+    _autoHideTimer?.cancel();
+
     setState(() {
       _message = msg;
       _color = c;
@@ -135,10 +149,19 @@ class _State extends ConsumerState<ConnectivityBanner>
       _visible = true;
     });
     _controller.forward();
+
+    // Auto-hide after 10 seconds
+    _autoHideTimer = Timer(const Duration(seconds: 10), () {
+      if (mounted) _hide();
+    });
   }
 
   void _hide() {
     if (!_visible) return;
+    // cancel timer when hiding
+    _autoHideTimer?.cancel();
+    _autoHideTimer = null;
+
     _controller.reverse().then((_) {
       if (mounted) setState(() => _visible = false);
     });
@@ -146,6 +169,7 @@ class _State extends ConsumerState<ConnectivityBanner>
 
   @override
   void dispose() {
+    _autoHideTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

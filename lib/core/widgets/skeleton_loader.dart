@@ -1,3 +1,57 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+/// Simple static skeleton that matches the Figma layout.
+class SkeletonLoader extends StatelessWidget {
+  const SkeletonLoader({super.key});
+
+  static const _blockColor = Color(0xFF111128);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.transparent,
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 120.h),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // top pills row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(width: 130.w, height: 60.h, decoration: _dec(borderRadius: 20)),
+                Container(width: 130.w, height: 60.h, decoration: _dec(borderRadius: 20)),
+              ],
+            ),
+            SizedBox(height: 18.h),
+            // large balance card
+            Container(
+              height: 210.h,
+              width: double.infinity,
+              decoration: _dec(borderRadius: 20),
+            ),
+            SizedBox(height: 20.h),
+            // medium suggestion card
+            Container(height: 88.h, width: double.infinity, decoration: _dec(borderRadius: 16)),
+            SizedBox(height: 20.h),
+            // list of rounded cards (transactions / rows)
+            for (var i = 0; i < 6; i++) ...[
+              Container(height: 88.h, width: double.infinity, decoration: _dec(borderRadius: 16)),
+              SizedBox(height: 16.h),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _dec({double borderRadius = 8}) => BoxDecoration(
+        color: _blockColor,
+        borderRadius: BorderRadius.circular(borderRadius),
+      );
+}
 // import 'package:flutter/material.dart';
 // import 'package:flutter_screenutil/flutter_screenutil.dart';
 // import 'package:sabi_wallet/core/constants/colors.dart';

@@ -183,15 +183,6 @@ class _BalanceCardState extends State<BalanceCard> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Tap to switch currency',
-                  style: TextStyle(
-                    color: AppColors.textSecondary.withValues(alpha: 0.6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
               ],
             )
           else
@@ -248,15 +239,6 @@ class _BalanceCardState extends State<BalanceCard> {
                 //   ),
                 // ],
                 const SizedBox(height: 4),
-                Text(
-                  'Tap to switch currency',
-                  style: TextStyle(
-                    color: AppColors.textSecondary.withValues(alpha: 0.6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
               ],
             ),
             ],
