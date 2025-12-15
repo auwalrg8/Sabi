@@ -41,7 +41,11 @@ class _SuggestionCard extends StatelessWidget {
   final VoidCallback onDismiss;
   final VoidCallback onTap;
 
-  const _SuggestionCard({required this.type, required this.onDismiss, required this.onTap});
+  const _SuggestionCard({
+    required this.type,
+    required this.onDismiss,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +62,7 @@ class _SuggestionCard extends StatelessWidget {
         title = 'Wallet Not Backed Up';
         subtitle = 'Set up a backup to project your funds';
         actionText = 'Set up';
-        actionColor = Colors.white.withOpacity(0.7);
+        actionColor = Colors.white.withValues(alpha: 0.7);
         icon = Icons.shield_outlined;
         break;
       case SuggestionType.nostr:
@@ -66,7 +70,7 @@ class _SuggestionCard extends StatelessWidget {
         title = 'Set Up Your Nostr';
         subtitle = 'To enable zaps and social features';
         actionText = 'Set up';
-        actionColor = Colors.white.withOpacity(0.7);
+        actionColor = Colors.white.withValues(alpha: 0.7);
         icon = Icons.alternate_email_rounded;
         break;
       case SuggestionType.pin:
@@ -74,7 +78,7 @@ class _SuggestionCard extends StatelessWidget {
         title = 'Secure wallet';
         subtitle = 'Set up a pin code to secure wallet';
         actionText = '';
-        actionColor = Colors.white.withOpacity(0.7);
+        actionColor = Colors.white.withValues(alpha: 0.7);
         icon = Icons.lock_outline_rounded;
         break;
     }
@@ -131,7 +135,11 @@ class _SuggestionCard extends StatelessWidget {
                       SizedBox(width: 8.w),
                       GestureDetector(
                         onTap: onDismiss,
-                        child: Icon(Icons.close, color: Colors.white.withOpacity(0.7), size: 18.sp),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.white.withValues(alpha: 0.7),
+                          size: 18.sp,
+                        ),
                       ),
                     ],
                   ),

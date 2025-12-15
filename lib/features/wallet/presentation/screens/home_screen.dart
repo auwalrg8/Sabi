@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
@@ -289,7 +288,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final balanceState = ref.watch(balanceNotifierProvider);
-    final bool showSkeleton = !BreezSparkService.isInitialized || balanceState.isLoading;
+    final bool showSkeleton =
+        !BreezSparkService.isInitialized || balanceState.isLoading;
 
     return Scaffold(
       body: Stack(
@@ -301,10 +301,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (_currentIndex == 0 && showSkeleton)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: const SafeArea(
-                  child: SkeletonLoader(),
-                ),
+                color: Colors.black.withValues(alpha: 0.5),
+                child: const SafeArea(child: SkeletonLoader()),
               ),
             ),
         ],
@@ -324,22 +322,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           showUnselectedLabels: true,
           elevation: 0,
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: 'Home',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet),
               label: 'Cash',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.flash_on),
-              label: 'Zaps',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profile',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: 'Zaps'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
         ),
       ),
@@ -374,361 +363,387 @@ class _HomeContentState extends State<_HomeContent> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                  // Header with greeting, QR scanner and notifications
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Greeting: Hi, <username> with avatar
-                      FutureBuilder(
-                        future: ProfileService.getProfile(),
-                        builder: (context, snapshot) {
-                          final profile = snapshot.data;
-                          final username = (profile != null && profile.username.isNotEmpty)
-                              ? profile.username
-                              : 'user';
-                          final initial = (profile != null && profile.fullName.isNotEmpty)
-                              ? profile.initial
-                              : 'U';
+                // Header with greeting, QR scanner and notifications
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Greeting: Hi, <username> with avatar
+                    FutureBuilder(
+                      future: ProfileService.getProfile(),
+                      builder: (context, snapshot) {
+                        final profile = snapshot.data;
+                        final username =
+                            (profile != null && profile.username.isNotEmpty)
+                                ? profile.username
+                                : 'user';
+                        final initial =
+                            (profile != null && profile.fullName.isNotEmpty)
+                                ? profile.initial
+                                : 'U';
 
-                          return Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: AppColors.primary,
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Hi, $username',
-                                style: TextStyle(
+                        return Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18.r,
+                              backgroundColor: AppColors.primary,
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                      Row(
-                        children: [
-                          _HeaderIcon(
-                            icon: Icons.qr_code_scanner_outlined,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const QRScannerScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          SizedBox(width: 30.w),
-                          _NotificationIcon(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const NotificationsScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10),
-                  // Moved: tap to switch currency hint (placed above balance card)
-                  Text(
-                    AppLocalizations.of(context)!.tapToSwitch,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
+                            ),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'Hi, $username',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                  SizedBox(height: 4.h),
-                  // Spark inbound status / first-channel loading banner
-                  _InboundStatusBanner(walletAsync: walletAsync),
-                  SizedBox(height: 12.h),
-                  // Balance card with direct Breez SDK balance
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final balanceAsync = ref.watch(balanceNotifierProvider);
-
-                      return balanceAsync.when(
-                        loading: () => const CircularProgressIndicator.adaptive(),
-                        error:
-                            (_, __) => BalanceCard(
-                              balanceSats: 0,
-                              showConfetti: false,
-                              isOnline:
-                                  ref.watch(eventStreamServiceProvider).isConnected,
-                              isBalanceHidden: !widget.isBalanceVisible,
-                              onToggleHide: widget.onToggleBalance,
-                            ),
-                        data: (balance) {
-                          return FutureBuilder<String?>(
-                            future: ref
-                                .read(secureStorageServiceProvider)
-                                .read(key: 'first_payment_confetti_pending'),
-                            builder: (context, confettiSnapshot) {
-                              final showConfetti = confettiSnapshot.data == 'true';
-
-                              // Mark confetti as shown if displaying
-                              if (showConfetti) {
-                                WidgetsBinding.instance.addPostFrameCallback((
-                                  _,
-                                ) async {
-                                  final storage = ref.read(
-                                    secureStorageServiceProvider,
-                                  );
-                                  await storage.write(
-                                    key: 'first_payment_confetti_shown',
-                                    value: 'true',
-                                  );
-                                  await storage.write(
-                                    key: 'first_payment_confetti_pending',
-                                    value: 'false',
-                                  );
-                                });
-                              }
-
-                              return BalanceCard(
-                                balanceSats: balance,
-                                showConfetti: showConfetti,
-                                isOnline:
-                                    ref
-                                        .watch(eventStreamServiceProvider)
-                                        .isConnected,
-                                isBalanceHidden: !widget.isBalanceVisible,
-                                onToggleHide: widget.onToggleBalance,
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  SizedBox(height: 17.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _FigmaActionButton(
-                        asset: 'assets/icons/send.png',
-                        label: AppLocalizations.of(context)!.send,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SendScreen()),
-                        ),
-                      ),
-                      _FigmaActionButton(
-                        asset: 'assets/icons/receive.png',
-                        label: AppLocalizations.of(context)!.receive,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ReceiveScreen()),
-                        ),
-                      ),
-                      _FigmaActionButton(
-                        asset: 'assets/icons/airtime.png',
-                        label: AppLocalizations.of(context)!.airtime,
-                        onTap: () { },
-                      ),
-                      _FigmaActionButton(
-                        asset: 'assets/icons/data.png',
-                        label: 'Data',
-                        onTap: () { },
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10.h),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final suggestionsState = ref.watch(suggestionsProvider);
-                      if (suggestionsState.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return SuggestionsSlider(
-                        suggestions: suggestionsState,
-                        onDismiss: (type) => ref.read(suggestionsProvider.notifier).dismiss(type),
-                        onTap: (type) {
-                          switch (type) {
-                            case SuggestionType.backup:
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const BackupChoiceScreen()),
-                              );
-                              break;
-                            case SuggestionType.nostr:
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const EditNostrScreen()),
-                              );
-                              break;
-                            case SuggestionType.pin:
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const ChangePinScreen(isCreate: true)),
-                              );
-                              break;
-                          }
-                        },
-                      );
-                    },
-                  ),
-                  SizedBox(height: 20.h),
-                  SizedBox(height: 30.h),
-                  // Figma-style Quick Action Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context)!.recentTransactions,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 28.h / 15.h,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const TransactionsScreen(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          AppLocalizations.of(context)!.seeAll,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w400,
-                            height: 20 / 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12.h),
-                  // Display real transactions from Breez SDK
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final paymentsAsync = ref.watch(recentTransactionsProvider);
-
-                      return paymentsAsync.when(
-                        loading:
-                            () => Column(
-                              children: List.generate(
-                                3,
-                                (index) =>
-                                    const CircularProgressIndicator.adaptive(),
-                              ),
-                            ),
-                        error:
-                            (_, __) => Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(40),
-                                child: Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  )!.failedToLoadTransactions,
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        data: (payments) {
-                          if (payments.isEmpty) {
-                            return Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(40),
-                                child: Text(
-                                  AppLocalizations.of(context)!.noTransactions,
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
+                    Row(
+                      children: [
+                        _HeaderIcon(
+                          icon: Icons.qr_code_scanner_outlined,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const QRScannerScreen(),
                               ),
                             );
-                          }
-
-                          return Column(
-                            children:
-                                payments.take(5).map((payment) {
-                                  final isInbound = payment.isIncoming;
-                                  final icon =
-                                      isInbound
-                                          ? _ReceiveTransactionIcon()
-                                          : _SendTransactionIcon();
-                                  final amountColor =
-                                      isInbound
-                                          ? AppColors.accentGreen
-                                          : const Color(0xFFFF4D4F);
-                                  final amountPrefix = isInbound ? '+' : '-';
-
-                                  final timeStr = date_utils.formatTransactionTime(
-                                    payment.paymentTime,
-                                  );
-
-                                  final String amountDisplay =
-                                      '$amountPrefix${_formatSats(payment.amountSats)} sats';
-                                  final title =
-                                      payment.description.isNotEmpty
-                                          ? payment.description
-                                          : (isInbound
-                                              ? AppLocalizations.of(
-                                                context,
-                                              )!.receivedPayment
-                                              : AppLocalizations.of(
-                                                context,
-                                              )!.sentPayment);
-
-                                  return Padding(
-                                    padding: EdgeInsets.only(bottom: 12.h),
-                                    child: _TransactionItem(
-                                      icon: icon,
-                                      title: title,
-                                      time: timeStr,
-                                      amount: amountDisplay,
-                                      amountColor: amountColor,
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (_) => PaymentDetailScreen(
-                                              payment: payment,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  );
-                                }).toList(),
-                          );
-                        },
-                      );
-                    },
+                          },
+                        ),
+                        SizedBox(width: 30.w),
+                        _NotificationIcon(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10.h),
+                // Moved: tap to switch currency hint (placed above balance card)
+                Text(
+                  AppLocalizations.of(context)!.tapToSwitch,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
                   ),
-                  SizedBox(height: 100.h),
-                ],
-              ),
+                ),
+                SizedBox(height: 4.h),
+                // Spark inbound status / first-channel loading banner
+                _InboundStatusBanner(walletAsync: walletAsync),
+                SizedBox(height: 12.h),
+                // Balance card with direct Breez SDK balance
+                Consumer(
+                  builder: (context, ref, _) {
+                    final balanceAsync = ref.watch(balanceNotifierProvider);
+
+                    return balanceAsync.when(
+                      loading: () => const CircularProgressIndicator.adaptive(),
+                      error:
+                          (_, __) => BalanceCard(
+                            balanceSats: 0,
+                            showConfetti: false,
+                            isOnline:
+                                ref
+                                    .watch(eventStreamServiceProvider)
+                                    .isConnected,
+                            isBalanceHidden: !widget.isBalanceVisible,
+                            onToggleHide: widget.onToggleBalance,
+                          ),
+                      data: (balance) {
+                        return FutureBuilder<String?>(
+                          future: ref
+                              .read(secureStorageServiceProvider)
+                              .read(key: 'first_payment_confetti_pending'),
+                          builder: (context, confettiSnapshot) {
+                            final showConfetti =
+                                confettiSnapshot.data == 'true';
+
+                            // Mark confetti as shown if displaying
+                            if (showConfetti) {
+                              WidgetsBinding.instance.addPostFrameCallback((
+                                _,
+                              ) async {
+                                final storage = ref.read(
+                                  secureStorageServiceProvider,
+                                );
+                                await storage.write(
+                                  key: 'first_payment_confetti_shown',
+                                  value: 'true',
+                                );
+                                await storage.write(
+                                  key: 'first_payment_confetti_pending',
+                                  value: 'false',
+                                );
+                              });
+                            }
+
+                            return BalanceCard(
+                              balanceSats: balance,
+                              showConfetti: showConfetti,
+                              isOnline:
+                                  ref
+                                      .watch(eventStreamServiceProvider)
+                                      .isConnected,
+                              isBalanceHidden: !widget.isBalanceVisible,
+                              onToggleHide: widget.onToggleBalance,
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+                SizedBox(height: 17.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _FigmaActionButton(
+                      asset: 'assets/icons/Send.png',
+                      label: AppLocalizations.of(context)!.send,
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SendScreen(),
+                            ),
+                          ),
+                    ),
+                    _FigmaActionButton(
+                      asset: 'assets/icons/receive.png',
+                      label: AppLocalizations.of(context)!.receive,
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ReceiveScreen(),
+                            ),
+                          ),
+                    ),
+                    _FigmaActionButton(
+                      asset: 'assets/icons/airtime.png',
+                      label: AppLocalizations.of(context)!.airtime,
+                      onTap: () {},
+                    ),
+                    _FigmaActionButton(
+                      asset: 'assets/icons/data.png',
+                      label: 'Data',
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10.h),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final suggestionsState = ref.watch(suggestionsProvider);
+                    if (suggestionsState.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return SuggestionsSlider(
+                      suggestions: suggestionsState,
+                      onDismiss:
+                          (type) => ref
+                              .read(suggestionsProvider.notifier)
+                              .dismiss(type),
+                      onTap: (type) {
+                        switch (type) {
+                          case SuggestionType.backup:
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const BackupChoiceScreen(),
+                              ),
+                            );
+                            break;
+                          case SuggestionType.nostr:
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const EditNostrScreen(),
+                              ),
+                            );
+                            break;
+                          case SuggestionType.pin:
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) =>
+                                        const ChangePinScreen(isCreate: true),
+                              ),
+                            );
+                            break;
+                        }
+                      },
+                    );
+                  },
+                ),
+                SizedBox(height: 30.h),
+                // Figma-style Quick Action Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)!.recentTransactions,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 28.h / 15.h,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TransactionsScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        AppLocalizations.of(context)!.seeAll,
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          height: 20 / 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                // Display real transactions from Breez SDK
+                Consumer(
+                  builder: (context, ref, _) {
+                    final paymentsAsync = ref.watch(recentTransactionsProvider);
+
+                    return paymentsAsync.when(
+                      loading:
+                          () => Column(
+                            children: List.generate(
+                              3,
+                              (index) =>
+                                  const CircularProgressIndicator.adaptive(),
+                            ),
+                          ),
+                      error:
+                          (_, __) => Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 40.w,
+                                vertical: 40.h,
+                              ),
+                              child: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.failedToLoadTransactions,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ),
+                          ),
+                      data: (payments) {
+                        if (payments.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 40.w,
+                                vertical: 40.h,
+                              ),
+                              child: Text(
+                                AppLocalizations.of(context)!.noTransactions,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children:
+                              payments.take(5).map((payment) {
+                                final isInbound = payment.isIncoming;
+                                final icon =
+                                    isInbound
+                                        ? _ReceiveTransactionIcon()
+                                        : _SendTransactionIcon();
+                                final amountColor =
+                                    isInbound
+                                        ? AppColors.accentGreen
+                                        : const Color(0xFFFF4D4F);
+                                final amountPrefix = isInbound ? '+' : '-';
+
+                                final timeStr = date_utils
+                                    .formatTransactionTime(payment.paymentTime);
+
+                                final String amountDisplay =
+                                    '$amountPrefix${_formatSats(payment.amountSats)} sats';
+                                final title =
+                                    payment.description.isNotEmpty
+                                        ? payment.description
+                                        : (isInbound
+                                            ? AppLocalizations.of(
+                                              context,
+                                            )!.receivedPayment
+                                            : AppLocalizations.of(
+                                              context,
+                                            )!.sentPayment);
+
+                                return Padding(
+                                  padding: EdgeInsets.only(bottom: 12.h),
+                                  child: _TransactionItem(
+                                    icon: icon,
+                                    title: title,
+                                    time: timeStr,
+                                    amount: amountDisplay,
+                                    amountColor: amountColor,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => PaymentDetailScreen(
+                                                payment: payment,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                );
+                              }).toList(),
+                        );
+                      },
+                    );
+                  },
+                ),
+                SizedBox(height: 100.h),
+              ],
             ),
-          );
+          ),
+        );
       },
     );
   }
@@ -759,34 +774,38 @@ class _FigmaActionButton extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 75,
-            height: 75,
+            width: 75.w,
+            height: 75.h,
             decoration: BoxDecoration(
               color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(15.r),
             ),
-            child: Center(
-              child: Image.asset(
-                asset,
-                width: 32,
-                height: 32,
-                color: const Color(0xFFA1A1B2),
+            child: Padding(
+              padding: EdgeInsets.all(8.w),
+              child: Column(
+                children: [
+                  Center(
+                    child: Image.asset(
+                      asset,
+                      width: 32.w,
+                      height: 32.h,
+                      color: const Color(0xFFA1A1B2),
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFFA1A1B2),
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: 75,
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFFA1A1B2),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -927,8 +946,6 @@ class _NotificationIconState extends State<_NotificationIcon> {
     );
   }
 }
-
-
 
 class _TransactionItem extends StatelessWidget {
   final Widget icon;
@@ -1090,4 +1107,3 @@ class _SendTransactionIconPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
