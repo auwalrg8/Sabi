@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class EditNostrScreen extends StatefulWidget {
   final String? initialNpub;
   final String? initialNsec;
-  const EditNostrScreen({Key? key, this.initialNpub, this.initialNsec}) : super(key: key);
+  const EditNostrScreen({Key? key, this.initialNpub, this.initialNsec})
+    : super(key: key);
 
   @override
   State<EditNostrScreen> createState() => _EditNostrScreenState();
@@ -68,7 +70,7 @@ class _EditNostrScreenState extends State<EditNostrScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 24.h),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -82,7 +84,7 @@ class _EditNostrScreenState extends State<EditNostrScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
             TextField(
               controller: _nsecController,
               decoration: InputDecoration(
@@ -94,13 +96,13 @@ class _EditNostrScreenState extends State<EditNostrScreen> {
               ),
               obscureText: true,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
             if (_showQR && _npubController.text.isNotEmpty)
               Center(
                 child: QrImageView(
                   data: _npubController.text,
                   version: QrVersions.auto,
-                  size: 180.0,
+                  size: 180.sp,
                 ),
               ),
             const Spacer(),

@@ -81,10 +81,10 @@ flutter:
   uses-material-design: true
   generate: true # Enable localization generation
   assets:
-    - assets/icons/send.png
-    - assets/icons/receive.png
-    - assets/icons/airtime.png
-    - assets/icons/data.png
+    - assets/icons/
+    # - assets/icons/receive.png
+    # - assets/icons/airtime.png
+    # - assets/icons/data.png
     - assets/fonts/
     - assets/images/
     - assets/anim/

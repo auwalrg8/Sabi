@@ -82,12 +82,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Nostr Profile',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                      )),
+                  Text(
+                    'Nostr Profile',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   SizedBox(height: 10.h),
                   Row(
                     children: [
@@ -109,10 +111,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => EditNostrScreen(
-                                initialNpub: npub,
-                                initialNsec: nsec,
-                              ),
+                              builder:
+                                  (_) => EditNostrScreen(
+                                    initialNpub: npub,
+                                    initialNsec: nsec,
+                                  ),
                             ),
                           );
                           setState(() {});
@@ -128,7 +131,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       SizedBox(width: 10.w),
                       Expanded(
                         child: Text(
-                          nsec != null && nsec.isNotEmpty ? '••••••••••••••••••••••••••••••••' : 'Not set',
+                          nsec != null && nsec.isNotEmpty
+                              ? '••••••••••••••••••••••••••••••••'
+                              : 'Not set',
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14.sp,
@@ -137,7 +142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 48),
+                      SizedBox(width: 48.w),
                     ],
                   ),
                 ],
@@ -156,9 +161,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     SizedBox(height: 12.h),
 
+                    if (_hasPinCode)
+                      Column(
+                        children: [
+                          _SettingTile(
+                            icon: Icons.remove_circle_outline,
+                            iconColor: AppColors.accentRed,
+                            title: 'Disable PIN',
+                            onTap: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder:
+                                    (ctx) => AlertDialog(
+                                      title: const Text('Disable PIN'),
+                                      content: const Text(
+                                        'Are you sure you want to remove your PIN? You will need to create a new PIN from Settings to re-enable it.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed:
+                                              () => Navigator.pop(ctx, true),
+                                          child: const Text('Disable'),
+                                        ),
+                                      ],
+                                    ),
+                              );
+
+                              if (confirmed == true) {
+                                final storage = ref.read(
+                                  secureStorageServiceProvider,
+                                );
+                                await storage.deletePinCode();
+                                // Also disable biometric when removing PIN
+                                await ref
+                                    .read(settingsNotifierProvider.notifier)
+                                    .toggleBiometric(false);
+                                setState(() => _hasPinCode = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: AppColors.accentGreen,
+                                    content: Text(
+                                      'PIN removed',
+                                      style: TextStyle(
+                                        color: AppColors.surface,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                          SizedBox(height: 10.h),
+                        ],
+                      ),
+
                     _SettingTile(
                       icon: Icons.lock_outline,
                       iconColor: AppColors.primary,
+                      trailingIcon: Icons.chevron_right,
                       title: _hasPinCode ? 'Change PIN' : 'Create PIN',
                       onTap: () async {
                         await Navigator.push(
@@ -171,35 +236,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         _checkPinCode();
                       },
                     ),
-
-                    if (_hasPinCode)
-                      _SettingTile(
-                        icon: Icons.remove_circle_outline,
-                        iconColor: AppColors.accentRed,
-                        title: 'Disable PIN',
-                        onTap: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Disable PIN'),
-                              content: const Text('Are you sure you want to remove your PIN? You will need to create a new PIN from Settings to re-enable it.'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disable')),
-                              ],
-                            ),
-                          );
-
-                          if (confirmed == true) {
-                            final storage = ref.read(secureStorageServiceProvider);
-                            await storage.deletePinCode();
-                            // Also disable biometric when removing PIN
-                            await ref.read(settingsNotifierProvider.notifier).toggleBiometric(false);
-                            setState(() => _hasPinCode = false);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN removed')));
-                          }
-                        },
-                      ),
 
                     SizedBox(height: 12.h),
 
@@ -216,31 +252,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           try {
                             final localAuth = LocalAuthentication();
                             final canCheck = await localAuth.canCheckBiometrics;
-                            final supported = await localAuth.isDeviceSupported();
+                            final supported =
+                                await localAuth.isDeviceSupported();
                             if (!canCheck || !supported) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometrics not available on this device')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Biometrics not available on this device',
+                                  ),
+                                ),
+                              );
                               return;
                             }
                             final authenticated = await localAuth.authenticate(
-                              localizedReason: 'Confirm to enable biometric login',
-                              options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
+                              localizedReason:
+                                  'Confirm to enable biometric login',
+                              options: const AuthenticationOptions(
+                                biometricOnly: true,
+                                stickyAuth: true,
+                              ),
                             );
                             if (!authenticated) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric verification failed')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Biometric verification failed',
+                                  ),
+                                ),
+                              );
                               return;
                             }
                             // If no PIN is set, inform user that biometric requires PIN to be present
                             if (!hasPin) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please set a PIN before enabling biometric login')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please set a PIN before enabling biometric login',
+                                  ),
+                                ),
+                              );
                               return;
                             }
-                            await ref.read(settingsNotifierProvider.notifier).toggleBiometric(true);
+                            await ref
+                                .read(settingsNotifierProvider.notifier)
+                                .toggleBiometric(true);
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to enable biometrics: $e')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Failed to enable biometrics: $e',
+                                ),
+                              ),
+                            );
                           }
                         } else {
                           // Disabling biometric: no auth required
-                          await ref.read(settingsNotifierProvider.notifier).toggleBiometric(false);
+                          await ref
+                              .read(settingsNotifierProvider.notifier)
+                              .toggleBiometric(false);
                         }
                       },
                     ),
@@ -601,12 +670,14 @@ class _SettingTile extends StatelessWidget {
   final Color iconColor;
   final String title;
   final VoidCallback onTap;
+  final IconData? trailingIcon;
 
   const _SettingTile({
     required this.icon,
     required this.iconColor,
     required this.title,
     required this.onTap,
+    this.trailingIcon,
   });
 
   @override
@@ -634,11 +705,7 @@ class _SettingTile extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondary,
-              size: 24.sp,
-            ),
+            Icon(trailingIcon, color: AppColors.textSecondary, size: 24.sp),
           ],
         ),
       ),
