@@ -2,46 +2,77 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 /// Simple static skeleton that matches the Figma layout.
-class SkeletonLoader extends StatelessWidget {
+class SkeletonLoader extends StatefulWidget {
   const SkeletonLoader({super.key});
 
-  static const _blockColor = Color(0xFF111128);
+  @override
+  State<SkeletonLoader> createState() => _SkeletonLoaderState();
+}
+
+class _SkeletonLoaderState extends State<SkeletonLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+
+  static const _blockColor = Color(0xFF11112C);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+
+    _opacity = Tween<double>(begin: 0.90, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.transparent,
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 120.h),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // top pills row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(width: 130.w, height: 60.h, decoration: _dec(borderRadius: 20)),
-                Container(width: 130.w, height: 60.h, decoration: _dec(borderRadius: 20)),
-              ],
-            ),
-            SizedBox(height: 18.h),
-            // large balance card
-            Container(
-              height: 210.h,
-              width: double.infinity,
-              decoration: _dec(borderRadius: 20),
-            ),
-            SizedBox(height: 20.h),
-            // medium suggestion card
-            Container(height: 88.h, width: double.infinity, decoration: _dec(borderRadius: 16)),
-            SizedBox(height: 20.h),
-            // list of rounded cards (transactions / rows)
-            for (var i = 0; i < 6; i++) ...[
+    return FadeTransition(
+      opacity: _opacity,
+      child: Container(
+        color: Colors.transparent,
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 120.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // top pills row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(width: 230.w, height: 55.h, decoration: _dec(borderRadius: 20)),
+                  Container(width: 130.w, height: 55.h, decoration: _dec(borderRadius: 20)),
+                ],
+              ),
+              SizedBox(height: 5.h),
+              // large balance card
+              Container(
+                height: 210.h,
+                width: double.infinity,
+                decoration: _dec(borderRadius: 20),
+              ),
+              SizedBox(height: 10.h),
+              // medium suggestion card
               Container(height: 88.h, width: double.infinity, decoration: _dec(borderRadius: 16)),
-              SizedBox(height: 16.h),
+              SizedBox(height: 10.h),
+              // list of rounded cards (transactions / rows)
+              for (var i = 0; i < 6; i++) ...[
+                Container(height: 88.h, width: double.infinity, decoration: _dec(borderRadius: 16)),
+                SizedBox(height: 10.h),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

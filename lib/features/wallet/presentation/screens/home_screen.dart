@@ -549,7 +549,7 @@ class _HomeContentState extends State<_HomeContent> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 10.h),
                   Consumer(
                     builder: (context, ref, _) {
                       final suggestionsState = ref.watch(suggestionsProvider);
