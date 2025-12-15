@@ -404,28 +404,28 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           ],
         ),
         SizedBox(height: 6.h),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40.w),
-          child: Text(
-            description,
-            style: TextStyle(color: Colors.white70, fontSize: 12.sp),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        if (_userProfile?.lightningAddress?.lnurl != null) ...[
-          SizedBox(height: 4.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40.w),
-            child: Text(
-              'LNURL: ${_userProfile!.lightningAddress!.lnurl}',
-              style: TextStyle(color: Colors.white54, fontSize: 10.sp),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-        SizedBox(height: 12.h),
+        // Padding(
+        //   padding: EdgeInsets.symmetric(horizontal: 40.w),
+        //   child: Text(
+        //     description,
+        //     style: TextStyle(color: Colors.white70, fontSize: 12.sp),
+        //     textAlign: TextAlign.center,
+        //   ),
+        // ),
+        // if (_userProfile?.lightningAddress?.lnurl != null) ...[
+        //   SizedBox(height: 4.h),
+        //   Padding(
+        //     padding: EdgeInsets.symmetric(horizontal: 40.w),
+        //     child: Text(
+        //       'LNURL: ${_userProfile!.lightningAddress!.lnurl}',
+        //       style: TextStyle(color: Colors.white54, fontSize: 10.sp),
+        //       maxLines: 1,
+        //       overflow: TextOverflow.ellipsis,
+        //       textAlign: TextAlign.center,
+        //     ),
+        //   ),
+        // ],
+        // SizedBox(height: 12.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 40.w),
           child: SizedBox(
@@ -446,7 +446,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                       child: Text(
                         _isSyncingLightningAddress
                             ? 'Refreshing…'
-                            : 'Refresh Lightning address',
+                            : 'Refresh LN address',
                         style: const TextStyle(color: AppColors.primary),
                       ),
                     )

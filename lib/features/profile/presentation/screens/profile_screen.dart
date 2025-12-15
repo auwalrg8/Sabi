@@ -211,50 +211,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final address = profile.sabiUsername;
     final statusText =
         registered
-            ? 'Lightning address registered'
-            : 'Lightning address not yet claimed';
-    final button =
-        registered
-            ? OutlinedButton(
-              onPressed: _isSyncingLightning ? null : _refreshLightningAddress,
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                padding: EdgeInsets.symmetric(vertical: 14, horizontal: 10.w),
-              ),
-              child: Text(
-                _isSyncingLightning
-                    ? 'Refreshing…'
-                    : 'Refresh Lightning address',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            )
-            : ElevatedButton(
-              onPressed: _isSyncingLightning ? null : _registerLightningAddress,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 12.w),
-              ),
-              child: Text(
-                _isSyncingLightning
-                    ? 'Registering…'
-                    : 'Register Lightning address',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            );
+            ? 'Lightning address is set'
+            : 'Lightning address not set';
+    // final button =
+    //     registered
+    //         ? OutlinedButton(
+    //           onPressed: _isSyncingLightning ? null : _refreshLightningAddress,
+    //           style: OutlinedButton.styleFrom(
+    //             side: const BorderSide(color: AppColors.primary),
+    //             shape: RoundedRectangleBorder(
+    //               borderRadius: BorderRadius.circular(16.r),
+    //             ),
+    //             padding: EdgeInsets.symmetric(vertical: 14, horizontal: 10.w),
+    //           ),
+    //           child: Text(
+    //             _isSyncingLightning
+    //                 ? 'Refreshing…'
+    //                 : 'Refresh Lightning address',
+    //             style: TextStyle(
+    //               color: AppColors.primary,
+    //               fontSize: 14.sp,
+    //               fontWeight: FontWeight.w500,
+    //             ),
+    //           ),
+    //         )
+    //         : ElevatedButton(
+    //           onPressed: _isSyncingLightning ? null : _registerLightningAddress,
+    //           style: ElevatedButton.styleFrom(
+    //             backgroundColor: AppColors.primary,
+    //             shape: RoundedRectangleBorder(
+    //               borderRadius: BorderRadius.circular(16.r),
+    //             ),
+    //             padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 12.w),
+    //           ),
+    //           child: Text(
+    //             _isSyncingLightning
+    //                 ? 'Registering…'
+    //                 : 'Register Lightning address',
+    //             style: TextStyle(
+    //               color: Colors.white,
+    //               fontSize: 14.sp,
+    //               fontWeight: FontWeight.w500,
+    //             ),
+    //           ),
+    //         );
 
     return Container(
       width: double.infinity,
@@ -288,30 +288,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           SizedBox(height: 8.w),
-          Text(
-            address,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontFamily: 'Inter',
-              fontSize: 12.sp,
-            ),
-          ),
-          SizedBox(height: 6.h),
-          Text(
-            profile.lightningAddressDescription,
-            style: TextStyle(color: AppColors.textTertiary, fontSize: 12.sp),
-          ),
-          if (profile.lightningAddress?.lnurl != null) ...[
-            SizedBox(height: 6.h),
-            Text(
-              'LNURL: ${profile.lightningAddress!.lnurl}',
-              style: TextStyle(color: AppColors.textTertiary, fontSize: 10.sp),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          SizedBox(height: 12.sp),
-          button,
+          // Text(
+          //   address,
+          //   style: TextStyle(
+          //     color: AppColors.textSecondary,
+          //     fontFamily: 'Inter',
+          //     fontSize: 12.sp,
+          //   ),
+          // ),
+          // SizedBox(height: 6.h),
+          // Text(
+          //   profile.lightningAddressDescription,
+          //   style: TextStyle(color: AppColors.textTertiary, fontSize: 12.sp),
+          // ),
+          // if (profile.lightningAddress?.lnurl != null) ...[
+          //   SizedBox(height: 6.h),
+          //   Text(
+          //     'LNURL: ${profile.lightningAddress!.lnurl}',
+          //     style: TextStyle(color: AppColors.textTertiary, fontSize: 10.sp),
+          //     maxLines: 1,
+          //     overflow: TextOverflow.ellipsis,
+          //   ),
+          // ],
+          // SizedBox(height: 12.sp),
+          // button,
         ],
       ),
     );
