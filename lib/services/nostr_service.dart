@@ -85,7 +85,7 @@ class NostrService {
       [],
       note ?? 'Zap $amount sats',
     );
-    await _nostr!.sendEvent(event);
+    _nostr!.sendEvent(event);
   }
 
   static Stream<Event> listenForZaps() {

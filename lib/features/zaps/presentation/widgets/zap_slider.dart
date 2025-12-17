@@ -5,11 +5,11 @@ class ZapSlider extends StatefulWidget {
   final ValueChanged<int> onChanged;
   final List<int> presetValues;
   const ZapSlider({
-    Key? key,
+    super.key,
     required this.initialValue,
     required this.onChanged,
     this.presetValues = const [21, 210, 1000, 10000],
-  }) : super(key: key);
+  });
 
   @override
   State<ZapSlider> createState() => _ZapSliderState();

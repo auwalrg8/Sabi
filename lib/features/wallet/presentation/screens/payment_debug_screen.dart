@@ -65,7 +65,7 @@ class PaymentDebugScreen extends ConsumerWidget {
                     if (payment.bolt11 != null)
                       _InfoRow(
                         'Invoice',
-                        payment.bolt11!.substring(0, 30) + '...',
+                        '${payment.bolt11!.substring(0, 30)}...',
                       ),
                   ],
                 ),

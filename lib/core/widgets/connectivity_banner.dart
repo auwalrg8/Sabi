@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/connectivity_service.dart';
 import 'package:sabi_wallet/services/connectivity_service_provider.dart';
 

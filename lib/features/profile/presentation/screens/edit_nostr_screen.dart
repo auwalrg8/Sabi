@@ -6,8 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 class EditNostrScreen extends StatefulWidget {
   final String? initialNpub;
   final String? initialNsec;
-  const EditNostrScreen({Key? key, this.initialNpub, this.initialNsec})
-    : super(key: key);
+  const EditNostrScreen({Key? key, this.initialNpub, this.initialNsec}) : super(key: key);
 
   @override
   State<EditNostrScreen> createState() => _EditNostrScreenState();

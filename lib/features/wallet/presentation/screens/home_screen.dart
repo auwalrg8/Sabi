@@ -6,7 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
-import 'package:sabi_wallet/features/zaps/presentation/screens/zaps_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
@@ -62,7 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             () => setState(() => _isBalanceVisible = !_isBalanceVisible),
       ),
       const CashScreen(),
-      const ZapsScreen(),
+      const P2PScreen(),
       const ProfileScreen(),
     ];
     // Initialize Breez SDK first, then poll payments
@@ -328,7 +328,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               label: 'Cash',
             ),
             BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: 'Zaps'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.swap_horiz),
+              label: 'P2P',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Profile',
+            ),
           ],
         ),
       ),
