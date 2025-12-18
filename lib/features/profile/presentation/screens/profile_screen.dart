@@ -210,9 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final registered = profile.hasLightningAddress;
     final address = profile.sabiUsername;
     final statusText =
-        registered
-            ? 'Lightning address is set'
-            : 'Lightning address not set';
+        registered ? 'Lightning address is set' : 'Lightning address not set';
     // final button =
     //     registered
     //         ? OutlinedButton(
@@ -470,9 +468,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 onPressed: _editNostrKeys,
                                 child: Text(
-                                  'Add/Edit Nostr',
+                                  'Add / Edit Nostr',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.surface,
                                     fontSize: 12.sp,
                                     fontWeight: FontWeight.w600,
                                   ),

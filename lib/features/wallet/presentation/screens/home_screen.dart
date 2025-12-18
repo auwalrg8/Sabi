@@ -19,10 +19,10 @@ import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
 import 'package:sabi_wallet/features/home/widgets/suggestions_slider.dart';
-import 'package:sabi_wallet/core/widgets/skeleton_loader.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/edit_nostr_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../providers/wallet_info_provider.dart';
 import '../providers/balance_provider.dart';
@@ -292,20 +292,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         !BreezSparkService.isInitialized || balanceState.isLoading;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // The main content (tabs)
-          _screens[_currentIndex],
-
-          // Overlay skeleton only on the Home tab (index 0) and when needed
-          if (_currentIndex == 0 && showSkeleton)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.5),
-                child: const SafeArea(child: SkeletonLoader()),
-              ),
-            ),
-        ],
+      body: Skeletonizer(
+        enabled: showSkeleton,
+        enableSwitchAnimation: true,
+        containersColor: AppColors.surface,
+        justifyMultiLineText: true,
+        effect: PulseEffect(
+          duration: Duration(seconds: 1),
+          from: AppColors.background,
+          to: AppColors.borderColor.withValues(alpha: 0.3),
+          lowerBound: 0,
+          upperBound: 1.0,
+        ),
+        switchAnimationConfig: SwitchAnimationConfig(
+          switchOutCurve: Curves.bounceInOut,
+        ),
+        child: Stack(
+          children: [
+            // The main content (tabs)
+            _screens[_currentIndex],
+          ],
+        ),
       ),
       // Ensure the bottom navigation matches the app dark theme and avoids
       // system insets causing white gaps by wrapping it in a SafeArea.
@@ -327,15 +334,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               icon: Icon(Icons.account_balance_wallet),
               label: 'Cash',
             ),
-            BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: 'Zaps'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.swap_horiz),
-              label: 'P2P',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profile',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: 'P2P'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
         ),
       ),
@@ -395,13 +395,13 @@ class _HomeContentState extends State<_HomeContent> {
                               backgroundColor: AppColors.primary,
                               child: Text(
                                 initial,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: AppColors.surface,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                            SizedBox(width: 8.w),
+                            SizedBox(width: 10.w),
                             Text(
                               'Hi, $username',
                               style: TextStyle(
