@@ -226,7 +226,7 @@ class SendConfirmationScreen extends StatelessWidget {
           child: Text(
             'Send now',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.surface,
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
             ),

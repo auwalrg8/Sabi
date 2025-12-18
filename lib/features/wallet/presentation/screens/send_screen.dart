@@ -623,7 +623,7 @@ class _SendScreenState extends State<SendScreen>
               child: Text(
                 'Continue',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                 ),

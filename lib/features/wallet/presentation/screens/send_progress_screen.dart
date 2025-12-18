@@ -64,7 +64,6 @@ class _SendProgressScreenState extends State<SendProgressScreen>
       debugPrint(
         '✅ Payment sent: $actualAmountSats sats, fee: $actualFeeSats sats',
       );
-
     } catch (e) {
       debugPrint('❌ Payment failed: $e');
       _successTimer?.cancel();
@@ -83,7 +82,8 @@ class _SendProgressScreenState extends State<SendProgressScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => PaymentSuccessScreen(transaction: widget.transaction),
+        builder:
+            (context) => PaymentSuccessScreen(transaction: widget.transaction),
       ),
     );
   }
@@ -235,7 +235,10 @@ class _SendProgressScreenState extends State<SendProgressScreen>
                   ),
                   child: Text(
                     'Cancel',
-                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                    style: TextStyle(
+                      color: AppColors.accentRed,
+                      fontSize: 14.sp,
+                    ),
                   ),
                 ),
               ),

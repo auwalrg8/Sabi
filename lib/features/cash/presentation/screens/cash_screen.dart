@@ -270,7 +270,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                   style: TextStyle(
                                     color:
                                         cashState.isBuying
-                                            ? Colors.white
+                                            ? AppColors.surface
                                             : AppColors.textTertiary,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
@@ -301,7 +301,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                   style: TextStyle(
                                     color:
                                         !cashState.isBuying
-                                            ? Colors.white
+                                            ? AppColors.surface
                                             : AppColors.textTertiary,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w500,
