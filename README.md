@@ -45,6 +45,6 @@ ex/contributor: Alby • Geyser • Synonym • Bitcoin.design
 Kaduna → Nigeria → Africa → World  
 Sabi Wallet go orange-pill the North first.  
 
-#BitcoinKaduna #HausaBitcoin #AfricanBitcoin
+#BitcoinKaduna #HausaBitcoin #AfricanBitcoin #bitdevsKaduna
 
 Made with love, arewa style. ⚡
