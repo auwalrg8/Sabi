@@ -36,6 +36,7 @@ Actively developing. Kaduna beta testers go land first.
 2. Join the Discord (link in bio)
 3. Check open issues → Flutter, Rust/LDK, Hausa translation, design, testing
 4. PRs welcome 
+Backend Repo: https://github.com/auwalrg8/sabi-wallet-backend
 
 ### Made by
 Auwal Abubakar – Kaduna Bitcoiner  
