@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
+import 'dart:io';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_screen.dart';
@@ -395,15 +396,30 @@ class _HomeContentState extends State<_HomeContent> {
 
                         return Row(
                           children: [
-                            CircleAvatar(
-                              radius: 18.r,
-                              backgroundColor: AppColors.primary,
-                              child: Text(
-                                initial,
-                                style: TextStyle(
-                                  color: AppColors.surface,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfileScreen(),
+                                  ),
+                                );
+                              },
+                              child: CircleAvatar(
+                                radius: 18.r,
+                                backgroundColor: AppColors.primary,
+                                backgroundImage: (profile != null && profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+                                    ? FileImage(File(profile!.profilePicturePath!)) as ImageProvider
+                                    : null,
+                                child: (profile == null || profile.profilePicturePath == null || profile.profilePicturePath!.isEmpty)
+                                    ? Text(
+                                        initial,
+                                        style: TextStyle(
+                                          color: AppColors.surface,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      )
+                                    : null,
                               ),
                             ),
                             SizedBox(width: 10.w),
