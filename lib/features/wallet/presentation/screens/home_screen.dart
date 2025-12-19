@@ -795,7 +795,7 @@ class _FigmaActionButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(15.r),
             ),
             child: Padding(
-              padding: EdgeInsets.all(8.w),
+              padding: EdgeInsets.all(6.w),
               child: Column(
                 children: [
                   Center(
@@ -806,7 +806,7 @@ class _FigmaActionButton extends StatelessWidget {
                       color: const Color(0xFFA1A1B2),
                     ),
                   ),
-                  SizedBox(height: 8.h),
+                  SizedBox(height: 4.h),
                   Text(
                     label,
                     textAlign: TextAlign.center,
