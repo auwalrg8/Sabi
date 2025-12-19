@@ -370,7 +370,7 @@ class _HomeContentState extends State<_HomeContent> {
                 left: 30.h,
                 right: 30.h,
                 top: 30.h,
-                bottom: 30.h + MediaQuery.of(context).padding.bottom + kToolbarHeight,
+                bottom: 30.h + MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight,
               ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,11 +526,12 @@ class _HomeContentState extends State<_HomeContent> {
                 SizedBox(height: 17.h),
                 // Responsive action buttons: wrap to next line on small widths
                 Wrap(
-                  spacing: 12.w,
-                  runSpacing: 12.h,
-                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 10.w,
+                  runSpacing: 10.h,
+                  alignment: WrapAlignment.center,
+                  runAlignment: WrapAlignment.center,
                   children: [
-                    SizedBox(width: 75.w, child: _FigmaActionButton(
+                    SizedBox(width: 80.w, child: _FigmaActionButton(
                       asset: 'assets/icons/Send.png',
                       label: AppLocalizations.of(context)!.send,
                       onTap: () => Navigator.push(
@@ -540,7 +541,7 @@ class _HomeContentState extends State<_HomeContent> {
                         ),
                       ),
                     )),
-                    SizedBox(width: 75.w, child: _FigmaActionButton(
+                    SizedBox(width: 80.w, child: _FigmaActionButton(
                       asset: 'assets/icons/receive.png',
                       label: AppLocalizations.of(context)!.receive,
                       onTap: () => Navigator.push(
@@ -550,12 +551,12 @@ class _HomeContentState extends State<_HomeContent> {
                         ),
                       ),
                     )),
-                    SizedBox(width: 75.w, child: _FigmaActionButton(
+                    SizedBox(width: 80.w, child: _FigmaActionButton(
                       asset: 'assets/icons/airtime.png',
                       label: AppLocalizations.of(context)!.airtime,
                       onTap: () {},
                     )),
-                    SizedBox(width: 75.w, child: _FigmaActionButton(
+                    SizedBox(width: 80.w, child: _FigmaActionButton(
                       asset: 'assets/icons/data.png',
                       label: 'Data',
                       onTap: () {},
