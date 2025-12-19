@@ -5,152 +5,35 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/utils/format_utils.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/trade_flow_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/offer_details_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/create_offer_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/trade_history_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/my_trades_screen.dart';
 
-class P2PScreen extends ConsumerStatefulWidget {
+class P2PScreen extends ConsumerWidget {
   const P2PScreen({super.key});
 
   @override
-  ConsumerState<P2PScreen> createState() => _P2PScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filterState = ref.watch(p2pFilterProvider);
+    final exchangeRates = ref.watch(exchangeRatesProvider);
+    final offers = ref.watch(filteredP2POffersProvider);
 
-// Uses P2POfferModel from data layer
-
-class _P2PScreenState extends ConsumerState<P2PScreen> {
-  // offers provided by Riverpod provider
-
-  String _selectedMode = 'Sell BTC';
-  String _selectedFilter = 'All Payments';
-  String _sortBy = 'Best Price';
-
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      // Placeholder: load more offers
-      // In real implementation: fetch next page
-    }
-  }
-
-  void _showSellerModal(P2POfferModel offer) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-      ),
-      builder:
-          (_) => Padding(
-            padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 24.w),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24.r,
-                      backgroundColor: AppColors.primary,
-                      child: Text(offer.name[0]),
-                    ),
-                    SizedBox(width: 12.w),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          offer.name,
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: 4.h),
-                        Text(
-                          '${offer.ratingPercent}% (${offer.trades} trades)',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-                Text(
-                  'Rate: ${formatCurrency(offer.pricePerBtc)} per 1 BTC',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  'Payment: ${offer.paymentMethod} • ${offer.eta}',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                SizedBox(height: 16.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: EdgeInsets.symmetric(vertical: 14.h),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => TradeFlowScreen(offer: offer),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Continue',
-                          style: TextStyle(color: AppColors.surface),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-
-  // _filteredOffers will be built in build() from provider
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: RefreshIndicator(
-          onRefresh: () async {},
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            // Refresh offers
+            await Future.delayed(const Duration(seconds: 1));
+          },
           child: SingleChildScrollView(
-            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 18.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -165,12 +48,21 @@ class _P2PScreenState extends ConsumerState<P2PScreen> {
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.history, color: Colors.white),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const TradeHistoryScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.history, color: AppColors.textSecondary),
+                          iconSize: 20.sp,
                         ),
                         IconButton(
                           onPressed: () {},
-                          icon: const Icon(Icons.settings, color: Colors.white),
+                          icon: const Icon(Icons.list, color: AppColors.textSecondary),
+                          iconSize: 20.sp,
                         ),
                       ],
                     ),
@@ -178,181 +70,198 @@ class _P2PScreenState extends ConsumerState<P2PScreen> {
                 ),
                 SizedBox(height: 12.h),
 
-                // Mode toggle
+                // Exchange rates
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '1 BTC = ',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: formatCurrency(exchangeRates['BTC_NGN'] ?? 0),
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '1 USD = ',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: formatCurrency(exchangeRates['USD_NGN'] ?? 0),
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20.h),
+
+                // Buy/Sell toggle
                 Row(
                   children: [
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedMode = 'Buy BTC'),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 12.h),
-                          decoration: BoxDecoration(
-                            color:
-                                _selectedMode == 'Buy BTC'
-                                    ? AppColors.primary
-                                    : AppColors.surface,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Buy BTC',
-                              style: TextStyle(
-                                color:
-                                    _selectedMode == 'Buy BTC'
-                                        ? AppColors.surface
-                                        : AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
+                      child: _ToggleButton(
+                        label: 'Buy BTC',
+                        isSelected: filterState.offerType == OfferType.buy,
+                        onTap: () => ref.read(p2pFilterProvider.notifier).setOfferType(OfferType.buy),
                       ),
                     ),
                     SizedBox(width: 8.w),
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedMode = 'Sell BTC'),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 12.h),
-                          decoration: BoxDecoration(
-                            color:
-                                _selectedMode == 'Sell BTC'
-                                    ? AppColors.primary
-                                    : AppColors.surface,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Sell BTC',
-                              style: TextStyle(
-                                color:
-                                    _selectedMode == 'Sell BTC'
-                                        ? AppColors.surface
-                                        : AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
+                      child: _ToggleButton(
+                        label: 'Sell BTC',
+                        isSelected: filterState.offerType == OfferType.sell,
+                        onTap: () => ref.read(p2pFilterProvider.notifier).setOfferType(OfferType.sell),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20.h),
+
+                // Payment filters
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _FilterChip(
+                        label: 'All Payments',
+                        isSelected: filterState.paymentFilter == 'All Payments',
+                        onTap: () => ref.read(p2pFilterProvider.notifier).setPaymentFilter('All Payments'),
+                      ),
+                      SizedBox(width: 8.w),
+                      _FilterChip(
+                        label: 'Bank Transfer',
+                        isSelected: filterState.paymentFilter == 'Bank Transfer',
+                        onTap: () => ref.read(p2pFilterProvider.notifier).setPaymentFilter('Bank Transfer'),
+                      ),
+                      SizedBox(width: 8.w),
+                      _FilterChip(
+                        label: 'Mobile Money',
+                        isSelected: filterState.paymentFilter == 'Mobile Money',
+                        onTap: () => ref.read(p2pFilterProvider.notifier).setPaymentFilter('Mobile Money'),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 20.h),
+
+                // Offers list
+                if (offers.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40.h),
+                      child: Text(
+                        'No offers available',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14.sp,
                         ),
                       ),
                     ),
-                  ],
-                ),
-
-                SizedBox(height: 20.h),
-
-                // Filter chips
-                Center(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      spacing: 8.w,
-                      children: [
-                        _buildFilterChip('All Payments'),
-                        _buildFilterChip('Bank Transfer'),
-                        _buildFilterChip('Mobile Money'),
-                      ],
-                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (_, idx) {
+                      final offer = offers[idx];
+                      return P2POfferCard(
+                        offer: offer,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OfferDetailsScreen(offer: offer),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    separatorBuilder: (_, __) => SizedBox(height: 12.h),
+                    itemCount: offers.length,
                   ),
-                ),
-
-                SizedBox(height: 10.h),
-
-                // Sort and quick info
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Offers',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        dropdownColor: AppColors.surface,
-                        style: TextStyle(color: AppColors.textPrimary),
-                        hint: Text('Filter...'),
-                        value: _sortBy,
-                        items:
-                            ['Best Price', 'Fastest', 'Highest Rated']
-                                .map(
-                                  (s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged:
-                            (v) => setState(() => _sortBy = v ?? 'Best Price'),
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 12.h),
-
-                // Offer list (from provider)
-                Consumer(
-                  builder: (context, ref, _) {
-                    final offers = ref.watch(p2pOffersProvider);
-                    // apply minimal sorting
-                    final list = List.of(offers);
-                    if (_sortBy == 'Best Price') {
-                      list.sort(
-                        (a, b) => a.pricePerBtc.compareTo(b.pricePerBtc),
-                      );
-                    }
-                    if (_sortBy == 'Highest Rated') {
-                      list.sort(
-                        (a, b) => b.ratingPercent.compareTo(a.ratingPercent),
-                      );
-                    }
-
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemBuilder: (_, idx) {
-                        final offer = list[idx];
-                        return P2PCard(
-                          offer: offer,
-                          onTap: () => _showSellerModal(offer),
-                        );
-                      },
-                      separatorBuilder: (_, __) => SizedBox(height: 12.h),
-                      itemCount: list.length,
-                    );
-                  },
-                ),
                 SizedBox(height: 90.h),
               ],
             ),
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: AppColors.primary,
-          onPressed: () {
-            // create new offer / post ad flow
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Create P2P offer')));
-          },
-          child: const Icon(Icons.add, color: AppColors.surface),
-        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateOfferScreen()),
+          );
+        },
+        child: const Icon(Icons.add, color: AppColors.background),
       ),
     );
   }
+}
 
-  Widget _buildFilterChip(String label) {
-    final selected = _selectedFilter == label;
+class _ToggleButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ToggleButton({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = label),
+      onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 8.h),
+        padding: EdgeInsets.symmetric(vertical: 12.h),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(20.r),
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(30.r),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? AppColors.surface : AppColors.textSecondary,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: isSelected ? AppColors.background : AppColors.textSecondary,
+            ),
           ),
         ),
       ),
@@ -360,177 +269,259 @@ class _P2PScreenState extends ConsumerState<P2PScreen> {
   }
 }
 
-class P2PCard extends StatelessWidget {
-  final P2POfferModel offer;
-  final VoidCallback? onTap;
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const P2PCard({super.key, required this.offer, this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(14.h),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.transparent : AppColors.surface,
+          borderRadius: BorderRadius.circular(20.r),
+          border: isSelected ? Border.all(color: AppColors.primary) : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
           ),
-        ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.primary,
-                      child: Text(offer.name[0]),
+    );
+  }
+}
+
+class P2POfferCard extends StatelessWidget {
+  final P2POfferModel offer;
+  final VoidCallback? onTap;
+
+  const P2POfferCard({
+    super.key,
+    required this.offer,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20.r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Merchant info
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24.r,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                  child: Text(
+                    offer.name[0],
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16.sp,
                     ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
                           Text(
                             offer.name,
                             style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
                               color: Colors.white,
-                              fontWeight: FontWeight.w700,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            '${offer.ratingPercent}% (${offer.trades} trades)',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12.sp,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          SizedBox(width: 6.w),
+                          Icon(
+                            Icons.verified,
+                            color: Colors.blue,
+                            size: 16.sp,
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              // Rate
-              Flexible(
-                child: Text(
-                  formatCurrency(offer.pricePerBtc),
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w800,
+                      SizedBox(height: 4.h),
+                      Text(
+                        '${offer.ratingPercent}% (${offer.trades} trades)',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ],
+            ),
+            SizedBox(height: 15.h),
+
+            // Price
+            Text(
+              formatCurrency(offer.pricePerBtc),
+              style: TextStyle(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
-            ],
-          ),
-          SizedBox(height: 15.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
+            ),
+            Text(
+              'per 1 BTC',
+              style: TextStyle(
+                fontSize: 10.sp,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(height: 15.h),
+
+            // Example amounts
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       formatCurrency(10000),
                       style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 8.h),
                     Text(
                       'Pay',
                       style: TextStyle(
+                        fontSize: 10.sp,
                         color: AppColors.textSecondary,
-                        fontSize: 12.sp,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Expanded(
-                child: Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      formatBtc(fiatToBtc(10000, offer.pricePerBtc)),
+                      formatCurrency(fiatToBtc(10000, offer.pricePerBtc) * offer.pricePerBtc * 0.9708),
                       style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 8.h),
                     Text(
                       'Receive BTC',
                       style: TextStyle(
+                        fontSize: 10.sp,
                         color: AppColors.textSecondary,
-                        fontSize: 12.sp,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Limits ₦${offer.minLimit.toString()} - ₦${offer.maxLimit.toString()}',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12.sp,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: Text(
-                  '${offer.paymentMethod} • ${offer.eta}',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12.sp,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: onTap,
-              child: Text('Trade', style: TextStyle(color: AppColors.surface)),
+              ],
             ),
-          ),
-        ],
+            SizedBox(height: 15.h),
+
+            // Payment method
+            Text(
+              'Payment',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              '${offer.paymentMethod} • ${offer.eta}',
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 12.h),
+
+            // Limits and Trade button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Limits',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        '${formatCurrency(offer.minLimit.toDouble())} – ${formatCurrency(offer.maxLimit.toDouble())}',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.r),
+                    ),
+                  ),
+                  onPressed: onTap,
+                  child: Text(
+                    'Trade',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.background,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
