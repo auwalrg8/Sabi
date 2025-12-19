@@ -16,7 +16,7 @@ class MyTradesScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: P2PColors.background,
-      appBar: const P2PAppBar(title: 'My Trades'),
+      appBar: P2PAppBar(title: 'My Trades'),
       body: tradesAsync.when(
         data: (trades) {
           if (trades.isEmpty) {

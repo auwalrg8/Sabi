@@ -21,7 +21,7 @@ class MerchantProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: P2PColors.background,
-      appBar: const P2PAppBar(title: 'Merchant Profile'),
+      appBar: P2PAppBar(title: 'Merchant Profile'),
       body: profileAsync.when(
         data: (profile) => _MerchantProfileContent(
           profile: profile,

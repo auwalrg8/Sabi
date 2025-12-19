@@ -16,7 +16,7 @@ class TradeHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: P2PColors.background,
-      appBar: const P2PAppBar(title: 'Trade History'),
+      appBar: P2PAppBar(title: 'Trade History'),
       body: Column(
         children: [
           const SizedBox(height: 16),

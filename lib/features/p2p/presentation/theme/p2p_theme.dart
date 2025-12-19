@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 
 // Map P2P theme tokens to the app's canonical `AppColors` so P2P UI
@@ -51,6 +52,10 @@ class P2PAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: P2PColors.background,
       elevation: 0,
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 24.sp),
+        onPressed: () => Navigator.pop(context),
+      ),
       title: Text(title, style: P2PTextStyles.heading2),
       centerTitle: true,
     );
