@@ -365,8 +365,13 @@ class _HomeContentState extends State<_HomeContent> {
 
         return SafeArea(
           child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.all(30.h),
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(
+                left: 30.h,
+                right: 30.h,
+                top: 30.h,
+                bottom: 30.h + MediaQuery.of(context).padding.bottom + kToolbarHeight,
+              ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -519,41 +524,42 @@ class _HomeContentState extends State<_HomeContent> {
                   },
                 ),
                 SizedBox(height: 17.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Responsive action buttons: wrap to next line on small widths
+                Wrap(
+                  spacing: 12.w,
+                  runSpacing: 12.h,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
-                    _FigmaActionButton(
+                    SizedBox(width: 75.w, child: _FigmaActionButton(
                       asset: 'assets/icons/Send.png',
                       label: AppLocalizations.of(context)!.send,
-                      onTap:
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SendScreen(),
-                            ),
-                          ),
-                    ),
-                    _FigmaActionButton(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SendScreen(),
+                        ),
+                      ),
+                    )),
+                    SizedBox(width: 75.w, child: _FigmaActionButton(
                       asset: 'assets/icons/receive.png',
                       label: AppLocalizations.of(context)!.receive,
-                      onTap:
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ReceiveScreen(),
-                            ),
-                          ),
-                    ),
-                    _FigmaActionButton(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ReceiveScreen(),
+                        ),
+                      ),
+                    )),
+                    SizedBox(width: 75.w, child: _FigmaActionButton(
                       asset: 'assets/icons/airtime.png',
                       label: AppLocalizations.of(context)!.airtime,
                       onTap: () {},
-                    ),
-                    _FigmaActionButton(
+                    )),
+                    SizedBox(width: 75.w, child: _FigmaActionButton(
                       asset: 'assets/icons/data.png',
                       label: 'Data',
                       onTap: () {},
-                    ),
+                    )),
                   ],
                 ),
                 SizedBox(height: 10.h),
