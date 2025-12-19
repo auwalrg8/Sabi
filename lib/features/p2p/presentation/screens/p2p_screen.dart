@@ -9,6 +9,8 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/offer_details_scre
 import 'package:sabi_wallet/features/p2p/presentation/screens/create_offer_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/trade_history_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/my_trades_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/merchant_profile_screen.dart';
+export 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_widgets.dart';
 
 class P2PScreen extends ConsumerWidget {
   const P2PScreen({super.key});
@@ -60,7 +62,14 @@ class P2PScreen extends ConsumerWidget {
                           iconSize: 20.sp,
                         ),
                         IconButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MyTradesScreen(),
+                              ),
+                            );
+                          },
                           icon: const Icon(Icons.list, color: AppColors.textSecondary),
                           iconSize: 20.sp,
                         ),
@@ -337,15 +346,26 @@ class P2POfferCard extends StatelessWidget {
             // Merchant info
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24.r,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                  child: Text(
-                    offer.name[0],
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16.sp,
+                GestureDetector(
+                  onTap: () {
+                    final merchantId = offer.merchant?.id ?? offer.name;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MerchantProfileScreen(merchantId: merchantId),
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    radius: 24.r,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                    child: Text(
+                      offer.name[0],
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16.sp,
+                      ),
                     ),
                   ),
                 ),
@@ -356,12 +376,23 @@ class P2POfferCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            offer.name,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                          GestureDetector(
+                            onTap: () {
+                              final merchantId = offer.merchant?.id ?? offer.name;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MerchantProfileScreen(merchantId: merchantId),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              offer.name,
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                           SizedBox(width: 6.w),

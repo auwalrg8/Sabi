@@ -83,15 +83,26 @@ class _OfferDetailsScreenState extends ConsumerState<OfferDetailsScreen> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 30.r,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                        child: Text(
-                          widget.offer.name[0],
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 24.sp,
+                      GestureDetector(
+                        onTap: () {
+                          final merchantId = widget.offer.merchant?.id ?? widget.offer.name;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MerchantProfileScreen(merchantId: merchantId),
+                            ),
+                          );
+                        },
+                        child: CircleAvatar(
+                          radius: 30.r,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                          child: Text(
+                            widget.offer.name[0],
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 24.sp,
+                            ),
                           ),
                         ),
                       ),
@@ -102,12 +113,23 @@ class _OfferDetailsScreenState extends ConsumerState<OfferDetailsScreen> {
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  widget.offer.name,
-                                  style: TextStyle(
-                                    fontSize: 17.sp,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                GestureDetector(
+                                  onTap: () {
+                                    final merchantId = widget.offer.merchant?.id ?? widget.offer.name;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MerchantProfileScreen(merchantId: merchantId),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    widget.offer.name,
+                                    style: TextStyle(
+                                      fontSize: 17.sp,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                                 SizedBox(width: 8.w),

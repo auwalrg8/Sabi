@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/data/merchant_model.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
+import 'package:sabi_wallet/features/p2p/data/models/p2p_models.dart';
 
 // Exchange rates provider
 final exchangeRatesProvider = Provider<Map<String, double>>((ref) {
@@ -224,3 +225,115 @@ final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
 
   return filtered;
 });
+
+// Merchant profile tab selection
+final merchantProfileTabProvider = StateProvider<MerchantProfileTab>((ref) => MerchantProfileTab.info);
+
+// Merchant profile provider (mocked from merchants list)
+final merchantProfileProvider = FutureProvider.family<MerchantProfile, String>((ref, merchantId) async {
+  final merchants = ref.read(merchantsProvider);
+  final match = merchants.firstWhere((m) => m.id == merchantId, orElse: () => merchants.first);
+
+  final profile = MerchantProfile(
+    id: match.id,
+    name: match.name,
+    avatar: match.avatarUrl,
+    verifications: [MerchantVerification(name: 'ID')],
+    stats: MerchantStats(
+      trades30d: match.trades30d,
+      completionRate: match.completionRate,
+      avgReleaseTime: Duration(minutes: match.avgReleaseMinutes),
+      totalVolume: match.totalVolume,
+      volumeCurrency: 'NGN',
+      positiveFeedback: match.positiveFeedback,
+      negativeFeedback: match.negativeFeedback,
+      rating: match.rating,
+    ),
+    ads: [],
+    feedbacks: [],
+    joinedAt: match.joinedDate,
+    daysToFirstTrade: match.firstTradeDate != null ? match.firstTradeDate!.difference(match.joinedDate).inDays : 0,
+  );
+
+  await Future.delayed(const Duration(milliseconds: 150));
+  return profile;
+});
+
+// Active trades notifier/provider
+class ActiveTradesNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
+  ActiveTradesNotifier(this.ref) : super(const AsyncValue.loading()) {
+    _load();
+  }
+
+  final Ref ref;
+
+  Future<void> _load() async {
+    try {
+      final offers = ref.read(p2pOffersProvider);
+      final trades = offers.map((o) => Trade(
+            id: 'trade_${o.id}',
+            counterpartyId: o.merchant?.id ?? o.id,
+            counterpartyName: o.name,
+            counterpartyAvatar: o.merchant?.avatarUrl,
+            fiatAmount: ((o.minLimit + o.maxLimit) / 2).toDouble(),
+            satsAmount: (((o.minLimit + o.maxLimit) / 2) / (o.pricePerBtc == 0 ? 1 : o.pricePerBtc) * 100000000).toDouble(),
+            status: TradeStatus.awaitingPayment,
+            createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+            timeLeft: const Duration(minutes: 30),
+            type: TradeType.buy,
+          )).toList();
+
+      final unique = {for (var t in trades) t.id: t}.values.toList();
+      state = AsyncValue.data(unique);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> refresh() async => await _load();
+}
+
+final activeTradesNotifierProvider = StateNotifierProvider<ActiveTradesNotifier, AsyncValue<List<Trade>>>((ref) {
+  return ActiveTradesNotifier(ref);
+});
+
+// Trade history notifier/provider
+class TradeHistoryNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
+  TradeHistoryNotifier(this.ref) : super(const AsyncValue.loading()) {
+    _load();
+  }
+
+  final Ref ref;
+
+  Future<void> _load() async {
+    try {
+      final offers = ref.read(p2pOffersProvider);
+      final trades = offers.map((o) => Trade(
+            id: 'hist_${o.id}',
+            counterpartyId: o.merchant?.id ?? o.id,
+            counterpartyName: o.name,
+            counterpartyAvatar: o.merchant?.avatarUrl,
+            fiatAmount: ((o.minLimit + o.maxLimit) / 2).toDouble(),
+            satsAmount: (((o.minLimit + o.maxLimit) / 2) / (o.pricePerBtc == 0 ? 1 : o.pricePerBtc) * 100000000).toDouble(),
+            status: TradeStatus.completed,
+            createdAt: DateTime.now().subtract(const Duration(days: 2)),
+            timeLeft: null,
+            type: TradeType.sell,
+          )).toList();
+
+      final unique = {for (var t in trades) t.id: t}.values.toList();
+      state = AsyncValue.data(unique);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> refresh() async => await _load();
+}
+
+final tradeHistoryNotifierProvider = StateNotifierProvider<TradeHistoryNotifier, AsyncValue<List<Trade>>>((ref) {
+  return TradeHistoryNotifier(ref);
+});
+
+final tradeHistoryFilterProvider = StateProvider<TradeHistoryFilter>((ref) => TradeHistoryFilter.all);
+
