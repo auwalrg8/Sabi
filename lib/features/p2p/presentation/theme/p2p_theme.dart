@@ -30,7 +30,6 @@ class P2PDecorations {
   static final cardDecoration = BoxDecoration(
     color: P2PColors.cardBackgroundLight,
     borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: P2PColors.divider.withOpacity(0.25)),
     boxShadow: [
       BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 6, offset: const Offset(0, 2)),
     ],
