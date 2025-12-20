@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -20,6 +21,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
   late AnimationController _refreshController;
   double? _liveBtcRate;
   double? _liveUsdtRate;
+  final TextEditingController _amountInputController = TextEditingController();
 
   final List<double> _quickAmounts = [
     5000,
@@ -54,6 +56,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
   @override
   void dispose() {
     _refreshController.dispose();
+    _amountInputController.dispose();
     super.dispose();
   }
 
@@ -373,21 +376,26 @@ class _CashScreenState extends ConsumerState<CashScreen>
                               ),
                               SizedBox(width: 15.w),
                               Expanded(
-                                child: Text(
-                                  cashState.selectedAmount > 0
-                                      ? formatter.format(
-                                        cashState.selectedAmount.toInt(),
-                                      )
-                                      : '0.00',
+                                child: TextField(
+                                  controller: _amountInputController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                   style: TextStyle(
-                                    color:
-                                        cashState.selectedAmount > 0
-                                            ? Colors.white
-                                            : const Color(0xFFCCCCCC),
+                                    color: cashState.selectedAmount > 0 ? Colors.white : const Color(0xFFCCCCCC),
                                     fontSize: 48.sp,
                                     fontWeight: FontWeight.w700,
                                     height: 1,
                                   ),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    hintText: '0.00',
+                                    hintStyle: TextStyle(color: const Color(0xFFCCCCCC), fontSize: 48.sp),
+                                  ),
+                                  onChanged: (value) {
+                                    final cleaned = value.replaceAll(RegExp(r'[^0-9.]'), '');
+                                    final parsed = double.tryParse(cleaned) ?? 0;
+                                    ref.read(cashProvider.notifier).setAmount(parsed);
+                                  },
                                 ),
                               ),
                             ],
@@ -410,10 +418,11 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                   cashState.selectedAmount == amount;
 
                               return GestureDetector(
-                                onTap:
-                                    () => ref
-                                        .read(cashProvider.notifier)
-                                        .setAmount(amount),
+                                onTap: () {
+                                    // set quick amount and update input field
+                                    ref.read(cashProvider.notifier).setAmount(amount);
+                                    _amountInputController.text = amount.toInt().toString();
+                                },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: EdgeInsets.symmetric(
@@ -446,88 +455,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
                               );
                             },
                           ),
-                          if (cashState.selectedAmount > 0) ...[
-                            SizedBox(height: 12.h),
-                            Container(
-                              height: 1,
-                              color: const Color(0xFF1F2937),
-                            ),
-                            SizedBox(height: 12.sp),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  cashState.isBuying
-                                      ? 'You\'ll receive'
-                                      : 'You\'ll receive',
-                                  style: TextStyle(
-                                    color: AppColors.textTertiary,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
-                                Text(
-                                  cashState.isBuying
-                                      ? '~${formatter.format(cashState.estimatedSats)} sats'
-                                      : '₦${formatter.format(cashState.amountToReceive.toInt())}',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 12.h),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Fee',
-                                  style: TextStyle(
-                                    color: AppColors.textTertiary,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
-                                Text(
-                                  '0.6% + ₦100 = ₦ ${formatter.format(cashState.fee.toInt())}',
-                                  style: TextStyle(
-                                    color: AppColors.accentGreen,
-                                    fontSize: 12.sp,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (cashState.isBuying) ...[
-                              SizedBox(height: 12.h),
-                              Container(
-                                height: 1,
-                                color: const Color(0xFF1F2937),
-                              ),
-                              SizedBox(height: 12.h),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Total to pay',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₦${formatter.format(cashState.totalToPay.toInt())}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15.sp,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
+                          // Removed the receive/fee/total section as requested
                         ],
                       ),
                     ),
