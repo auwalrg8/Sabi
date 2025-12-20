@@ -48,6 +48,36 @@ class RateService {
     return 130401317.0;
   }
 
+  static const String _usdUrl =
+      'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
+
+  static Future<double> getUsdToNgnRate() async {
+    final box = await _openAppBox();
+    final cached = box.get('usd_ngn_rate');
+    final lastUpdate = box.get('rate_timestamp_usd');
+
+    if (cached != null && lastUpdate != null) {
+      final minutesAgo =
+          DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastUpdate)).inMinutes;
+      if (minutesAgo < 5) return cached;
+    }
+
+    try {
+      final response = await http.get(Uri.parse(_usdUrl)).timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rate = (data['usd']['ngn'] as num).toDouble();
+        await box.put('usd_ngn_rate', rate);
+        await box.put('rate_timestamp_usd', DateTime.now().millisecondsSinceEpoch);
+        return rate;
+      }
+    } catch (e) {
+      print('USD rate fetch failed: $e');
+    }
+
+    return 1614.0;
+  }
+
   static String formatNaira(double naira) {
     return "₦${naira.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}";
   }

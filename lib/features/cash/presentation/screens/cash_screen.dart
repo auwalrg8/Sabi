@@ -19,6 +19,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _refreshController;
   double? _liveBtcRate;
+  double? _liveUsdtRate;
 
   final List<double> _quickAmounts = [
     5000,
@@ -40,10 +41,12 @@ class _CashScreenState extends ConsumerState<CashScreen>
   }
 
   Future<void> _loadLiveRate() async {
-    final rate = await RateService.getBtcToNgnRate();
+    final btc = await RateService.getBtcToNgnRate();
+    final usdt = await RateService.getUsdToNgnRate();
     if (mounted) {
       setState(() {
-        _liveBtcRate = rate;
+        _liveBtcRate = btc;
+        _liveUsdtRate = usdt;
       });
     }
   }
@@ -164,28 +167,31 @@ class _CashScreenState extends ConsumerState<CashScreen>
                             ],
                           ),
                           SizedBox(height: 10.h),
-                          Text(
-                            _liveBtcRate != null
-                                ? '1 BTC = ₦${formatter.format(_liveBtcRate!.toInt())}'
-                                : '1 BTC = ₦ ${formatter.format(cashState.btcPrice.toInt())}',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            _liveBtcRate != null
-                                ? 'Live market rate'
-                                : 'Loading rate...',
-                            style: TextStyle(
-                              color: AppColors.accentGreen.withValues(
-                                alpha: 0.8,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _liveBtcRate != null
+                                    ? '1 BTC = ₦${formatter.format(_liveBtcRate!.toInt())}'
+                                    : '1 BTC = ₦ ${formatter.format(cashState.btcPrice.toInt())}',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w500,
-                            ),
+                              SizedBox(height: 4.h),
+                              Text(
+                                _liveUsdtRate != null
+                                    ? '1 USDT = ₦${formatter.format(_liveUsdtRate!.toInt())}'
+                                    : '1 USDT = ₦ ${formatter.format(cashState.buyRate.toInt())}',
+                                style: TextStyle(
+                                  color: AppColors.textTertiary,
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                           SizedBox(height: 10.h),
                           Row(
@@ -526,6 +532,8 @@ class _CashScreenState extends ConsumerState<CashScreen>
                       ),
                     ),
                     SizedBox(height: 17.h),
+                    // Daily limit card commented out per request
+                    /*
                     Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: 17.w,
@@ -565,6 +573,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
                         ],
                       ),
                     ),
+                    */
                     SizedBox(height: 30.h),
                   ],
                 ),
