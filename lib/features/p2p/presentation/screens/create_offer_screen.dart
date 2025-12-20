@@ -3,6 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/features/p2p/data/merchant_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/providers/trade_providers.dart';
 
@@ -425,7 +427,47 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                     borderRadius: BorderRadius.circular(16.r),
                   ),
                 ),
-                onPressed: () {
+                onPressed: () async {
+                  // Build an offer from the create state and save to user offers
+                  final state = ref.read(createOfferProvider);
+                  final marketRate = (ref.read(exchangeRatesProvider)['BTC_NGN']) ?? 130000000.0;
+                  final price = state.calculateRate(marketRate);
+                  final id = 'user_offer_${DateTime.now().millisecondsSinceEpoch}';
+                  final profile = await ProfileService.getProfile();
+                  final merchant = profile != null
+                      ? MerchantModel(
+                          id: profile.username.isNotEmpty ? profile.username : 'me',
+                          name: profile.fullName.isNotEmpty ? profile.fullName : profile.username ?? 'You',
+                          avatarUrl: profile.profilePicturePath,
+                          trades30d: 0,
+                          completionRate: 100.0,
+                          avgReleaseMinutes: 15,
+                          totalVolume: 0,
+                          joinedDate: DateTime.now(),
+                        )
+                      : null;
+
+                  final offer = P2POfferModel(
+                    id: id,
+                    name: merchant?.name ?? 'You',
+                    pricePerBtc: price,
+                    paymentMethod: state.selectedPaymentMethods.isNotEmpty ? state.selectedPaymentMethods.first : 'Unknown',
+                    eta: '-',
+                    ratingPercent: 100,
+                    trades: 0,
+                    minLimit: 0,
+                    maxLimit: 999999999,
+                    type: state.type,
+                    merchant: merchant,
+                    acceptedMethods: null,
+                    marginPercent: state.marginPercent,
+                    requiresKyc: state.requiresKyc,
+                    paymentInstructions: null,
+                    availableSats: state.availableSats,
+                  );
+
+                  await ref.read(userOffersProvider.notifier).addOffer(offer);
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Offer published successfully!'),

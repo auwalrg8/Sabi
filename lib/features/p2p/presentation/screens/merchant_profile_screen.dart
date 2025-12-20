@@ -68,7 +68,8 @@ class _MerchantProfileContent extends StatelessWidget {
                   builder: (ctx, AsyncSnapshot<UserProfile?> snap) {
                     final user = snap.data;
                     final isCurrentUser = user != null && (profile.id == user.username || profile.name == user.fullName || profile.name == user.username);
-                    if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
+                    final userPic = user?.profilePicturePath;
+                    if (isCurrentUser && userPic != null && userPic.isNotEmpty) {
                       // Build a header that uses the user's uploaded picture but keeps the existing layout
                       return Column(children: [
                         Container(
@@ -76,7 +77,7 @@ class _MerchantProfileContent extends StatelessWidget {
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            image: DecorationImage(image: FileImage(File(user.profilePicturePath!)), fit: BoxFit.cover),
+                            image: DecorationImage(image: FileImage(File(userPic)), fit: BoxFit.cover),
                           ),
                         ),
                         const SizedBox(height: 8),

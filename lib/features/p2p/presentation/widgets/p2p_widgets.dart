@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:sabi_wallet/features/p2p/data/models/p2p_models.dart';
 import '../theme/p2p_theme.dart';
 
 String formatDate(DateTime date, {bool includeYear = false}) {
@@ -77,11 +76,12 @@ class P2PAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final img = imageUrl;
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: P2PColors.cardBackgroundLight,
-      backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
-      child: imageUrl == null ? Text(name[0]) : null,
+      backgroundImage: img != null ? NetworkImage(img) : null,
+      child: img == null ? Text(name[0]) : null,
     );
   }
 }

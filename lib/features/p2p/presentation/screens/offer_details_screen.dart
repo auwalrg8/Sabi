@@ -9,7 +9,6 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/merchant_profile_s
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:flutter/foundation.dart';
 
 class OfferDetailsScreen extends ConsumerStatefulWidget {
   final P2POfferModel offer;
@@ -101,19 +100,21 @@ class _OfferDetailsScreenState extends ConsumerState<OfferDetailsScreen> {
                           builder: (ctx, AsyncSnapshot<UserProfile?> snap) {
                             final user = snap.data;
                             final isCurrentUser = user != null && (widget.offer.merchant?.id == user.username || widget.offer.name == user.fullName || widget.offer.name == user.username);
-                            if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
+                            final userPic = user?.profilePicturePath;
+                            if (isCurrentUser && userPic != null && userPic.isNotEmpty) {
                               return CircleAvatar(
                                 radius: 30.r,
                                 backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                backgroundImage: FileImage(File(user.profilePicturePath!)) as ImageProvider,
+                                backgroundImage: FileImage(File(userPic)) as ImageProvider,
                               );
                             }
 
-                            if (widget.offer.merchant?.avatarUrl != null && widget.offer.merchant!.avatarUrl!.isNotEmpty) {
+                            final merchantAvatar = widget.offer.merchant?.avatarUrl;
+                            if (merchantAvatar != null && merchantAvatar.isNotEmpty) {
                               return CircleAvatar(
                                 radius: 30.r,
                                 backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                backgroundImage: NetworkImage(widget.offer.merchant!.avatarUrl!),
+                                backgroundImage: NetworkImage(merchantAvatar),
                               );
                             }
 

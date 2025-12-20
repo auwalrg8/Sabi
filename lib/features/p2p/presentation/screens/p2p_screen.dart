@@ -364,20 +364,22 @@ class P2POfferCard extends StatelessWidget {
                     builder: (ctx, AsyncSnapshot<UserProfile?> snap) {
                       final user = snap.data;
                       final isCurrentUser = user != null && (offer.merchant?.id == user.username || offer.name == user.fullName || offer.name == user.username);
-                      if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
+                      final userPic = user?.profilePicturePath;
+                      if (isCurrentUser && userPic != null && userPic.isNotEmpty) {
                         return CircleAvatar(
                           radius: 24.r,
                           backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                          backgroundImage: FileImage(File(user.profilePicturePath!)) as ImageProvider,
+                          backgroundImage: FileImage(File(userPic)) as ImageProvider,
                         );
                       }
 
                       // Fallback to merchant avatar or initial
-                      if (offer.merchant?.avatarUrl != null && offer.merchant!.avatarUrl!.isNotEmpty) {
+                      final merchantAvatar = offer.merchant?.avatarUrl;
+                      if (merchantAvatar != null && merchantAvatar.isNotEmpty) {
                         return CircleAvatar(
                           radius: 24.r,
                           backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                          backgroundImage: NetworkImage(offer.merchant!.avatarUrl!),
+                          backgroundImage: NetworkImage(merchantAvatar),
                         );
                       }
 

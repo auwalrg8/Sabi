@@ -85,4 +85,49 @@ class P2POfferModel {
       volume: volume ?? this.volume,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'pricePerBtc': pricePerBtc,
+      'paymentMethod': paymentMethod,
+      'eta': eta,
+      'ratingPercent': ratingPercent,
+      'trades': trades,
+      'minLimit': minLimit,
+      'maxLimit': maxLimit,
+      'type': type.index,
+      'merchantId': merchant?.id,
+      'marginPercent': marginPercent,
+      'requiresKyc': requiresKyc,
+      'paymentInstructions': paymentInstructions,
+      'availableSats': availableSats,
+      'responseTime': responseTime,
+      'volume': volume,
+    };
+  }
+
+  factory P2POfferModel.fromJson(Map<String, dynamic> json, {MerchantModel? merchant, List<PaymentMethodModel>? acceptedMethods}) {
+    return P2POfferModel(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      pricePerBtc: (json['pricePerBtc'] as num).toDouble(),
+      paymentMethod: json['paymentMethod'] as String? ?? 'Unknown',
+      eta: json['eta'] as String? ?? '-',
+      ratingPercent: json['ratingPercent'] as int? ?? 100,
+      trades: json['trades'] as int? ?? 0,
+      minLimit: json['minLimit'] as int? ?? 0,
+      maxLimit: json['maxLimit'] as int? ?? 0,
+      type: OfferType.values[(json['type'] as int?) ?? OfferType.sell.index],
+      merchant: merchant,
+      acceptedMethods: acceptedMethods,
+      marginPercent: (json['marginPercent'] as num?)?.toDouble(),
+      requiresKyc: json['requiresKyc'] as bool? ?? false,
+      paymentInstructions: json['paymentInstructions'] as String?,
+      availableSats: (json['availableSats'] as num?)?.toDouble(),
+      responseTime: json['responseTime'] as String?,
+      volume: (json['volume'] as num?)?.toDouble(),
+    );
+  }
 }

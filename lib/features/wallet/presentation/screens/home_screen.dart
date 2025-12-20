@@ -405,22 +405,23 @@ class _HomeContentState extends State<_HomeContent> {
                                   ),
                                 );
                               },
-                              child: CircleAvatar(
-                                radius: 18.r,
-                                backgroundColor: AppColors.primary,
-                                backgroundImage: (profile != null && profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
-                                    ? FileImage(File(profile!.profilePicturePath!)) as ImageProvider
-                                    : null,
-                                child: (profile == null || profile.profilePicturePath == null || profile.profilePicturePath!.isEmpty)
-                                    ? Text(
-                                        initial,
-                                        style: TextStyle(
-                                          color: AppColors.surface,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      )
-                                    : null,
-                              ),
+                              child: Builder(builder: (_) {
+                                final pic = profile?.profilePicturePath;
+                                return CircleAvatar(
+                                  radius: 18.r,
+                                  backgroundColor: AppColors.primary,
+                                  backgroundImage: (pic != null && pic.isNotEmpty) ? FileImage(File(pic)) as ImageProvider : null,
+                                  child: (pic == null || pic.isEmpty)
+                                      ? Text(
+                                          initial,
+                                          style: TextStyle(
+                                            color: AppColors.surface,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        )
+                                      : null,
+                                );
+                              }),
                             ),
                             SizedBox(width: 10.w),
                             Text(

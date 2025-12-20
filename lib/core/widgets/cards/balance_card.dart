@@ -264,13 +264,4 @@ class _BalanceCardState extends State<BalanceCard> {
       (match) => '${match[1]},',
     );
   }
-
-  String _formatNairaShort(int sats, double rate) {
-    final btc = sats / 100000000;
-    final naira = btc * rate;
-    return '₦${naira.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (match) => '${match[1]},',
-    )}';
-  }
 }

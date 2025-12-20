@@ -150,6 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _profile = profile);
   }
 
+  // ignore: unused_element
   Future<void> _registerLightningAddress() async {
     if (_profile == null || _isSyncingLightning) return;
     setState(() => _isSyncingLightning = true);
@@ -180,6 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ignore: unused_element
   Future<void> _refreshLightningAddress() async {
     if (_profile == null || _isSyncingLightning) return;
     setState(() => _isSyncingLightning = true);

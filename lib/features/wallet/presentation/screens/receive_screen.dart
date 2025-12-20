@@ -342,8 +342,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final username = _userProfile?.sabiUsername ?? '@sabi/user';
     final registered = _userProfile?.hasLightningAddress ?? false;
     final description =
-        _userProfile?.lightningAddressDescription ??
-        'Share $username to receive Lightning payments instantly.';
+      _userProfile?.lightningAddressDescription ??
+      'Share $username to receive Lightning payments instantly.';
 
     return Column(
       children: [
@@ -379,6 +379,18 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+        SizedBox(height: 8.h),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
+          child: Text(
+            description,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12.sp,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
         SizedBox(height: 8.h),
