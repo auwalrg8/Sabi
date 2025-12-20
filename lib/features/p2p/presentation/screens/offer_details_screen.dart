@@ -7,6 +7,7 @@ import 'package:sabi_wallet/features/p2p/providers/trade_providers.dart';
 import 'package:sabi_wallet/features/p2p/utils/format_utils.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/merchant_profile_screen.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
 
 class OfferDetailsScreen extends ConsumerStatefulWidget {
   final P2POfferModel offer;
