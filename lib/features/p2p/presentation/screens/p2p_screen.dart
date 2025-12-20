@@ -10,6 +10,7 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/create_offer_scree
 import 'package:sabi_wallet/features/p2p/presentation/screens/trade_history_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/my_trades_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/merchant_profile_screen.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
 export 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_widgets.dart';
 
 class P2PScreen extends ConsumerWidget {
@@ -343,7 +344,7 @@ class P2POfferCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Merchant info
+                // Merchant info
             Row(
               children: [
                 GestureDetector(
@@ -356,17 +357,41 @@ class P2POfferCard extends StatelessWidget {
                       ),
                     );
                   },
-                  child: CircleAvatar(
-                    radius: 24.r,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                    child: Text(
-                      offer.name[0],
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16.sp,
-                      ),
-                    ),
+                  child: FutureBuilder(
+                    future: ProfileService.getProfile(),
+                    builder: (ctx, snap) {
+                      final user = snap.data;
+                      final isCurrentUser = user != null && (offer.merchant?.id == user.username || offer.name == user.fullName || offer.name == user.username);
+                      if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
+                        return CircleAvatar(
+                          radius: 24.r,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                          backgroundImage: FileImage(File(user.profilePicturePath!)) as ImageProvider,
+                        );
+                      }
+
+                      // Fallback to merchant avatar or initial
+                      if (offer.merchant?.avatarUrl != null && offer.merchant!.avatarUrl!.isNotEmpty) {
+                        return CircleAvatar(
+                          radius: 24.r,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                          backgroundImage: NetworkImage(offer.merchant!.avatarUrl!),
+                        );
+                      }
+
+                      return CircleAvatar(
+                        radius: 24.r,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                        child: Text(
+                          offer.name[0],
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 SizedBox(width: 12.w),

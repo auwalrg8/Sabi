@@ -1,6 +1,8 @@
 // Merchant Profile Screen
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
+import 'dart:io';
 import '../../data/models/p2p_models.dart';
 import '../../providers/p2p_providers.dart';
 import '../theme/p2p_theme.dart';
@@ -61,7 +63,31 @@ class _MerchantProfileContent extends StatelessWidget {
             child: Column(
               children: [
                 // Profile header
-                _ProfileHeader(profile: profile),
+                FutureBuilder(
+                  future: ProfileService.getProfile(),
+                  builder: (ctx, snap) {
+                    final user = snap.data;
+                    final isCurrentUser = user != null && (profile.id == user.username || profile.name == user.fullName || profile.name == user.username);
+                    if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
+                      // Build a header that uses the user's uploaded picture but keeps the existing layout
+                      return Column(children: [
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            image: DecorationImage(image: FileImage(File(user.profilePicturePath!)), fit: BoxFit.cover),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(user.fullName, style: P2PTextStyles.heading2),
+                        const SizedBox(height: 4),
+                        Text('@${user.username}', style: P2PTextStyles.bodySmall),
+                      ]);
+                    }
+                    return _ProfileHeader(profile: profile);
+                  },
+                ),
                 const SizedBox(height: 24),
                 // Stats grid
                 _StatsGrid(stats: profile.stats),

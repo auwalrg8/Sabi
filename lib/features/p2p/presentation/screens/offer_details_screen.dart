@@ -93,17 +93,40 @@ class _OfferDetailsScreenState extends ConsumerState<OfferDetailsScreen> {
                             ),
                           );
                         },
-                        child: CircleAvatar(
-                          radius: 30.r,
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                          child: Text(
-                            widget.offer.name[0],
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 24.sp,
-                            ),
-                          ),
+                        child: FutureBuilder(
+                          future: ProfileService.getProfile(),
+                          builder: (ctx, snap) {
+                            final user = snap.data;
+                            final isCurrentUser = user != null && (widget.offer.merchant?.id == user.username || widget.offer.name == user.fullName || widget.offer.name == user.username);
+                            if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
+                              return CircleAvatar(
+                                radius: 30.r,
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                backgroundImage: FileImage(File(user.profilePicturePath!)) as ImageProvider,
+                              );
+                            }
+
+                            if (widget.offer.merchant?.avatarUrl != null && widget.offer.merchant!.avatarUrl!.isNotEmpty) {
+                              return CircleAvatar(
+                                radius: 30.r,
+                                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                backgroundImage: NetworkImage(widget.offer.merchant!.avatarUrl!),
+                              );
+                            }
+
+                            return CircleAvatar(
+                              radius: 30.r,
+                              backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                              child: Text(
+                                widget.offer.name[0],
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 24.sp,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       SizedBox(width: 16.w),
