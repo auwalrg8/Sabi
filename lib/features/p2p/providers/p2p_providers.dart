@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/data/merchant_model.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
@@ -151,6 +155,62 @@ final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
   ];
 });
 
+// User-created offers persisted locally
+class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
+  UserOffersNotifier(this.ref) : super([]) {
+    _load();
+  }
+
+  final Ref ref;
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('p2p_user_offers');
+      if (raw == null || raw.isEmpty) return;
+      final list = jsonDecode(raw) as List<dynamic>;
+      final merchants = ref.read(merchantsProvider);
+      final offers = list.map((e) {
+        final map = Map<String, dynamic>.from(e as Map);
+        final merchantId = map['merchantId'] as String?;
+        final merchant = merchantId == null ? null : merchants.firstWhere((m) => m.id == merchantId, orElse: () => MerchantModel(
+              id: merchantId,
+              name: map['name'] as String? ?? 'You',
+              trades30d: 0,
+              completionRate: 100.0,
+              avgReleaseMinutes: 15,
+              totalVolume: 0,
+              joinedDate: DateTime.now(),
+            ));
+        return P2POfferModel.fromJson(map, merchant: merchant);
+      }).toList();
+      state = offers;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonEncode(state.map((e) => e.toJson()).toList());
+    await prefs.setString('p2p_user_offers', raw);
+  }
+
+  Future<void> addOffer(P2POfferModel offer) async {
+    state = [offer, ...state];
+    await _save();
+  }
+
+  Future<void> removeOffer(String id) async {
+    state = state.where((o) => o.id != id).toList();
+    await _save();
+  }
+}
+
+final userOffersProvider = StateNotifierProvider<UserOffersNotifier, List<P2POfferModel>>((ref) {
+  return UserOffersNotifier(ref);
+});
+
 // Filter state provider
 class P2PFilterState {
   final OfferType offerType;
@@ -198,7 +258,9 @@ final p2pFilterProvider = StateNotifierProvider<P2PFilterNotifier, P2PFilterStat
 
 // Filtered and sorted offers
 final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
-  final offers = ref.watch(p2pOffersProvider);
+  final seedOffers = ref.watch(p2pOffersProvider);
+  final userOffers = ref.watch(userOffersProvider);
+  final offers = [...seedOffers, ...userOffers];
   final filter = ref.watch(p2pFilterProvider);
 
   var filtered = offers.where((offer) {
@@ -234,6 +296,49 @@ final merchantProfileProvider = FutureProvider.family<MerchantProfile, String>((
   final merchants = ref.read(merchantsProvider);
   final match = merchants.firstWhere((m) => m.id == merchantId, orElse: () => merchants.first);
 
+  // Check if merchantId refers to the current user; if so, surface the real user profile
+  try {
+    final userProfile = await ProfileService.getProfile();
+    final isCurrentUser = userProfile != null && (merchantId == userProfile.username || merchantId == userProfile.fullName);
+    if (isCurrentUser) {
+      // Build MerchantProfile from real user profile
+      final userAds = ref.read(userOffersProvider).where((o) => (o.merchant?.id == userProfile.username) || (o.name == userProfile.fullName) || (o.name == userProfile.username)).map((o) => MerchantAd(
+            id: o.id,
+            merchantName: o.name,
+            merchantAvatar: userProfile.profilePicturePath,
+            pricePerBtc: o.pricePerBtc,
+            minAmount: o.minLimit.toDouble(),
+            maxAmount: o.maxLimit.toDouble(),
+            merchantRating: o.ratingPercent.toDouble(),
+            merchantTrades: o.trades,
+            paymentMethod: o.paymentMethod,
+            paymentWindow: const Duration(minutes: 15),
+            satsPerFiat: o.availableSats ?? 0,
+          )).toList();
+
+      return MerchantProfile(
+        id: userProfile.username,
+        name: userProfile.fullName,
+        avatar: userProfile.profilePicturePath,
+        verifications: [MerchantVerification(name: 'ID')],
+        stats: MerchantStats(
+          trades30d: 0,
+          completionRate: 100.0,
+          avgReleaseTime: const Duration(minutes: 15),
+          totalVolume: 0,
+          volumeCurrency: 'NGN',
+          positiveFeedback: 0,
+          negativeFeedback: 0,
+          rating: 100,
+        ),
+        ads: userAds,
+        feedbacks: [],
+        joinedAt: DateTime.now(),
+        daysToFirstTrade: 0,
+      );
+    }
+  } catch (_) {}
+
   final profile = MerchantProfile(
     id: match.id,
     name: match.name,
@@ -254,6 +359,35 @@ final merchantProfileProvider = FutureProvider.family<MerchantProfile, String>((
     joinedAt: match.joinedDate,
     daysToFirstTrade: match.firstTradeDate != null ? match.firstTradeDate!.difference(match.joinedDate).inDays : 0,
   );
+
+  // include user-created offers as ads if they belong to this merchantId
+  try {
+    final userOffers = ref.read(userOffersProvider);
+    final ads = userOffers.where((o) => (o.merchant?.id == merchantId) || (o.name == merchantId)).map((o) => MerchantAd(
+          id: o.id,
+          merchantName: o.name,
+          merchantAvatar: o.merchant?.avatarUrl,
+          pricePerBtc: o.pricePerBtc,
+          minAmount: o.minLimit.toDouble(),
+          maxAmount: o.maxLimit.toDouble(),
+          merchantRating: o.ratingPercent.toDouble(),
+          merchantTrades: o.trades,
+          paymentMethod: o.paymentMethod,
+          paymentWindow: const Duration(minutes: 15),
+          satsPerFiat: o.availableSats ?? 0,
+        )).toList();
+    return MerchantProfile(
+      id: profile.id,
+      name: profile.name,
+      avatar: profile.avatar,
+      verifications: profile.verifications,
+      stats: profile.stats,
+      ads: ads.isNotEmpty ? ads : profile.ads,
+      feedbacks: profile.feedbacks,
+      joinedAt: profile.joinedAt,
+      daysToFirstTrade: profile.daysToFirstTrade,
+    );
+  } catch (_) {}
 
   await Future.delayed(const Duration(milliseconds: 150));
   return profile;
