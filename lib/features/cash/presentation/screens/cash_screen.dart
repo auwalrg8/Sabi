@@ -4,10 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'tapnob_webview_screen.dart';
 import '../providers/cash_provider.dart';
-import 'add_bank_account_screen.dart';
 import 'cash_history_screen.dart';
-import 'review_pay_screen.dart';
 
 class CashScreen extends ConsumerStatefulWidget {
   const CashScreen({super.key});
@@ -297,7 +296,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
                                   borderRadius: BorderRadius.circular(9999),
                                 ),
                                 child: Text(
-                                  '○ Sell Bitcoin',
+                                  '○ Spend Bitcoin',
                                   style: TextStyle(
                                     color:
                                         !cashState.isBuying
@@ -337,13 +336,23 @@ class _CashScreenState extends ConsumerState<CashScreen>
                           Text(
                             cashState.isBuying
                                 ? 'How much you wan buy?'
-                                : 'How much you wan sell?',
+                                : 'How much you wan spend?',
                             style: TextStyle(
                               color: AppColors.textTertiary,
                               fontSize: 12.sp,
                             ),
                           ),
                           SizedBox(height: 12.h),
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 8.h),
+                            child: Text(
+                              'Powered by Tapnob – trusted Nigerians',
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 11.sp,
+                              ),
+                            ),
+                          ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -566,29 +575,22 @@ class _CashScreenState extends ConsumerState<CashScreen>
               child: SizedBox(
                 width: double.infinity,
                 height: 52.h,
-                child: ElevatedButton(
-                  onPressed:
-                      cashState.selectedAmount > 0
-                          ? () {
-                            ref.read(cashProvider.notifier).generateReference();
-                            if (cashState.isBuying) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ReviewPayScreen(),
-                                ),
-                              );
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => const AddBankAccountScreen(),
-                                ),
-                              );
-                            }
-                          }
-                          : null,
+                  child: ElevatedButton(
+                  onPressed: cashState.selectedAmount > 0
+                      ? () {
+                          // Keep card structure but open Tapnob WebView with pre-filled amount
+                          ref.read(cashProvider.notifier).generateReference();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TapnobWebViewScreen(
+                                amount: cashState.selectedAmount,
+                                isBuying: cashState.isBuying,
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         cashState.selectedAmount > 0
@@ -599,7 +601,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
                     ),
                   ),
                   child: Text(
-                    'Continue',
+                    'Continue on Tapnob',
                     style: TextStyle(
                       color: AppColors.surface,
                       fontSize: 15.sp,
