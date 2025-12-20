@@ -63,9 +63,9 @@ class _MerchantProfileContent extends StatelessWidget {
             child: Column(
               children: [
                 // Profile header
-                FutureBuilder(
+                FutureBuilder<UserProfile?>(
                   future: ProfileService.getProfile(),
-                  builder: (ctx, snap) {
+                  builder: (ctx, AsyncSnapshot<UserProfile?> snap) {
                     final user = snap.data;
                     final isCurrentUser = user != null && (profile.id == user.username || profile.name == user.fullName || profile.name == user.username);
                     if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {

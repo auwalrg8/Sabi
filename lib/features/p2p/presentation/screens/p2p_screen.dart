@@ -12,6 +12,7 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/my_trades_screen.d
 import 'package:sabi_wallet/features/p2p/presentation/screens/merchant_profile_screen.dart';
 import 'dart:io';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:flutter/foundation.dart';
 export 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_widgets.dart';
 
 class P2PScreen extends ConsumerWidget {
@@ -358,9 +359,9 @@ class P2POfferCard extends StatelessWidget {
                       ),
                     );
                   },
-                  child: FutureBuilder(
+                  child: FutureBuilder<UserProfile?>(
                     future: ProfileService.getProfile(),
-                    builder: (ctx, snap) {
+                    builder: (ctx, AsyncSnapshot<UserProfile?> snap) {
                       final user = snap.data;
                       final isCurrentUser = user != null && (offer.merchant?.id == user.username || offer.name == user.fullName || offer.name == user.username);
                       if (isCurrentUser && user!.profilePicturePath != null && user.profilePicturePath!.isNotEmpty) {
