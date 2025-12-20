@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'dart:io';
-import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
+import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart' as cash_screen;
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
@@ -62,7 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onToggleBalance:
             () => setState(() => _isBalanceVisible = !_isBalanceVisible),
       ),
-      const CashScreen(),
+      const cash_screen.CashScreen(),
       const P2PScreen(),
       const ProfileScreen(),
     ];

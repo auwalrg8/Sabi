@@ -10,8 +10,9 @@ import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.d
 class TapnobWebViewScreen extends ConsumerStatefulWidget {
   final double amount;
   final bool isBuying;
+  final String? invoice;
 
-  const TapnobWebViewScreen({super.key, required this.amount, required this.isBuying});
+  const TapnobWebViewScreen({super.key, required this.amount, required this.isBuying, this.invoice});
 
   @override
   ConsumerState<TapnobWebViewScreen> createState() => _TapnobWebViewScreenState();
@@ -21,6 +22,8 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   late final WebViewController _controller;
   bool _completed = false;
   bool _loading = true;
+  bool _injectionDone = false;
+  Timer? _injectionTimer;
 
   @override
   void initState() {
@@ -30,6 +33,10 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
       ..setNavigationDelegate(NavigationDelegate(
         onPageStarted: (url) {
           _checkForSuccess(url);
+            // try inject early if invoice available
+            if (widget.invoice != null) {
+              _injectInvoice(widget.invoice!);
+            }
         },
         onNavigationRequest: (req) {
           _checkForSuccess(req.url);
@@ -40,12 +47,86 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
             _loading = false;
           });
           _checkForSuccess(url);
+            if (widget.invoice != null) {
+              _injectInvoice(widget.invoice!);
+            }
         },
       ));
 
     final base = widget.isBuying ? 'https://tapnob.com/buybtc' : 'https://tapnob.com/spendbtc';
     final full = '$base?amountNGN=${widget.amount.toInt()}&mode=${widget.isBuying ? 'buy' : 'spend'}';
     _controller.loadRequest(Uri.parse(full));
+    // If we have an invoice, attempt repeated injection for a short window
+    if (widget.invoice != null) {
+      _injectionTimer = Timer.periodic(const Duration(milliseconds: 450), (t) {
+        if (_injectionDone || !_loading == false && !_loading) {
+          // continue attempting while loading or until done
+        }
+        if (_injectionDone) {
+          t.cancel();
+          return;
+        }
+        // limit attempts
+        if (t.tick > 12) {
+          t.cancel();
+          return;
+        }
+        _injectInvoice(widget.invoice!);
+      });
+    }
+  }
+
+  void _injectInvoice(String invoice) {
+    try {
+      final esc = invoice.replaceAll("'", "\\'");
+      // Try multiple selectors and dispatch events to trigger any JS listeners on the page.
+      final js = '''
+      (function() {
+        try {
+          var invoice = '${esc}';
+          var selectors = [
+            'input[placeholder="Paste lightning invoice"]',
+            'input[placeholder*="invoice"]',
+            'textarea[placeholder*="invoice"]',
+            'input[type="text"]',
+            'textarea',
+            'input[name*="invoice"]',
+            '[id*="invoice"]',
+            '[class*="invoice"]'
+          ];
+          for (var i=0;i<selectors.length;i++){
+            var el = document.querySelector(selectors[i]);
+            if (!el) continue;
+            try {
+              if ('value' in el) el.value = invoice;
+              else el.innerText = invoice;
+              el.focus();
+              var ev = new Event('input', {bubbles: true});
+              el.dispatchEvent(ev);
+              var ev2 = new Event('change', {bubbles: true});
+              el.dispatchEvent(ev2);
+              // also set attribute for frameworks that watch attributes
+              el.setAttribute('value', invoice);
+              return true;
+            } catch(e) {
+              // continue to next
+            }
+          }
+          // as a fallback, try to find any editable element and set clipboard then focus
+          try {
+            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(invoice).catch(function(){});
+            }
+          } catch(e){}
+          return false;
+        } catch(e) { return false; }
+      })();
+      ''';
+      _controller.runJavaScript(js);
+      debugPrint('Tapnob: attempted invoice injection');
+    } catch (e) {
+      // ignore
+    }
   }
 
   void _checkForSuccess(String? url) async {
@@ -121,7 +202,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
                   if (_completed)
                     Positioned.fill(
                       child: Container(
-                        color: const Color(0xFF00FFB2).withOpacity(0.12),
+                        color: const Color(0xFF00FFB2).withValues(alpha: 0.12),
                         child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
