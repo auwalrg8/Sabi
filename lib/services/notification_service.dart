@@ -92,9 +92,11 @@ class NotificationService {
 
       for (final key in _box.keys) {
         final data = _box.get(key);
-        notifications.add(
-          NotificationModel.fromMap(Map<String, dynamic>.from(data)),
-        );
+        if (data is Map) {
+          notifications.add(
+            NotificationModel.fromMap(Map<String, dynamic>.from(data as Map)),
+          );
+        }
       }
 
       // Sort by timestamp (most recent first)

@@ -28,7 +28,8 @@
     <application
         android:label="Sabi Wallet"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:enableOnBackInvokedCallback="true">
         <!-- Breez SDK FileProvider for scoped storage support -->
         <provider
             android:name="androidx.core.content.FileProvider"
