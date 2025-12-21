@@ -40,6 +40,16 @@ android {
         }
     }
 
+    splits {
+        abi {
+            isEnable = true
+            // Only build for ARM64 to avoid CMake x86_64 issues
+            reset()
+            include("arm64-v8a")
+            isUniversalApk = false
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
     }
