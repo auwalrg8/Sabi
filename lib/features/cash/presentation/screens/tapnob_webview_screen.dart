@@ -27,9 +27,15 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   bool _loading = true;
   bool _showPayModal = false;
   bool _showSuccess = false;
+  bool _showInsufficientModal = false;
+  bool _showErrorModal = false;
+  bool _isPaying = false;
   String? _detectedInvoice;
   int? _invoiceAmountSats;
   double? _expectedNgn;
+  int _availableBalance = 0;
+  double? _availableNgn;
+  String _errorMessage = '';
 
   @override
   void initState() {
@@ -145,20 +151,42 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
       final btcAmount = _invoiceAmountSats! / 100000000.0;
       final usdAmount = btcAmount * btcToUsd;
       _expectedNgn = usdAmount * usdToNgn;
-      setState(() {
-        _showPayModal = true;
-      });
+
+      // Get available balance
+      final balance = await BreezSparkService.getBalance();
+      _availableBalance = balance;
+      final availableBtcAmount = balance / 100000000.0;
+      final availableUsdAmount = availableBtcAmount * btcToUsd;
+      _availableNgn = availableUsdAmount * usdToNgn;
+
+      if (_invoiceAmountSats! > balance) {
+        setState(() {
+          _showInsufficientModal = true;
+        });
+      } else {
+        setState(() {
+          _showPayModal = true;
+        });
+      }
     } catch (e) {
       debugPrint('Error preparing payment: $e');
+      _errorMessage = 'Failed to prepare payment: ${e.toString()}';
+      setState(() {
+        _showErrorModal = true;
+      });
     }
   }
 
   void _payInvoice() async {
     if (_detectedInvoice == null) return;
+    setState(() {
+      _isPaying = true;
+    });
     try {
       await BreezSparkService.sendPayment(_detectedInvoice!);
       setState(() {
         _showPayModal = false;
+        _isPaying = false;
         _showSuccess = true;
       });
       Future.delayed(const Duration(seconds: 3), () {
@@ -168,7 +196,12 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
       });
     } catch (e) {
       debugPrint('Error paying invoice: $e');
-      // show error
+      _errorMessage = 'Payment failed: ${e.toString()}';
+      setState(() {
+        _showPayModal = false;
+        _isPaying = false;
+        _showErrorModal = true;
+      });
     }
   }
 
@@ -267,6 +300,8 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
                       ),
                     ),
                   if (_showPayModal) _buildPayModal(),
+                  if (_showInsufficientModal) _buildInsufficientModal(),
+                  if (_showErrorModal) _buildErrorModal(),
                   if (_showSuccess) _buildSuccessOverlay(),
                 ],
               ),
@@ -293,32 +328,120 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Pay ${_invoiceAmountSats ?? 0} SAT from your Sabi balance?',
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                  'Pay ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}) from your Sabi balance?\nAvailable: ${_availableBalance} SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'})',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _showPayModal = false;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF7931A),
+                if (_isPaying)
+                  const CircularProgressIndicator()
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _showPayModal = false;
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF7931A),
+                        ),
+                        child: const Text('Cancel'),
                       ),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: _payInvoice,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00FFB2),
+                      ElevatedButton(
+                        onPressed: _payInvoice,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00FFB2),
+                        ),
+                        child: const Text('Pay Now'),
                       ),
-                      child: const Text('Pay Now'),
-                    ),
-                  ],
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInsufficientModal() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111128),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Color(0xFFF7931A)),
+                const SizedBox(height: 12),
+                Text(
+                  'Insufficient balance.\nYou need ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}).\nAvailable: ${_availableBalance} SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'}).',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _showInsufficientModal = false;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF7931A),
+                  ),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorModal() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111128),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Color(0xFFF7931A)),
+                const SizedBox(height: 12),
+                Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _showErrorModal = false;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF7931A),
+                  ),
+                  child: const Text('OK'),
                 ),
               ],
             ),
