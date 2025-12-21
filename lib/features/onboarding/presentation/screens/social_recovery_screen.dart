@@ -3,11 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/onboarding/presentation/screens/wallet_creation_animation_screen.dart';
+import 'package:sabi_wallet/features/recovery/social_recovery_setup_screen.dart';
 import '../providers/onboarding_provider.dart';
-import '../providers/available_contacts_provider.dart';
-import 'package:sabi_wallet/core/widgets/cards/contact_card.dart';
-import 'package:sabi_wallet/core/widgets/painters/painters.dart'; // We'll use the shared painters
 
 class SocialRecoveryScreen extends ConsumerWidget {
   const SocialRecoveryScreen({super.key});
@@ -15,11 +12,30 @@ class SocialRecoveryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final onboardingState = ref.watch(onboardingNotifierProvider);
-    final selectedContacts = onboardingState.selectedContacts;
-    final hasFullSelection = onboardingState.hasThreeContacts;
-    final selectedCount = onboardingState.contactList.length;
+    final masterSeed = onboardingState.wallet?.mnemonic ?? '';
 
-    final availableContacts = ref.watch(availableContactsProvider);
+    // Navigate directly to setup screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => SocialRecoverySetupScreen(
+            masterSeed: masterSeed,
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    });
+
+    return const Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(AppColors.primary),
+        ),
+      ),
+    );
+  }
+}
 
     return Scaffold(
       backgroundColor: AppColors.background,
