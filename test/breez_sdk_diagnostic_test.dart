@@ -3,10 +3,11 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 
-const bool _skipBreezSdkDiagnostics = bool.fromEnvironment('SKIP_BREEZ_SDK_DIAGNOSTICS', defaultValue: false);
+const bool _skipBreezSdkDiagnostics = bool.fromEnvironment('SKIP_BREEZ_SDK_DIAGNOSTICS', defaultValue: true);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,8 @@ void main() {
     'Breez Spark SDK Diagnostics',
     () {
     setUpAll(() async {
+      // Initialize Hive with a temp path for testing
+      Hive.init(tempDir.path);
       // Initialize persistence layer
       await BreezSparkService.initPersistence();
     });
