@@ -7,8 +7,8 @@ import 'package:sabi_wallet/features/profile/presentation/screens/settings_scree
 import 'package:sabi_wallet/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:sabi_wallet/services/nostr_service.dart';
-import 'package:sabi_wallet/features/profile/presentation/screens/edit_nostr_screen.dart';
+import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/nostr_edit_modal.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,24 +19,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _editNostrKeys() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => EditNostrScreen(
-              initialNpub: _nostrNpub,
-              initialNsec: NostrService.nsec,
-            ),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => NostrEditModal(
+        initialNpub: _nostrNpub,
+        onSaved: _loadNostrStats,
       ),
     );
-    if (result is Map && mounted) {
-      final npub = result['npub'] as String?;
-      final nsec = result['nsec'] as String?;
-      if (npub != null && nsec != null && npub.isNotEmpty && nsec.isNotEmpty) {
-        await NostrService.importKeys(nsec: nsec, npub: npub);
-        _loadNostrStats();
-      }
-    }
   }
 
   UserProfile? _profile;
@@ -67,32 +58,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadNostrStats() async {
     setState(() => _isLoadingNostr = true);
-    await NostrService.init();
-    final npub = NostrService.npub;
-    int zapCount = 0;
-    int zapTotal = 0;
     try {
-      await for (final zap in NostrService.listenForZaps()) {
-        zapCount++;
-        // Extract amount from tags
-        final amountTag = zap.tags.firstWhere(
-          (tag) => tag is List && tag.isNotEmpty && tag[0] == 'amount',
-          orElse: () => null,
-        );
-        int amount = 0;
-        if (amountTag != null && amountTag.length > 1) {
-          amount = int.tryParse(amountTag[1].toString()) ?? 0;
-        }
-        zapTotal += amount;
+      await NostrService.init();
+      final npub = await NostrService.getNpub();
+      int zapCount = 0;
+      int zapTotal = 0;
+      
+      if (npub != null) {
+        // In a real implementation, fetch zaps from relay
+        // For now, using mock data
+        zapCount = 0;
+        zapTotal = 0;
       }
-    } catch (_) {}
-    if (mounted) {
-      setState(() {
-        _nostrNpub = npub;
-        _zapCount = zapCount;
-        _zapTotal = zapTotal;
-        _isLoadingNostr = false;
-      });
+      
+      if (mounted) {
+        setState(() {
+          _nostrNpub = npub;
+          _zapCount = zapCount;
+          _zapTotal = zapTotal;
+          _isLoadingNostr = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading Nostr stats: $e');
+      if (mounted) {
+        setState(() => _isLoadingNostr = false);
+      }
     }
   }
 
@@ -459,7 +450,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               height: 35.h,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
+                                  backgroundColor: const Color(0xFFF7931A),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -472,7 +463,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Text(
                                   'Add / Edit Nostr',
                                   style: TextStyle(
-                                    color: AppColors.surface,
+                                    color: const Color(0xFF0C0C1A),
                                     fontSize: 12.sp,
                                     fontWeight: FontWeight.w600,
                                   ),

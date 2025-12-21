@@ -5,7 +5,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:sabi_wallet/services/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 class ReceiveScreen extends ConsumerStatefulWidget {
@@ -53,13 +53,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Future<void> _loadNostrNpub() async {
     setState(() => _isLoadingNostr = true);
-    await NostrService.init();
-    final npub = NostrService.npub;
-    if (mounted) {
-      setState(() {
-        _nostrNpub = npub;
-        _isLoadingNostr = false;
-      });
+    try {
+      await NostrService.init();
+      final npub = await NostrService.getNpub();
+      if (mounted) {
+        setState(() {
+          _nostrNpub = npub;
+          _isLoadingNostr = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading Nostr npub: $e');
+      if (mounted) {
+        setState(() => _isLoadingNostr = false);
+      }
     }
   }
 

@@ -4,7 +4,7 @@ import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
 import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
-import 'package:sabi_wallet/services/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
 import 'services/secure_storage.dart';
@@ -45,7 +45,6 @@ void main() async {
   await ContactService.init();
   await NotificationService.init();
   await ProfileService.init();
-  await NostrService.init();
 
   // Mark app as opened
   await AppStateService.markAppOpened();

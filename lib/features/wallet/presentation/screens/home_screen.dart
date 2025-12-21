@@ -21,8 +21,9 @@ import 'package:sabi_wallet/l10n/app_localizations.dart';
 import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
 import 'package:sabi_wallet/features/home/widgets/suggestions_slider.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
-import 'package:sabi_wallet/features/profile/presentation/screens/edit_nostr_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
+import 'package:sabi_wallet/features/nostr/nostr_feed_screen.dart';
+import 'package:sabi_wallet/features/nostr/nostr_edit_modal.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../providers/wallet_info_provider.dart';
@@ -541,43 +542,71 @@ class _HomeContentState extends State<_HomeContent> {
                   },
                 ),
                 SizedBox(height: 17.h),
-                // Responsive action buttons: wrap to next line on small widths
-                Wrap(
-                  spacing: 10.w,
-                  runSpacing: 10.h,
-                  alignment: WrapAlignment.center,
-                  runAlignment: WrapAlignment.center,
+                // Action buttons: 3 columns x 2 rows layout
+                Column(
                   children: [
-                    SizedBox(width: 80.w, child: _FigmaActionButton(
-                      asset: 'assets/icons/Send.png',
-                      label: AppLocalizations.of(context)!.send,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SendScreen(),
-                        ),
-                      ),
-                    )),
-                    SizedBox(width: 80.w, child: _FigmaActionButton(
-                      asset: 'assets/icons/receive.png',
-                      label: AppLocalizations.of(context)!.receive,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ReceiveScreen(),
-                        ),
-                      ),
-                    )),
-                    SizedBox(width: 80.w, child: _FigmaActionButton(
-                      asset: 'assets/icons/airtime.png',
-                      label: AppLocalizations.of(context)!.airtime,
-                      onTap: () {},
-                    )),
-                    SizedBox(width: 80.w, child: _FigmaActionButton(
-                      asset: 'assets/icons/data.png',
-                      label: 'Data',
-                      onTap: () {},
-                    )),
+                    // First row: Send, Receive, Airtime
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                          asset: 'assets/icons/Send.png',
+                          label: AppLocalizations.of(context)!.send,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SendScreen(),
+                            ),
+                          ),
+                        )),
+                        SizedBox(width: 20.w),
+                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                          asset: 'assets/icons/receive.png',
+                          label: AppLocalizations.of(context)!.receive,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ReceiveScreen(),
+                            ),
+                          ),
+                        )),
+                        SizedBox(width: 20.w),
+                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                          asset: 'assets/icons/airtime.png',
+                          label: AppLocalizations.of(context)!.airtime,
+                          onTap: () {},
+                        )),
+                      ],
+                    ),
+                    SizedBox(height: 16.h),
+                    // Second row: Data, Agent, Nostr
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                          asset: 'assets/icons/data.png',
+                          label: 'Data',
+                          onTap: () {},
+                        )),
+                        SizedBox(width: 20.w),
+                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                          asset: 'assets/icons/pos_agent.png',
+                          label: 'Agent',
+                          onTap: () {},
+                        )),
+                        SizedBox(width: 20.w),
+                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                          asset: 'assets/icons/speech_bubble.png',
+                          label: 'Nostr',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NostrFeedScreen(),
+                            ),
+                          ),
+                        )),
+                      ],
+                    ),
                   ],
                 ),
                 SizedBox(height: 10.h),
@@ -604,10 +633,12 @@ class _HomeContentState extends State<_HomeContent> {
                             );
                             break;
                           case SuggestionType.nostr:
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const EditNostrScreen(),
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => NostrEditModal(
+                                onSaved: () {},
                               ),
                             );
                             break;
