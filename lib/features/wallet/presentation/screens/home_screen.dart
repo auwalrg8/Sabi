@@ -328,27 +328,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         !BreezSparkService.isInitialized || balanceState.isLoading;
 
     return Scaffold(
-      body: Skeletonizer(
-        enabled: showSkeleton,
-        enableSwitchAnimation: true,
-        containersColor: AppColors.surface,
-        justifyMultiLineText: true,
-        effect: PulseEffect(
-          duration: Duration(seconds: 1),
-          from: AppColors.background,
-          to: AppColors.borderColor.withValues(alpha: 0.3),
-          lowerBound: 0,
-          upperBound: 1.0,
-        ),
-        switchAnimationConfig: SwitchAnimationConfig(
-          switchOutCurve: Curves.bounceInOut,
-        ),
-        child: Stack(
-          children: [
-            // The main content (tabs)
-            _screens[_currentIndex],
-          ],
-        ),
+      body: Stack(
+        children: [
+          Skeletonizer(
+            enabled: showSkeleton && balanceState.isLoading,
+            enableSwitchAnimation: true,
+            containersColor: AppColors.surface,
+            justifyMultiLineText: true,
+            effect: PulseEffect(
+              duration: Duration(seconds: 1),
+              from: AppColors.background,
+              to: AppColors.borderColor.withValues(alpha: 0.3),
+              lowerBound: 0,
+              upperBound: 1.0,
+            ),
+            switchAnimationConfig: SwitchAnimationConfig(
+              switchOutCurve: Curves.bounceInOut,
+            ),
+            child: Stack(
+              children: [
+                // The main content (tabs)
+                _screens[_currentIndex],
+              ],
+            ),
+          ),
+          // Show error overlay if SDK failed to initialize and not loading
+          if (!BreezSparkService.isInitialized && !balanceState.isLoading)
+            Center(
+              child: Container(
+                margin: EdgeInsets.all(16.w),
+                padding: EdgeInsets.all(20.w),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12.w),
+                  border: Border.all(color: AppColors.error),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline, color: AppColors.error, size: 48.w),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'SDK Initialization Failed',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Unable to initialize wallet services. Please try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 20.h),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {});
+                        _initializeBreezSDK();
+                      },
+                      child: Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
       // Ensure the bottom navigation matches the app dark theme and avoids
       // system insets causing white gaps by wrapping it in a SafeArea.
