@@ -361,19 +361,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(12.w),
-                  border: Border.all(color: AppColors.error),
+                  border: Border.all(color: AppColors.accentRed),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.error_outline, color: AppColors.error, size: 48.w),
+                    Icon(Icons.error_outline, color: AppColors.accentRed, size: 48.w),
                     SizedBox(height: 16.h),
                     Text(
                       'SDK Initialization Failed',
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.text,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     SizedBox(height: 8.h),
