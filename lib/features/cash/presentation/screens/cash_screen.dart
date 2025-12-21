@@ -270,6 +270,10 @@ class _CashScreenState extends ConsumerState<CashScreen>
                               final invoice = await BreezSparkService.createInvoice(sats: sats, memo: 'Tapnob purchase');
                               if (!mounted) return;
                               Navigator.pop(context);
+                              try {
+                                await Clipboard.setData(ClipboardData(text: invoice));
+                                debugPrint('Invoice copied to clipboard');
+                              } catch (_) {}
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
