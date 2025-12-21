@@ -71,6 +71,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await _initializeBreezSDK();
+        
+        // CRITICAL: Verify SDK is actually initialized before proceeding
+        if (!BreezSparkService.isInitialized) {
+          debugPrint('❌ CRITICAL: SDK not initialized after _initializeBreezSDK()');
+          // Try one more time with a small delay
+          await Future.delayed(const Duration(milliseconds: 500));
+          await _initializeBreezSDK();
+          
+          if (!BreezSparkService.isInitialized) {
+            throw Exception('Failed to initialize Breez SDK after retry');
+          }
+        }
+        
+        debugPrint('✅ SDK confirmed initialized - proceeding with data refresh');
+        
         // Sync and get balance immediately after init
         await BreezSparkService.syncAndGetBalance();
         // Refresh balance provider to get the balance
@@ -94,7 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _startAutoRefresh() {
     // Poll balance and transactions every 3 seconds using Breez SDK
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      if (mounted) {
+      if (mounted && BreezSparkService.isInitialized) {
         try {
           // Fetch fresh balance from Breez SDK
           await BreezSparkService.getBalance();
@@ -109,17 +124,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         } catch (e) {
           debugPrint('⚠️ Auto-refresh error: $e');
         }
+      } else if (mounted && !BreezSparkService.isInitialized) {
+        debugPrint('⚠️ SDK not initialized during auto-refresh, skipping');
       }
     });
   }
 
   Future<void> _initializeBreezSDK() async {
     try {
+      // Check if already initialized
+      if (BreezSparkService.isInitialized) {
+        debugPrint('✅ SDK already initialized');
+        return;
+      }
+
       final storage = ref.read(secureStorageServiceProvider);
       String? mnemonic = await storage.getWalletSeed();
+      debugPrint('🔍 Looking for wallet seed in secure storage...');
 
       // If not in secure storage, try to get from Hive (migration case)
       if (mnemonic == null || mnemonic.isEmpty) {
+        debugPrint('⚠️ No seed in secure storage, checking Hive...');
         mnemonic = await BreezSparkService.getMnemonic();
         // If found in Hive, save to secure storage for future use
         if (mnemonic != null && mnemonic.isNotEmpty) {
@@ -129,11 +154,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
 
       if (mnemonic != null && mnemonic.isNotEmpty) {
+        debugPrint('🔐 Found mnemonic, initializing SDK with seed...');
         await BreezSparkService.initializeSparkSDK(mnemonic: mnemonic);
-        debugPrint('✅ Spark SDK initialized successfully');
+        
+        if (BreezSparkService.isInitialized) {
+          debugPrint('✅ Spark SDK initialized successfully');
+        } else {
+          throw Exception('SDK initialization returned but _sdk is still null');
+        }
+      } else {
+        throw Exception('No wallet seed found - cannot initialize SDK');
       }
     } catch (e) {
       debugPrint('❌ Failed to initialize Spark SDK: $e');
+      rethrow; // Re-throw so caller knows initialization failed
     }
   }
 
