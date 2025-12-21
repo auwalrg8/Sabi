@@ -5,7 +5,7 @@ import 'social_recovery_service.dart';
 
 /// Success screen shown after recovery shares are sent
 class SocialRecoverySuccessScreen extends StatefulWidget {
-  final List<SocialRecoveryService.RecoveryContact> contacts;
+  final List<RecoveryContact> contacts;
 
   const SocialRecoverySuccessScreen({
     Key? key,

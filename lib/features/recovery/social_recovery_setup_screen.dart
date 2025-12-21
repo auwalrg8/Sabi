@@ -19,8 +19,8 @@ class SocialRecoverySetupScreen extends StatefulWidget {
 }
 
 class _SocialRecoverySetupScreenState extends State<SocialRecoverySetupScreen> {
-  List<SocialRecoveryService.RecoveryContact> _selectedContacts = [];
-  List<SocialRecoveryService.RecoveryContact> _availableContacts = [];
+  List<RecoveryContact> _selectedContacts = [];
+  List<RecoveryContact> _availableContacts = [];
   bool _isLoading = true;
   bool _isSending = false;
 
@@ -36,31 +36,31 @@ class _SocialRecoverySetupScreenState extends State<SocialRecoverySetupScreen> {
       // For now, use mock data
       setState(() {
         _availableContacts = [
-          SocialRecoveryService.RecoveryContact(
+          RecoveryContact(
             name: 'Alice',
             phoneNumber: '+234 801 234 5678',
             npub: 'npub1alice1234567890abcdefghijklmnopqrstuvwxyz',
             publicKey: 'alice_public_key_hex',
           ),
-          SocialRecoveryService.RecoveryContact(
+          RecoveryContact(
             name: 'Bob',
             phoneNumber: '+234 802 345 6789',
             npub: 'npub1bob1234567890abcdefghijklmnopqrstuvwxyz',
             publicKey: 'bob_public_key_hex',
           ),
-          SocialRecoveryService.RecoveryContact(
+          RecoveryContact(
             name: 'Charlie',
             phoneNumber: '+234 803 456 7890',
             npub: 'npub1charlie1234567890abcdefghijklmnopqrstuvwxyz',
             publicKey: 'charlie_public_key_hex',
           ),
-          SocialRecoveryService.RecoveryContact(
+          RecoveryContact(
             name: 'Diana',
             phoneNumber: '+234 804 567 8901',
             npub: 'npub1diana1234567890abcdefghijklmnopqrstuvwxyz',
             publicKey: 'diana_public_key_hex',
           ),
-          SocialRecoveryService.RecoveryContact(
+          RecoveryContact(
             name: 'Eve',
             phoneNumber: '+234 805 678 9012',
             npub: 'npub1eve1234567890abcdefghijklmnopqrstuvwxyz',

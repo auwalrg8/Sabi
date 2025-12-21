@@ -4,8 +4,8 @@ import 'social_recovery_service.dart';
 
 /// Contact picker for selecting recovery contacts
 class RecoveryContactPicker extends StatefulWidget {
-  final List<SocialRecoveryService.RecoveryContact> availableContacts;
-  final Function(List<SocialRecoveryService.RecoveryContact>) onContactsSelected;
+  final List<RecoveryContact> availableContacts;
+  final Function(List<RecoveryContact>) onContactsSelected;
   final int maxContacts;
 
   const RecoveryContactPicker({
@@ -80,7 +80,6 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
                     padding: EdgeInsets.all(16.w),
                     child: Row(
                       children: [
-                        // Avatar
                         Container(
                           width: 48.w,
                           height: 48.w,
@@ -102,7 +101,6 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
                           ),
                         ),
                         SizedBox(width: 12.w),
-                        // Contact info
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,7 +138,6 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
                           ),
                         ),
                         SizedBox(width: 12.w),
-                        // Checkbox
                         Container(
                           width: 24.w,
                           height: 24.w,
@@ -169,12 +166,11 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
                       ],
                     ),
                   ),
-                );
-              };
+                ),
+              );
             },
           ),
         ),
-        // Selected count
         Padding(
           padding: EdgeInsets.all(16.w),
           child: Row(
@@ -189,7 +185,11 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
               ),
               if (_selectedIndices.length >= 3)
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => widget.onContactsSelected(
+                    _selectedIndices
+                        .map((i) => widget.availableContacts[i])
+                        .toList(),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF7931A),
                     shape: RoundedRectangleBorder(

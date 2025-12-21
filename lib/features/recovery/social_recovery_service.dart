@@ -2,8 +2,37 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:math';
+
+/// Model for recovery contact
+class RecoveryContact {
+  final String name;
+  final String? phoneNumber;
+  final String npub;
+  final String publicKey; // Nostr public key (hex)
+
+  RecoveryContact({
+    required this.name,
+    this.phoneNumber,
+    required this.npub,
+    required this.publicKey,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'phoneNumber': phoneNumber,
+    'npub': npub,
+    'publicKey': publicKey,
+  };
+
+  factory RecoveryContact.fromJson(Map<String, dynamic> json) =>
+      RecoveryContact(
+        name: json['name'],
+        phoneNumber: json['phoneNumber'],
+        npub: json['npub'],
+        publicKey: json['publicKey'],
+      );
+}
 
 /// Service for social recovery via Nostr DM
 /// - Split seed into 3-of-5 Shamir shares
@@ -18,36 +47,6 @@ class SocialRecoveryService {
   /// Initialize the service
   static Future<void> init() async {
     _secureStorage = const FlutterSecureStorage();
-  }
-
-  /// Model for recovery contact
-  static class RecoveryContact {
-    final String name;
-    final String? phoneNumber;
-    final String npub;
-    final String publicKey; // Nostr public key (hex)
-
-    RecoveryContact({
-      required this.name,
-      this.phoneNumber,
-      required this.npub,
-      required this.publicKey,
-    });
-
-    Map<String, dynamic> toJson() => {
-      'name': name,
-      'phoneNumber': phoneNumber,
-      'npub': npub,
-      'publicKey': publicKey,
-    };
-
-    factory RecoveryContact.fromJson(Map<String, dynamic> json) =>
-        RecoveryContact(
-          name: json['name'],
-          phoneNumber: json['phoneNumber'],
-          npub: json['npub'],
-          publicKey: json['publicKey'],
-        );
   }
 
   /// Split master seed into 3-of-5 Shamir shares
@@ -295,7 +294,7 @@ class SocialRecoveryService {
 
         // Collect shares (in production, set a timeout)
         await for (final zapEvent in stream) {
-          if (zapEvent is Map && zapEvent.containsKey('encrypted_share')) {
+          if (zapEvent.containsKey('encrypted_share')) {
             shares.add(zapEvent['encrypted_share'] as String);
             if (shares.length >= 3) break; // Got 3 shares, can reconstruct
           }
