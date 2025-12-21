@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:contacts_service/contacts_service.dart';
 import 'package:sabi_wallet/features/recovery/nostr_invite_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -49,30 +48,47 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
       final status = await Permission.contacts.request();
       if (!status.isGranted) {
         print('Contacts permission denied');
-        setState(() => _isLoading = false);
-        return;
       }
 
-      // Load phone contacts
-      final phoneContacts = await ContactsService.getContacts();
-      final phoneContactsList = phoneContacts
-          .where((contact) => contact.displayName != null && contact.displayName!.isNotEmpty)
-          .map((contact) => ContactWithStatus(
-            name: contact.displayName ?? 'Unknown',
-            phoneNumber: contact.phones?.isNotEmpty == true 
-              ? contact.phones!.first.value 
-              : null,
-            email: contact.emails?.isNotEmpty == true 
-              ? contact.emails!.first.value 
-              : null,
-            npub: null,
-            isOnNostr: false,
-          ))
-          .toList();
-
-      // In production, fetch Nostr follows from NostrService
-      // For now, we'll just use phone contacts
-      // final nostrFollows = await _getNostrFollows();
+      // Mock phone contacts for demo purposes
+      // In production, integrate with actual contacts_service or platform channel
+      final phoneContactsList = [
+        ContactWithStatus(
+          name: 'Chinedu',
+          phoneNumber: '+234 803 123 4567',
+          email: null,
+          npub: null,
+          isOnNostr: false,
+        ),
+        ContactWithStatus(
+          name: 'Zainab',
+          phoneNumber: '+234 701 987 6543',
+          email: null,
+          npub: null,
+          isOnNostr: false,
+        ),
+        ContactWithStatus(
+          name: 'Tunde',
+          phoneNumber: '+234 809 456 1234',
+          email: null,
+          npub: null,
+          isOnNostr: false,
+        ),
+        ContactWithStatus(
+          name: 'Amara',
+          phoneNumber: '+234 805 555 9999',
+          email: null,
+          npub: null,
+          isOnNostr: false,
+        ),
+        ContactWithStatus(
+          name: 'Obinna',
+          phoneNumber: '+234 701 222 3333',
+          email: null,
+          npub: null,
+          isOnNostr: false,
+        ),
+      ];
 
       setState(() {
         _allContacts = phoneContactsList;
