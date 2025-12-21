@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 class NotificationModel {
   final String id;
@@ -7,7 +6,7 @@ class NotificationModel {
   final String message;
   final DateTime timestamp;
   final String type; // 'payment_received', 'payment_sent', 'system'
-  final bool isRead;
+  bool isRead;
   final Map<String, dynamic>? metadata;
 
   NotificationModel({
@@ -63,13 +62,12 @@ class NotificationModel {
 }
 
 class NotificationService {
-  static const _notificationsBox = 'notifications';
-  static late Box _box;
+  // In-memory storage for notifications (no Hive needed)
+  static final List<NotificationModel> _notifications = [];
 
   static Future<void> init() async {
     try {
-      _box = await Hive.openBox(_notificationsBox);
-      debugPrint('✅ Notification service initialized');
+      debugPrint('✅ Notification service initialized (in-memory)');
     } catch (e) {
       debugPrint('❌ Notification service init error: $e');
     }
@@ -78,7 +76,7 @@ class NotificationService {
   /// Add a new notification
   static Future<void> addNotification(NotificationModel notification) async {
     try {
-      await _box.put(notification.id, notification.toMap());
+      _notifications.insert(0, notification); // Add to beginning (newest first)
       debugPrint('✅ Added notification: ${notification.title}');
     } catch (e) {
       debugPrint('❌ Add notification error: $e');
@@ -88,21 +86,7 @@ class NotificationService {
   /// Get all notifications (sorted by timestamp, most recent first)
   static Future<List<NotificationModel>> getAllNotifications() async {
     try {
-      final List<NotificationModel> notifications = [];
-
-      for (final key in _box.keys) {
-        final data = _box.get(key);
-        if (data is Map) {
-          notifications.add(
-            NotificationModel.fromMap(Map<String, dynamic>.from(data as Map)),
-          );
-        }
-      }
-
-      // Sort by timestamp (most recent first)
-      notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-      return notifications;
+      return List.from(_notifications);
     } catch (e) {
       debugPrint('❌ Get notifications error: $e');
       return [];
@@ -112,8 +96,7 @@ class NotificationService {
   /// Get unread notifications count
   static Future<int> getUnreadCount() async {
     try {
-      final notifications = await getAllNotifications();
-      return notifications.where((n) => !n.isRead).length;
+      return _notifications.where((n) => !n.isRead).length;
     } catch (e) {
       debugPrint('❌ Get unread count error: $e');
       return 0;
@@ -123,15 +106,9 @@ class NotificationService {
   /// Mark notification as read
   static Future<void> markAsRead(String notificationId) async {
     try {
-      final data = _box.get(notificationId) as Map?;
-      if (data != null) {
-        final notification = NotificationModel.fromMap(
-          Map<String, dynamic>.from(data),
-        );
-        await _box.put(
-          notificationId,
-          notification.copyWith(isRead: true).toMap(),
-        );
+      final index = _notifications.indexWhere((n) => n.id == notificationId);
+      if (index >= 0) {
+        _notifications[index].isRead = true;
         debugPrint('✅ Marked notification as read: $notificationId');
       }
     } catch (e) {
@@ -142,11 +119,8 @@ class NotificationService {
   /// Mark all notifications as read
   static Future<void> markAllAsRead() async {
     try {
-      final notifications = await getAllNotifications();
-      for (final notification in notifications) {
-        if (!notification.isRead) {
-          await markAsRead(notification.id);
-        }
+      for (final notification in _notifications) {
+        notification.isRead = true;
       }
       debugPrint('✅ Marked all notifications as read');
     } catch (e) {
@@ -157,7 +131,7 @@ class NotificationService {
   /// Delete a notification
   static Future<void> deleteNotification(String notificationId) async {
     try {
-      await _box.delete(notificationId);
+      _notifications.removeWhere((n) => n.id == notificationId);
       debugPrint('✅ Deleted notification: $notificationId');
     } catch (e) {
       debugPrint('❌ Delete notification error: $e');
@@ -167,7 +141,7 @@ class NotificationService {
   /// Clear all notifications
   static Future<void> clearAll() async {
     try {
-      await _box.clear();
+      _notifications.clear();
       debugPrint('✅ Cleared all notifications');
     } catch (e) {
       debugPrint('❌ Clear notifications error: $e');

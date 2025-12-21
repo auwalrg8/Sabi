@@ -12,7 +12,7 @@ class AppStateService {
   static Future<void> init() async {
     if (_isInitialized) return;
 
-    await Hive.initFlutter();
+    // Hive.initFlutter() is now called globally in main() to avoid race conditions
     _box = await Hive.openBox(_boxName);
     _isInitialized = true;
     debugPrint('✅ AppStateService initialized');

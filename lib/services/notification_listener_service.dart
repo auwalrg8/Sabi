@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sabi_wallet/core/models/notification_model.dart';
 
 /// Service to listen to Breez SDK events and trigger notifications
 /// - Listens to PaymentReceived events
-/// - Stores notifications locally in Hive
+/// - Stores notifications in memory
 /// - Triggers local push notifications
 /// - Manages notification state (read/unread)
 class NotificationListenerService {
-  static const String _notificationBoxKey = 'notifications';
-  
   late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
-  late Box<NotificationItem> _notificationBox;
+  
+  // In-memory storage for notifications
+  final List<NotificationItem> _notifications = [];
 
   NotificationListenerService() {
     _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -46,9 +45,6 @@ class NotificationListenerService {
         initializationSettings,
         onDidReceiveNotificationResponse: _onNotificationTap,
       );
-
-      // Open Hive box for notifications
-      _notificationBox = await Hive.openBox<NotificationItem>(_notificationBoxKey);
 
       print('✅ Notification service initialized');
       
@@ -99,7 +95,7 @@ class NotificationListenerService {
       );
 
       // Save to local storage
-      await _addNotification(notification);
+      _addNotification(notification);
 
       // Show local push notification
       await _showLocalNotification(notification);
@@ -132,7 +128,7 @@ class NotificationListenerService {
         senderName: senderName,
       );
 
-      await _addNotification(notification);
+      _addNotification(notification);
       await _showLocalNotification(notification);
       _triggerInAppBanner(notification);
 
@@ -180,10 +176,10 @@ class NotificationListenerService {
     print('📢 In-app banner triggered for: ${notification.title}');
   }
 
-  /// Add notification to local storage
-  Future<void> _addNotification(NotificationItem notification) async {
+  /// Add notification to in-memory storage
+  void _addNotification(NotificationItem notification) {
     try {
-      await _notificationBox.add(notification);
+      _notifications.insert(0, notification); // Newest first
     } catch (e) {
       print('❌ Error adding notification: $e');
     }
@@ -192,10 +188,7 @@ class NotificationListenerService {
   /// Get all notifications
   List<NotificationItem> getAllNotifications() {
     try {
-      final notifications = _notificationBox.values.toList();
-      // Sort by timestamp (newest first)
-      notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return notifications;
+      return List.from(_notifications);
     } catch (e) {
       print('❌ Error getting notifications: $e');
       return [];
@@ -205,7 +198,7 @@ class NotificationListenerService {
   /// Get unread notifications count
   int getUnreadCount() {
     try {
-      return _notificationBox.values
+      return getAllNotifications()
           .where((notification) => !notification.isRead)
           .length;
     } catch (e) {
@@ -217,15 +210,11 @@ class NotificationListenerService {
   /// Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      final notification = _notificationBox.values.firstWhere(
-        (n) => n.id == notificationId,
-        orElse: () => throw Exception('Notification not found'),
-      );
-
-      notification.isRead = true;
-      await notification.save();
-
-      print('✅ Notification marked as read: $notificationId');
+      final index = _notifications.indexWhere((n) => n.id == notificationId);
+      if (index >= 0) {
+        _notifications[index].isRead = true;
+        print('✅ Notification marked as read: $notificationId');
+      }
     } catch (e) {
       print('❌ Error marking notification as read: $e');
     }
@@ -234,9 +223,8 @@ class NotificationListenerService {
   /// Mark all notifications as read
   Future<void> markAllAsRead() async {
     try {
-      for (final notification in _notificationBox.values) {
+      for (final notification in _notifications) {
         notification.isRead = true;
-        await notification.save();
       }
       print('✅ All notifications marked as read');
     } catch (e) {
@@ -247,13 +235,8 @@ class NotificationListenerService {
   /// Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
-      final index = _notificationBox.values.toList()
-          .indexWhere((n) => n.id == notificationId);
-      
-      if (index >= 0) {
-        await _notificationBox.deleteAt(index);
-        print('✅ Notification deleted: $notificationId');
-      }
+      _notifications.removeWhere((n) => n.id == notificationId);
+      print('✅ Notification deleted: $notificationId');
     } catch (e) {
       print('❌ Error deleting notification: $e');
     }
@@ -262,7 +245,7 @@ class NotificationListenerService {
   /// Clear all notifications
   Future<void> clearAllNotifications() async {
     try {
-      await _notificationBox.clear();
+      _notifications.clear();
       print('✅ All notifications cleared');
     } catch (e) {
       print('❌ Error clearing notifications: $e');
@@ -288,7 +271,7 @@ class NotificationListenerService {
   /// Dispose resources
   Future<void> dispose() async {
     try {
-      await _notificationBox.close();
+      _notifications.clear();
       print('✅ Notification service disposed');
     } catch (e) {
       print('❌ Error disposing notification service: $e');

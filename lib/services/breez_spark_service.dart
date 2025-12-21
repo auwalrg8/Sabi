@@ -166,7 +166,7 @@ class BreezSparkService {
   // STEP 1: Initialize Hive persistence
   // ============================================================================
   static Future<void> initPersistence() async {
-    await Hive.initFlutter();
+    // Hive.initFlutter() is now called globally in main() to avoid race conditions
     final key = await _getEncryptionKey();
     _box = await Hive.openBox(_boxName, encryptionCipher: HiveAesCipher(key));
     debugPrint('✅ Breez Spark persistence initialized');

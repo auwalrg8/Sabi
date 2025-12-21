@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
 import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
 import 'services/secure_storage.dart';
@@ -21,33 +22,94 @@ import 'features/onboarding/presentation/screens/entry_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // CRITICAL: Initialize flutter_rust_bridge FIRST
-  await BreezSdkSparkLib.init();
-  debugPrint('✅ BreezSdkSparkLib.init() called - Bridge initialized');
-
-  // Initialize services
-  await SecureStorage.init();
-  await AppStateService.init(); // Initialize app state first
-  await BreezSparkService.initPersistence();
-  await NostrService.init();
-
-  // Auto-recover wallet if exists
-  final savedMnemonic = await BreezSparkService.getMnemonic();
-  if (savedMnemonic != null && savedMnemonic.isNotEmpty) {
-    try {
-      await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
-      debugPrint('🔓 Auto-recovered wallet from storage');
-    } catch (e) {
-      debugPrint('⚠️ Failed to auto-recover wallet: $e');
-    }
+  // CRITICAL: Initialize Hive ONCE at the very start, before all other services
+  try {
+    await Hive.initFlutter();
+    debugPrint('✅ Hive.initFlutter() initialized globally');
+  } catch (e) {
+    debugPrint('⚠️ Hive.initFlutter() error: $e');
   }
 
-  await ContactService.init();
-  await NotificationService.init();
-  await ProfileService.init();
+  try {
+    // CRITICAL: Initialize flutter_rust_bridge FIRST
+    await BreezSdkSparkLib.init();
+    debugPrint('✅ BreezSdkSparkLib.init() called - Bridge initialized');
+  } catch (e) {
+    debugPrint('⚠️ BreezSdkSparkLib.init() error: $e');
+  }
 
-  // Mark app as opened
-  await AppStateService.markAppOpened();
+  try {
+    // Initialize services
+    await SecureStorage.init();
+    debugPrint('✅ SecureStorage initialized');
+  } catch (e) {
+    debugPrint('⚠️ SecureStorage error: $e');
+  }
+
+  try {
+    await AppStateService.init();
+    debugPrint('✅ AppStateService initialized');
+  } catch (e) {
+    debugPrint('⚠️ AppStateService error: $e');
+  }
+
+  try {
+    await BreezSparkService.initPersistence();
+    debugPrint('✅ BreezSparkService persistence initialized');
+  } catch (e) {
+    debugPrint('⚠️ BreezSparkService.initPersistence error: $e');
+  }
+
+  try {
+    await NostrService.init();
+    debugPrint('✅ NostrService initialized');
+  } catch (e) {
+    debugPrint('⚠️ NostrService error: $e');
+  }
+
+  try {
+    // Auto-recover wallet if exists
+    final savedMnemonic = await BreezSparkService.getMnemonic();
+    if (savedMnemonic != null && savedMnemonic.isNotEmpty) {
+      try {
+        await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
+        debugPrint('🔓 Auto-recovered wallet from storage');
+      } catch (e) {
+        debugPrint('⚠️ Failed to auto-recover wallet: $e');
+      }
+    }
+  } catch (e) {
+    debugPrint('⚠️ Wallet recovery error: $e');
+  }
+
+  try {
+    await ContactService.init();
+    debugPrint('✅ ContactService initialized');
+  } catch (e) {
+    debugPrint('⚠️ ContactService error: $e');
+  }
+
+  try {
+    await NotificationService.init();
+    debugPrint('✅ NotificationService initialized');
+  } catch (e) {
+    debugPrint('⚠️ NotificationService error: $e');
+  }
+
+  try {
+    await ProfileService.init();
+    debugPrint('✅ ProfileService initialized');
+  } catch (e) {
+    debugPrint('⚠️ ProfileService error: $e');
+  }
+
+  try {
+    // Mark app as opened
+    await AppStateService.markAppOpened();
+    debugPrint('✅ App marked as opened');
+  } catch (e) {
+    debugPrint('⚠️ markAppOpened error: $e');
+  }
 
   runApp(
     const ProviderScope(

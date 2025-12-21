@@ -5,7 +5,7 @@ class SecureStorage {
   static const _boxName = 'sabi_secure';
 
   static Future<void> init() async {
-    await Hive.initFlutter();
+    // Hive.initFlutter() is now called globally in main() to avoid race conditions
     // HiveAesCipher requires a 32-byte key. In production, persist the key securely.
     final key = Hive.generateSecureKey();
     _box = await Hive.openBox(
