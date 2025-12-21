@@ -36,6 +36,8 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   int _availableBalance = 0;
   double? _availableNgn;
   String _errorMessage = '';
+  int _buyInjectAttempts = 0;
+  static const int _buyInjectMaxAttempts = 2;
 
   @override
   void initState() {
@@ -66,11 +68,9 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
           if (!widget.isBuying) {
             _injectExtractionScript();
           } else {
-            Clipboard.getData(Clipboard.kTextPlain).then((data) {
-              if (data != null && data.text != null && data.text!.isNotEmpty) {
-                _injectInvoice(data.text!);
-              }
-            });
+            // attempt injection from clipboard up to 2 times (immediate + one retry)
+            _buyInjectAttempts = 0;
+            _attemptBuyInjectionFromClipboard();
           }
         },
       ));
@@ -139,6 +139,99 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
       }
     ''';
     _controller.runJavaScript(js);
+  }
+
+  Future<void> _attemptBuyInjectionFromClipboard() async {
+    try {
+      _buyInjectAttempts++;
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final invoice = data?.text;
+      bool injected = false;
+      if (invoice != null && invoice.isNotEmpty) {
+        final success = await _tryInjectJsReturningBool(invoice);
+        if (success == true) {
+          injected = true;
+          return;
+        }
+      }
+      if (!injected && _buyInjectAttempts < _buyInjectMaxAttempts) {
+        // retry shortly
+        Future.delayed(const Duration(milliseconds: 450), _attemptBuyInjectionFromClipboard);
+      } else if (!injected && invoice != null && invoice.isNotEmpty) {
+        // attempts exhausted - install observer-based injector as fallback
+        _injectInvoice(invoice);
+      }
+    } catch (e) {
+      debugPrint('Buy injection attempt error: $e');
+    }
+  }
+
+  Future<bool?> _tryInjectJsReturningBool(String invoice) async {
+    final esc = invoice.replaceAll("'", "\\'");
+    final js = '''(function(){
+      try{
+        var invoice = "${esc}";
+        function getHintText(el){
+          try{
+            var ph = (el.getAttribute && el.getAttribute('placeholder')) || '';
+            var aria = (el.getAttribute && el.getAttribute('aria-label')) || '';
+            var id = el.id || '';
+            var name = el.name || '';
+            var cls = el.className || '';
+            var data = '';
+            try{ data = JSON.stringify(el.dataset) }catch(e){}
+            var label = '';
+            try{ var lab = el.closest('label'); if(lab) label = lab.innerText || ''; }catch(e){}
+            return (ph + ' ' + aria + ' ' + id + ' ' + name + ' ' + cls + ' ' + data + ' ' + label).toLowerCase();
+          }catch(e){return ''}
+        }
+        function setNativeValue(el, value){
+          try{
+            var proto = Object.getPrototypeOf(el);
+            var desc = Object.getOwnPropertyDescriptor(proto, 'value') || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+            var setter = desc && desc.set;
+            if(setter) setter.call(el, value);
+            else el.value = value;
+          }catch(e){ try{ el.value = value;}catch(e){} }
+          try{ el.setAttribute && el.setAttribute('value', value); }catch(e){}
+          try{ var ev = new Event('input', {bubbles:true}); el.dispatchEvent(ev);}catch(e){}
+          try{ var ev2 = new Event('change', {bubbles:true}); el.dispatchEvent(ev2);}catch(e){}
+          try{ if(el.setSelectionRange) el.setSelectionRange(value.length, value.length);}catch(e){}
+        }
+        var nodes = Array.from(document.querySelectorAll('input,textarea,[contenteditable="true"]'));
+        // prefer inputs that explicitly mention paste/lightning/invoice
+        var candidates = nodes.filter(function(el){
+          var hint = getHintText(el);
+          return hint.indexOf('paste')!==-1 && (hint.indexOf('lightning')!==-1 || hint.indexOf('invoice')!==-1) || hint.indexOf('lnbc')!==-1 || hint.indexOf('bolt11')!==-1;
+        });
+        if(candidates.length===0){
+          // fallback to broader invoice hints
+          candidates = nodes.filter(function(el){
+            var hint = getHintText(el);
+            return hint.indexOf('invoice')!==-1 || hint.indexOf('lightning')!==-1 || hint.indexOf('paste')!==-1 || hint.indexOf('lnbc')!==-1;
+          });
+        }
+        if(candidates.length===0) candidates = nodes;
+        for(var i=0;i<candidates.length;i++){
+          var el = candidates[i];
+          try{
+            setNativeValue(el, invoice);
+            try{ el.focus && el.focus(); }catch(e){}
+            if((el.value && el.value.indexOf(invoice.substring(0,8))!==-1) || (el.innerText && el.innerText.indexOf(invoice.substring(0,8))!==-1)) return true;
+          }catch(e){}
+        }
+        return false;
+      }catch(e){return false}
+    })();''';
+    try {
+      final res = await _controller.runJavaScriptReturningResult(js);
+      if (res == true || res == 'true' || res == 1 || res == '1') return true;
+      return false;
+    } catch (e) {
+      // fallback to non-returning observer-based injection
+      _injectInvoice(invoice);
+      return null;
+    }
   }
 
   void _preparePayment(String invoice) async {
