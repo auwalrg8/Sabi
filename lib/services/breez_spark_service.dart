@@ -101,6 +101,7 @@ class BreezSparkService {
 
   // Prevent double initialization
   static bool _isInitializing = false;
+  static bool _persistenceInitialized = false;
   static bool get isInitialized => _sdk != null;
 
   static Stream<PaymentRecord> get paymentStream => _paymentStream.stream;
@@ -166,9 +167,13 @@ class BreezSparkService {
   // STEP 1: Initialize Hive persistence
   // ============================================================================
   static Future<void> initPersistence() async {
+    if (_persistenceInitialized) {
+      return;
+    }
     // Hive.initFlutter() is now called globally in main() to avoid race conditions
     final key = await _getEncryptionKey();
     _box = await Hive.openBox(_boxName, encryptionCipher: HiveAesCipher(key));
+    _persistenceInitialized = true;
     debugPrint('✅ Breez Spark persistence initialized');
   }
 

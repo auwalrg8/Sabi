@@ -3,8 +3,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 class SecureStorage {
   static late Box _box;
   static const _boxName = 'sabi_secure';
+  static bool _initialized = false;
 
   static Future<void> init() async {
+    if (_initialized) {
+      return;
+    }
     // Hive.initFlutter() is now called globally in main() to avoid race conditions
     // HiveAesCipher requires a 32-byte key. In production, persist the key securely.
     final key = Hive.generateSecureKey();
@@ -12,6 +16,7 @@ class SecureStorage {
       _boxName,
       encryptionCipher: HiveAesCipher(key),
     );
+    _initialized = true;
   }
 
   static String? get inviteCode => _box.get('invite_code');

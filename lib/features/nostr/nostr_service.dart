@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nostr_dart/nostr_dart.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 /// Service for managing Nostr integration
 /// - Key generation and validation
@@ -13,6 +14,7 @@ class NostrService {
   
   static late final FlutterSecureStorage _secureStorage;
   static Nostr? _nostr;
+  static bool _initialized = false;
   
   // Public relay pool
   static final List<String> _defaultRelays = [
@@ -25,7 +27,12 @@ class NostrService {
 
   /// Initialize the Nostr service
   static Future<void> init() async {
+    if (_initialized) {
+      debugPrint('✅ NostrService already initialized');
+      return;
+    }
     _secureStorage = const FlutterSecureStorage();
+    _initialized = true;
     await _loadKeysAndInitializeNostr();
   }
 

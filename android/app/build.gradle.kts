@@ -30,6 +30,10 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        // Only build for ARM64 to avoid CMake x86_64 compilation errors
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -37,16 +41,6 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-        }
-    }
-
-    splits {
-        abi {
-            isEnable = true
-            // Only build for ARM64 to avoid CMake x86_64 issues
-            reset()
-            include("arm64-v8a")
-            isUniversalApk = false
         }
     }
 
