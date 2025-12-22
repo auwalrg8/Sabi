@@ -7,7 +7,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'dart:io';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart' as cash_screen;
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
@@ -66,7 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             () => setState(() => _isBalanceVisible = !_isBalanceVisible),
       ),
       const cash_screen.CashScreen(),
-      const P2PScreen(),
+      const P2PHomeScreen(),
       const ProfileScreen(),
     ];
     // Initialize Breez SDK first, then poll payments
