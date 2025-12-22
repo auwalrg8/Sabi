@@ -17,14 +17,17 @@ class NostrService {
   static Nostr? _nostr;
   static bool _initialized = false;
 
-  // Nigerian and popular African relays + global relays for better connectivity
+  // Bitcoin-focused and Nigeria-friendly relays for better Sabi Wallet experience
   static final List<String> _defaultRelays = [
-    'wss://relay.nostr.ng', // Nigeria relay
-    'wss://nostr.africa', // Africa relay
-    'wss://relay.damus.io',
-    'wss://nostr.wine',
-    'wss://relay.snort.social',
+    'wss://nostr.btclibrary.org', // Bitcoin-only, curated - Perfect for Bitcoiners
+    'wss://nos.lol', // Fast, popular in Africa - Many Nigerian users
+    'wss://nostr.oxtr.dev', // Bitcoin-focused, low latency - Great for zaps
+    'wss://relay.nostr.band', // Searchable, good for discovery - Helps find Nigerian posts
+    'wss://nostr.verified.ninja', // Verified users only - Safer for recovery contacts
   ];
+
+  // Key for storing cached follows
+  static const _followsKey = 'nostr_follows';
 
   // Rate for sats to naira conversion (can be updated from API)
   static double satsToNairaRate = 0.015; // ~15 kobo per sat
@@ -341,6 +344,24 @@ class NostrService {
     }
   }
 
+  /// Decode npub (bech32) to hex public key
+  static String? npubToHex(String npub) {
+    try {
+      if (!npub.startsWith('npub1')) {
+        return null;
+      }
+
+      final decoded = const Bech32Codec().decode(npub);
+      final data = _convertBits(decoded.data, 5, 8, false);
+      if (data == null) return null;
+
+      return data.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    } catch (e) {
+      print('❌ Error decoding npub: $e');
+      return null;
+    }
+  }
+
   /// Convert bits between different bases (for bech32 encoding/decoding)
   static List<int>? _convertBits(
     List<int> data,
@@ -479,6 +500,173 @@ class NostrService {
       return completer.future;
     } catch (e) {
       print('❌ Error fetching global feed: $e');
+      return posts;
+    }
+  }
+
+  /// Fetch user's follows (kind-3 contact list)
+  /// Returns list of pubkeys the user follows
+  static Future<List<String>> fetchUserFollows(String userPubkey) async {
+    final follows = <String>[];
+
+    try {
+      await init();
+
+      if (_nostr == null) {
+        print('⚠️ Nostr not initialized');
+        return follows;
+      }
+
+      // First check cache
+      final cached = await _secureStorage.read(key: _followsKey);
+      if (cached != null && cached.isNotEmpty) {
+        // Return cached follows, but still fetch fresh in background
+        follows.addAll(cached.split(',').where((s) => s.isNotEmpty));
+        print('📦 Loaded ${follows.length} cached follows');
+      }
+
+      // Filter for kind 3 (contact list)
+      final filter = {
+        'kinds': [3],
+        'authors': [userPubkey],
+        'limit': 1,
+      };
+
+      final completer = Completer<List<String>>();
+      bool isCompleted = false;
+
+      // Timeout after 5 seconds
+      Timer(const Duration(seconds: 5), () {
+        if (!isCompleted) {
+          isCompleted = true;
+          completer.complete(follows);
+        }
+      });
+
+      final subscriptionId = 'follows_${DateTime.now().millisecondsSinceEpoch}';
+
+      _nostr!.pool.subscribe([filter], (event) async {
+        if (!isCompleted) {
+          isCompleted = true;
+          
+          // Parse contact list from tags
+          final freshFollows = <String>[];
+          for (final tag in event.tags) {
+            if (tag is List && tag.isNotEmpty && tag[0] == 'p' && tag.length > 1) {
+              final pubkey = tag[1].toString();
+              if (pubkey.isNotEmpty) {
+                freshFollows.add(pubkey);
+              }
+            }
+          }
+
+          // Cache the follows
+          if (freshFollows.isNotEmpty) {
+            await _secureStorage.write(
+              key: _followsKey,
+              value: freshFollows.join(','),
+            );
+            print('💾 Cached ${freshFollows.length} follows');
+          }
+
+          completer.complete(freshFollows.isNotEmpty ? freshFollows : follows);
+        }
+      }, subscriptionId);
+
+      return completer.future;
+    } catch (e) {
+      print('❌ Error fetching user follows: $e');
+      return follows;
+    }
+  }
+
+  /// Get cached follows (for offline access)
+  static Future<List<String>> getCachedFollows() async {
+    try {
+      final cached = await _secureStorage.read(key: _followsKey);
+      if (cached != null && cached.isNotEmpty) {
+        return cached.split(',').where((s) => s.isNotEmpty).toList();
+      }
+    } catch (e) {
+      print('⚠️ Error reading cached follows: $e');
+    }
+    return [];
+  }
+
+  /// Fetch feed from user's follows (kind-1 posts from follows, last 48 hours)
+  static Future<List<NostrFeedPost>> fetchFollowsFeed({
+    required List<String> followPubkeys,
+    int limit = 50,
+  }) async {
+    final posts = <NostrFeedPost>[];
+
+    if (followPubkeys.isEmpty) {
+      print('⚠️ No follows to fetch posts from');
+      return posts;
+    }
+
+    try {
+      await init();
+
+      if (_nostr == null) {
+        print('⚠️ Nostr not initialized');
+        return posts;
+      }
+
+      final completer = Completer<List<NostrFeedPost>>();
+      bool isCompleted = false;
+
+      // Get posts from last 48 hours
+      final since = DateTime.now().subtract(const Duration(hours: 48));
+      final sinceTimestamp = since.millisecondsSinceEpoch ~/ 1000;
+
+      // Filter for kind 1 (text notes) from follows
+      final filter = {
+        'kinds': [1],
+        'authors': followPubkeys,
+        'since': sinceTimestamp,
+        'limit': limit,
+      };
+
+      final subscriptionId = 'follows_feed_${DateTime.now().millisecondsSinceEpoch}';
+      final receivedEvents = <String, Event>{};
+
+      // Timeout after 8 seconds (longer for follows feed)
+      Timer(const Duration(seconds: 8), () {
+        if (!isCompleted) {
+          isCompleted = true;
+          for (final event in receivedEvents.values) {
+            posts.add(NostrFeedPost.fromEvent(event));
+          }
+          posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          print('📰 Fetched ${posts.length} posts from follows');
+          completer.complete(posts);
+        }
+      });
+
+      _nostr!.pool.subscribe([filter], (event) {
+        if (!isCompleted && !receivedEvents.containsKey(event.id)) {
+          receivedEvents[event.id] = event;
+
+          if (receivedEvents.length >= limit) {
+            Timer(const Duration(milliseconds: 500), () {
+              if (!isCompleted) {
+                isCompleted = true;
+                for (final e in receivedEvents.values) {
+                  posts.add(NostrFeedPost.fromEvent(e));
+                }
+                posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+                print('📰 Fetched ${posts.length} posts from follows');
+                completer.complete(posts);
+              }
+            });
+          }
+        }
+      }, subscriptionId);
+
+      return completer.future;
+    } catch (e) {
+      print('❌ Error fetching follows feed: $e');
       return posts;
     }
   }

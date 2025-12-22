@@ -9,7 +9,7 @@ import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
 
 /// Filter types for the feed
-enum FeedFilter { latest, latestWithReplies, trending24h }
+enum FeedFilter { newThreads, latest, trending24h }
 
 /// Nostr feed screen displaying real posts from relays
 class NostrFeedScreen extends StatefulWidget {
@@ -24,12 +24,15 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   List<NostrFeedPost> _filteredPosts = [];
   bool _isLoading = true;
   String? _userNpub;
+  String? _userHexPubkey;
+  List<String> _userFollows = [];
   Map<String, int> _zapCounts = {};
-  FeedFilter _currentFilter = FeedFilter.latest;
+  FeedFilter _currentFilter = FeedFilter.newThreads; // Default to follows feed
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showImages = false; // Default to text-only mode for low-data users
   Map<String, Map<String, String>> _authorMetadataCache = {};
+  bool _followsFeedEmpty = false; // Track if follows feed returned no posts
 
   @override
   void initState() {
@@ -44,15 +47,49 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   }
 
   Future<void> _loadFeed() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _followsFeedEmpty = false;
+    });
 
     try {
       await NostrService.init();
       final npub = await NostrService.getNpub();
       setState(() => _userNpub = npub);
 
-      // Fetch real posts from relays
-      final posts = await NostrService.fetchGlobalFeed(limit: 50);
+      List<NostrFeedPost> posts = [];
+
+      if (_currentFilter == FeedFilter.newThreads) {
+        // Fetch follows feed - posts from people the user follows
+        if (npub != null) {
+          // Convert npub to hex pubkey for fetching follows
+          _userHexPubkey = NostrService.npubToHex(npub);
+          
+          if (_userHexPubkey != null) {
+            // Fetch user's follows (kind-3 contact list)
+            _userFollows = await NostrService.fetchUserFollows(_userHexPubkey!);
+            debugPrint('👥 User follows ${_userFollows.length} accounts');
+
+            if (_userFollows.isNotEmpty) {
+              // Fetch posts from follows (last 48 hours)
+              posts = await NostrService.fetchFollowsFeed(
+                followPubkeys: _userFollows,
+                limit: 50,
+              );
+              
+              if (posts.isEmpty) {
+                setState(() => _followsFeedEmpty = true);
+              }
+            } else {
+              // No follows yet - show empty state
+              setState(() => _followsFeedEmpty = true);
+            }
+          }
+        }
+      } else {
+        // Fetch global feed for Latest and Trending
+        posts = await NostrService.fetchGlobalFeed(limit: 50);
+      }
 
       // Fetch author metadata for each unique author
       final uniqueAuthors = posts.map((p) => p.authorPubkey).toSet();
@@ -80,7 +117,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error loading feed: $e');
+      debugPrint('❌ Error loading feed: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -108,11 +145,12 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
     // Apply feed filter
     switch (_currentFilter) {
-      case FeedFilter.latest:
+      case FeedFilter.newThreads:
+        // Posts from follows, sorted by timestamp
         filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
-      case FeedFilter.latestWithReplies:
-        filtered = filtered.where((p) => p.replyCount > 0).toList();
+      case FeedFilter.latest:
+        // Global posts, sorted by timestamp
         filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
       case FeedFilter.trending24h:
@@ -136,8 +174,11 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   }
 
   void _onFilterChanged(FeedFilter filter) {
-    setState(() => _currentFilter = filter);
-    _applyFilter();
+    if (_currentFilter != filter) {
+      setState(() => _currentFilter = filter);
+      // Reload feed when switching between follows and global
+      _loadFeed();
+    }
   }
 
   void _handleZapPost(NostrFeedPost post, int satoshis) async {
@@ -311,15 +352,15 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               child: Row(
                 children: [
                   _FilterTab(
-                    label: 'Latest',
-                    isSelected: _currentFilter == FeedFilter.latest,
-                    onTap: () => _onFilterChanged(FeedFilter.latest),
+                    label: 'New Threads',
+                    isSelected: _currentFilter == FeedFilter.newThreads,
+                    onTap: () => _onFilterChanged(FeedFilter.newThreads),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
-                    label: 'With Replies',
-                    isSelected: _currentFilter == FeedFilter.latestWithReplies,
-                    onTap: () => _onFilterChanged(FeedFilter.latestWithReplies),
+                    label: 'Latest',
+                    isSelected: _currentFilter == FeedFilter.latest,
+                    onTap: () => _onFilterChanged(FeedFilter.latest),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
@@ -339,6 +380,8 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                       ? _buildSkeletonLoader()
                       : _userNpub == null
                       ? _buildNoAccountState()
+                      : (_followsFeedEmpty && _currentFilter == FeedFilter.newThreads)
+                      ? _buildFollowsEmptyState()
                       : _filteredPosts.isEmpty
                       ? _buildEmptyState()
                       : RefreshIndicator(
@@ -443,6 +486,77 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFollowsEmptyState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 32.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(20.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7931A).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.bolt,
+                size: 48.sp,
+                color: const Color(0xFFF7931A),
+              ),
+            ),
+            SizedBox(height: 24.h),
+            Text(
+              _userFollows.isEmpty
+                  ? 'No follows yet'
+                  : 'Your follows are quiet today',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              _userFollows.isEmpty
+                  ? 'Follow some Bitcoiners to see their posts here!'
+                  : 'Zap someone to wake them up! ⚡',
+              style: TextStyle(
+                color: const Color(0xFFA1A1B2),
+                fontSize: 14.sp,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 24.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _onFilterChanged(FeedFilter.latest),
+                  icon: Icon(Icons.public, size: 18.sp, color: const Color(0xFFF7931A)),
+                  label: Text(
+                    'Browse Global',
+                    style: TextStyle(color: const Color(0xFFF7931A), fontSize: 14.sp),
+                  ),
+                ),
+                SizedBox(width: 16.w),
+                TextButton.icon(
+                  onPressed: _loadFeed,
+                  icon: Icon(Icons.refresh, size: 18.sp, color: const Color(0xFF00FFB2)),
+                  label: Text(
+                    'Refresh',
+                    style: TextStyle(color: const Color(0xFF00FFB2), fontSize: 14.sp),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
