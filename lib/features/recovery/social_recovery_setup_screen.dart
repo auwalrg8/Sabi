@@ -9,9 +9,9 @@ class SocialRecoverySetupScreen extends StatefulWidget {
   final String masterSeed;
 
   const SocialRecoverySetupScreen({
-    Key? key,
+    super.key,
     required this.masterSeed,
-  }) : super(key: key);
+  });
 
   @override
   State<SocialRecoverySetupScreen> createState() =>

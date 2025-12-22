@@ -237,7 +237,7 @@ class NostrService {
       );
 
       // Publish to all relays
-      await _nostr!.sendEvent(event);
+      _nostr!.sendEvent(event);
 
       print('✅ Zap event published: $satoshis sats to $targetNpub');
       return event.id;

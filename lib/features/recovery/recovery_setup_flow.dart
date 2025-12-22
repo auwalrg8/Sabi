@@ -16,8 +16,8 @@ class RecoverySetupFlow extends ConsumerStatefulWidget {
 
   const RecoverySetupFlow({
     required this.masterSeed,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   ConsumerState<RecoverySetupFlow> createState() => _RecoverySetupFlowState();

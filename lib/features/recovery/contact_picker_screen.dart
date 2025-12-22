@@ -13,8 +13,8 @@ class ContactPickerScreen extends ConsumerStatefulWidget {
 
   const ContactPickerScreen({
     required this.onContactsSelected,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   ConsumerState<ContactPickerScreen> createState() => _ContactPickerScreenState();
@@ -24,7 +24,7 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<ContactWithStatus> _allContacts = [];
   List<ContactWithStatus> _filteredContacts = [];
-  List<ContactWithStatus> _selectedContacts = [];
+  final List<ContactWithStatus> _selectedContacts = [];
   bool _isLoading = true;
 
   @override

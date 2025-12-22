@@ -45,7 +45,7 @@ class P2PDecorations {
 class P2PAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
 
-  const P2PAppBar({Key? key, required this.title}) : super(key: key);
+  const P2PAppBar({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {

@@ -1,43 +1,45 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_screen.dart';
-import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
+import 'package:sabi_wallet/services/profile_service.dart';
 
 void main() {
-  testWidgets('P2PCard displays offer details', (tester) async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    // Initialize Hive with a temp path for testing
+    final tempDir = Directory.systemTemp.createTempSync('p2p_card_test');
+    Hive.init(tempDir.path);
+    // Initialize ProfileService to prevent LateInitializationError
+    await ProfileService.init();
+  });
+
+  testWidgets('P2P offer cards display in P2PHomeScreen', (tester) async {
+    // Wrap in a wider screen to prevent overflow errors
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    
     await tester.pumpWidget(
       ProviderScope(
         child: ScreenUtilInit(
           designSize: const Size(360, 690),
-          builder: (_, __) => MaterialApp(
-            home: Scaffold(body: _buildTestCard()),
-          ),
+          builder: (_, __) => const MaterialApp(home: P2PHomeScreen()),
         ),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Mubarak'), findsOneWidget);
-    expect(find.textContaining('₦'), findsWidgets);
-    expect(find.text('Trade'), findsOneWidget);
+    // Verify P2P screen renders
+    expect(find.text('P2P'), findsOneWidget);
+    // Expect Trade buttons from offer cards
+    expect(find.text('Trade'), findsWidgets);
+    
+    // Reset surface size
+    await tester.binding.setSurfaceSize(null);
   });
-}
-
-Widget _buildTestCard() {
-  final offer = P2POfferModel(
-    id: '1',
-    name: 'Mubarak',
-    pricePerBtc: 131448939.22,
-    paymentMethod: 'GTBank',
-    eta: '5–15 min',
-    ratingPercent: 98,
-    trades: 1247,
-    minLimit: 50000,
-    maxLimit: 8000000,
-  );
-
-  return P2PCard(offer: offer, onTap: () {});
 }

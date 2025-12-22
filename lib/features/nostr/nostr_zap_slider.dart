@@ -9,11 +9,11 @@ class NostrZapSlider extends StatefulWidget {
   final String? userName;
 
   const NostrZapSlider({
-    Key? key,
+    super.key,
     required this.onZap,
     required this.onConfetti,
     this.userName,
-  }) : super(key: key);
+  });
 
   @override
   State<NostrZapSlider> createState() => _NostrZapSliderState();
@@ -49,7 +49,7 @@ class _NostrZapSliderState extends State<NostrZapSlider> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Zapped! ⚡ $satoshis sats'),
-            backgroundColor: const Color(0x00FFB2),
+            backgroundColor: const Color(0x0000ffb2),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -77,7 +77,7 @@ class _NostrZapSliderState extends State<NostrZapSlider> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0x111128),
+        backgroundColor: const Color(0x00111128),
         title: const Text(
           'Custom Zap Amount',
           style: TextStyle(color: Colors.white),

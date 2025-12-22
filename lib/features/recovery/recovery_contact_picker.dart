@@ -9,11 +9,11 @@ class RecoveryContactPicker extends StatefulWidget {
   final int maxContacts;
 
   const RecoveryContactPicker({
-    Key? key,
+    super.key,
     required this.availableContacts,
     required this.onContactsSelected,
     this.maxContacts = 5,
-  }) : super(key: key);
+  });
 
   @override
   State<RecoveryContactPicker> createState() => _RecoveryContactPickerState();

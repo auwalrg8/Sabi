@@ -16,7 +16,7 @@ class P2PEmptyState extends StatelessWidget {
   final String message;
   final IconData icon;
 
-  const P2PEmptyState({Key? key, required this.message, required this.icon}) : super(key: key);
+  const P2PEmptyState({super.key, required this.message, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class P2PEmptyState extends StatelessWidget {
 }
 
 class P2PLoadingState extends StatelessWidget {
-  const P2PLoadingState({Key? key}) : super(key: key);
+  const P2PLoadingState({super.key});
 
   @override
   Widget build(BuildContext context) => const Center(child: CircularProgressIndicator());
@@ -47,7 +47,7 @@ class P2PErrorState extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const P2PErrorState({Key? key, required this.message, this.onRetry}) : super(key: key);
+  const P2PErrorState({super.key, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +72,7 @@ class P2PAvatar extends StatelessWidget {
   final bool showVerificationBadge;
   final bool isVerified;
 
-  const P2PAvatar({Key? key, this.imageUrl, required this.name, this.size = 40, this.showVerificationBadge = false, this.isVerified = false}) : super(key: key);
+  const P2PAvatar({super.key, this.imageUrl, required this.name, this.size = 40, this.showVerificationBadge = false, this.isVerified = false});
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +92,7 @@ class P2PStatCard extends StatelessWidget {
   final Color? valueColor;
   final bool showPercentage;
 
-  const P2PStatCard({Key? key, required this.label, required this.value, this.valueColor, this.showPercentage = false}) : super(key: key);
+  const P2PStatCard({super.key, required this.label, required this.value, this.valueColor, this.showPercentage = false});
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +115,7 @@ class P2PFeedbackThumbs extends StatelessWidget {
   final int positive;
   final int negative;
 
-  const P2PFeedbackThumbs({Key? key, required this.positive, required this.negative}) : super(key: key);
+  const P2PFeedbackThumbs({super.key, required this.positive, required this.negative});
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +127,7 @@ class P2PPrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
 
-  const P2PPrimaryButton({Key? key, required this.label, this.onPressed}) : super(key: key);
+  const P2PPrimaryButton({super.key, required this.label, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +139,7 @@ class P2PCard extends StatelessWidget {
   final dynamic offer;
   final VoidCallback? onTap;
 
-  const P2PCard({Key? key, required this.offer, this.onTap}) : super(key: key);
+  const P2PCard({super.key, required this.offer, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +172,7 @@ class P2PFilterChips<T> extends StatelessWidget {
   final String Function(T) labelBuilder;
   final ValueChanged<T> onSelected;
 
-  const P2PFilterChips({Key? key, required this.filters, required this.selectedFilter, required this.labelBuilder, required this.onSelected}) : super(key: key);
+  const P2PFilterChips({super.key, required this.filters, required this.selectedFilter, required this.labelBuilder, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +189,7 @@ class P2PFilterChips<T> extends StatelessWidget {
 class P2PTimeLeft extends StatelessWidget {
   final Duration timeLeft;
 
-  const P2PTimeLeft({Key? key, required this.timeLeft}) : super(key: key);
+  const P2PTimeLeft({super.key, required this.timeLeft});
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +202,7 @@ class P2PStatusBadge extends StatelessWidget {
   final String label;
   final Color color;
 
-  const P2PStatusBadge({Key? key, required this.label, required this.color}) : super(key: key);
+  const P2PStatusBadge({super.key, required this.label, required this.color});
 
   factory P2PStatusBadge.paid() => P2PStatusBadge(label: 'Paid', color: P2PColors.success);
   factory P2PStatusBadge.awaitingPayment() => P2PStatusBadge(label: 'Awaiting', color: P2PColors.primary);
@@ -224,7 +224,7 @@ class P2PVerificationBadge extends StatelessWidget {
   final String type;
   final bool isVerified;
 
-  const P2PVerificationBadge({Key? key, required this.type, this.isVerified = false}) : super(key: key);
+  const P2PVerificationBadge({super.key, required this.type, this.isVerified = false});
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +241,7 @@ class P2PVerificationBadge extends StatelessWidget {
 class P2PTradeTypeIcon extends StatelessWidget {
   final bool isBuy;
 
-  const P2PTradeTypeIcon({Key? key, required this.isBuy}) : super(key: key);
+  const P2PTradeTypeIcon({super.key, required this.isBuy});
 
   @override
   Widget build(BuildContext context) {

@@ -11,8 +11,8 @@ class NotificationBadge extends StatelessWidget {
   const NotificationBadge({
     required this.unreadCount,
     required this.onTap,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -15,8 +15,8 @@ class InAppNotificationBanner extends StatefulWidget {
     required this.notification,
     required this.onDismiss,
     this.onTap,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<InAppNotificationBanner> createState() => _InAppNotificationBannerState();

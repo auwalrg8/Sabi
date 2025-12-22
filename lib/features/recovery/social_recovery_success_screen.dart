@@ -8,9 +8,9 @@ class SocialRecoverySuccessScreen extends StatefulWidget {
   final List<RecoveryContact> contacts;
 
   const SocialRecoverySuccessScreen({
-    Key? key,
+    super.key,
     required this.contacts,
-  }) : super(key: key);
+  });
 
   @override
   State<SocialRecoverySuccessScreen> createState() =>

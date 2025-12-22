@@ -534,7 +534,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
               Switch(
                 value: _requiresKyc,
                 onChanged: (value) => setState(() => _requiresKyc = value),
-                activeColor: const Color(0xFFF7931A),
+                activeThumbColor: const Color(0xFFF7931A),
                 activeTrackColor: const Color(0xFFF7931A).withOpacity(0.3),
                 inactiveThumbColor: const Color(0xFFA1A1B2),
                 inactiveTrackColor: const Color(0xFF2A2A3E),

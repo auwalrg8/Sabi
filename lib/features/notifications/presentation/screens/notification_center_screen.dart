@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 /// Notification center screen showing all received payments/zaps/trades
 class NotificationCenterScreen extends ConsumerStatefulWidget {
-  const NotificationCenterScreen({Key? key}) : super(key: key);
+  const NotificationCenterScreen({super.key});
 
   @override
   ConsumerState<NotificationCenterScreen> createState() =>

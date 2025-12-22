@@ -9,10 +9,10 @@ class NostrEditModal extends StatefulWidget {
   final VoidCallback onSaved;
 
   const NostrEditModal({
-    Key? key,
+    super.key,
     this.initialNpub,
     required this.onSaved,
-  }) : super(key: key);
+  });
 
   @override
   State<NostrEditModal> createState() => _NostrEditModalState();
@@ -328,7 +328,7 @@ class _NostrEditModalState extends State<NostrEditModal> {
 
 /// Simple QR scanner screen
 class _QRScannerScreen extends StatefulWidget {
-  const _QRScannerScreen({Key? key}) : super(key: key);
+  const _QRScannerScreen();
 
   @override
   State<_QRScannerScreen> createState() => _QRScannerScreenState();

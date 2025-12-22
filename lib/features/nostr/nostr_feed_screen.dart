@@ -13,7 +13,7 @@ enum FeedFilter { newThreads, latest, trending24h }
 
 /// Nostr feed screen displaying real posts from relays
 class NostrFeedScreen extends StatefulWidget {
-  const NostrFeedScreen({Key? key}) : super(key: key);
+  const NostrFeedScreen({super.key});
 
   @override
   State<NostrFeedScreen> createState() => _NostrFeedScreenState();
@@ -26,12 +26,12 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   String? _userNpub;
   String? _userHexPubkey;
   List<String> _userFollows = [];
-  Map<String, int> _zapCounts = {};
+  final Map<String, int> _zapCounts = {};
   FeedFilter _currentFilter = FeedFilter.newThreads; // Default to follows feed
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showImages = false; // Default to text-only mode for low-data users
-  Map<String, Map<String, String>> _authorMetadataCache = {};
+  final Map<String, Map<String, String>> _authorMetadataCache = {};
   bool _followsFeedEmpty = false; // Track if follows feed returned no posts
 
   @override
@@ -287,7 +287,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                         child: Switch(
                           value: _showImages,
                           onChanged: (val) => setState(() => _showImages = val),
-                          activeColor: const Color(0xFFF7931A),
+                          activeThumbColor: const Color(0xFFF7931A),
                           activeTrackColor: const Color(
                             0xFFF7931A,
                           ).withOpacity(0.3),
@@ -715,7 +715,7 @@ class _NostrPostCard extends StatefulWidget {
 class _NostrPostCardState extends State<_NostrPostCard> {
   bool _showZapSlider = false;
   double _zapValue = 100; // Default 100 sats
-  Set<int> _unblurredImages = {};
+  final Set<int> _unblurredImages = {};
 
   // Extract image URLs from post content
   List<String> _extractImageUrls(String content) {

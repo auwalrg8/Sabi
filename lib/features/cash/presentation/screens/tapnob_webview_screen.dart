@@ -170,7 +170,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
     final esc = invoice.replaceAll("'", "\\'");
     final js = '''(function(){
       try{
-        var invoice = "${esc}";
+        var invoice = "$esc";
         function getHintText(el){
           try{
             var ph = (el.getAttribute && el.getAttribute('placeholder')) || '';
@@ -321,10 +321,6 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -421,7 +417,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Pay ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}) from your Sabi balance?\nAvailable: ${_availableBalance} SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'})',
+                  'Pay ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}) from your Sabi balance?\nAvailable: $_availableBalance SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'})',
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   textAlign: TextAlign.center,
                 ),
@@ -478,7 +474,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
                 const Icon(Icons.error_outline, size: 48, color: Color(0xFFF7931A)),
                 const SizedBox(height: 12),
                 Text(
-                  'Insufficient balance.\nYou need ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}).\nAvailable: ${_availableBalance} SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'}).',
+                  'Insufficient balance.\nYou need ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}).\nAvailable: $_availableBalance SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'}).',
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   textAlign: TextAlign.center,
                 ),

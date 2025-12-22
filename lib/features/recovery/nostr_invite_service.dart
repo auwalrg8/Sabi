@@ -83,7 +83,7 @@ class NostrInviteService {
       
       // Create a temporary npub reference
       final tempId = _generateRandomId(16);
-      final npub = 'temp_' + tempId;
+      final npub = 'temp_$tempId';
       
       // Store the keypair
       await _secureStorage.write(
