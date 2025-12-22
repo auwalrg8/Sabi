@@ -23,10 +23,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => NostrEditModal(
-        initialNpub: _nostrNpub,
-        onSaved: _loadNostrStats,
-      ),
+      builder:
+          (context) =>
+              NostrEditModal(initialNpub: _nostrNpub, onSaved: _loadNostrStats),
     );
   }
 
@@ -63,14 +62,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final npub = await NostrService.getNpub();
       int zapCount = 0;
       int zapTotal = 0;
-      
+
       if (npub != null) {
         // In a real implementation, fetch zaps from relay
         // For now, using mock data
         zapCount = 0;
         zapTotal = 0;
       }
-      
+
       if (mounted) {
         setState(() {
           _nostrNpub = npub;
@@ -85,6 +84,374 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isLoadingNostr = false);
       }
     }
+  }
+
+  Future<void> _createNostrAccount() async {
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              backgroundColor: AppColors.surface,
+              title: Text(
+                'Create Nostr Identity',
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 18.sp),
+              ),
+              content: Text(
+                'This will generate a new Nostr keypair. Make sure to backup your nsec (private key) securely - it cannot be recovered if lost!',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14.sp,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF7931A),
+                  ),
+                  child: Text(
+                    'Create',
+                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                  ),
+                ),
+              ],
+            ),
+      );
+
+      if (result != true) return;
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
+              ),
+            ),
+      );
+
+      final keys = await NostrService.generateKeys();
+      Navigator.pop(context); // Close loading
+
+      // Show the generated keys for backup
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              backgroundColor: AppColors.surface,
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: AppColors.accentGreen,
+                    size: 24.sp,
+                  ),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Nostr Identity Created!',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16.sp,
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '⚠️ BACKUP YOUR PRIVATE KEY!',
+                      style: TextStyle(
+                        color: AppColors.accentRed,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      'Public Key (npub):',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: SelectableText(
+                        keys['npub'] ?? '',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 11.sp,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      'Private Key (nsec) - KEEP SECRET:',
+                      style: TextStyle(
+                        color: AppColors.accentRed,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(
+                          color: AppColors.accentRed.withOpacity(0.3),
+                        ),
+                      ),
+                      child: SelectableText(
+                        keys['nsec'] ?? '',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 11.sp,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12.h),
+                    Text(
+                      'Long press to copy each key. Store your nsec safely - it\'s the only way to access your Nostr identity!',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF7931A),
+                  ),
+                  child: Text(
+                    'I\'ve Backed Up My Keys',
+                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                  ),
+                ),
+              ],
+            ),
+      );
+
+      await _loadNostrStats();
+    } catch (e) {
+      Navigator.pop(context); // Close loading if still showing
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to create Nostr identity: $e'),
+          backgroundColor: AppColors.accentRed,
+        ),
+      );
+    }
+  }
+
+  Widget _buildNostrIdentityCard() {
+    if (_isLoadingNostr) {
+      return Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111128),
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
+          ),
+        ),
+      );
+    }
+
+    final hasNostr = _nostrNpub != null && _nostrNpub!.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF1A1A2E), const Color(0xFF16213E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: const Color(0xFFF7931A).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Icon(
+                Icons.electric_bolt,
+                color: const Color(0xFFF7931A),
+                size: 24.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'Nostr Identity',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (hasNostr)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreen.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Text(
+                    'Connected',
+                    style: TextStyle(
+                      color: AppColors.accentGreen,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+
+          if (hasNostr) ...[
+            // npub display
+            Text(
+              'Public Key:',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11.sp),
+            ),
+            SizedBox(height: 4.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: AppColors.background.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _nostrNpub!.length > 30
+                          ? '${_nostrNpub!.substring(0, 15)}...${_nostrNpub!.substring(_nostrNpub!.length - 10)}'
+                          : _nostrNpub!,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 12.sp,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _editNostrKeys,
+                    child: Icon(
+                      Icons.edit,
+                      color: const Color(0xFFF7931A),
+                      size: 18.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+
+            // Zap stats
+            Row(
+              children: [
+                _StatBadge(
+                  icon: Icons.electric_bolt,
+                  label: 'Zaps Received',
+                  value: _zapCount.toString(),
+                ),
+                SizedBox(width: 12.w),
+                _StatBadge(
+                  icon: Icons.bolt,
+                  label: 'Total Sats',
+                  value: _zapTotal.toString(),
+                ),
+              ],
+            ),
+          ] else ...[
+            // No Nostr identity
+            Text(
+              'Connect to the decentralized social network. Send and receive zaps, post notes, and more!',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13.sp),
+            ),
+            SizedBox(height: 16.h),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _createNostrAccount,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF7931A),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                    child: Text(
+                      'Create New',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _editNostrKeys,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: const Color(0xFFF7931A)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                    child: Text(
+                      'Import Keys',
+                      style: TextStyle(
+                        color: const Color(0xFFF7931A),
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _navigateToEditProfile() async {
@@ -201,6 +568,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildLightningAddressCard(UserProfile profile) {
     final registered = profile.hasLightningAddress;
+    // ignore: unused_local_variable
     final address = profile.sabiUsername;
     final statusText =
         registered ? 'Lightning address is set' : 'Lightning address not set';
@@ -413,74 +781,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       SizedBox(height: 12.h),
                       _buildLightningAddressCard(profile),
                       SizedBox(height: 12.h),
-                      // Nostr npub and zap stats
-                      if (_isLoadingNostr)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 12),
-                          child: CircularProgressIndicator(),
-                        )
-                      else ...[
-                        SizedBox(height: 12.h),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Nostr npub:',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 12.sp,
-                                    ),
-                                  ),
-                                  SelectableText(
-                                    _nostrNpub ?? 'Not set',
-                                    style: TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 13.sp,
-                                      fontFamily: 'Inter',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            SizedBox(
-                              height: 35.h,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF7931A),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 14.w,
-                                    vertical: 10.h,
-                                  ),
-                                ),
-                                onPressed: _editNostrKeys,
-                                child: Text(
-                                  'Add / Edit Nostr',
-                                  style: TextStyle(
-                                    color: const Color(0xFF0C0C1A),
-                                    fontSize: 12.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 10.h),
-                        Text(
-                          'Zapped $_zapCount times · $_zapTotal sats received',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12.sp,
-                          ),
-                        ),
-                      ],
+                      // Nostr Identity Card
+                      _buildNostrIdentityCard(),
                       SizedBox(height: 24.h),
                       // Edit Profile Button
                       SizedBox(
@@ -617,6 +919,55 @@ class _MenuItemTile extends StatelessWidget {
               Icons.chevron_right,
               color: AppColors.textSecondary,
               size: 24.sp,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _StatBadge({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: AppColors.background.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(8.r),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: const Color(0xFFF7931A), size: 14.sp),
+                SizedBox(width: 4.w),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              label,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 10.sp),
             ),
           ],
         ),

@@ -40,7 +40,11 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 24.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+            size: 24.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -89,7 +93,10 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                         child: _TypeButton(
                           label: 'Sell BTC',
                           isSelected: createState.type == OfferType.sell,
-                          onTap: () => ref.read(createOfferProvider.notifier).setType(OfferType.sell),
+                          onTap:
+                              () => ref
+                                  .read(createOfferProvider.notifier)
+                                  .setType(OfferType.sell),
                         ),
                       ),
                       SizedBox(width: 12.w),
@@ -97,7 +104,10 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                         child: _TypeButton(
                           label: 'Buy BTC',
                           isSelected: createState.type == OfferType.buy,
-                          onTap: () => ref.read(createOfferProvider.notifier).setType(OfferType.buy),
+                          onTap:
+                              () => ref
+                                  .read(createOfferProvider.notifier)
+                                  .setType(OfferType.buy),
                         ),
                       ),
                     ],
@@ -138,9 +148,13 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           activeTrackColor: AppColors.primary,
-                          inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                          inactiveTrackColor: Colors.white.withValues(
+                            alpha: 0.3,
+                          ),
                           thumbColor: AppColors.primary,
-                          overlayColor: AppColors.primary.withValues(alpha: 0.2),
+                          overlayColor: AppColors.primary.withValues(
+                            alpha: 0.2,
+                          ),
                           trackHeight: 6.h,
                         ),
                         child: Slider(
@@ -148,7 +162,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                           min: -2.0,
                           max: 5.0,
                           onChanged: (value) {
-                            ref.read(createOfferProvider.notifier).setMargin(value);
+                            ref
+                                .read(createOfferProvider.notifier)
+                                .setMargin(value);
                           },
                         ),
                       ),
@@ -267,10 +283,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   TextField(
                     controller: _amountController,
                     keyboardType: TextInputType.number,
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 16.sp, color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'e.g. 5000',
                       hintStyle: TextStyle(
@@ -286,7 +299,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                     ),
                     onChanged: (value) {
                       final sats = double.tryParse(value) ?? 0;
-                      ref.read(createOfferProvider.notifier).setAvailableSats(sats);
+                      ref
+                          .read(createOfferProvider.notifier)
+                          .setAvailableSats(sats);
                     },
                   ),
                   SizedBox(height: 8.h),
@@ -333,7 +348,10 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                     style: TextStyle(fontSize: 14.sp, color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Search',
-                      hintStyle: TextStyle(fontSize: 14.sp, color: AppColors.textSecondary),
+                      hintStyle: TextStyle(
+                        fontSize: 14.sp,
+                        color: AppColors.textSecondary,
+                      ),
                       filled: true,
                       fillColor: AppColors.background,
                       border: OutlineInputBorder(
@@ -348,14 +366,17 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   ),
                   SizedBox(height: 12.h),
                   ...paymentMethods.map((method) {
-                    final isSelected = createState.selectedPaymentMethods.contains(method.id);
+                    final isSelected = createState.selectedPaymentMethods
+                        .contains(method.id);
                     return Padding(
                       padding: EdgeInsets.only(bottom: 8.h),
                       child: _PaymentMethodTile(
                         name: method.name,
                         isSelected: isSelected,
                         onTap: () {
-                          ref.read(createOfferProvider.notifier).togglePaymentMethod(method.id);
+                          ref
+                              .read(createOfferProvider.notifier)
+                              .togglePaymentMethod(method.id);
                         },
                       ),
                     );
@@ -407,7 +428,9 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   Switch(
                     value: createState.requiresKyc,
                     onChanged: (value) {
-                      ref.read(createOfferProvider.notifier).setRequiresKyc(value);
+                      ref
+                          .read(createOfferProvider.notifier)
+                          .setRequiresKyc(value);
                     },
                     activeColor: AppColors.primary,
                   ),
@@ -430,28 +453,35 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                 onPressed: () async {
                   // Build an offer from the create state and save to user offers
                   final state = ref.read(createOfferProvider);
-                  final marketRate = (ref.read(exchangeRatesProvider)['BTC_NGN']) ?? 130000000.0;
+                  final marketRate =
+                      (ref.read(exchangeRatesProvider)['BTC_NGN']) ??
+                      130000000.0;
                   final price = state.calculateRate(marketRate);
-                  final id = 'user_offer_${DateTime.now().millisecondsSinceEpoch}';
+                  final id =
+                      'user_offer_${DateTime.now().millisecondsSinceEpoch}';
                   final profile = await ProfileService.getProfile();
-                  final merchant = profile != null
-                      ? MerchantModel(
-                          id: profile.username.isNotEmpty ? profile.username : 'me',
-                          name: profile.fullName.isNotEmpty ? profile.fullName : profile.username ?? 'You',
-                          avatarUrl: profile.profilePicturePath,
-                          trades30d: 0,
-                          completionRate: 100.0,
-                          avgReleaseMinutes: 15,
-                          totalVolume: 0,
-                          joinedDate: DateTime.now(),
-                        )
-                      : null;
+                  final merchant = MerchantModel(
+                    id: profile.username.isNotEmpty ? profile.username : 'me',
+                    name:
+                        profile.fullName.isNotEmpty
+                            ? profile.fullName
+                            : profile.username,
+                    avatarUrl: profile.profilePicturePath,
+                    trades30d: 0,
+                    completionRate: 100.0,
+                    avgReleaseMinutes: 15,
+                    totalVolume: 0,
+                    joinedDate: DateTime.now(),
+                  );
 
                   final offer = P2POfferModel(
                     id: id,
-                    name: merchant?.name ?? 'You',
+                    name: merchant.name,
                     pricePerBtc: price,
-                    paymentMethod: state.selectedPaymentMethods.isNotEmpty ? state.selectedPaymentMethods.first : 'Unknown',
+                    paymentMethod:
+                        state.selectedPaymentMethods.isNotEmpty
+                            ? state.selectedPaymentMethods.first
+                            : 'Unknown',
                     eta: '-',
                     ratingPercent: 100,
                     trades: 0,

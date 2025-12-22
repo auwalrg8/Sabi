@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nostr_dart/nostr_dart.dart';
+import 'package:bech32/bech32.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
@@ -11,19 +12,22 @@ import 'package:flutter/foundation.dart';
 class NostrService {
   static const _npubKey = 'nostr_npub';
   static const _nsecKey = 'nostr_nsec';
-  
+
   static late final FlutterSecureStorage _secureStorage;
   static Nostr? _nostr;
   static bool _initialized = false;
-  
-  // Public relay pool
+
+  // Nigerian and popular African relays + global relays for better connectivity
   static final List<String> _defaultRelays = [
+    'wss://relay.nostr.ng', // Nigeria relay
+    'wss://nostr.africa', // Africa relay
     'wss://relay.damus.io',
-    'wss://nostr.band',
+    'wss://nostr.wine',
     'wss://relay.snort.social',
-    'wss://nostr.mom',
-    'wss://relay.nostr.band',
   ];
+
+  // Rate for sats to naira conversion (can be updated from API)
+  static double satsToNairaRate = 0.015; // ~15 kobo per sat
 
   /// Initialize the Nostr service
   static Future<void> init() async {
@@ -41,18 +45,22 @@ class NostrService {
     try {
       final nsec = await _secureStorage.read(key: _nsecKey);
       if (nsec != null && nsec.isNotEmpty) {
-        await _initializeNostrWithKey(nsec);
+        // Convert nsec to hex for nostr_dart
+        final hexPrivateKey = _nsecToHex(nsec);
+        if (hexPrivateKey != null) {
+          await _initializeNostrWithKey(hexPrivateKey);
+        }
       }
     } catch (e) {
       print('❌ Error loading Nostr keys: $e');
     }
   }
 
-  /// Initialize Nostr with a specific private key
-  static Future<void> _initializeNostrWithKey(String nsec) async {
+  /// Initialize Nostr with a hex private key
+  static Future<void> _initializeNostrWithKey(String hexPrivateKey) async {
     try {
-      _nostr = Nostr(privateKey: nsec);
-      
+      _nostr = Nostr(privateKey: hexPrivateKey);
+
       // Add relays
       for (final relayUrl in _defaultRelays) {
         try {
@@ -72,26 +80,54 @@ class NostrService {
   /// Generate new Nostr keys
   static Future<Map<String, String>> generateKeys() async {
     try {
-      final nsec = generatePrivateKey();
-      final npub = getPublicKey(nsec);
-      
+      // generatePrivateKey() returns a hex private key
+      final hexPrivateKey = generatePrivateKey();
+      // getPublicKey() expects hex and returns hex public key
+      final hexPublicKey = getPublicKey(hexPrivateKey);
+
+      // Convert to bech32 format for storage and display
+      final nsec = _hexToNsec(hexPrivateKey);
+      final npub = _hexToNpub(hexPublicKey);
+
+      if (nsec == null || npub == null) {
+        throw Exception('Failed to encode keys to bech32');
+      }
+
       // Validate before storing
       if (!_isValidNpub(npub) || !_isValidNsec(nsec)) {
         throw Exception('Invalid generated keys');
       }
-      
-      // Store securely
+
+      // Store bech32 encoded keys securely
       await _secureStorage.write(key: _nsecKey, value: nsec);
       await _secureStorage.write(key: _npubKey, value: npub);
-      
-      // Initialize Nostr
-      await _initializeNostrWithKey(nsec);
-      
+
+      // Initialize Nostr with hex private key
+      await _initializeNostrWithKey(hexPrivateKey);
+
       print('✅ Generated new Nostr keys');
       return {'npub': npub, 'nsec': nsec};
     } catch (e) {
       print('❌ Error generating keys: $e');
       rethrow;
+    }
+  }
+
+  /// Encode hex private key to nsec (bech32)
+  static String? _hexToNsec(String hexPrivKey) {
+    try {
+      final bytes = <int>[];
+      for (var i = 0; i < hexPrivKey.length; i += 2) {
+        bytes.add(int.parse(hexPrivKey.substring(i, i + 2), radix: 16));
+      }
+
+      final converted = _convertBits(bytes, 8, 5, true);
+      if (converted == null) return null;
+
+      return const Bech32Codec().encode(Bech32('nsec', converted));
+    } catch (e) {
+      print('❌ Error encoding nsec: $e');
+      return null;
     }
   }
 
@@ -101,6 +137,17 @@ class NostrService {
     required String npub,
   }) async {
     try {
+      // Handle case where only npub is provided (read-only mode)
+      if (nsec.isEmpty && npub.isNotEmpty) {
+        if (!_isValidNpub(npub)) {
+          throw Exception('Invalid npub format');
+        }
+        // Store only npub for read-only mode
+        await _secureStorage.write(key: _npubKey, value: npub);
+        print('✅ Imported Nostr npub (read-only mode)');
+        return;
+      }
+
       // Validate keys
       if (!_isValidNsec(nsec)) {
         throw Exception('Invalid nsec format');
@@ -108,20 +155,26 @@ class NostrService {
       if (!_isValidNpub(npub)) {
         throw Exception('Invalid npub format');
       }
-      
-      // Verify that nsec and npub match
-      final derivedNpub = getPublicKey(nsec);
+
+      // Verify that nsec and npub match using proper bech32 decoding
+      final derivedNpub = getPublicKeyFromNsec(nsec);
+      if (derivedNpub == null) {
+        throw Exception('Could not derive public key from private key');
+      }
       if (derivedNpub != npub) {
         throw Exception('nsec and npub do not match');
       }
-      
+
       // Store securely
       await _secureStorage.write(key: _nsecKey, value: nsec);
       await _secureStorage.write(key: _npubKey, value: npub);
-      
-      // Initialize Nostr
-      await _initializeNostrWithKey(nsec);
-      
+
+      // Initialize Nostr - need to convert nsec to hex for nostr_dart
+      final hexPrivateKey = _nsecToHex(nsec);
+      if (hexPrivateKey != null) {
+        await _initializeNostrWithKey(hexPrivateKey);
+      }
+
       print('✅ Imported Nostr keys');
     } catch (e) {
       print('❌ Error importing keys: $e');
@@ -174,13 +227,15 @@ class NostrService {
       final event = Event(
         '', // pubkey will be set by the Nostr instance
         9735, // Zap kind
-        [['p', targetNpub]], // Tags: recipient pubkey
+        [
+          ['p', targetNpub],
+        ], // Tags: recipient pubkey
         message ?? 'Zapped with Sabi Wallet ⚡ - $satoshis sats',
       );
 
       // Publish to all relays
       await _nostr!.sendEvent(event);
-      
+
       print('✅ Zap event published: $satoshis sats to $targetNpub');
       return event.id;
     } catch (e) {
@@ -207,24 +262,20 @@ class NostrService {
       };
 
       // Subscribe using the Nostr pool
-      _nostr!.pool.subscribe(
-        [filter],
-        (event) {
-          try {
-            // Parse the zap event content
-            final data = {
-              'id': event.id,
-              'satoshis': 0, // Would be extracted from the zap event
-              'message': event.content,
-              'timestamp': event.createdAt,
-            };
-            controller.add(data);
-          } catch (e) {
-            print('⚠️ Error parsing zap event: $e');
-          }
-        },
-        'user_zaps_$targetNpub',
-      );
+      _nostr!.pool.subscribe([filter], (event) {
+        try {
+          // Parse the zap event content
+          final data = {
+            'id': event.id,
+            'satoshis': 0, // Would be extracted from the zap event
+            'message': event.content,
+            'timestamp': event.createdAt,
+          };
+          controller.add(data);
+        } catch (e) {
+          print('⚠️ Error parsing zap event: $e');
+        }
+      }, 'user_zaps_$targetNpub');
     } catch (e) {
       controller.addError(e);
       controller.close();
@@ -236,11 +287,93 @@ class NostrService {
   /// Get public key from nsec
   static String? getPublicKeyFromNsec(String nsec) {
     try {
-      return getPublicKey(nsec);
+      // First decode the bech32 nsec to get the hex private key
+      final hexPrivateKey = _nsecToHex(nsec);
+      if (hexPrivateKey == null) {
+        print('❌ Failed to decode nsec to hex');
+        return null;
+      }
+
+      // Now get the public key using the hex private key
+      final hexPublicKey = getPublicKey(hexPrivateKey);
+
+      // Convert hex public key to npub (bech32)
+      return _hexToNpub(hexPublicKey);
     } catch (e) {
       print('❌ Error deriving public key: $e');
       return null;
     }
+  }
+
+  /// Decode nsec (bech32) to hex private key
+  static String? _nsecToHex(String nsec) {
+    try {
+      if (!nsec.startsWith('nsec1')) {
+        return null;
+      }
+
+      final decoded = const Bech32Codec().decode(nsec);
+      final data = _convertBits(decoded.data, 5, 8, false);
+      if (data == null) return null;
+
+      return data.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    } catch (e) {
+      print('❌ Error decoding nsec: $e');
+      return null;
+    }
+  }
+
+  /// Encode hex public key to npub (bech32)
+  static String? _hexToNpub(String hexPubKey) {
+    try {
+      final bytes = <int>[];
+      for (var i = 0; i < hexPubKey.length; i += 2) {
+        bytes.add(int.parse(hexPubKey.substring(i, i + 2), radix: 16));
+      }
+
+      final converted = _convertBits(bytes, 8, 5, true);
+      if (converted == null) return null;
+
+      return const Bech32Codec().encode(Bech32('npub', converted));
+    } catch (e) {
+      print('❌ Error encoding npub: $e');
+      return null;
+    }
+  }
+
+  /// Convert bits between different bases (for bech32 encoding/decoding)
+  static List<int>? _convertBits(
+    List<int> data,
+    int fromBits,
+    int toBits,
+    bool pad,
+  ) {
+    var acc = 0;
+    var bits = 0;
+    final result = <int>[];
+    final maxv = (1 << toBits) - 1;
+
+    for (final value in data) {
+      if (value < 0 || (value >> fromBits) != 0) {
+        return null;
+      }
+      acc = (acc << fromBits) | value;
+      bits += fromBits;
+      while (bits >= toBits) {
+        bits -= toBits;
+        result.add((acc >> bits) & maxv);
+      }
+    }
+
+    if (pad) {
+      if (bits > 0) {
+        result.add((acc << (toBits - bits)) & maxv);
+      }
+    } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv) != 0) {
+      return null;
+    }
+
+    return result;
   }
 
   /// Validate npub format
@@ -284,5 +417,207 @@ class NostrService {
       }
     }
     return status;
+  }
+
+  /// Fetch global feed from relays
+  /// Returns list of text note events (kind 1)
+  static Future<List<NostrFeedPost>> fetchGlobalFeed({int limit = 50}) async {
+    final posts = <NostrFeedPost>[];
+    final completer = Completer<List<NostrFeedPost>>();
+
+    try {
+      await init();
+
+      if (_nostr == null) {
+        print('⚠️ Nostr not initialized, returning empty feed');
+        return posts;
+      }
+
+      // Filter for kind 1 (text notes)
+      final filter = {
+        'kinds': [1],
+        'limit': limit,
+      };
+
+      final subscriptionId =
+          'global_feed_${DateTime.now().millisecondsSinceEpoch}';
+      final receivedEvents = <String, Event>{};
+
+      // Subscribe to events with timeout
+      Timer? timeoutTimer;
+      bool isCompleted = false;
+
+      timeoutTimer = Timer(const Duration(seconds: 5), () {
+        if (!isCompleted) {
+          isCompleted = true;
+          // Convert received events to posts
+          for (final event in receivedEvents.values) {
+            posts.add(NostrFeedPost.fromEvent(event));
+          }
+          posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          completer.complete(posts);
+        }
+      });
+
+      _nostr!.pool.subscribe([filter], (event) {
+        if (!isCompleted && !receivedEvents.containsKey(event.id)) {
+          receivedEvents[event.id] = event;
+
+          // If we've reached the limit, complete early
+          if (receivedEvents.length >= limit) {
+            timeoutTimer?.cancel();
+            isCompleted = true;
+            for (final e in receivedEvents.values) {
+              posts.add(NostrFeedPost.fromEvent(e));
+            }
+            posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+            completer.complete(posts);
+          }
+        }
+      }, subscriptionId);
+
+      return completer.future;
+    } catch (e) {
+      print('❌ Error fetching global feed: $e');
+      return posts;
+    }
+  }
+
+  /// Fetch author metadata (kind 0)
+  static Future<Map<String, String>> fetchAuthorMetadata(String pubkey) async {
+    try {
+      if (_nostr == null) return {};
+
+      final filter = {
+        'kinds': [0],
+        'authors': [pubkey],
+        'limit': 1,
+      };
+
+      final completer = Completer<Map<String, String>>();
+      bool isCompleted = false;
+
+      Timer(const Duration(seconds: 2), () {
+        if (!isCompleted) {
+          isCompleted = true;
+          completer.complete({});
+        }
+      });
+
+      _nostr!.pool.subscribe([filter], (event) {
+        if (!isCompleted) {
+          isCompleted = true;
+          try {
+            final content = event.content;
+            // Parse JSON metadata
+            final metadata = <String, String>{};
+            // Basic parsing - in production use json.decode
+            if (content.contains('"name"')) {
+              final nameMatch = RegExp(
+                r'"name"\s*:\s*"([^"]*)"',
+              ).firstMatch(content);
+              if (nameMatch != null) {
+                metadata['name'] = nameMatch.group(1) ?? '';
+              }
+            }
+            if (content.contains('"picture"')) {
+              final picMatch = RegExp(
+                r'"picture"\s*:\s*"([^"]*)"',
+              ).firstMatch(content);
+              if (picMatch != null) {
+                metadata['picture'] = picMatch.group(1) ?? '';
+              }
+            }
+            completer.complete(metadata);
+          } catch (e) {
+            completer.complete({});
+          }
+        }
+      }, 'metadata_${pubkey.substring(0, 8)}');
+
+      return completer.future;
+    } catch (e) {
+      print('⚠️ Error fetching author metadata: $e');
+      return {};
+    }
+  }
+
+  /// Convert sats to Naira
+  static double satsToNaira(int sats) {
+    return sats * satsToNairaRate;
+  }
+
+  /// Format Naira amount
+  static String formatNaira(double amount) {
+    if (amount >= 1000000) {
+      return '₦${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '₦${(amount / 1000).toStringAsFixed(1)}K';
+    } else if (amount >= 1) {
+      return '₦${amount.toStringAsFixed(0)}';
+    } else {
+      return '₦${amount.toStringAsFixed(2)}';
+    }
+  }
+}
+
+/// Model for Nostr feed posts
+class NostrFeedPost {
+  final String id;
+  final String authorPubkey;
+  String authorName;
+  String? authorAvatar;
+  final String content;
+  final DateTime timestamp;
+  int zapAmount;
+  int likeCount;
+  int replyCount;
+  final List<String> tags;
+
+  NostrFeedPost({
+    required this.id,
+    required this.authorPubkey,
+    this.authorName = 'Anon',
+    this.authorAvatar,
+    required this.content,
+    required this.timestamp,
+    this.zapAmount = 0,
+    this.likeCount = 0,
+    this.replyCount = 0,
+    this.tags = const [],
+  });
+
+  factory NostrFeedPost.fromEvent(Event event) {
+    // Extract author name from pubKey (first 8 chars as fallback)
+    final shortPubkey =
+        event.pubKey.length > 8 ? event.pubKey.substring(0, 8) : event.pubKey;
+
+    // Check for replies (e tag)
+    int replyCount = 0;
+    for (final tag in event.tags) {
+      if (tag is List && tag.isNotEmpty && tag[0] == 'e') {
+        replyCount++;
+      }
+    }
+
+    return NostrFeedPost(
+      id: event.id,
+      authorPubkey: event.pubKey,
+      authorName: shortPubkey,
+      content: event.content,
+      timestamp: DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000),
+      zapAmount: (event.createdAt % 5000) + 100, // Mock zap amount for demo
+      likeCount: event.createdAt % 50, // Mock likes for demo
+      replyCount: replyCount,
+      tags:
+          event.tags
+              .map(
+                (t) =>
+                    t is List
+                        ? t.map((e) => e.toString()).join(':')
+                        : t.toString(),
+              )
+              .toList(),
+    );
   }
 }

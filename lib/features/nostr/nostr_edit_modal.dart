@@ -131,13 +131,16 @@ class _NostrEditModalState extends State<NostrEditModal> {
 
   @override
   Widget build(BuildContext context) {
+    // Get keyboard height to add proper padding
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0C0C1A),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 20.h),
+        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 20.h + bottomPadding),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,8 +177,10 @@ class _NostrEditModalState extends State<NostrEditModal> {
             SizedBox(height: 8.h),
             TextField(
               controller: _npubController,
-              readOnly: true,
               style: const TextStyle(color: Colors.white, fontSize: 13),
+              keyboardType: TextInputType.text,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: InputDecoration(
                 hintText: 'npub1...',
                 hintStyle: const TextStyle(color: Color(0xFFA1A1B2)),
@@ -187,6 +192,10 @@ class _NostrEditModalState extends State<NostrEditModal> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderSide: const BorderSide(color: Color(0xFFA1A1B2)),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFFF7931A), width: 2),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
@@ -207,6 +216,9 @@ class _NostrEditModalState extends State<NostrEditModal> {
               controller: _nsecController,
               obscureText: true,
               style: const TextStyle(color: Colors.white, fontSize: 13),
+              keyboardType: TextInputType.text,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: InputDecoration(
                 hintText: 'nsec1... (keep this secret!)',
                 hintStyle: const TextStyle(color: Color(0xFFA1A1B2)),
@@ -218,6 +230,10 @@ class _NostrEditModalState extends State<NostrEditModal> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderSide: const BorderSide(color: Color(0xFFA1A1B2)),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFFF7931A), width: 2),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
               ),

@@ -10,10 +10,7 @@ import 'package:sabi_wallet/features/p2p/data/models/p2p_models.dart';
 
 // Exchange rates provider
 final exchangeRatesProvider = Provider<Map<String, double>>((ref) {
-  return {
-    'BTC_NGN': 131448939.22,
-    'USD_NGN': 1614.0,
-  };
+  return {'BTC_NGN': 131448939.22, 'USD_NGN': 1614.0};
 });
 
 // Payment methods provider
@@ -108,7 +105,8 @@ final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
       acceptedMethods: [paymentMethods[0]],
       marginPercent: 1.5,
       requiresKyc: true,
-      paymentInstructions: 'Send to GTBank 0123456789 – Auwal Abubakar. Use your full name as narration.',
+      paymentInstructions:
+          'Send to GTBank 0123456789 – Auwal Abubakar. Use your full name as narration.',
       availableSats: 5000,
       responseTime: '<3 min',
       volume: 45000000,
@@ -128,7 +126,8 @@ final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
       acceptedMethods: [paymentMethods[3]],
       marginPercent: 1.2,
       requiresKyc: false,
-      paymentInstructions: 'Send to Moniepoint account details will be shared in chat.',
+      paymentInstructions:
+          'Send to Moniepoint account details will be shared in chat.',
       availableSats: 8000,
       responseTime: '<5 min',
       volume: 52000000,
@@ -170,20 +169,28 @@ class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
       if (raw == null || raw.isEmpty) return;
       final list = jsonDecode(raw) as List<dynamic>;
       final merchants = ref.read(merchantsProvider);
-      final offers = list.map((e) {
-        final map = Map<String, dynamic>.from(e as Map);
-        final merchantId = map['merchantId'] as String?;
-        final merchant = merchantId == null ? null : merchants.firstWhere((m) => m.id == merchantId, orElse: () => MerchantModel(
-              id: merchantId,
-              name: map['name'] as String? ?? 'You',
-              trades30d: 0,
-              completionRate: 100.0,
-              avgReleaseMinutes: 15,
-              totalVolume: 0,
-              joinedDate: DateTime.now(),
-            ));
-        return P2POfferModel.fromJson(map, merchant: merchant);
-      }).toList();
+      final offers =
+          list.map((e) {
+            final map = Map<String, dynamic>.from(e as Map);
+            final merchantId = map['merchantId'] as String?;
+            final merchant =
+                merchantId == null
+                    ? null
+                    : merchants.firstWhere(
+                      (m) => m.id == merchantId,
+                      orElse:
+                          () => MerchantModel(
+                            id: merchantId,
+                            name: map['name'] as String? ?? 'You',
+                            trades30d: 0,
+                            completionRate: 100.0,
+                            avgReleaseMinutes: 15,
+                            totalVolume: 0,
+                            joinedDate: DateTime.now(),
+                          ),
+                    );
+            return P2POfferModel.fromJson(map, merchant: merchant);
+          }).toList();
       state = offers;
     } catch (e) {
       // ignore
@@ -207,9 +214,10 @@ class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
   }
 }
 
-final userOffersProvider = StateNotifierProvider<UserOffersNotifier, List<P2POfferModel>>((ref) {
-  return UserOffersNotifier(ref);
-});
+final userOffersProvider =
+    StateNotifierProvider<UserOffersNotifier, List<P2POfferModel>>((ref) {
+      return UserOffersNotifier(ref);
+    });
 
 // Filter state provider
 class P2PFilterState {
@@ -252,9 +260,10 @@ class P2PFilterNotifier extends StateNotifier<P2PFilterState> {
   }
 }
 
-final p2pFilterProvider = StateNotifierProvider<P2PFilterNotifier, P2PFilterState>((ref) {
-  return P2PFilterNotifier();
-});
+final p2pFilterProvider =
+    StateNotifierProvider<P2PFilterNotifier, P2PFilterState>((ref) {
+      return P2PFilterNotifier();
+    });
 
 // Filtered and sorted offers
 final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
@@ -263,14 +272,15 @@ final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
   final offers = [...seedOffers, ...userOffers];
   final filter = ref.watch(p2pFilterProvider);
 
-  var filtered = offers.where((offer) {
-    if (offer.type != filter.offerType) return false;
-    if (filter.paymentFilter != 'All Payments' && 
-        offer.paymentMethod != filter.paymentFilter) {
-      return false;
-    }
-    return true;
-  }).toList();
+  var filtered =
+      offers.where((offer) {
+        if (offer.type != filter.offerType) return false;
+        if (filter.paymentFilter != 'All Payments' &&
+            offer.paymentMethod != filter.paymentFilter) {
+          return false;
+        }
+        return true;
+      }).toList();
 
   // Sort
   if (filter.sortBy == 'Best Price') {
@@ -279,8 +289,16 @@ final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
     filtered.sort((a, b) => b.ratingPercent.compareTo(a.ratingPercent));
   } else if (filter.sortBy == 'Fastest') {
     filtered.sort((a, b) {
-      final aMinutes = int.tryParse(a.eta.split('–').first.replaceAll(RegExp(r'[^0-9]'), '')) ?? 999;
-      final bMinutes = int.tryParse(b.eta.split('–').first.replaceAll(RegExp(r'[^0-9]'), '')) ?? 999;
+      final aMinutes =
+          int.tryParse(
+            a.eta.split('–').first.replaceAll(RegExp(r'[^0-9]'), ''),
+          ) ??
+          999;
+      final bMinutes =
+          int.tryParse(
+            b.eta.split('–').first.replaceAll(RegExp(r'[^0-9]'), ''),
+          ) ??
+          999;
       return aMinutes.compareTo(bMinutes);
     });
   }
@@ -289,32 +307,54 @@ final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
 });
 
 // Merchant profile tab selection
-final merchantProfileTabProvider = StateProvider<MerchantProfileTab>((ref) => MerchantProfileTab.info);
+final merchantProfileTabProvider = StateProvider<MerchantProfileTab>(
+  (ref) => MerchantProfileTab.info,
+);
 
 // Merchant profile provider (mocked from merchants list)
-final merchantProfileProvider = FutureProvider.family<MerchantProfile, String>((ref, merchantId) async {
+final merchantProfileProvider = FutureProvider.family<MerchantProfile, String>((
+  ref,
+  merchantId,
+) async {
   final merchants = ref.read(merchantsProvider);
-  final match = merchants.firstWhere((m) => m.id == merchantId, orElse: () => merchants.first);
+  final match = merchants.firstWhere(
+    (m) => m.id == merchantId,
+    orElse: () => merchants.first,
+  );
 
   // Check if merchantId refers to the current user; if so, surface the real user profile
   try {
     final userProfile = await ProfileService.getProfile();
-    final isCurrentUser = userProfile != null && (merchantId == userProfile.username || merchantId == userProfile.fullName);
+    final isCurrentUser =
+        (merchantId == userProfile.username ||
+            merchantId == userProfile.fullName);
     if (isCurrentUser) {
       // Build MerchantProfile from real user profile
-      final userAds = ref.read(userOffersProvider).where((o) => (o.merchant?.id == userProfile.username) || (o.name == userProfile.fullName) || (o.name == userProfile.username)).map((o) => MerchantAd(
-            id: o.id,
-            merchantName: o.name,
-            merchantAvatar: userProfile.profilePicturePath,
-            pricePerBtc: o.pricePerBtc,
-            minAmount: o.minLimit.toDouble(),
-            maxAmount: o.maxLimit.toDouble(),
-            merchantRating: o.ratingPercent.toDouble(),
-            merchantTrades: o.trades,
-            paymentMethod: o.paymentMethod,
-            paymentWindow: const Duration(minutes: 15),
-            satsPerFiat: o.availableSats ?? 0,
-          )).toList();
+      final userAds =
+          ref
+              .read(userOffersProvider)
+              .where(
+                (o) =>
+                    (o.merchant?.id == userProfile.username) ||
+                    (o.name == userProfile.fullName) ||
+                    (o.name == userProfile.username),
+              )
+              .map(
+                (o) => MerchantAd(
+                  id: o.id,
+                  merchantName: o.name,
+                  merchantAvatar: userProfile.profilePicturePath,
+                  pricePerBtc: o.pricePerBtc,
+                  minAmount: o.minLimit.toDouble(),
+                  maxAmount: o.maxLimit.toDouble(),
+                  merchantRating: o.ratingPercent.toDouble(),
+                  merchantTrades: o.trades,
+                  paymentMethod: o.paymentMethod,
+                  paymentWindow: const Duration(minutes: 15),
+                  satsPerFiat: o.availableSats ?? 0,
+                ),
+              )
+              .toList();
 
       return MerchantProfile(
         id: userProfile.username,
@@ -357,25 +397,36 @@ final merchantProfileProvider = FutureProvider.family<MerchantProfile, String>((
     ads: [],
     feedbacks: [],
     joinedAt: match.joinedDate,
-    daysToFirstTrade: match.firstTradeDate != null ? match.firstTradeDate!.difference(match.joinedDate).inDays : 0,
+    daysToFirstTrade:
+        match.firstTradeDate != null
+            ? match.firstTradeDate!.difference(match.joinedDate).inDays
+            : 0,
   );
 
   // include user-created offers as ads if they belong to this merchantId
   try {
     final userOffers = ref.read(userOffersProvider);
-    final ads = userOffers.where((o) => (o.merchant?.id == merchantId) || (o.name == merchantId)).map((o) => MerchantAd(
-          id: o.id,
-          merchantName: o.name,
-          merchantAvatar: o.merchant?.avatarUrl,
-          pricePerBtc: o.pricePerBtc,
-          minAmount: o.minLimit.toDouble(),
-          maxAmount: o.maxLimit.toDouble(),
-          merchantRating: o.ratingPercent.toDouble(),
-          merchantTrades: o.trades,
-          paymentMethod: o.paymentMethod,
-          paymentWindow: const Duration(minutes: 15),
-          satsPerFiat: o.availableSats ?? 0,
-        )).toList();
+    final ads =
+        userOffers
+            .where(
+              (o) => (o.merchant?.id == merchantId) || (o.name == merchantId),
+            )
+            .map(
+              (o) => MerchantAd(
+                id: o.id,
+                merchantName: o.name,
+                merchantAvatar: o.merchant?.avatarUrl,
+                pricePerBtc: o.pricePerBtc,
+                minAmount: o.minLimit.toDouble(),
+                maxAmount: o.maxLimit.toDouble(),
+                merchantRating: o.ratingPercent.toDouble(),
+                merchantTrades: o.trades,
+                paymentMethod: o.paymentMethod,
+                paymentWindow: const Duration(minutes: 15),
+                satsPerFiat: o.availableSats ?? 0,
+              ),
+            )
+            .toList();
     return MerchantProfile(
       id: profile.id,
       name: profile.name,
@@ -404,18 +455,27 @@ class ActiveTradesNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
   Future<void> _load() async {
     try {
       final offers = ref.read(p2pOffersProvider);
-      final trades = offers.map((o) => Trade(
-            id: 'trade_${o.id}',
-            counterpartyId: o.merchant?.id ?? o.id,
-            counterpartyName: o.name,
-            counterpartyAvatar: o.merchant?.avatarUrl,
-            fiatAmount: ((o.minLimit + o.maxLimit) / 2).toDouble(),
-            satsAmount: (((o.minLimit + o.maxLimit) / 2) / (o.pricePerBtc == 0 ? 1 : o.pricePerBtc) * 100000000).toDouble(),
-            status: TradeStatus.awaitingPayment,
-            createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-            timeLeft: const Duration(minutes: 30),
-            type: TradeType.buy,
-          )).toList();
+      final trades =
+          offers
+              .map(
+                (o) => Trade(
+                  id: 'trade_${o.id}',
+                  counterpartyId: o.merchant?.id ?? o.id,
+                  counterpartyName: o.name,
+                  counterpartyAvatar: o.merchant?.avatarUrl,
+                  fiatAmount: ((o.minLimit + o.maxLimit) / 2).toDouble(),
+                  satsAmount:
+                      (((o.minLimit + o.maxLimit) / 2) /
+                              (o.pricePerBtc == 0 ? 1 : o.pricePerBtc) *
+                              100000000)
+                          .toDouble(),
+                  status: TradeStatus.awaitingPayment,
+                  createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+                  timeLeft: const Duration(minutes: 30),
+                  type: TradeType.buy,
+                ),
+              )
+              .toList();
 
       final unique = {for (var t in trades) t.id: t}.values.toList();
       state = AsyncValue.data(unique);
@@ -427,9 +487,10 @@ class ActiveTradesNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
   Future<void> refresh() async => await _load();
 }
 
-final activeTradesNotifierProvider = StateNotifierProvider<ActiveTradesNotifier, AsyncValue<List<Trade>>>((ref) {
-  return ActiveTradesNotifier(ref);
-});
+final activeTradesNotifierProvider =
+    StateNotifierProvider<ActiveTradesNotifier, AsyncValue<List<Trade>>>((ref) {
+      return ActiveTradesNotifier(ref);
+    });
 
 // Trade history notifier/provider
 class TradeHistoryNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
@@ -442,18 +503,27 @@ class TradeHistoryNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
   Future<void> _load() async {
     try {
       final offers = ref.read(p2pOffersProvider);
-      final trades = offers.map((o) => Trade(
-            id: 'hist_${o.id}',
-            counterpartyId: o.merchant?.id ?? o.id,
-            counterpartyName: o.name,
-            counterpartyAvatar: o.merchant?.avatarUrl,
-            fiatAmount: ((o.minLimit + o.maxLimit) / 2).toDouble(),
-            satsAmount: (((o.minLimit + o.maxLimit) / 2) / (o.pricePerBtc == 0 ? 1 : o.pricePerBtc) * 100000000).toDouble(),
-            status: TradeStatus.completed,
-            createdAt: DateTime.now().subtract(const Duration(days: 2)),
-            timeLeft: null,
-            type: TradeType.sell,
-          )).toList();
+      final trades =
+          offers
+              .map(
+                (o) => Trade(
+                  id: 'hist_${o.id}',
+                  counterpartyId: o.merchant?.id ?? o.id,
+                  counterpartyName: o.name,
+                  counterpartyAvatar: o.merchant?.avatarUrl,
+                  fiatAmount: ((o.minLimit + o.maxLimit) / 2).toDouble(),
+                  satsAmount:
+                      (((o.minLimit + o.maxLimit) / 2) /
+                              (o.pricePerBtc == 0 ? 1 : o.pricePerBtc) *
+                              100000000)
+                          .toDouble(),
+                  status: TradeStatus.completed,
+                  createdAt: DateTime.now().subtract(const Duration(days: 2)),
+                  timeLeft: null,
+                  type: TradeType.sell,
+                ),
+              )
+              .toList();
 
       final unique = {for (var t in trades) t.id: t}.values.toList();
       state = AsyncValue.data(unique);
@@ -465,9 +535,11 @@ class TradeHistoryNotifier extends StateNotifier<AsyncValue<List<Trade>>> {
   Future<void> refresh() async => await _load();
 }
 
-final tradeHistoryNotifierProvider = StateNotifierProvider<TradeHistoryNotifier, AsyncValue<List<Trade>>>((ref) {
-  return TradeHistoryNotifier(ref);
-});
+final tradeHistoryNotifierProvider =
+    StateNotifierProvider<TradeHistoryNotifier, AsyncValue<List<Trade>>>((ref) {
+      return TradeHistoryNotifier(ref);
+    });
 
-final tradeHistoryFilterProvider = StateProvider<TradeHistoryFilter>((ref) => TradeHistoryFilter.all);
-
+final tradeHistoryFilterProvider = StateProvider<TradeHistoryFilter>(
+  (ref) => TradeHistoryFilter.all,
+);

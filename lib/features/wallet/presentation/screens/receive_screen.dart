@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -299,40 +300,62 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final displayData = _bolt11;
 
     return Container(
-      height: 315.h,
-      padding: EdgeInsets.all(16.r),
+      padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(color: AppColors.primary, width: 5.w),
+        border: Border.all(color: AppColors.primary, width: 4.w),
       ),
       child: Center(
         child:
             displayData != null
-                ? Image.network(
-                  'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(displayData)}',
-                  width: 255.w,
-                  height: 275.h,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 245.w,
-                      height: 240.h,
-                      color: Colors.grey[330],
-                      child: Center(
-                        child: Icon(
-                          Icons.error_outline,
-                          size: 48.sp,
-                          color: Colors.grey,
+                ? QrImageView(
+                    data: displayData,
+                    version: QrVersions.auto,
+                    size: 260.w,
+                    backgroundColor: Colors.white,
+                    padding: EdgeInsets.all(12.r),
+                    errorCorrectionLevel: QrErrorCorrectLevel.M,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: Colors.black,
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: Colors.black,
+                    ),
+                    errorStateBuilder: (context, error) {
+                      return Container(
+                        width: 260.w,
+                        height: 260.w,
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 48.sp,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 8.h),
+                              Text(
+                                'QR generation error',
+                                style: TextStyle(color: Colors.grey, fontSize: 12.sp),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                )
+                      );
+                    },
+                  )
                 : Container(
-                  width: 240.w,
-                  height: 240.h,
-                  color: Colors.grey[330],
+                  width: 260.w,
+                  height: 260.w,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
                   child: Center(
                     child: Text(
                       'Create invoice to show QR',
@@ -691,11 +714,28 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         ),
         const SizedBox(height: 24),
         if (_nostrNpub != null)
-          Image.network(
-            'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(_nostrNpub!)}',
-            width: 200.w,
-            height: 200.h,
-            fit: BoxFit.cover,
+          Container(
+            padding: EdgeInsets.all(16.r),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            child: QrImageView(
+              data: _nostrNpub!,
+              version: QrVersions.auto,
+              size: 240.w,
+              backgroundColor: Colors.white,
+              padding: EdgeInsets.all(8.r),
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Colors.black,
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Colors.black,
+              ),
+            ),
           ),
       ],
     );

@@ -33,6 +33,8 @@ import 'receive_screen.dart';
 import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'transactions_screen.dart';
+import 'package:sabi_wallet/features/agent/agent_screen.dart';
+import 'package:sabi_wallet/features/common/coming_soon_screen.dart';
 import 'notifications_screen.dart';
 import 'payment_detail_screen.dart';
 import 'payment_received_screen.dart';
@@ -72,36 +74,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       try {
         await _initializeBreezSDK();
         
-        // CRITICAL: Verify SDK is actually initialized before proceeding
+        // Check if SDK initialized successfully
         if (!BreezSparkService.isInitialized) {
-          debugPrint('❌ CRITICAL: SDK not initialized after _initializeBreezSDK()');
-          // Try one more time with a small delay
-          await Future.delayed(const Duration(milliseconds: 500));
-          await _initializeBreezSDK();
+          debugPrint('⚠️ SDK not initialized after _initializeBreezSDK() - will retry later');
+          // Don't throw - just continue with empty data, auto-refresh will pick it up
+        } else {
+          debugPrint('✅ SDK confirmed initialized - proceeding with data refresh');
           
-          if (!BreezSparkService.isInitialized) {
-            throw Exception('Failed to initialize Breez SDK after retry');
+          // Sync and get balance immediately after init
+          try {
+            await BreezSparkService.syncAndGetBalance();
+          } catch (e) {
+            debugPrint('⚠️ syncAndGetBalance failed: $e');
           }
         }
         
-        debugPrint('✅ SDK confirmed initialized - proceeding with data refresh');
-        
-        // Sync and get balance immediately after init
-        await BreezSparkService.syncAndGetBalance();
-        // Refresh balance provider to get the balance
+        // Refresh providers (they will return safe defaults if SDK not ready)
         await ref.read(balanceNotifierProvider.notifier).refresh();
-        // Refresh wallet provider to get the balance
         await ref.read(walletInfoProvider.notifier).refresh();
-        // Refresh recent transactions
         await ref.read(recentTransactionsProvider.notifier).refresh();
-        // Refresh all transactions
         await ref.read(allTransactionsNotifierProvider.notifier).refresh();
         _pollPaymentsForConfetti();
         _initEventStream();
         _startAutoRefresh();
       } catch (e) {
         debugPrint('❌ Failed to initialize wallet services: $e');
-        // Continue without crashing - the UI will show error states
+        // Continue without crashing - start auto-refresh anyway
+        _startAutoRefresh();
       }
     });
   }
@@ -625,14 +624,14 @@ class _HomeContentState extends State<_HomeContent> {
                   },
                 ),
                 SizedBox(height: 17.h),
-                // Action buttons: 3 columns x 2 rows layout
+                // Action buttons: 4 columns x 2 rows layout
                 Column(
                   children: [
-                    // First row: Send, Receive, Airtime
+                    // First row: Send, Receive, Airtime, Data
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                        _FigmaActionButton(
                           asset: 'assets/icons/Send.png',
                           label: AppLocalizations.of(context)!.send,
                           onTap: () => Navigator.push(
@@ -641,9 +640,9 @@ class _HomeContentState extends State<_HomeContent> {
                               builder: (_) => const SendScreen(),
                             ),
                           ),
-                        )),
-                        SizedBox(width: 20.w),
-                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                        ),
+                        SizedBox(width: 10.w),
+                        _FigmaActionButton(
                           asset: 'assets/icons/receive.png',
                           label: AppLocalizations.of(context)!.receive,
                           onTap: () => Navigator.push(
@@ -652,34 +651,48 @@ class _HomeContentState extends State<_HomeContent> {
                               builder: (_) => const ReceiveScreen(),
                             ),
                           ),
-                        )),
-                        SizedBox(width: 20.w),
-                        SizedBox(width: 80.w, child: _FigmaActionButton(
+                        ),
+                        SizedBox(width: 10.w),
+                        _FigmaActionButton(
                           asset: 'assets/icons/airtime.png',
                           label: AppLocalizations.of(context)!.airtime,
-                          onTap: () {},
-                        )),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ComingSoonScreen(
+                                featureName: 'Airtime',
+                                icon: Icons.phone_android,
+                                description: 'Buy airtime directly with Bitcoin.\nTop up any network in seconds!',
+                                accentColor: Color(0xFF00C853),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        _FigmaActionButton(
+                          asset: 'assets/icons/data.png',
+                          label: 'Data',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ComingSoonScreen(
+                                featureName: 'Data',
+                                icon: Icons.wifi,
+                                description: 'Purchase data bundles with Bitcoin.\nStay connected affordably!',
+                                accentColor: Color(0xFF2196F3),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                    SizedBox(height: 16.h),
-                    // Second row: Data, Agent, Nostr
+                    SizedBox(height: 10.h),
+                    // Second row: Nostr, Agent, Card, Rewards
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(width: 80.w, child: _FigmaActionButton(
-                          asset: 'assets/icons/data.png',
-                          label: 'Data',
-                          onTap: () {},
-                        )),
-                        SizedBox(width: 20.w),
-                        SizedBox(width: 80.w, child: _FigmaActionButton(
-                          asset: 'assets/icons/pos_agent.png',
-                          label: 'Agent',
-                          onTap: () {},
-                        )),
-                        SizedBox(width: 20.w),
-                        SizedBox(width: 80.w, child: _FigmaActionButton(
-                          asset: 'assets/icons/speech_bubble.png',
+                        _FigmaActionButton(
+                          icon: Icons.electric_bolt_outlined,
                           label: 'Nostr',
                           onTap: () => Navigator.push(
                             context,
@@ -687,7 +700,50 @@ class _HomeContentState extends State<_HomeContent> {
                               builder: (_) => const NostrFeedScreen(),
                             ),
                           ),
-                        )),
+                        ),
+                        SizedBox(width: 10.w),
+                        _FigmaActionButton(
+                          icon: Icons.groups_outlined,
+                          label: 'Agent',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AgentScreen(),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        _FigmaActionButton(
+                          icon: Icons.credit_card_outlined,
+                          label: 'card',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ComingSoonScreen(
+                                featureName: 'Virtual Card',
+                                icon: Icons.credit_card,
+                                description: 'Get a virtual Naira card.\nSpend your Bitcoin anywhere!',
+                                accentColor: Color(0xFF9C27B0),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        _FigmaActionButton(
+                          icon: Icons.card_giftcard_outlined,
+                          label: 'rewards',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ComingSoonScreen(
+                                featureName: 'Rewards',
+                                icon: Icons.card_giftcard,
+                                description: 'Earn rewards for using Sabi Wallet.\nStack sats while you spend!',
+                                accentColor: Color(0xFFFF9800),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -902,58 +958,60 @@ class _HomeContentState extends State<_HomeContent> {
 }
 
 class _FigmaActionButton extends StatelessWidget {
-  final String asset;
+  final String? asset;
+  final IconData? icon;
   final String label;
   final VoidCallback onTap;
 
   const _FigmaActionButton({
-    required this.asset,
+    this.asset,
+    this.icon,
     required this.label,
     required this.onTap,
-  });
+  }) : assert(asset != null || icon != null, 'Either asset or icon must be provided');
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 75.w,
-            height: 75.h,
-            decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(15.r),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(6.w),
-              child: Column(
-                children: [
-                  Center(
-                    child: Image.asset(
-                      asset,
-                      width: 32.w,
-                      height: 32.h,
-                      color: const Color(0xFFA1A1B2),
-                    ),
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFFA1A1B2),
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+      child: Container(
+        width: 80.w,
+        height: 80.h,
+        padding: EdgeInsets.all(10.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111128),
+          borderRadius: BorderRadius.circular(15.r),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (asset != null)
+              Image.asset(
+                asset!,
+                width: 28.w,
+                height: 28.h,
+                color: const Color(0xFFA1A1B2),
+              )
+            else if (icon != null)
+              Icon(
+                icon,
+                size: 28.w,
+                color: const Color(0xFFA1A1B2),
               ),
+            SizedBox(height: 6.h),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: const Color(0xFFA1A1B2),
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -338,8 +338,8 @@ class BreezSparkService {
   static Future<int> getBalance() async {
     // Guard: ensure SDK is initialized or using mock
     if (_sdk == null && !_useMockSDK) {
-      debugPrint('❌ SDK not initialized - cannot get balance');
-      throw Exception('SDK not initialized');
+      debugPrint('⏳ SDK not initialized yet - returning 0 balance');
+      return 0; // Return safe default instead of throwing
     }
     
     // Return mock balance if using mock SDK
@@ -349,10 +349,20 @@ class BreezSparkService {
     }
     
     try {
-      // Use ensure_synced: true to get network-fresh balance instead of cached
-      final info = await _sdk!.getInfo(
-        request: GetInfoRequest(ensureSynced: true),
-      );
+      // First try with ensureSynced: true for fresh balance
+      // If network fails, fall back to cached balance
+      GetInfoResponse info;
+      try {
+        info = await _sdk!.getInfo(
+          request: GetInfoRequest(ensureSynced: true),
+        ).timeout(const Duration(seconds: 5));
+      } catch (syncError) {
+        debugPrint('⚠️ Synced balance fetch failed, using cached: $syncError');
+        // Fall back to cached balance (ensureSynced: false)
+        info = await _sdk!.getInfo(
+          request: GetInfoRequest(ensureSynced: false),
+        ).timeout(const Duration(seconds: 5));
+      }
 
       // balanceSats is already in sats (not msat)
       final balanceSats = info.balanceSats.toInt();
@@ -610,8 +620,8 @@ class BreezSparkService {
   static Future<List<PaymentRecord>> listPayments({int limit = 50}) async {
     // Guard: ensure SDK is initialized or using mock
     if (_sdk == null && !_useMockSDK) {
-      debugPrint('❌ SDK not initialized - cannot list payments');
-      throw Exception('SDK not initialized');
+      debugPrint('⏳ SDK not initialized yet - returning empty payments list');
+      return []; // Return safe default instead of throwing
     }
     
     // Return empty list if using mock SDK
