@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
@@ -678,196 +679,203 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      );
-    }
-    final profile = _profile!;
+    // Use placeholder profile during loading for skeleton
+    final profile =
+        _profile ??
+        UserProfile(fullName: 'Loading User', username: 'loading_user');
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(30.w, 10.h, 30.w, 30.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Profile',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Inter',
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.w700,
-                    height: 1.4,
+        child: Skeletonizer(
+          enabled: _isLoading,
+          enableSwitchAnimation: true,
+          containersColor: AppColors.surface,
+          effect: PulseEffect(
+            duration: const Duration(milliseconds: 1000),
+            from: AppColors.background,
+            to: AppColors.borderColor.withValues(alpha: 0.3),
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(30.w, 10.h, 30.w, 30.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Profile',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Inter',
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                SizedBox(height: 15.h),
+                  SizedBox(height: 15.h),
 
-                // Profile Card
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 24.w,
-                    vertical: 32.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20.r),
-                  ),
-                  child: Column(
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 80.w,
-                        height: 80.w,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          image:
-                              profile.profilePicturePath != null
-                                  ? DecorationImage(
-                                    image: FileImage(
-                                      File(profile.profilePicturePath!),
+                  // Profile Card
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 24.w,
+                      vertical: 32.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20.r),
+                    ),
+                    child: Column(
+                      children: [
+                        // Avatar
+                        Container(
+                          width: 80.w,
+                          height: 80.w,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            image:
+                                profile.profilePicturePath != null
+                                    ? DecorationImage(
+                                      image: FileImage(
+                                        File(profile.profilePicturePath!),
+                                      ),
+                                      fit: BoxFit.cover,
+                                    )
+                                    : null,
+                          ),
+                          child:
+                              profile.profilePicturePath == null
+                                  ? Center(
+                                    child: Text(
+                                      profile.initial,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Inter',
+                                        fontSize: 32.sp,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
-                                    fit: BoxFit.cover,
                                   )
                                   : null,
                         ),
-                        child:
-                            profile.profilePicturePath == null
-                                ? Center(
-                                  child: Text(
-                                    profile.initial,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontFamily: 'Inter',
-                                      fontSize: 32.sp,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                )
-                                : null,
-                      ),
-                      SizedBox(height: 16.h),
+                        SizedBox(height: 16.h),
 
-                      // Name
-                      Text(
-                        profile.fullName,
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontFamily: 'Inter',
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 8.h),
-
-                      // Username
-                      Text(
-                        profile.sabiUsername,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      SizedBox(height: 12.h),
-                      _buildLightningAddressCard(profile),
-                      SizedBox(height: 12.h),
-                      // Nostr Identity Card
-                      _buildNostrIdentityCard(),
-                      SizedBox(height: 24.h),
-                      // Edit Profile Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _navigateToEditProfile,
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: AppColors.primary,
-                              width: 1.w,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.r),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                        // Name
+                        Text(
+                          profile.fullName,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Inter',
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.w600,
                           ),
-                          child: Text(
-                            'Edit Profile',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontFamily: 'Inter',
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
+                        ),
+                        SizedBox(height: 8.h),
+
+                        // Username
+                        Text(
+                          profile.sabiUsername,
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        SizedBox(height: 12.h),
+                        _buildLightningAddressCard(profile),
+                        SizedBox(height: 12.h),
+                        // Nostr Identity Card
+                        _buildNostrIdentityCard(),
+                        SizedBox(height: 24.h),
+                        // Edit Profile Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _navigateToEditProfile,
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: AppColors.primary,
+                                width: 1.w,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16.r),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 16.h),
+                            ),
+                            child: Text(
+                              'Edit Profile',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                SizedBox(height: 24.h),
+                  SizedBox(height: 24.h),
 
-                // Menu Items
-                _MenuItemTile(
-                  icon: Icons.settings_outlined,
-                  iconColor: AppColors.primary,
-                  title: 'Settings',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    );
-                  },
-                ),
-                SizedBox(height: 12.h),
+                  // Menu Items
+                  _MenuItemTile(
+                    icon: Icons.settings_outlined,
+                    iconColor: AppColors.primary,
+                    title: 'Settings',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(height: 12.h),
 
-                _MenuItemTile(
-                  icon: Icons.shield_outlined,
-                  iconColor: AppColors.accentYellow,
-                  title: 'Backup & Recovery',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BackupRecoveryScreen(),
-                      ),
-                    );
-                  },
-                ),
-                SizedBox(height: 12.h),
+                  _MenuItemTile(
+                    icon: Icons.shield_outlined,
+                    iconColor: AppColors.accentYellow,
+                    title: 'Backup & Recovery',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BackupRecoveryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(height: 12.h),
 
-                _MenuItemTile(
-                  icon: Icons.people_outline,
-                  iconColor: AppColors.accentGreen,
-                  title: 'Agent Mode',
-                  onTap: () {},
-                ),
-                SizedBox(height: 12.h),
+                  _MenuItemTile(
+                    icon: Icons.people_outline,
+                    iconColor: AppColors.accentGreen,
+                    title: 'Agent Mode',
+                    onTap: () {},
+                  ),
+                  SizedBox(height: 12.h),
 
-                _MenuItemTile(
-                  icon: Icons.card_giftcard_outlined,
-                  iconColor: AppColors.accentRed,
-                  title: 'Earn Rewards',
-                  onTap: () {},
-                ),
-                SizedBox(height: 12.h),
+                  _MenuItemTile(
+                    icon: Icons.card_giftcard_outlined,
+                    iconColor: AppColors.accentRed,
+                    title: 'Earn Rewards',
+                    onTap: () {},
+                  ),
+                  SizedBox(height: 12.h),
 
-                _MenuItemTile(
-                  icon: Icons.swap_horiz,
-                  iconColor: Colors.orange,
-                  title: 'Switch Wallet',
-                  onTap: _switchWallet,
-                ),
-              ],
+                  _MenuItemTile(
+                    icon: Icons.swap_horiz,
+                    iconColor: Colors.orange,
+                    title: 'Switch Wallet',
+                    onTap: _switchWallet,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
