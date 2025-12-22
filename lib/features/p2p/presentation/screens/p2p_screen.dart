@@ -12,7 +12,6 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/my_trades_screen.d
 import 'package:sabi_wallet/features/p2p/presentation/screens/merchant_profile_screen.dart';
 import 'dart:io';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:flutter/foundation.dart';
 export 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_widgets.dart';
 
 class P2PScreen extends ConsumerWidget {
