@@ -48,7 +48,9 @@ class NostrService {
     'wss://nos.lol',
     'wss://nostr.oxtr.dev',
     'wss://relay.nostr.band',
-    'wss://nostr.verified.ninja',
+    'wss://relay.primal.net',
+    'wss://relay.nostr.info',
+    'wss://nostr.wine',
   ];
 
   static Future<Map<String, dynamic>?> getProfile() async {

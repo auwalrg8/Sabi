@@ -19,11 +19,14 @@ class NostrService {
 
   // Bitcoin-focused and Nigeria-friendly relays for better Sabi Wallet experience
   static final List<String> _defaultRelays = [
+    'wss://relay.damus.io', // Most popular relay - Essential for global feed
     'wss://nostr.btclibrary.org', // Bitcoin-only, curated - Perfect for Bitcoiners
     'wss://nos.lol', // Fast, popular in Africa - Many Nigerian users
     'wss://nostr.oxtr.dev', // Bitcoin-focused, low latency - Great for zaps
     'wss://relay.nostr.band', // Searchable, good for discovery - Helps find Nigerian posts
-    'wss://nostr.verified.ninja', // Verified users only - Safer for recovery contacts
+    'wss://relay.primal.net', // Primal's relay - High traffic, reliable
+    'wss://relay.nostr.info', // General purpose relay
+    'wss://nostr.wine', // Popular relay with good uptime
   ];
 
   // Key for storing cached follows
@@ -53,9 +56,37 @@ class NostrService {
         if (hexPrivateKey != null) {
           await _initializeNostrWithKey(hexPrivateKey);
         }
+      } else {
+        // Initialize in read-only mode (no private key) for browsing global feed
+        await _initializeNostrReadOnly();
       }
     } catch (e) {
       print('❌ Error loading Nostr keys: $e');
+      // Still try to initialize read-only for browsing
+      await _initializeNostrReadOnly();
+    }
+  }
+
+  /// Initialize Nostr in read-only mode (no private key, just relay connections)
+  static Future<void> _initializeNostrReadOnly() async {
+    try {
+      // Generate a temporary key just for connecting to relays (won't be saved)
+      final tempPrivateKey = generatePrivateKey();
+      _nostr = Nostr(privateKey: tempPrivateKey);
+
+      // Add relays for read-only access
+      for (final relayUrl in _defaultRelays) {
+        try {
+          await _nostr!.pool.add(
+            Relay(relayUrl, access: WriteAccess.readOnly),
+          );
+        } catch (e) {
+          print('⚠️ Failed to add relay $relayUrl: $e');
+        }
+      }
+      print('✅ Nostr initialized in read-only mode with ${_defaultRelays.length} relays');
+    } catch (e) {
+      print('❌ Error initializing Nostr read-only: $e');
     }
   }
 
@@ -454,9 +485,14 @@ class NostrService {
         return posts;
       }
 
-      // Filter for kind 1 (text notes)
+      // Get posts from last 24 hours for global feed
+      final since = DateTime.now().subtract(const Duration(hours: 24));
+      final sinceTimestamp = since.millisecondsSinceEpoch ~/ 1000;
+
+      // Filter for kind 1 (text notes) from recent time
       final filter = {
         'kinds': [1],
+        'since': sinceTimestamp,
         'limit': limit,
       };
 
@@ -464,11 +500,11 @@ class NostrService {
           'global_feed_${DateTime.now().millisecondsSinceEpoch}';
       final receivedEvents = <String, Event>{};
 
-      // Subscribe to events with timeout
+      // Subscribe to events with timeout (increased to 8 seconds for better relay response)
       Timer? timeoutTimer;
       bool isCompleted = false;
 
-      timeoutTimer = Timer(const Duration(seconds: 5), () {
+      timeoutTimer = Timer(const Duration(seconds: 8), () {
         if (!isCompleted) {
           isCompleted = true;
           // Convert received events to posts
