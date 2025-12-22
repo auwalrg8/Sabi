@@ -44,9 +44,11 @@ class NostrService {
 
   static List<String> get _defaultRelays => [
     'wss://relay.damus.io',
-    'wss://nostr-pub.wellorder.net',
-    'wss://relay.snort.social',
-    'wss://nostr.mom',
+    'wss://nostr.btclibrary.org',
+    'wss://nos.lol',
+    'wss://nostr.oxtr.dev',
+    'wss://relay.nostr.band',
+    'wss://nostr.verified.ninja',
   ];
 
   static Future<Map<String, dynamic>?> getProfile() async {
