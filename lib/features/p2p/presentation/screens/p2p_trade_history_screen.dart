@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
 
 /// P2P Trade History Screen - Past trades with filters
@@ -9,7 +10,8 @@ class P2PTradeHistoryScreen extends ConsumerStatefulWidget {
   const P2PTradeHistoryScreen({super.key});
 
   @override
-  ConsumerState<P2PTradeHistoryScreen> createState() => _P2PTradeHistoryScreenState();
+  ConsumerState<P2PTradeHistoryScreen> createState() =>
+      _P2PTradeHistoryScreenState();
 }
 
 class _P2PTradeHistoryScreenState extends ConsumerState<P2PTradeHistoryScreen> {
@@ -89,10 +91,11 @@ class _P2PTradeHistoryScreenState extends ConsumerState<P2PTradeHistoryScreen> {
   }
 
   Map<String, double> get _stats {
-    final completed = _trades.where((t) => t.status == TradeStatus.released).toList();
+    final completed =
+        _trades.where((t) => t.status == TradeStatus.released).toList();
     final totalVolume = completed.fold<double>(0, (sum, t) => sum + t.amount);
     final totalSats = completed.fold<double>(0, (sum, t) => sum + t.sats);
-    
+
     return {
       'totalTrades': _trades.length.toDouble(),
       'completedTrades': completed.length.toDouble(),
@@ -109,7 +112,11 @@ class _P2PTradeHistoryScreenState extends ConsumerState<P2PTradeHistoryScreen> {
         backgroundColor: const Color(0xFF0C0C1A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -146,19 +153,29 @@ class _P2PTradeHistoryScreenState extends ConsumerState<P2PTradeHistoryScreen> {
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 16.w),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF111128),
+                        color:
+                            isSelected
+                                ? const Color(0xFFF7931A)
+                                : const Color(0xFF111128),
                         borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(
-                          color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
+                          color:
+                              isSelected
+                                  ? const Color(0xFFF7931A)
+                                  : const Color(0xFF2A2A3E),
                         ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         filter,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : const Color(0xFFA1A1B2),
+                          color:
+                              isSelected
+                                  ? AppColors.surface
+                                  : const Color(0xFFA1A1B2),
                           fontSize: 13.sp,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
                         ),
                       ),
                     ),
@@ -171,38 +188,39 @@ class _P2PTradeHistoryScreenState extends ConsumerState<P2PTradeHistoryScreen> {
 
           // Trade List
           Expanded(
-            child: _filteredTrades.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.history,
-                          size: 64.sp,
-                          color: const Color(0xFF6B6B80),
-                        ),
-                        SizedBox(height: 16.h),
-                        Text(
-                          'No trades found',
-                          style: TextStyle(
-                            color: const Color(0xFFA1A1B2),
-                            fontSize: 16.sp,
+            child:
+                _filteredTrades.isEmpty
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.history,
+                            size: 64.sp,
+                            color: const Color(0xFF6B6B80),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 16.h),
+                          Text(
+                            'No trades found',
+                            style: TextStyle(
+                              color: const Color(0xFFA1A1B2),
+                              fontSize: 16.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      itemCount: _filteredTrades.length,
+                      itemBuilder: (context, index) {
+                        final trade = _filteredTrades[index];
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 12.h),
+                          child: _HistoryTradeCard(trade: trade),
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    itemCount: _filteredTrades.length,
-                    itemBuilder: (context, index) {
-                      final trade = _filteredTrades[index];
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: 12.h),
-                        child: _HistoryTradeCard(trade: trade),
-                      );
-                    },
-                  ),
           ),
         ],
       ),
@@ -225,7 +243,7 @@ class _StatsCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFF7931A).withOpacity(0.15),
+            const Color(0xFFF7931A).withValues(alpha: 0.15),
             const Color(0xFF111128),
           ],
           begin: Alignment.topLeft,
@@ -233,7 +251,7 @@ class _StatsCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(
-          color: const Color(0xFFF7931A).withOpacity(0.3),
+          color: const Color(0xFFF7931A).withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -247,11 +265,7 @@ class _StatsCard extends StatelessWidget {
                   icon: Icons.swap_horiz,
                 ),
               ),
-              Container(
-                width: 1,
-                height: 50.h,
-                color: const Color(0xFF2A2A3E),
-              ),
+              Container(width: 1, height: 50.h, color: const Color(0xFF2A2A3E)),
               Expanded(
                 child: _StatItem(
                   label: 'Completed',
@@ -274,11 +288,7 @@ class _StatsCard extends StatelessWidget {
                   icon: Icons.account_balance_wallet,
                 ),
               ),
-              Container(
-                width: 1,
-                height: 50.h,
-                color: const Color(0xFF2A2A3E),
-              ),
+              Container(width: 1, height: 50.h, color: const Color(0xFF2A2A3E)),
               Expanded(
                 child: _StatItem(
                   label: 'Sats Acquired',
@@ -335,10 +345,7 @@ class _StatItem extends StatelessWidget {
         SizedBox(height: 4.h),
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 11.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 11.sp),
         ),
       ],
     );
@@ -393,23 +400,31 @@ class _HistoryTradeCard extends StatelessWidget {
                         Text(
                           trade.merchantName,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppColors.textPrimary.withValues(alpha: 0.8),
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         SizedBox(width: 8.w),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 2.h,
+                          ),
                           decoration: BoxDecoration(
-                            color: (trade.isBuying ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B))
-                                .withOpacity(0.15),
+                            color: (trade.isBuying
+                                    ? const Color(0xFF00FFB2)
+                                    : const Color(0xFFFF6B6B))
+                                .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6.r),
                           ),
                           child: Text(
                             trade.isBuying ? 'BUY' : 'SELL',
                             style: TextStyle(
-                              color: trade.isBuying ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                              color:
+                                  trade.isBuying
+                                      ? const Color(0xFF00FFB2)
+                                      : const Color(0xFFFF6B6B),
                               fontSize: 10.sp,
                               fontWeight: FontWeight.bold,
                             ),
@@ -432,9 +447,14 @@ class _HistoryTradeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 4.h,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(trade.status).withOpacity(0.15),
+                      color: _getStatusColor(
+                        trade.status,
+                      ).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: Row(
@@ -523,7 +543,10 @@ class _HistoryTradeCard extends StatelessWidget {
                     Text(
                       '${trade.isBuying ? '+' : '-'}${formatter.format(trade.sats.toInt())}',
                       style: TextStyle(
-                        color: trade.isBuying ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                        color:
+                            trade.isBuying
+                                ? const Color(0xFF00FFB2)
+                                : const Color(0xFFFF6B6B),
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
                       ),

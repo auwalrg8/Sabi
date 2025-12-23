@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'nostr_service.dart';
 
 /// Bottom sheet modal for editing Nostr keys (npub/nsec)
@@ -8,11 +9,7 @@ class NostrEditModal extends StatefulWidget {
   final String? initialNpub;
   final VoidCallback onSaved;
 
-  const NostrEditModal({
-    super.key,
-    this.initialNpub,
-    required this.onSaved,
-  });
+  const NostrEditModal({super.key, this.initialNpub, required this.onSaved});
 
   @override
   State<NostrEditModal> createState() => _NostrEditModalState();
@@ -58,17 +55,17 @@ class _NostrEditModalState extends State<NostrEditModal> {
         if (!_isValidNsec(nsec)) {
           throw Exception('Invalid nsec format');
         }
-        
+
         final derivedNpub = NostrService.getPublicKeyFromNsec(nsec);
         if (derivedNpub == null) {
           throw Exception('Could not derive public key from private key');
         }
-        
+
         // If user provided both, verify they match
         if (npub.isNotEmpty && npub != derivedNpub) {
           throw Exception('nsec and npub do not match');
         }
-        
+
         await NostrService.importKeys(nsec: nsec, npub: derivedNpub);
       }
 
@@ -77,7 +74,10 @@ class _NostrEditModalState extends State<NostrEditModal> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Nostr keys saved successfully! ⚡'),
+            content: Text(
+              'Nostr keys saved successfully! ⚡',
+              style: TextStyle(color: AppColors.surface),
+            ),
             backgroundColor: Color(0xFF00FFB2),
             duration: Duration(seconds: 2),
           ),
@@ -98,9 +98,7 @@ class _NostrEditModalState extends State<NostrEditModal> {
   void _handleQRScan() async {
     final result = await Navigator.push<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const _QRScannerScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const _QRScannerScreen()),
     );
 
     if (result != null && result.isNotEmpty) {
@@ -133,7 +131,7 @@ class _NostrEditModalState extends State<NostrEditModal> {
   Widget build(BuildContext context) {
     // Get keyboard height to add proper padding
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0C0C1A),
@@ -195,7 +193,10 @@ class _NostrEditModalState extends State<NostrEditModal> {
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFFF7931A), width: 2),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFF7931A),
+                    width: 2,
+                  ),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
@@ -233,7 +234,10 @@ class _NostrEditModalState extends State<NostrEditModal> {
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFFF7931A), width: 2),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFF7931A),
+                    width: 2,
+                  ),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
               ),
@@ -266,16 +270,13 @@ class _NostrEditModalState extends State<NostrEditModal> {
               Container(
                 padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
+                  color: Colors.red.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8.r),
                   border: Border.all(color: Colors.red),
                 ),
                 child: Text(
                   _error!,
-                  style: TextStyle(
-                    color: Colors.red[300],
-                    fontSize: 12.sp,
-                  ),
+                  style: TextStyle(color: Colors.red[300], fontSize: 12.sp),
                 ),
               ),
             if (_error != null) SizedBox(height: 16.h),
@@ -293,23 +294,26 @@ class _NostrEditModalState extends State<NostrEditModal> {
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation(Color(0xFF0C0C1A)),
-                          strokeWidth: 2,
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(
+                              Color(0xFF0C0C1A),
+                            ),
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : Text(
+                          'Save Keys',
+                          style: TextStyle(
+                            color: const Color(0xFF0C0C1A),
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      )
-                    : Text(
-                        'Save Keys',
-                        style: TextStyle(
-                          color: const Color(0xFF0C0C1A),
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
               ),
             ),
           ],

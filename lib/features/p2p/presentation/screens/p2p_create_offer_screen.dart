@@ -11,7 +11,8 @@ class P2PCreateOfferScreen extends ConsumerStatefulWidget {
   const P2PCreateOfferScreen({super.key});
 
   @override
-  ConsumerState<P2PCreateOfferScreen> createState() => _P2PCreateOfferScreenState();
+  ConsumerState<P2PCreateOfferScreen> createState() =>
+      _P2PCreateOfferScreenState();
 }
 
 class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
@@ -24,8 +25,12 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
   int _maxLimit = 1000000;
   bool _requiresKyc = false;
   final Set<String> _selectedPaymentMethods = {};
-  final TextEditingController _minController = TextEditingController(text: '10,000');
-  final TextEditingController _maxController = TextEditingController(text: '1,000,000');
+  final TextEditingController _minController = TextEditingController(
+    text: '10,000',
+  );
+  final TextEditingController _maxController = TextEditingController(
+    text: '1,000,000',
+  );
   final TextEditingController _instructionsController = TextEditingController();
   bool _isSubmitting = false;
   int _currentStep = 0;
@@ -50,7 +55,11 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         backgroundColor: const Color(0xFF0C0C1A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -75,9 +84,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                     margin: EdgeInsets.symmetric(horizontal: 4.w),
                     height: 4.h,
                     decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFF7931A)
-                          : const Color(0xFF2A2A3E),
+                      color:
+                          isActive
+                              ? const Color(0xFFF7931A)
+                              : const Color(0xFF2A2A3E),
                       borderRadius: BorderRadius.circular(2.r),
                     ),
                   ),
@@ -113,9 +123,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             padding: EdgeInsets.all(16.w),
             decoration: const BoxDecoration(
               color: Color(0xFF111128),
-              border: Border(
-                top: BorderSide(color: Color(0xFF2A2A3E)),
-              ),
+              border: Border(top: BorderSide(color: Color(0xFF2A2A3E))),
             ),
             child: SafeArea(
               child: Row(
@@ -132,19 +140,19 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                             borderRadius: BorderRadius.circular(16.r),
                           ),
                         ),
-                        child: Text(
-                          'Back',
-                          style: TextStyle(fontSize: 16.sp),
-                        ),
+                        child: Text('Back', style: TextStyle(fontSize: 16.sp)),
                       ),
                     ),
                   if (_currentStep > 0) SizedBox(width: 12.w),
                   Expanded(
                     flex: _currentStep > 0 ? 2 : 1,
                     child: ElevatedButton(
-                      onPressed: _currentStep == 2
-                          ? (_selectedPaymentMethods.isNotEmpty ? _submitOffer : null)
-                          : () => setState(() => _currentStep++),
+                      onPressed:
+                          _currentStep == 2
+                              ? (_selectedPaymentMethods.isNotEmpty
+                                  ? _submitOffer
+                                  : null)
+                              : () => setState(() => _currentStep++),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF7931A),
                         disabledBackgroundColor: const Color(0xFF2A2A3E),
@@ -153,23 +161,26 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                           borderRadius: BorderRadius.circular(16.r),
                         ),
                       ),
-                      child: _isSubmitting
-                          ? SizedBox(
-                              width: 24.w,
-                              height: 24.h,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                      child:
+                          _isSubmitting
+                              ? SizedBox(
+                                width: 24.w,
+                                height: 24.h,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : Text(
+                                _currentStep == 2 ? 'Create Offer' : 'Continue',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            )
-                          : Text(
-                              _currentStep == 2 ? 'Create Offer' : 'Continue',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                     ),
                   ),
                 ],
@@ -196,10 +207,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         SizedBox(height: 8.h),
         Text(
           'Choose whether you want to sell or buy Bitcoin',
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         SizedBox(height: 24.h),
 
@@ -271,10 +279,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         // Quick Limit Buttons
         Text(
           'Quick Set',
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 13.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
         ),
         SizedBox(height: 8.h),
         Wrap(
@@ -318,10 +323,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         SizedBox(height: 8.h),
         Text(
           'Adjust your margin above or below market rate',
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         SizedBox(height: 24.h),
 
@@ -337,7 +339,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
               Container(
                 padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7931A).withOpacity(0.2),
+                  color: const Color(0xFFF7931A).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Icon(
@@ -397,9 +399,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                   Text(
                     _marginPercent >= 0 ? '+' : '',
                     style: TextStyle(
-                      color: _marginPercent >= 0
-                          ? const Color(0xFF00FFB2)
-                          : const Color(0xFFFF6B6B),
+                      color:
+                          _marginPercent >= 0
+                              ? const Color(0xFF00FFB2)
+                              : const Color(0xFFFF6B6B),
                       fontSize: 32.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -407,9 +410,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                   Text(
                     '${_marginPercent.toStringAsFixed(1)}%',
                     style: TextStyle(
-                      color: _marginPercent >= 0
-                          ? const Color(0xFF00FFB2)
-                          : const Color(0xFFFF6B6B),
+                      color:
+                          _marginPercent >= 0
+                              ? const Color(0xFF00FFB2)
+                              : const Color(0xFFFF6B6B),
                       fontSize: 32.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -422,7 +426,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                   activeTrackColor: const Color(0xFFF7931A),
                   inactiveTrackColor: const Color(0xFF2A2A3E),
                   thumbColor: const Color(0xFFF7931A),
-                  overlayColor: const Color(0xFFF7931A).withOpacity(0.2),
+                  overlayColor: const Color(0xFFF7931A).withValues(alpha: 0.2),
                   trackHeight: 8.h,
                   thumbShape: RoundSliderThumbShape(enabledThumbRadius: 12.r),
                 ),
@@ -465,10 +469,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: const Color(0xFF00FFB2).withOpacity(0.1),
+            color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
-              color: const Color(0xFF00FFB2).withOpacity(0.3),
+              color: const Color(0xFF00FFB2).withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -535,7 +539,9 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                 value: _requiresKyc,
                 onChanged: (value) => setState(() => _requiresKyc = value),
                 activeThumbColor: const Color(0xFFF7931A),
-                activeTrackColor: const Color(0xFFF7931A).withOpacity(0.3),
+                activeTrackColor: const Color(
+                  0xFFF7931A,
+                ).withValues(alpha: 0.3),
                 inactiveThumbColor: const Color(0xFFA1A1B2),
                 inactiveTrackColor: const Color(0xFF2A2A3E),
               ),
@@ -563,10 +569,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         SizedBox(height: 8.h),
         Text(
           'Select the payment methods you accept',
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         SizedBox(height: 24.h),
 
@@ -590,7 +593,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                 color: const Color(0xFF111128),
                 borderRadius: BorderRadius.circular(16.r),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
+                  color:
+                      isSelected
+                          ? const Color(0xFFF7931A)
+                          : const Color(0xFF2A2A3E),
                   width: isSelected ? 2 : 1,
                 ),
               ),
@@ -600,16 +606,27 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                     width: 24.w,
                     height: 24.h,
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFF7931A) : Colors.transparent,
+                      color:
+                          isSelected
+                              ? const Color(0xFFF7931A)
+                              : Colors.transparent,
                       borderRadius: BorderRadius.circular(6.r),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFFF7931A) : const Color(0xFFA1A1B2),
+                        color:
+                            isSelected
+                                ? const Color(0xFFF7931A)
+                                : const Color(0xFFA1A1B2),
                         width: 2,
                       ),
                     ),
-                    child: isSelected
-                        ? Icon(Icons.check, color: Colors.white, size: 16.sp)
-                        : null,
+                    child:
+                        isSelected
+                            ? Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 16.sp,
+                            )
+                            : null,
                   ),
                   SizedBox(width: 16.w),
                   Expanded(
@@ -625,10 +642,12 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                           ),
                         ),
                         Text(
-                          method.type.name.replaceAllMapped(
-                            RegExp(r'([A-Z])'),
-                            (m) => ' ${m.group(1)}',
-                          ).trim(),
+                          method.type.name
+                              .replaceAllMapped(
+                                RegExp(r'([A-Z])'),
+                                (m) => ' ${m.group(1)}',
+                              )
+                              .trim(),
                           style: TextStyle(
                             color: const Color(0xFFA1A1B2),
                             fontSize: 12.sp,
@@ -670,7 +689,8 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             maxLines: 4,
             style: TextStyle(color: Colors.white, fontSize: 14.sp),
             decoration: InputDecoration(
-              hintText: 'Add any special instructions for buyers (e.g., account details, transfer notes)...',
+              hintText:
+                  'Add any special instructions for buyers (e.g., account details, transfer notes)...',
               hintStyle: TextStyle(
                 color: const Color(0xFF6B6B80),
                 fontSize: 14.sp,
@@ -686,7 +706,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
           Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: const Color(0xFF00FFB2).withOpacity(0.1),
+              color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12.r),
             ),
             child: Row(
@@ -758,7 +778,9 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             content: const Text('Offer created successfully!'),
             backgroundColor: const Color(0xFF00FFB2),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
         Navigator.pop(context);
@@ -770,7 +792,9 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
           content: Text('Failed to create offer: $e'),
           backgroundColor: const Color(0xFFFF6B6B),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -803,7 +827,10 @@ class _OfferTypeCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.15) : const Color(0xFF111128),
+          color:
+              isSelected
+                  ? color.withValues(alpha: 0.15)
+                  : const Color(0xFF111128),
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
             color: isSelected ? color : const Color(0xFF2A2A3E),
@@ -815,7 +842,10 @@ class _OfferTypeCard extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(16.w),
               decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.2) : const Color(0xFF1A1A2E),
+                color:
+                    isSelected
+                        ? color.withValues(alpha: 0.2)
+                        : const Color(0xFF1A1A2E),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -837,10 +867,7 @@ class _OfferTypeCard extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 12.sp,
-              ),
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
             ),
           ],
         ),
@@ -868,10 +895,7 @@ class _LimitInput extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 12.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
         ),
         SizedBox(height: 8.h),
         Container(
@@ -896,12 +920,8 @@ class _LimitInput extends StatelessWidget {
                   controller: controller,
                   keyboardType: TextInputType.number,
                   style: TextStyle(color: Colors.white, fontSize: 16.sp),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  decoration: const InputDecoration(border: InputBorder.none),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: onChanged,
                 ),
               ),
@@ -933,10 +953,7 @@ class _QuickLimitChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 13.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
         ),
       ),
     );

@@ -99,8 +99,8 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                         decoration: BoxDecoration(
                           gradient: RadialGradient(
                             colors: [
-                              accentColor.withOpacity(0.3),
-                              accentColor.withOpacity(0.1),
+                              accentColor.withValues(alpha: 0.3),
+                              accentColor.withValues(alpha: 0.1),
                               Colors.transparent,
                             ],
                           ),
@@ -114,12 +114,12 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                               color: const Color(0xFF111128),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: accentColor.withOpacity(0.5),
+                                color: accentColor.withValues(alpha: 0.5),
                                 width: 2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: accentColor.withOpacity(0.3),
+                                  color: accentColor.withValues(alpha: 0.3),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
@@ -211,7 +211,7 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                               borderRadius: BorderRadius.circular(16.r),
                               boxShadow: [
                                 BoxShadow(
-                                  color: accentColor.withOpacity(0.4),
+                                  color: accentColor.withValues(alpha: 0.4),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
