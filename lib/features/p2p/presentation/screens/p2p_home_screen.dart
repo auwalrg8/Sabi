@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_offer_detail_screen.dart';
@@ -84,22 +85,27 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen> {
                             children: [
                               _IconButton(
                                 icon: Icons.history,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const P2PTradeHistoryScreen(),
-                                  ),
-                                ),
+                                onTap:
+                                    () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) =>
+                                                const P2PTradeHistoryScreen(),
+                                      ),
+                                    ),
                               ),
                               SizedBox(width: 8.w),
                               _IconButton(
                                 icon: Icons.list_alt,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const P2PMyTradesScreen(),
-                                  ),
-                                ),
+                                onTap:
+                                    () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => const P2PMyTradesScreen(),
+                                      ),
+                                    ),
                               ),
                             ],
                           ),
@@ -125,17 +131,22 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen> {
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
-                          children: _paymentFilters.map((filter) {
-                            final isSelected = _selectedPaymentFilter == filter;
-                            return Padding(
-                              padding: EdgeInsets.only(right: 8.w),
-                              child: _FilterChip(
-                                label: filter,
-                                isSelected: isSelected,
-                                onTap: () => setState(() => _selectedPaymentFilter = filter),
-                              ),
-                            );
-                          }).toList(),
+                          children:
+                              _paymentFilters.map((filter) {
+                                final isSelected =
+                                    _selectedPaymentFilter == filter;
+                                return Padding(
+                                  padding: EdgeInsets.only(right: 8.w),
+                                  child: _FilterChip(
+                                    label: filter,
+                                    isSelected: isSelected,
+                                    onTap:
+                                        () => setState(
+                                          () => _selectedPaymentFilter = filter,
+                                        ),
+                                  ),
+                                );
+                              }).toList(),
                         ),
                       ),
                       SizedBox(height: 8.h),
@@ -148,43 +159,44 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen> {
               _isLoading
                   ? SliverToBoxAdapter(child: _buildSkeletonLoader())
                   : offers.isEmpty
-                      ? SliverToBoxAdapter(child: _buildEmptyState())
-                      : SliverPadding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final offer = offers[index];
-                                return Padding(
-                                  padding: EdgeInsets.only(bottom: 12.h),
-                                  child: _OfferCard(
-                                    offer: offer,
-                                    isBuyMode: _isBuyMode,
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => P2POfferDetailScreen(offer: offer),
-                                      ),
-                                    ),
-                                    onMerchantTap: () {
-                                      if (offer.merchant != null) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => P2PMerchantProfileScreen(
-                                              merchant: offer.merchant!,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    },
+                  ? SliverToBoxAdapter(child: _buildEmptyState())
+                  : SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final offer = offers[index];
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 12.h),
+                          child: _OfferCard(
+                            offer: offer,
+                            isBuyMode: _isBuyMode,
+                            onTap:
+                                () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (_) =>
+                                            P2POfferDetailScreen(offer: offer),
+                                  ),
+                                ),
+                            onMerchantTap: () {
+                              if (offer.merchant != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (_) => P2PMerchantProfileScreen(
+                                          merchant: offer.merchant!,
+                                        ),
                                   ),
                                 );
-                              },
-                              childCount: offers.length,
-                            ),
+                              }
+                            },
                           ),
-                        ),
+                        );
+                      }, childCount: offers.length),
+                    ),
+                  ),
 
               // Bottom padding
               SliverToBoxAdapter(child: SizedBox(height: 80.h)),
@@ -193,16 +205,17 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const P2PCreateOfferScreen()),
-        ),
+        onPressed:
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const P2PCreateOfferScreen()),
+            ),
         backgroundColor: const Color(0xFFF7931A),
-        icon: Icon(Icons.add, color: Colors.white, size: 20.sp),
+        icon: Icon(Icons.add, color: AppColors.surface, size: 20.sp),
         label: Text(
           'Create Offer',
           style: TextStyle(
-            color: Colors.white,
+            color: AppColors.surface,
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
           ),
@@ -278,26 +291,16 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.swap_horiz,
-            size: 64.sp,
-            color: const Color(0xFFA1A1B2),
-          ),
+          Icon(Icons.swap_horiz, size: 64.sp, color: const Color(0xFFA1A1B2)),
           SizedBox(height: 16.h),
           Text(
             'No offers available',
-            style: TextStyle(
-              color: const Color(0xFFA1A1B2),
-              fontSize: 16.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 16.sp),
           ),
           SizedBox(height: 8.h),
           Text(
             'Be the first to create an offer!',
-            style: TextStyle(
-              color: const Color(0xFF6B6B80),
-              fontSize: 14.sp,
-            ),
+            style: TextStyle(color: const Color(0xFF6B6B80), fontSize: 14.sp),
           ),
         ],
       ),
@@ -310,10 +313,7 @@ class _LiveRatesCard extends StatelessWidget {
   final double btcNgnRate;
   final double usdNgnRate;
 
-  const _LiveRatesCard({
-    required this.btcNgnRate,
-    required this.usdNgnRate,
-  });
+  const _LiveRatesCard({required this.btcNgnRate, required this.usdNgnRate});
 
   @override
   Widget build(BuildContext context) {
@@ -322,7 +322,7 @@ class _LiveRatesCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFF7931A).withOpacity(0.15),
+            const Color(0xFFF7931A).withValues(alpha: 0.15),
             const Color(0xFF111128),
           ],
           begin: Alignment.topLeft,
@@ -330,7 +330,7 @@ class _LiveRatesCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(
-          color: const Color(0xFFF7931A).withOpacity(0.3),
+          color: const Color(0xFFF7931A).withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -345,7 +345,7 @@ class _LiveRatesCard extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.all(8.w),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7931A).withOpacity(0.2),
+                        color: const Color(0xFFF7931A).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Icon(
@@ -364,9 +364,12 @@ class _LiveRatesCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00FFB2).withOpacity(0.15),
+                        color: const Color(0xFF00FFB2).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Row(
@@ -478,10 +481,7 @@ class _BuySellToggle extends StatelessWidget {
   final bool isBuyMode;
   final Function(bool) onToggle;
 
-  const _BuySellToggle({
-    required this.isBuyMode,
-    required this.onToggle,
-  });
+  const _BuySellToggle({required this.isBuyMode, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -500,14 +500,18 @@ class _BuySellToggle extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 padding: EdgeInsets.symmetric(vertical: 14.h),
                 decoration: BoxDecoration(
-                  color: isBuyMode ? const Color(0xFF00FFB2) : Colors.transparent,
+                  color:
+                      isBuyMode ? const Color(0xFF00FFB2) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
                     'Buy BTC',
                     style: TextStyle(
-                      color: isBuyMode ? const Color(0xFF0C0C1A) : const Color(0xFFA1A1B2),
+                      color:
+                          isBuyMode
+                              ? const Color(0xFF0C0C1A)
+                              : const Color(0xFFA1A1B2),
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w600,
                     ),
@@ -523,14 +527,16 @@ class _BuySellToggle extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 padding: EdgeInsets.symmetric(vertical: 14.h),
                 decoration: BoxDecoration(
-                  color: !isBuyMode ? const Color(0xFFFF6B6B) : Colors.transparent,
+                  color:
+                      !isBuyMode ? const Color(0xFFFF6B6B) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
                     'Sell BTC',
                     style: TextStyle(
-                      color: !isBuyMode ? Colors.white : const Color(0xFFA1A1B2),
+                      color:
+                          !isBuyMode ? Colors.white : const Color(0xFFA1A1B2),
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w600,
                     ),
@@ -568,14 +574,15 @@ class _FilterChip extends StatelessWidget {
           color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF111128),
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
-            color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
+            color:
+                isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
             width: 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFFA1A1B2),
+            color: isSelected ? AppColors.surface : const Color(0xFFA1A1B2),
             fontSize: 13.sp,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
           ),
@@ -651,13 +658,14 @@ class _OfferCard extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: offer.merchant?.avatarUrl != null
-                            ? CachedNetworkImage(
-                                imageUrl: offer.merchant!.avatarUrl!,
-                                fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => _buildInitial(),
-                              )
-                            : _buildInitial(),
+                        child:
+                            offer.merchant?.avatarUrl != null
+                                ? CachedNetworkImage(
+                                  imageUrl: offer.merchant!.avatarUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => _buildInitial(),
+                                )
+                                : _buildInitial(),
                       ),
                       SizedBox(width: 12.w),
                       Column(
@@ -719,7 +727,7 @@ class _OfferCard extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00FFB2).withOpacity(0.1),
+                    color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Text(
@@ -753,7 +761,10 @@ class _OfferCard extends StatelessWidget {
                     Text(
                       '₦${_formatPrice(offer.pricePerBtc)}',
                       style: TextStyle(
-                        color: isBuyMode ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                        color:
+                            isBuyMode
+                                ? const Color(0xFF00FFB2)
+                                : const Color(0xFFFF6B6B),
                         fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
                       ),
@@ -792,9 +803,9 @@ class _OfferCard extends StatelessWidget {
               children: [
                 _PaymentMethodBadge(method: offer.paymentMethod),
                 if (offer.acceptedMethods != null)
-                  ...offer.acceptedMethods!.take(2).map(
-                        (m) => _PaymentMethodBadge(method: m.name),
-                      ),
+                  ...offer.acceptedMethods!
+                      .take(2)
+                      .map((m) => _PaymentMethodBadge(method: m.name)),
               ],
             ),
             SizedBox(height: 12.h),
@@ -805,7 +816,10 @@ class _OfferCard extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: onTap,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isBuyMode ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                  backgroundColor:
+                      isBuyMode
+                          ? const Color(0xFF00FFB2)
+                          : const Color(0xFFFF6B6B),
                   padding: EdgeInsets.symmetric(vertical: 12.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.r),
@@ -885,10 +899,7 @@ class _PaymentMethodBadge extends StatelessWidget {
       ),
       child: Text(
         method,
-        style: TextStyle(
-          color: const Color(0xFFA1A1B2),
-          fontSize: 11.sp,
-        ),
+        style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 11.sp),
       ),
     );
   }

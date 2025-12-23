@@ -19,12 +19,31 @@ class P2PColors {
 
 class P2PTextStyles {
   static const heading2 = TextStyle(fontSize: 20, color: AppColors.textPrimary);
-  static const bodyLarge = TextStyle(fontSize: 16, color: AppColors.textPrimary);
-  static const bodyMedium = TextStyle(fontSize: 14, color: AppColors.textPrimary);
-  static const bodySmall = TextStyle(fontSize: 12, color: AppColors.textSecondary);
-  static const statLabel = TextStyle(fontSize: 12, color: AppColors.textSecondary);
-  static const caption = TextStyle(fontSize: 12, color: AppColors.textSecondary);
-  static const priceText = TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary);
+  static const bodyLarge = TextStyle(
+    fontSize: 16,
+    color: AppColors.textPrimary,
+  );
+  static const bodyMedium = TextStyle(
+    fontSize: 14,
+    color: AppColors.textPrimary,
+  );
+  static const bodySmall = TextStyle(
+    fontSize: 12,
+    color: AppColors.textSecondary,
+  );
+  static const statLabel = TextStyle(
+    fontSize: 12,
+    color: AppColors.textSecondary,
+  );
+  static const caption = TextStyle(
+    fontSize: 12,
+    color: AppColors.textSecondary,
+  );
+  static const priceText = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+    color: AppColors.textPrimary,
+  );
 }
 
 class P2PDecorations {
@@ -32,7 +51,11 @@ class P2PDecorations {
     color: P2PColors.cardBackgroundLight,
     borderRadius: BorderRadius.circular(12),
     boxShadow: [
-      BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 6, offset: const Offset(0, 2)),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.18),
+        blurRadius: 6,
+        offset: const Offset(0, 2),
+      ),
     ],
   );
 

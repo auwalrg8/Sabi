@@ -217,7 +217,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(8.r),
                         border: Border.all(
-                          color: AppColors.accentRed.withOpacity(0.3),
+                          color: AppColors.accentRed.withValues(alpha: 0.3),
                         ),
                       ),
                       child: SelectableText(
@@ -260,7 +260,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Navigator.pop(context); // Close loading if still showing
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to create Nostr identity: $e'),
+          content: Text(
+            'Failed to create Nostr identity: $e',
+            style: TextStyle(color: AppColors.surface),
+          ),
           backgroundColor: AppColors.accentRed,
         ),
       );
@@ -296,7 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: const Color(0xFFF7931A).withOpacity(0.3),
+          color: const Color(0xFFF7931A).withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -325,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: AppColors.accentGreen.withOpacity(0.2),
+                    color: AppColors.accentGreen.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Text(
@@ -351,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
               decoration: BoxDecoration(
-                color: AppColors.background.withOpacity(0.5),
+                color: AppColors.background.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8.r),
               ),
               child: Row(
