@@ -93,9 +93,14 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
           );
 
           if (_userHexPubkey != null) {
-            // Fetch user's follows (kind-3 contact list)
-            debug.info('SCREEN', 'Fetching user follows with hex pubkey...');
-            _userFollows = await NostrService.fetchUserFollows(_userHexPubkey!);
+            // Fetch user's follows (kind-3 contact list) using DIRECT WebSocket
+            debug.info(
+              'SCREEN',
+              'Fetching user follows (direct) with hex pubkey...',
+            );
+            _userFollows = await NostrService.fetchUserFollowsDirect(
+              _userHexPubkey!,
+            );
             debug.info(
               'SCREEN',
               'Follows fetched',
@@ -103,9 +108,9 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             );
 
             if (_userFollows.isNotEmpty) {
-              // Fetch posts from follows (last 48 hours)
-              debug.info('SCREEN', 'Fetching follows feed...');
-              posts = await NostrService.fetchFollowsFeed(
+              // Fetch posts from follows using direct WebSocket
+              debug.info('SCREEN', 'Fetching follows feed (direct)...');
+              posts = await NostrService.fetchFollowsFeedDirect(
                 followPubkeys: _userFollows,
                 limit: 50,
               );
@@ -126,7 +131,8 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                 'User has no follows, falling back to global feed',
               );
               setState(() => _followsFeedEmpty = true);
-              posts = await NostrService.fetchGlobalFeed(limit: 50);
+              // Use DIRECT WebSocket fetch (bypasses nostr_dart issues)
+              posts = await NostrService.fetchGlobalFeedDirect(limit: 50);
               debug.info(
                 'SCREEN',
                 'Global feed fallback result',
@@ -136,14 +142,18 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
           }
         } else {
           // No account - fallback to global feed
-          debug.info('SCREEN', 'No npub, fetching global feed...');
-          posts = await NostrService.fetchGlobalFeed(limit: 50);
+          debug.info('SCREEN', 'No npub, fetching global feed (direct)...');
+          posts = await NostrService.fetchGlobalFeedDirect(limit: 50);
           debug.info('SCREEN', 'Global feed result', '${posts.length} posts');
         }
       } else {
         // Fetch global feed for Latest and Trending
-        debug.info('SCREEN', 'Fetching global feed for Latest/Trending...');
-        posts = await NostrService.fetchGlobalFeed(limit: 50);
+        debug.info(
+          'SCREEN',
+          'Fetching global feed (direct) for Latest/Trending...',
+        );
+        // Use DIRECT WebSocket fetch (bypasses nostr_dart issues)
+        posts = await NostrService.fetchGlobalFeedDirect(limit: 50);
         debug.info('SCREEN', 'Global feed result', '${posts.length} posts');
       }
 

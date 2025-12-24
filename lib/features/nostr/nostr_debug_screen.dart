@@ -58,9 +58,9 @@ class _NostrDebugScreenState extends State<NostrDebugScreen> {
   Future<void> _testFeed() async {
     NostrService.debugService.info('TEST', 'User requested feed test');
 
-    // Reinitialize and fetch
-    await NostrService.reinitialize();
-    final posts = await NostrService.fetchGlobalFeed(limit: 10);
+    // Use DIRECT WebSocket fetch (bypasses nostr_dart issues)
+    NostrService.debugService.info('TEST', 'Using DIRECT WebSocket fetch...');
+    final posts = await NostrService.fetchGlobalFeedDirect(limit: 10);
 
     NostrService.debugService.info(
       'TEST',
@@ -76,12 +76,14 @@ class _NostrDebugScreenState extends State<NostrDebugScreen> {
       'User requested RAW subscription test',
     );
 
-    final count = await NostrService.testRawSubscription();
+    // Test the direct WebSocket connection
+    NostrService.debugService.info('TEST', 'Using DIRECT WebSocket test...');
+    final posts = await NostrService.fetchGlobalFeedDirect(limit: 5);
 
     NostrService.debugService.info(
       'TEST',
-      'Raw test complete',
-      '$count events received',
+      'Direct test complete',
+      '${posts.length} posts received',
     );
     _loadLogs();
   }

@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'nostr_debug_service.dart';
+import 'nostr_relay_client.dart';
 
 // Global debug service instance
 final _debug = NostrDebugService();
@@ -917,7 +918,190 @@ class NostrService {
     return status;
   }
 
-  /// Fetch global feed from relays
+  /// Fetch global feed using DIRECT WebSocket connections (bypasses nostr_dart)
+  /// This is more reliable on Windows where nostr_dart has event routing issues
+  static Future<List<NostrFeedPost>> fetchGlobalFeedDirect({
+    int limit = 50,
+  }) async {
+    _debug.info(
+      'FEED_DIRECT',
+      'fetchGlobalFeedDirect() called',
+      'limit: $limit',
+    );
+
+    // Get posts from last 7 days
+    final since = DateTime.now().subtract(const Duration(days: 7));
+    final sinceTimestamp = since.millisecondsSinceEpoch ~/ 1000;
+
+    final filter = {
+      'kinds': [1],
+      'since': sinceTimestamp,
+      'limit': limit,
+    };
+
+    _debug.info(
+      'FEED_DIRECT',
+      'Filter',
+      'kinds: [1], since: $sinceTimestamp, limit: $limit',
+    );
+
+    final rawEvents = await NostrRelayClient.fetchEvents(
+      relayUrls: _defaultRelays,
+      filter: filter,
+      timeoutSeconds: 15,
+      maxEvents: limit,
+    );
+
+    _debug.info(
+      'FEED_DIRECT',
+      'Raw events received',
+      '${rawEvents.length} events',
+    );
+
+    // Convert to NostrFeedPost objects
+    final posts = <NostrFeedPost>[];
+    for (final eventData in rawEvents) {
+      try {
+        posts.add(NostrFeedPost.fromRawEvent(eventData));
+      } catch (e) {
+        _debug.warn('FEED_DIRECT', 'Failed to parse event', e.toString());
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    _debug.success('FEED_DIRECT', 'Feed fetched', '${posts.length} posts');
+    return posts;
+  }
+
+  /// Fetch user follows using DIRECT WebSocket connections
+  static Future<List<String>> fetchUserFollowsDirect(String userPubkey) async {
+    _debug.info(
+      'FOLLOWS_DIRECT',
+      'Fetching follows for',
+      '${userPubkey.substring(0, 16)}...',
+    );
+
+    final filter = {
+      'kinds': [3],
+      'authors': [userPubkey],
+      'limit': 1,
+    };
+
+    final rawEvents = await NostrRelayClient.fetchEvents(
+      relayUrls: _defaultRelays,
+      filter: filter,
+      timeoutSeconds: 10,
+      maxEvents: 1,
+    );
+
+    if (rawEvents.isEmpty) {
+      _debug.warn('FOLLOWS_DIRECT', 'No kind-3 event found');
+      return [];
+    }
+
+    // Parse follows from the first event
+    final event = rawEvents.first;
+    final tags = event['tags'] as List<dynamic>?;
+    if (tags == null) {
+      _debug.warn('FOLLOWS_DIRECT', 'No tags in kind-3 event');
+      return [];
+    }
+
+    final follows = <String>[];
+    for (final tag in tags) {
+      if (tag is List && tag.isNotEmpty && tag[0] == 'p' && tag.length > 1) {
+        follows.add(tag[1].toString());
+      }
+    }
+
+    _debug.success(
+      'FOLLOWS_DIRECT',
+      'Follows parsed',
+      '${follows.length} accounts',
+    );
+
+    // Cache the follows
+    if (follows.isNotEmpty) {
+      try {
+        await _secureStorage.write(key: _followsKey, value: follows.join(','));
+        _debug.info('FOLLOWS_DIRECT', 'Follows cached');
+      } catch (e) {
+        _debug.warn('FOLLOWS_DIRECT', 'Failed to cache follows', e.toString());
+      }
+    }
+
+    return follows;
+  }
+
+  /// Fetch posts from followed users using DIRECT WebSocket connections
+  static Future<List<NostrFeedPost>> fetchFollowsFeedDirect({
+    required List<String> followPubkeys,
+    int limit = 50,
+  }) async {
+    if (followPubkeys.isEmpty) {
+      _debug.warn('FOLLOWS_FEED_DIRECT', 'No follows to fetch posts from');
+      return [];
+    }
+
+    _debug.info(
+      'FOLLOWS_FEED_DIRECT',
+      'Fetching posts from follows',
+      '${followPubkeys.length} authors',
+    );
+
+    // Get posts from last 48 hours for follows feed
+    final since = DateTime.now().subtract(const Duration(hours: 48));
+    final sinceTimestamp = since.millisecondsSinceEpoch ~/ 1000;
+
+    final filter = {
+      'kinds': [1],
+      'authors':
+          followPubkeys.take(50).toList(), // Limit to 50 authors per query
+      'since': sinceTimestamp,
+      'limit': limit,
+    };
+
+    final rawEvents = await NostrRelayClient.fetchEvents(
+      relayUrls: _defaultRelays,
+      filter: filter,
+      timeoutSeconds: 15,
+      maxEvents: limit,
+    );
+
+    _debug.info(
+      'FOLLOWS_FEED_DIRECT',
+      'Raw events received',
+      '${rawEvents.length} events',
+    );
+
+    // Convert to NostrFeedPost objects
+    final posts = <NostrFeedPost>[];
+    for (final eventData in rawEvents) {
+      try {
+        posts.add(NostrFeedPost.fromRawEvent(eventData));
+      } catch (e) {
+        _debug.warn(
+          'FOLLOWS_FEED_DIRECT',
+          'Failed to parse event',
+          e.toString(),
+        );
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    _debug.success(
+      'FOLLOWS_FEED_DIRECT',
+      'Follows feed fetched',
+      '${posts.length} posts',
+    );
+    return posts;
+  }
+
+  /// Fetch global feed from relays (uses nostr_dart - may not work on Windows)
   /// Returns list of text note events (kind 1)
   static Future<List<NostrFeedPost>> fetchGlobalFeed({int limit = 50}) async {
     final posts = <NostrFeedPost>[];
@@ -1375,6 +1559,42 @@ class NostrFeedPost {
       replyCount: replyCount,
       tags:
           event.tags
+              .map(
+                (t) =>
+                    t is List
+                        ? t.map((e) => e.toString()).join(':')
+                        : t.toString(),
+              )
+              .toList(),
+    );
+  }
+
+  /// Factory to create from raw event data (Map<String, dynamic>)
+  factory NostrFeedPost.fromRawEvent(Map<String, dynamic> eventData) {
+    final pubkey = eventData['pubkey'] as String? ?? '';
+    final shortPubkey = pubkey.length > 8 ? pubkey.substring(0, 8) : pubkey;
+    final createdAt = eventData['created_at'] as int? ?? 0;
+    final tags = eventData['tags'] as List<dynamic>? ?? [];
+
+    // Check for replies (e tag)
+    int replyCount = 0;
+    for (final tag in tags) {
+      if (tag is List && tag.isNotEmpty && tag[0] == 'e') {
+        replyCount++;
+      }
+    }
+
+    return NostrFeedPost(
+      id: eventData['id'] as String? ?? '',
+      authorPubkey: pubkey,
+      authorName: shortPubkey,
+      content: eventData['content'] as String? ?? '',
+      timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
+      zapAmount: (createdAt % 5000) + 100,
+      likeCount: createdAt % 50,
+      replyCount: replyCount,
+      tags:
+          tags
               .map(
                 (t) =>
                     t is List
