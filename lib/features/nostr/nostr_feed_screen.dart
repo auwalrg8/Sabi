@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
+import 'nostr_debug_screen.dart';
 
 /// Filter types for the feed
 enum FeedFilter { newThreads, latest, trending24h }
@@ -52,18 +53,24 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
       _followsFeedEmpty = false;
     });
 
+    final debug = NostrService.debugService;
+    debug.info('SCREEN', '_loadFeed() started', 'filter: $_currentFilter');
+
     try {
       // Ensure NostrService is initialized (lazy relay connections)
+      debug.info('SCREEN', 'Calling NostrService.init()...');
       await NostrService.init();
 
       // Get stored npub to check if user has nostr account
+      debug.info('SCREEN', 'Calling getNpub()...');
       final npub = await NostrService.getNpub();
       setState(() => _userNpub = npub);
-      debugPrint('👤 User npub: ${npub != null ? "exists" : "null"}');
+      debug.info('SCREEN', 'getNpub result', npub != null ? 'Found' : 'null');
 
       // Ensure relay connections for fetching posts
+      debug.info('SCREEN', 'Calling reinitialize() for relay connections...');
       await NostrService.reinitialize();
-      debugPrint('🔄 NostrService relay connections ready');
+      debug.success('SCREEN', 'Relay connections ready');
 
       List<NostrFeedPost> posts = [];
 
@@ -72,42 +79,76 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         if (npub != null) {
           // Convert npub to hex pubkey for fetching follows
           _userHexPubkey = NostrService.npubToHex(npub);
+          debug.info(
+            'SCREEN',
+            'Converted npub to hex',
+            _userHexPubkey != null
+                ? 'hex: ${_userHexPubkey!.substring(0, 16)}...'
+                : 'Failed!',
+          );
+          debug.info(
+            'SCREEN',
+            'Original npub',
+            npub.length > 20 ? '${npub.substring(0, 20)}...' : npub,
+          );
 
           if (_userHexPubkey != null) {
             // Fetch user's follows (kind-3 contact list)
+            debug.info('SCREEN', 'Fetching user follows with hex pubkey...');
             _userFollows = await NostrService.fetchUserFollows(_userHexPubkey!);
-            debugPrint('👥 User follows ${_userFollows.length} accounts');
+            debug.info(
+              'SCREEN',
+              'Follows fetched',
+              '${_userFollows.length} accounts',
+            );
 
             if (_userFollows.isNotEmpty) {
               // Fetch posts from follows (last 48 hours)
+              debug.info('SCREEN', 'Fetching follows feed...');
               posts = await NostrService.fetchFollowsFeed(
                 followPubkeys: _userFollows,
                 limit: 50,
               );
-              debugPrint('📰 Fetched ${posts.length} posts from follows');
+              debug.info(
+                'SCREEN',
+                'Follows feed result',
+                '${posts.length} posts',
+              );
 
               if (posts.isEmpty) {
+                debug.warn('SCREEN', 'Follows feed empty');
                 setState(() => _followsFeedEmpty = true);
               }
             } else {
-              // No follows yet - show empty state
+              // No follows yet - fallback to global feed so user sees content
+              debug.warn(
+                'SCREEN',
+                'User has no follows, falling back to global feed',
+              );
               setState(() => _followsFeedEmpty = true);
+              posts = await NostrService.fetchGlobalFeed(limit: 50);
+              debug.info(
+                'SCREEN',
+                'Global feed fallback result',
+                '${posts.length} posts',
+              );
             }
           }
         } else {
           // No account - fallback to global feed
-          debugPrint('👤 No account, fetching global feed instead');
+          debug.info('SCREEN', 'No npub, fetching global feed...');
           posts = await NostrService.fetchGlobalFeed(limit: 50);
-          debugPrint('🌍 Fetched ${posts.length} global posts');
+          debug.info('SCREEN', 'Global feed result', '${posts.length} posts');
         }
       } else {
         // Fetch global feed for Latest and Trending
-        debugPrint('🌍 Fetching global feed...');
+        debug.info('SCREEN', 'Fetching global feed for Latest/Trending...');
         posts = await NostrService.fetchGlobalFeed(limit: 50);
-        debugPrint('🌍 Fetched ${posts.length} global posts');
+        debug.info('SCREEN', 'Global feed result', '${posts.length} posts');
       }
 
       // Fetch author metadata for each unique author (limit to first 10 to speed up)
+      debug.info('SCREEN', 'Fetching author metadata...', 'Up to 10 authors');
       final uniqueAuthors = posts.map((p) => p.authorPubkey).toSet().take(10);
       for (final pubkey in uniqueAuthors) {
         if (!_authorMetadataCache.containsKey(pubkey)) {
@@ -131,15 +172,24 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
           _applyFilter();
           _isLoading = false;
         });
-        debugPrint('✅ Feed loaded with ${posts.length} posts');
+        debug.success(
+          'SCREEN',
+          '_loadFeed() complete',
+          '${posts.length} posts loaded',
+        );
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Error loading feed: $e');
-      debugPrint('📍 Stack trace: $stackTrace');
+      debug.error('SCREEN', 'Error loading feed', '$e\n$stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _openDebugScreen() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NostrDebugScreen()));
   }
 
   void _applyFilter() {
@@ -323,6 +373,16 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                     child: Icon(
                       Icons.refresh,
                       color: Colors.white,
+                      size: 24.sp,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  // Debug button
+                  GestureDetector(
+                    onTap: _openDebugScreen,
+                    child: Icon(
+                      Icons.bug_report,
+                      color: const Color(0xFFF7931A),
                       size: 24.sp,
                     ),
                   ),

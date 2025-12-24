@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'dart:io';
-import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart' as cash_screen;
+import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart'
+    as cash_screen;
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
@@ -74,14 +75,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await _initializeBreezSDK();
-        
+
         // Check if SDK initialized successfully
         if (!BreezSparkService.isInitialized) {
-          debugPrint('⚠️ SDK not initialized after _initializeBreezSDK() - will retry later');
+          debugPrint(
+            '⚠️ SDK not initialized after _initializeBreezSDK() - will retry later',
+          );
           // Don't throw - just continue with empty data, auto-refresh will pick it up
         } else {
-          debugPrint('✅ SDK confirmed initialized - proceeding with data refresh');
-          
+          debugPrint(
+            '✅ SDK confirmed initialized - proceeding with data refresh',
+          );
+
           // Sync and get balance immediately after init
           try {
             await BreezSparkService.syncAndGetBalance();
@@ -89,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             debugPrint('⚠️ syncAndGetBalance failed: $e');
           }
         }
-        
+
         // Refresh providers (they will return safe defaults if SDK not ready)
         await ref.read(balanceNotifierProvider.notifier).refresh();
         await ref.read(walletInfoProvider.notifier).refresh();
@@ -156,7 +161,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (mnemonic != null && mnemonic.isNotEmpty) {
         debugPrint('🔐 Found mnemonic, initializing SDK with seed...');
         await BreezSparkService.initializeSparkSDK(mnemonic: mnemonic);
-        
+
         if (BreezSparkService.isInitialized) {
           debugPrint('✅ Spark SDK initialized successfully');
         } else {
@@ -324,6 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final balanceState = ref.watch(balanceNotifierProvider);
+    // Show skeleton while SDK is initializing OR balance is loading
     final bool showSkeleton =
         !BreezSparkService.isInitialized || balanceState.isLoading;
 
@@ -331,7 +337,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       body: Stack(
         children: [
           Skeletonizer(
-            enabled: showSkeleton && balanceState.isLoading,
+            enabled: showSkeleton, // Skeleton stays on until SDK is ready
             enableSwitchAnimation: true,
             containersColor: AppColors.surface,
             justifyMultiLineText: true,
@@ -352,51 +358,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ],
             ),
           ),
-          // Show error overlay if SDK failed to initialize and not loading
-          if (!BreezSparkService.isInitialized && !balanceState.isLoading)
-            Center(
-              child: Container(
-                margin: EdgeInsets.all(16.w),
-                padding: EdgeInsets.all(20.w),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12.w),
-                  border: Border.all(color: AppColors.accentRed),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.error_outline, color: AppColors.accentRed, size: 48.w),
-                    SizedBox(height: 16.h),
-                    Text(
-                      'SDK Initialization Failed',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      'Unable to initialize wallet services. Please try again.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {});
-                        _initializeBreezSDK();
-                      },
-                      child: Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          // SDK initialization in progress - skeleton loader handles the loading state
+          // No error overlay shown - the skeleton continues until SDK is ready
         ],
       ),
       // Ensure the bottom navigation matches the app dark theme and avoids
@@ -450,13 +413,16 @@ class _HomeContentState extends State<_HomeContent> {
 
         return SafeArea(
           child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(
-                left: 30.h,
-                right: 30.h,
-                top: 30.h,
-                bottom: 30.h + MediaQuery.of(context).padding.bottom + kBottomNavigationBarHeight,
-              ),
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.only(
+              left: 30.h,
+              right: 30.h,
+              top: 30.h,
+              bottom:
+                  30.h +
+                  MediaQuery.of(context).padding.bottom +
+                  kBottomNavigationBarHeight,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -489,23 +455,30 @@ class _HomeContentState extends State<_HomeContent> {
                                   ),
                                 );
                               },
-                              child: Builder(builder: (_) {
-                                final pic = profile?.profilePicturePath;
-                                return CircleAvatar(
-                                  radius: 18.r,
-                                  backgroundColor: AppColors.primary,
-                                  backgroundImage: (pic != null && pic.isNotEmpty) ? FileImage(File(pic)) as ImageProvider : null,
-                                  child: (pic == null || pic.isEmpty)
-                                      ? Text(
-                                          initial,
-                                          style: TextStyle(
-                                            color: AppColors.surface,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        )
-                                      : null,
-                                );
-                              }),
+                              child: Builder(
+                                builder: (_) {
+                                  final pic = profile?.profilePicturePath;
+                                  return CircleAvatar(
+                                    radius: 18.r,
+                                    backgroundColor: AppColors.primary,
+                                    backgroundImage:
+                                        (pic != null && pic.isNotEmpty)
+                                            ? FileImage(File(pic))
+                                                as ImageProvider
+                                            : null,
+                                    child:
+                                        (pic == null || pic.isEmpty)
+                                            ? Text(
+                                              initial,
+                                              style: TextStyle(
+                                                color: AppColors.surface,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            )
+                                            : null,
+                                  );
+                                },
+                              ),
                             ),
                             SizedBox(width: 10.w),
                             Text(
@@ -635,45 +608,49 @@ class _HomeContentState extends State<_HomeContent> {
                         _FigmaActionButton(
                           asset: 'assets/icons/Send.png',
                           label: AppLocalizations.of(context)!.send,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SendScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SendScreen(),
+                                ),
+                              ),
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
                           asset: 'assets/icons/receive.png',
                           label: AppLocalizations.of(context)!.receive,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ReceiveScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ReceiveScreen(),
+                                ),
+                              ),
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
                           asset: 'assets/icons/airtime.png',
                           label: AppLocalizations.of(context)!.airtime,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AirtimeScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AirtimeScreen(),
+                                ),
+                              ),
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
                           asset: 'assets/icons/data.png',
                           label: 'Data',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const DataScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const DataScreen(),
+                                ),
+                              ),
                         ),
                       ],
                     ),
@@ -685,50 +662,56 @@ class _HomeContentState extends State<_HomeContent> {
                         _FigmaActionButton(
                           icon: Icons.electric_bolt_outlined,
                           label: 'Nostr',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const NostrFeedScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const NostrFeedScreen(),
+                                ),
+                              ),
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
                           icon: Icons.groups_outlined,
                           label: 'Agent',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AgentScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AgentScreen(),
+                                ),
+                              ),
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
                           icon: Icons.credit_card_outlined,
                           label: 'card',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ComingSoonScreen(
-                                featureName: 'Virtual Card',
-                                icon: Icons.credit_card,
-                                description: 'Get a virtual Naira card.\nSpend your Bitcoin anywhere!',
-                                accentColor: Color(0xFF9C27B0),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (_) => const ComingSoonScreen(
+                                        featureName: 'Virtual Card',
+                                        icon: Icons.credit_card,
+                                        description:
+                                            'Get a virtual Naira card.\nSpend your Bitcoin anywhere!',
+                                        accentColor: Color(0xFF9C27B0),
+                                      ),
+                                ),
                               ),
-                            ),
-                          ),
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
                           icon: Icons.receipt_long_outlined,
                           label: 'utilities',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const UtilitiesScreen(),
-                            ),
-                          ),
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const UtilitiesScreen(),
+                                ),
+                              ),
                         ),
                       ],
                     ),
@@ -762,9 +745,7 @@ class _HomeContentState extends State<_HomeContent> {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              builder: (_) => NostrEditModal(
-                                onSaved: () {},
-                              ),
+                              builder: (_) => NostrEditModal(onSaved: () {}),
                             );
                             break;
                           case SuggestionType.pin:
@@ -954,7 +935,10 @@ class _FigmaActionButton extends StatelessWidget {
     this.icon,
     required this.label,
     required this.onTap,
-  }) : assert(asset != null || icon != null, 'Either asset or icon must be provided');
+  }) : assert(
+         asset != null || icon != null,
+         'Either asset or icon must be provided',
+       );
 
   @override
   Widget build(BuildContext context) {
@@ -979,11 +963,7 @@ class _FigmaActionButton extends StatelessWidget {
                 color: const Color(0xFFA1A1B2),
               )
             else if (icon != null)
-              Icon(
-                icon,
-                size: 28.w,
-                color: const Color(0xFFA1A1B2),
-              ),
+              Icon(icon, size: 28.w, color: const Color(0xFFA1A1B2)),
             SizedBox(height: 6.h),
             Text(
               label,
