@@ -35,6 +35,7 @@ import 'qr_scanner_screen.dart';
 import 'transactions_screen.dart';
 import 'package:sabi_wallet/features/agent/agent_screen.dart';
 import 'package:sabi_wallet/features/common/coming_soon_screen.dart';
+import 'package:sabi_wallet/features/vtu/vtu.dart';
 import 'notifications_screen.dart';
 import 'payment_detail_screen.dart';
 import 'payment_received_screen.dart';
@@ -659,12 +660,7 @@ class _HomeContentState extends State<_HomeContent> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ComingSoonScreen(
-                                featureName: 'Airtime',
-                                icon: Icons.phone_android,
-                                description: 'Buy airtime directly with Bitcoin.\nTop up any network in seconds!',
-                                accentColor: Color(0xFF00C853),
-                              ),
+                              builder: (_) => const AirtimeScreen(),
                             ),
                           ),
                         ),
@@ -675,12 +671,7 @@ class _HomeContentState extends State<_HomeContent> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ComingSoonScreen(
-                                featureName: 'Data',
-                                icon: Icons.wifi,
-                                description: 'Purchase data bundles with Bitcoin.\nStay connected affordably!',
-                                accentColor: Color(0xFF2196F3),
-                              ),
+                              builder: (_) => const DataScreen(),
                             ),
                           ),
                         ),
@@ -730,17 +721,12 @@ class _HomeContentState extends State<_HomeContent> {
                         ),
                         SizedBox(width: 10.w),
                         _FigmaActionButton(
-                          icon: Icons.card_giftcard_outlined,
-                          label: 'rewards',
+                          icon: Icons.receipt_long_outlined,
+                          label: 'utilities',
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ComingSoonScreen(
-                                featureName: 'Rewards',
-                                icon: Icons.card_giftcard,
-                                description: 'Earn rewards for using Sabi Wallet.\nStack sats while you spend!',
-                                accentColor: Color(0xFFFF9800),
-                              ),
+                              builder: (_) => const UtilitiesScreen(),
                             ),
                           ),
                         ),

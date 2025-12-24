@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nostr_dart/nostr_dart.dart';
 import 'package:bech32/bech32.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
@@ -35,7 +36,7 @@ class NostrService {
   // Rate for sats to naira conversion (can be updated from API)
   static double satsToNairaRate = 0.015; // ~15 kobo per sat
 
-  /// Initialize the Nostr service
+  /// Initialize the Nostr service (non-blocking, defers relay connections)
   static Future<void> init() async {
     if (_initialized) {
       debugPrint('✅ NostrService already initialized');
@@ -43,6 +44,50 @@ class NostrService {
     }
     _secureStorage = const FlutterSecureStorage();
     _initialized = true;
+
+    // Migrate from old Hive storage if needed (don't await to keep init fast)
+    _migrateFromHive();
+
+    debugPrint('✅ NostrService initialized (relays will connect on demand)');
+  }
+
+  /// Migrate keys from old Hive storage to SecureStorage
+  static Future<void> _migrateFromHive() async {
+    try {
+      // Check if we already have keys in SecureStorage
+      final existingNpub = await _secureStorage.read(key: _npubKey);
+      if (existingNpub != null && existingNpub.isNotEmpty) {
+        return; // Already migrated
+      }
+
+      // Try to read from old Hive storage
+      final hive = await Hive.openBox('nostr_keys');
+      final oldNpub = hive.get('npub') as String?;
+      final oldNsec = hive.get('nsec') as String?;
+
+      if (oldNpub != null && oldNpub.isNotEmpty) {
+        await _secureStorage.write(key: _npubKey, value: oldNpub);
+        debugPrint('✅ Migrated npub from Hive to SecureStorage');
+      }
+      if (oldNsec != null && oldNsec.isNotEmpty) {
+        await _secureStorage.write(key: _nsecKey, value: oldNsec);
+        debugPrint('✅ Migrated nsec from Hive to SecureStorage');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not migrate Hive nostr keys: $e');
+    }
+  }
+
+  /// Force reinitialize Nostr (useful when switching accounts or debugging)
+  static Future<void> reinitialize() async {
+    _nostr = null;
+    // Don't reset _initialized - we just need fresh relay connections
+    await _ensureRelayConnections();
+  }
+
+  /// Ensure relay connections are established (lazy initialization)
+  static Future<void> _ensureRelayConnections() async {
+    if (_nostr != null) return;
     await _loadKeysAndInitializeNostr();
   }
 
@@ -61,7 +106,7 @@ class NostrService {
         await _initializeNostrReadOnly();
       }
     } catch (e) {
-      print('❌ Error loading Nostr keys: $e');
+      debugPrint('❌ Error loading Nostr keys: $e');
       // Still try to initialize read-only for browsing
       await _initializeNostrReadOnly();
     }
@@ -70,21 +115,26 @@ class NostrService {
   /// Initialize Nostr in read-only mode (no private key, just relay connections)
   static Future<void> _initializeNostrReadOnly() async {
     try {
+      print('🔄 Initializing Nostr in read-only mode...');
       // Generate a temporary key just for connecting to relays (won't be saved)
       final tempPrivateKey = generatePrivateKey();
       _nostr = Nostr(privateKey: tempPrivateKey);
 
       // Add relays for read-only access
+      int connectedCount = 0;
       for (final relayUrl in _defaultRelays) {
         try {
-          await _nostr!.pool.add(
-            Relay(relayUrl, access: WriteAccess.readOnly),
-          );
+          print('📡 Connecting to $relayUrl...');
+          await _nostr!.pool.add(Relay(relayUrl, access: WriteAccess.readOnly));
+          connectedCount++;
+          print('✅ Connected to $relayUrl');
         } catch (e) {
           print('⚠️ Failed to add relay $relayUrl: $e');
         }
       }
-      print('✅ Nostr initialized in read-only mode with ${_defaultRelays.length} relays');
+      print(
+        '✅ Nostr initialized in read-only mode with $connectedCount/${_defaultRelays.length} relays',
+      );
     } catch (e) {
       print('❌ Error initializing Nostr read-only: $e');
     }
@@ -93,19 +143,26 @@ class NostrService {
   /// Initialize Nostr with a hex private key
   static Future<void> _initializeNostrWithKey(String hexPrivateKey) async {
     try {
+      print('🔄 Initializing Nostr with private key...');
       _nostr = Nostr(privateKey: hexPrivateKey);
 
       // Add relays
+      int connectedCount = 0;
       for (final relayUrl in _defaultRelays) {
         try {
+          print('📡 Connecting to $relayUrl...');
           await _nostr!.pool.add(
             Relay(relayUrl, access: WriteAccess.readWrite),
           );
+          connectedCount++;
+          print('✅ Connected to $relayUrl');
         } catch (e) {
           print('⚠️ Failed to add relay $relayUrl: $e');
         }
       }
-      print('✅ Nostr initialized with ${_defaultRelays.length} relays');
+      print(
+        '✅ Nostr initialized with $connectedCount/${_defaultRelays.length} relays',
+      );
     } catch (e) {
       print('❌ Error initializing Nostr: $e');
     }
@@ -114,6 +171,12 @@ class NostrService {
   /// Generate new Nostr keys
   static Future<Map<String, String>> generateKeys() async {
     try {
+      // Ensure storage is initialized
+      if (!_initialized) {
+        _secureStorage = const FlutterSecureStorage();
+        _initialized = true;
+      }
+
       // generatePrivateKey() returns a hex private key
       final hexPrivateKey = generatePrivateKey();
       // getPublicKey() expects hex and returns hex public key
@@ -171,6 +234,12 @@ class NostrService {
     required String npub,
   }) async {
     try {
+      // Ensure storage is initialized
+      if (!_initialized) {
+        _secureStorage = const FlutterSecureStorage();
+        _initialized = true;
+      }
+
       // Handle case where only npub is provided (read-only mode)
       if (nsec.isEmpty && npub.isNotEmpty) {
         if (!_isValidNpub(npub)) {
@@ -219,6 +288,11 @@ class NostrService {
   /// Get current npub
   static Future<String?> getNpub() async {
     try {
+      // Ensure storage is initialized
+      if (!_initialized) {
+        _secureStorage = const FlutterSecureStorage();
+        _initialized = true;
+      }
       return await _secureStorage.read(key: _npubKey);
     } catch (e) {
       print('❌ Error reading npub: $e');
@@ -229,6 +303,11 @@ class NostrService {
   /// Get current nsec (be careful with this!)
   static Future<String?> getNsec() async {
     try {
+      // Ensure storage is initialized
+      if (!_initialized) {
+        _secureStorage = const FlutterSecureStorage();
+        _initialized = true;
+      }
       return await _secureStorage.read(key: _nsecKey);
     } catch (e) {
       print('❌ Error reading nsec: $e');
@@ -485,8 +564,10 @@ class NostrService {
         return posts;
       }
 
-      // Get posts from last 24 hours for global feed
-      final since = DateTime.now().subtract(const Duration(hours: 24));
+      print('📡 Fetching global feed from ${_defaultRelays.length} relays...');
+
+      // Get posts from last 7 days for global feed (increased from 24h)
+      final since = DateTime.now().subtract(const Duration(days: 7));
       final sinceTimestamp = since.millisecondsSinceEpoch ~/ 1000;
 
       // Filter for kind 1 (text notes) from recent time
@@ -496,17 +577,20 @@ class NostrService {
         'limit': limit,
       };
 
+      print('📋 Filter: $filter');
+
       final subscriptionId =
           'global_feed_${DateTime.now().millisecondsSinceEpoch}';
       final receivedEvents = <String, Event>{};
 
-      // Subscribe to events with timeout (increased to 8 seconds for better relay response)
+      // Subscribe to events with timeout (increased to 10 seconds for better relay response)
       Timer? timeoutTimer;
       bool isCompleted = false;
 
-      timeoutTimer = Timer(const Duration(seconds: 8), () {
+      timeoutTimer = Timer(const Duration(seconds: 10), () {
         if (!isCompleted) {
           isCompleted = true;
+          print('⏱️ Timeout reached, received ${receivedEvents.length} events');
           // Convert received events to posts
           for (final event in receivedEvents.values) {
             posts.add(NostrFeedPost.fromEvent(event));
@@ -517,6 +601,7 @@ class NostrService {
       });
 
       _nostr!.pool.subscribe([filter], (event) {
+        print('📨 Received event: ${event.id.substring(0, 8)}...');
         if (!isCompleted && !receivedEvents.containsKey(event.id)) {
           receivedEvents[event.id] = event;
 
@@ -524,6 +609,7 @@ class NostrService {
           if (receivedEvents.length >= limit) {
             timeoutTimer?.cancel();
             isCompleted = true;
+            print('✅ Reached limit of $limit events');
             for (final e in receivedEvents.values) {
               posts.add(NostrFeedPost.fromEvent(e));
             }
@@ -584,11 +670,14 @@ class NostrService {
       _nostr!.pool.subscribe([filter], (event) async {
         if (!isCompleted) {
           isCompleted = true;
-          
+
           // Parse contact list from tags
           final freshFollows = <String>[];
           for (final tag in event.tags) {
-            if (tag is List && tag.isNotEmpty && tag[0] == 'p' && tag.length > 1) {
+            if (tag is List &&
+                tag.isNotEmpty &&
+                tag[0] == 'p' &&
+                tag.length > 1) {
               final pubkey = tag[1].toString();
               if (pubkey.isNotEmpty) {
                 freshFollows.add(pubkey);
@@ -664,7 +753,8 @@ class NostrService {
         'limit': limit,
       };
 
-      final subscriptionId = 'follows_feed_${DateTime.now().millisecondsSinceEpoch}';
+      final subscriptionId =
+          'follows_feed_${DateTime.now().millisecondsSinceEpoch}';
       final receivedEvents = <String, Event>{};
 
       // Timeout after 8 seconds (longer for follows feed)

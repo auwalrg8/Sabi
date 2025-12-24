@@ -16,6 +16,7 @@ ios/Runner/GeneratedPluginRegistrant.*
 .env
 *.local
 lib/config/breez_api_key.local.dart
+lib/config/vtu_config.local.dart
 
 # Android
 android/app/debug

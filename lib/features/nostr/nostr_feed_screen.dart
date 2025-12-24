@@ -53,9 +53,17 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     });
 
     try {
+      // Ensure NostrService is initialized (lazy relay connections)
       await NostrService.init();
+
+      // Get stored npub to check if user has nostr account
       final npub = await NostrService.getNpub();
       setState(() => _userNpub = npub);
+      debugPrint('👤 User npub: ${npub != null ? "exists" : "null"}');
+
+      // Ensure relay connections for fetching posts
+      await NostrService.reinitialize();
+      debugPrint('🔄 NostrService relay connections ready');
 
       List<NostrFeedPost> posts = [];
 
@@ -64,7 +72,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         if (npub != null) {
           // Convert npub to hex pubkey for fetching follows
           _userHexPubkey = NostrService.npubToHex(npub);
-          
+
           if (_userHexPubkey != null) {
             // Fetch user's follows (kind-3 contact list)
             _userFollows = await NostrService.fetchUserFollows(_userHexPubkey!);
@@ -76,7 +84,8 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                 followPubkeys: _userFollows,
                 limit: 50,
               );
-              
+              debugPrint('📰 Fetched ${posts.length} posts from follows');
+
               if (posts.isEmpty) {
                 setState(() => _followsFeedEmpty = true);
               }
@@ -85,14 +94,21 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               setState(() => _followsFeedEmpty = true);
             }
           }
+        } else {
+          // No account - fallback to global feed
+          debugPrint('👤 No account, fetching global feed instead');
+          posts = await NostrService.fetchGlobalFeed(limit: 50);
+          debugPrint('🌍 Fetched ${posts.length} global posts');
         }
       } else {
         // Fetch global feed for Latest and Trending
+        debugPrint('🌍 Fetching global feed...');
         posts = await NostrService.fetchGlobalFeed(limit: 50);
+        debugPrint('🌍 Fetched ${posts.length} global posts');
       }
 
-      // Fetch author metadata for each unique author
-      final uniqueAuthors = posts.map((p) => p.authorPubkey).toSet();
+      // Fetch author metadata for each unique author (limit to first 10 to speed up)
+      final uniqueAuthors = posts.map((p) => p.authorPubkey).toSet().take(10);
       for (final pubkey in uniqueAuthors) {
         if (!_authorMetadataCache.containsKey(pubkey)) {
           final metadata = await NostrService.fetchAuthorMetadata(pubkey);
@@ -115,9 +131,11 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
           _applyFilter();
           _isLoading = false;
         });
+        debugPrint('✅ Feed loaded with ${posts.length} posts');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Error loading feed: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -380,7 +398,8 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                       ? _buildSkeletonLoader()
                       : _userNpub == null
                       ? _buildNoAccountState()
-                      : (_followsFeedEmpty && _currentFilter == FeedFilter.newThreads)
+                      : (_followsFeedEmpty &&
+                          _currentFilter == FeedFilter.newThreads)
                       ? _buildFollowsEmptyState()
                       : _filteredPosts.isEmpty
                       ? _buildEmptyState()
@@ -526,10 +545,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               _userFollows.isEmpty
                   ? 'Follow some Bitcoiners to see their posts here!'
                   : 'Zap someone to wake them up! ⚡',
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 14.sp,
-              ),
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 24.h),
@@ -538,19 +554,33 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               children: [
                 TextButton.icon(
                   onPressed: () => _onFilterChanged(FeedFilter.latest),
-                  icon: Icon(Icons.public, size: 18.sp, color: const Color(0xFFF7931A)),
+                  icon: Icon(
+                    Icons.public,
+                    size: 18.sp,
+                    color: const Color(0xFFF7931A),
+                  ),
                   label: Text(
                     'Browse Global',
-                    style: TextStyle(color: const Color(0xFFF7931A), fontSize: 14.sp),
+                    style: TextStyle(
+                      color: const Color(0xFFF7931A),
+                      fontSize: 14.sp,
+                    ),
                   ),
                 ),
                 SizedBox(width: 16.w),
                 TextButton.icon(
                   onPressed: _loadFeed,
-                  icon: Icon(Icons.refresh, size: 18.sp, color: const Color(0xFF00FFB2)),
+                  icon: Icon(
+                    Icons.refresh,
+                    size: 18.sp,
+                    color: const Color(0xFF00FFB2),
+                  ),
                   label: Text(
                     'Refresh',
-                    style: TextStyle(color: const Color(0xFF00FFB2), fontSize: 14.sp),
+                    style: TextStyle(
+                      color: const Color(0xFF00FFB2),
+                      fontSize: 14.sp,
+                    ),
                   ),
                 ),
               ],
