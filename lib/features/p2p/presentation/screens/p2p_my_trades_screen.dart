@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
 
 /// P2P My Trades Screen - Active trades list
@@ -76,7 +77,11 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
         backgroundColor: const Color(0xFF0C0C1A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -101,8 +106,11 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
                 color: const Color(0xFFF7931A),
                 borderRadius: BorderRadius.circular(12.r),
               ),
-              labelColor: Colors.white,
+              labelColor: AppColors.surface,
+              indicatorPadding: EdgeInsets.symmetric(horizontal: 4.w),
+              indicatorSize: TabBarIndicatorSize.tab,
               unselectedLabelColor: const Color(0xFFA1A1B2),
+              dividerColor: Colors.transparent,
               labelStyle: TextStyle(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
@@ -117,10 +125,7 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildActiveTradesTab(),
-          _buildMyOffersTab(),
-        ],
+        children: [_buildActiveTradesTab(), _buildMyOffersTab()],
       ),
     );
   }
@@ -195,10 +200,7 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
           SizedBox(height: 8.h),
           Text(
             subtitle,
-            style: TextStyle(
-              color: const Color(0xFF6B6B80),
-              fontSize: 14.sp,
-            ),
+            style: TextStyle(color: const Color(0xFF6B6B80), fontSize: 14.sp),
           ),
         ],
       ),
@@ -208,33 +210,42 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
   void _showDeleteConfirmation(_MockTrade offer) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF111128),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-        title: Text(
-          'Delete Offer?',
-          style: TextStyle(color: Colors.white, fontSize: 18.sp),
-        ),
-        content: Text(
-          'Are you sure you want to delete this offer? This action cannot be undone.',
-          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: const Color(0xFFA1A1B2))),
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            title: Text(
+              'Delete Offer?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'Are you sure you want to delete this offer? This action cannot be undone.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: const Color(0xFFA1A1B2)),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _pendingOffers.removeWhere((o) => o.id == offer.id);
+                  });
+                },
+                child: Text(
+                  'Delete',
+                  style: TextStyle(color: const Color(0xFFFF6B6B)),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                _pendingOffers.removeWhere((o) => o.id == offer.id);
-              });
-            },
-            child: Text('Delete', style: TextStyle(color: const Color(0xFFFF6B6B))),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -255,7 +266,7 @@ class _ActiveTradeCard extends StatelessWidget {
         color: const Color(0xFF111128),
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(
-          color: _getStatusColor(trade.status).withOpacity(0.3),
+          color: _getStatusColor(trade.status).withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -289,7 +300,7 @@ class _ActiveTradeCard extends StatelessWidget {
                     Text(
                       'Trading with ${trade.merchantName}',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary.withValues(alpha: 0.75),
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
                       ),
@@ -320,15 +331,22 @@ class _ActiveTradeCard extends StatelessWidget {
               ),
               if (trade.timeLeft != null)
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 6.h,
+                  ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7931A).withOpacity(0.15),
+                    color: const Color(0xFFF7931A).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer, color: const Color(0xFFF7931A), size: 14.sp),
+                      Icon(
+                        Icons.timer,
+                        color: const Color(0xFFF7931A),
+                        size: 14.sp,
+                      ),
                       SizedBox(width: 4.w),
                       Text(
                         '${trade.timeLeft!.inMinutes}m',
@@ -376,7 +394,11 @@ class _ActiveTradeCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward, color: const Color(0xFFA1A1B2), size: 20.sp),
+                Icon(
+                  Icons.arrow_forward,
+                  color: const Color(0xFFA1A1B2),
+                  size: 20.sp,
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -421,7 +443,7 @@ class _ActiveTradeCard extends StatelessWidget {
               child: Text(
                 'Continue Trade',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
                 ),
@@ -501,14 +523,19 @@ class _MyOfferCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: (offer.isBuying ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B))
-                      .withOpacity(0.15),
+                  color: (offer.isBuying
+                          ? const Color(0xFF00FFB2)
+                          : const Color(0xFFFF6B6B))
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Text(
                   offer.isBuying ? 'BUY OFFER' : 'SELL OFFER',
                   style: TextStyle(
-                    color: offer.isBuying ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                    color:
+                        offer.isBuying
+                            ? const Color(0xFF00FFB2)
+                            : const Color(0xFFFF6B6B),
                     fontSize: 11.sp,
                     fontWeight: FontWeight.bold,
                   ),
@@ -572,10 +599,7 @@ class _MyOfferCard extends StatelessWidget {
                   ),
                   Text(
                     offer.paymentMethod,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13.sp,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 13.sp),
                   ),
                 ],
               ),

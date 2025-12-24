@@ -22,7 +22,7 @@ class P2PDisputeScreen extends ConsumerStatefulWidget {
 class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final formatter = NumberFormat('#,###');
-  
+
   String _selectedReason = 'Payment not received';
   bool _isSubmitting = false;
   bool _isSubmitted = false;
@@ -64,7 +64,9 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
       // 2. Encrypt message with each Sabi team member's public key
       // 3. Send NIP-04 encrypted DM to each
       // 4. Store dispute locally for tracking
-      debugPrint('Sending dispute to ${_sabiTeamNpubs.length} Sabi team members');
+      debugPrint(
+        'Sending dispute to ${_sabiTeamNpubs.length} Sabi team members',
+      );
 
       await Future.delayed(const Duration(seconds: 2));
 
@@ -101,7 +103,11 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
         backgroundColor: const Color(0xFF0C0C1A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -125,10 +131,10 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                      color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: const Color(0xFFFF6B6B).withOpacity(0.3),
+                        color: const Color(0xFFFF6B6B).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -165,14 +171,12 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
                     ),
                     child: Column(
                       children: [
-                        _InfoRow(
-                          label: 'Merchant',
-                          value: widget.offer.name,
-                        ),
+                        _InfoRow(label: 'Merchant', value: widget.offer.name),
                         SizedBox(height: 12.h),
                         _InfoRow(
                           label: 'Amount',
-                          value: '₦${formatter.format(widget.tradeAmount.toInt())}',
+                          value:
+                              '₦${formatter.format(widget.tradeAmount.toInt())}',
                         ),
                         SizedBox(height: 12.h),
                         _InfoRow(
@@ -193,62 +197,71 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                     child: Column(
-                      children: _disputeReasons.map((reason) {
-                        final isSelected = _selectedReason == reason;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedReason = reason),
-                          child: Container(
-                            padding: EdgeInsets.all(16.w),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: reason != _disputeReasons.last
-                                    ? BorderSide(
-                                        color: const Color(0xFF2A2A3E),
-                                        width: 1,
-                                      )
-                                    : BorderSide.none,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 22.w,
-                                  height: 22.h,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? const Color(0xFFF7931A)
-                                          : const Color(0xFFA1A1B2),
-                                      width: 2,
+                      children:
+                          _disputeReasons.map((reason) {
+                            final isSelected = _selectedReason == reason;
+                            return GestureDetector(
+                              onTap:
+                                  () =>
+                                      setState(() => _selectedReason = reason),
+                              child: Container(
+                                padding: EdgeInsets.all(16.w),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom:
+                                        reason != _disputeReasons.last
+                                            ? BorderSide(
+                                              color: const Color(0xFF2A2A3E),
+                                              width: 1,
+                                            )
+                                            : BorderSide.none,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 22.w,
+                                      height: 22.h,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color:
+                                              isSelected
+                                                  ? const Color(0xFFF7931A)
+                                                  : const Color(0xFFA1A1B2),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child:
+                                          isSelected
+                                              ? Center(
+                                                child: Container(
+                                                  width: 12.w,
+                                                  height: 12.h,
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Color(
+                                                          0xFFF7931A,
+                                                        ),
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                ),
+                                              )
+                                              : null,
                                     ),
-                                  ),
-                                  child: isSelected
-                                      ? Center(
-                                          child: Container(
-                                            width: 12.w,
-                                            height: 12.h,
-                                            decoration: const BoxDecoration(
-                                              color: Color(0xFFF7931A),
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        )
-                                      : null,
+                                    SizedBox(width: 12.w),
+                                    Text(
+                                      reason,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14.sp,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(width: 12.w),
-                                Text(
-                                  reason,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                              ),
+                            );
+                          }).toList(),
                     ),
                   ),
                   SizedBox(height: 24.h),
@@ -361,9 +374,7 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
             padding: EdgeInsets.all(16.w),
             decoration: const BoxDecoration(
               color: Color(0xFF111128),
-              border: Border(
-                top: BorderSide(color: Color(0xFF2A2A3E)),
-              ),
+              border: Border(top: BorderSide(color: Color(0xFF2A2A3E))),
             ),
             child: SafeArea(
               child: SizedBox(
@@ -378,23 +389,24 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                   ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          width: 24.w,
-                          height: 24.h,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                  child:
+                      _isSubmitting
+                          ? SizedBox(
+                            width: 24.w,
+                            height: 24.h,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                          : Text(
+                            'Submit Dispute',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        )
-                      : Text(
-                          'Submit Dispute',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
               ),
             ),
@@ -416,7 +428,7 @@ class _P2PDisputeScreenState extends ConsumerState<P2PDisputeScreen> {
               Container(
                 padding: EdgeInsets.all(24.w),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7931A).withOpacity(0.2),
+                  color: const Color(0xFFF7931A).withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -572,10 +584,7 @@ class _InfoRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         Text(
           value,
@@ -619,14 +628,18 @@ class _TimelineItem extends StatelessWidget {
               width: 32.w,
               height: 32.h,
               decoration: BoxDecoration(
-                color: isCompleted
-                    ? const Color(0xFF00FFB2)
-                    : const Color(0xFF2A2A3E),
+                color:
+                    isCompleted
+                        ? const Color(0xFF00FFB2)
+                        : const Color(0xFF2A2A3E),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                color: isCompleted ? const Color(0xFF0C0C1A) : const Color(0xFF6B6B80),
+                color:
+                    isCompleted
+                        ? const Color(0xFF0C0C1A)
+                        : const Color(0xFF6B6B80),
                 size: 18.sp,
               ),
             ),
@@ -634,7 +647,10 @@ class _TimelineItem extends StatelessWidget {
               Container(
                 width: 2,
                 height: 40.h,
-                color: isCompleted ? const Color(0xFF00FFB2) : const Color(0xFF2A2A3E),
+                color:
+                    isCompleted
+                        ? const Color(0xFF00FFB2)
+                        : const Color(0xFF2A2A3E),
               ),
           ],
         ),

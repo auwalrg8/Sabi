@@ -16,9 +16,11 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final offers = ref.watch(p2pOffersProvider)
-        .where((o) => o.merchant?.id == merchant.id)
-        .toList();
+    final offers =
+        ref
+            .watch(p2pOffersProvider)
+            .where((o) => o.merchant?.id == merchant.id)
+            .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
@@ -33,10 +35,14 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
               icon: Container(
                 padding: EdgeInsets.all(8.w),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0C0C1A).withOpacity(0.5),
+                  color: const Color(0xFF0C0C1A).withValues(alpha: 0.5),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18.sp),
+                child: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 18.sp,
+                ),
               ),
               onPressed: () => Navigator.pop(context),
             ),
@@ -47,7 +53,7 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      _getAvatarColor(merchant.name).withOpacity(0.3),
+                      _getAvatarColor(merchant.name).withValues(alpha: 0.3),
                       const Color(0xFF111128),
                     ],
                   ),
@@ -65,18 +71,19 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                           color: _getAvatarColor(merchant.name),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             width: 3,
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: merchant.avatarUrl != null
-                            ? CachedNetworkImage(
-                                imageUrl: merchant.avatarUrl!,
-                                fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => _buildInitial(),
-                              )
-                            : _buildInitial(),
+                        child:
+                            merchant.avatarUrl != null
+                                ? CachedNetworkImage(
+                                  imageUrl: merchant.avatarUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => _buildInitial(),
+                                )
+                                : _buildInitial(),
                       ),
                       SizedBox(height: 12.h),
                       // Name and verification
@@ -102,9 +109,14 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                           if (merchant.isNostrVerified) ...[
                             SizedBox(width: 6.w),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6.w,
+                                vertical: 2.h,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                color: const Color(
+                                  0xFF8B5CF6,
+                                ).withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6.r),
                               ),
                               child: Row(
@@ -149,7 +161,8 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                       Expanded(
                         child: _StatCard(
                           icon: Icons.check_circle,
-                          value: '${merchant.completionRate.toStringAsFixed(0)}%',
+                          value:
+                              '${merchant.completionRate.toStringAsFixed(0)}%',
                           label: 'Completion',
                           color: const Color(0xFF00FFB2),
                         ),
@@ -196,9 +209,10 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                           icon: Icons.thumb_down,
                           label: 'Negative Reviews',
                           value: '${merchant.negativeFeedback}',
-                          color: merchant.negativeFeedback == 0
-                              ? const Color(0xFFA1A1B2)
-                              : const Color(0xFFFF6B6B),
+                          color:
+                              merchant.negativeFeedback == 0
+                                  ? const Color(0xFFA1A1B2)
+                                  : const Color(0xFFFF6B6B),
                         ),
                         SizedBox(height: 16.h),
                         _DetailRow(
@@ -232,10 +246,10 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                   Container(
                     padding: EdgeInsets.all(20.w),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00FFB2).withOpacity(0.1),
+                      color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20.r),
                       border: Border.all(
-                        color: const Color(0xFF00FFB2).withOpacity(0.3),
+                        color: const Color(0xFF00FFB2).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -243,7 +257,9 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
                         Container(
                           padding: EdgeInsets.all(16.w),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF00FFB2).withOpacity(0.2),
+                            color: const Color(
+                              0xFF00FFB2,
+                            ).withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -323,50 +339,49 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
           // Offers List
           offers.isEmpty
               ? SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40.h),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.inbox,
-                          size: 48.sp,
-                          color: const Color(0xFF6B6B80),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40.h),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.inbox,
+                        size: 48.sp,
+                        color: const Color(0xFF6B6B80),
+                      ),
+                      SizedBox(height: 12.h),
+                      Text(
+                        'No active offers',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 14.sp,
                         ),
-                        SizedBox(height: 12.h),
-                        Text(
-                          'No active offers',
-                          style: TextStyle(
-                            color: const Color(0xFFA1A1B2),
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : SliverPadding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final offer = offers[index];
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: 12.h),
-                          child: _MerchantOfferCard(
-                            offer: offer,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => P2POfferDetailScreen(offer: offer),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      childCount: offers.length,
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              )
+              : SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final offer = offers[index];
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: 12.h),
+                      child: _MerchantOfferCard(
+                        offer: offer,
+                        onTap:
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => P2POfferDetailScreen(offer: offer),
+                              ),
+                            ),
+                      ),
+                    );
+                  }, childCount: offers.length),
+                ),
+              ),
 
           // Bottom padding
           SliverToBoxAdapter(child: SizedBox(height: 40.h)),
@@ -416,20 +431,20 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
 
   int _calculateTrustScore() {
     double score = 50.0;
-    
+
     // Completion rate (max 30 points)
     score += merchant.completionRate * 0.3;
-    
+
     // Trades in 30 days (max 10 points)
     score += (merchant.trades30d / 20).clamp(0, 10);
-    
+
     // Verification bonus (5 points each)
     if (merchant.isVerified) score += 5;
     if (merchant.isNostrVerified) score += 5;
-    
+
     // No negative feedback bonus
     if (merchant.negativeFeedback == 0) score += 5;
-    
+
     return score.round().clamp(0, 100);
   }
 
@@ -455,7 +470,7 @@ class P2PMerchantProfileScreen extends ConsumerWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20.r),
       ),
       child: Text(
@@ -507,10 +522,7 @@ class _StatCard extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             label,
-            style: TextStyle(
-              color: const Color(0xFFA1A1B2),
-              fontSize: 11.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 11.sp),
             textAlign: TextAlign.center,
           ),
         ],
@@ -542,10 +554,7 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(
-              color: const Color(0xFFA1A1B2),
-              fontSize: 14.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
           ),
         ),
         Text(
@@ -566,10 +575,7 @@ class _MerchantOfferCard extends StatelessWidget {
   final P2POfferModel offer;
   final VoidCallback onTap;
 
-  const _MerchantOfferCard({
-    required this.offer,
-    required this.onTap,
-  });
+  const _MerchantOfferCard({required this.offer, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -591,16 +597,24 @@ class _MerchantOfferCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
-                    color: (isSell ? const Color(0xFFFF6B6B) : const Color(0xFF00FFB2))
-                        .withOpacity(0.15),
+                    color: (isSell
+                            ? const Color(0xFFFF6B6B)
+                            : const Color(0xFF00FFB2))
+                        .withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Text(
                     isSell ? 'SELL' : 'BUY',
                     style: TextStyle(
-                      color: isSell ? const Color(0xFFFF6B6B) : const Color(0xFF00FFB2),
+                      color:
+                          isSell
+                              ? const Color(0xFFFF6B6B)
+                              : const Color(0xFF00FFB2),
                       fontSize: 11.sp,
                       fontWeight: FontWeight.bold,
                     ),

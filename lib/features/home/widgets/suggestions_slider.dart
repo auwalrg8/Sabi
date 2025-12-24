@@ -145,15 +145,17 @@ class _SuggestionCard extends StatelessWidget {
                   ),
                   SizedBox(height: 6.h),
                   // Body text placed below title row and spanning full width
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(
-                      color: actionColor,
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12.sp,
+                  Expanded(
+                    child: Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: actionColor,
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12.sp,
+                      ),
                     ),
                   ),
                   if (actionText.isNotEmpty)
