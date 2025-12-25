@@ -141,10 +141,6 @@ class _SendScreenState extends State<SendScreen>
         _step = _SendStep.amount;
       }
     });
-
-    ContactService.addRecentContact(
-      ContactInfo(displayName: input, identifier: input, type: type.name),
-    );
   }
 
   void _selectRecipient(ContactInfo contact) {
@@ -422,6 +418,16 @@ class _SendScreenState extends State<SendScreen>
         feeSats: feeSats,
         bolt11: _recipient?.identifier,
       );
+      
+      // Save to recent contacts after successful payment
+      ContactService.addRecentContact(
+        ContactInfo(
+          displayName: _recipient!.name,
+          identifier: _recipient!.identifier,
+          type: _recipient!.type.name,
+        ),
+      );
+      
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
