@@ -23,7 +23,8 @@ class NostrFeedScreen extends StatefulWidget {
 class _NostrFeedScreenState extends State<NostrFeedScreen> {
   List<NostrFeedPost> _posts = [];
   List<NostrFeedPost> _filteredPosts = [];
-  bool _isLoading = true;
+  bool _isLoading = false; // Start as false - we show cached content immediately
+  bool _isRefreshing = false; // Background refresh indicator
   String? _userNpub;
   String? _userHexPubkey;
   List<String> _userFollows = [];
@@ -32,13 +33,14 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showImages = false; // Default to text-only mode for low-data users
-  final Map<String, Map<String, String>> _authorMetadataCache = {};
+  Map<String, Map<String, String>> _authorMetadataCache = {};
   bool _followsFeedEmpty = false; // Track if follows feed returned no posts
+  bool _hasCachedContent = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFeed();
+    _initFeed();
   }
 
   @override
@@ -47,130 +49,118 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     super.dispose();
   }
 
-  Future<void> _loadFeed() async {
-    setState(() {
-      _isLoading = true;
-      _followsFeedEmpty = false;
-    });
+  /// Initialize feed - load cached content immediately, then refresh in background
+  Future<void> _initFeed() async {
+    // Step 1: Load cached content immediately (no loading state)
+    await _loadCachedContent();
+    
+    // Step 2: Refresh in background
+    _refreshFeedInBackground();
+  }
 
-    final debug = NostrService.debugService;
-    debug.info('SCREEN', '_loadFeed() started', 'filter: $_currentFilter');
-
+  /// Load cached posts and metadata - shows content instantly
+  Future<void> _loadCachedContent() async {
     try {
-      // Ensure NostrService is initialized (lazy relay connections)
-      debug.info('SCREEN', 'Calling NostrService.init()...');
-      await NostrService.init();
-
-      // Get stored npub to check if user has nostr account
-      debug.info('SCREEN', 'Calling getNpub()...');
-      final npub = await NostrService.getNpub();
-      setState(() => _userNpub = npub);
-      debug.info('SCREEN', 'getNpub result', npub != null ? 'Found' : 'null');
-
-      // Ensure relay connections for fetching posts
-      debug.info('SCREEN', 'Calling reinitialize() for relay connections...');
-      await NostrService.reinitialize();
-      debug.success('SCREEN', 'Relay connections ready');
-
-      List<NostrFeedPost> posts = [];
-
-      if (_currentFilter == FeedFilter.newThreads) {
-        // Fetch follows feed - posts from people the user follows
-        if (npub != null) {
-          // Convert npub to hex pubkey for fetching follows
-          _userHexPubkey = NostrService.npubToHex(npub);
-          debug.info(
-            'SCREEN',
-            'Converted npub to hex',
-            _userHexPubkey != null
-                ? 'hex: ${_userHexPubkey!.substring(0, 16)}...'
-                : 'Failed!',
-          );
-          debug.info(
-            'SCREEN',
-            'Original npub',
-            npub.length > 20 ? '${npub.substring(0, 20)}...' : npub,
-          );
-
-          if (_userHexPubkey != null) {
-            // Fetch user's follows (kind-3 contact list) using DIRECT WebSocket
-            debug.info(
-              'SCREEN',
-              'Fetching user follows (direct) with hex pubkey...',
-            );
-            _userFollows = await NostrService.fetchUserFollowsDirect(
-              _userHexPubkey!,
-            );
-            debug.info(
-              'SCREEN',
-              'Follows fetched',
-              '${_userFollows.length} accounts',
-            );
-
-            if (_userFollows.isNotEmpty) {
-              // Fetch posts from follows using direct WebSocket
-              debug.info('SCREEN', 'Fetching follows feed (direct)...');
-              posts = await NostrService.fetchFollowsFeedDirect(
-                followPubkeys: _userFollows,
-                limit: 50,
-              );
-              debug.info(
-                'SCREEN',
-                'Follows feed result',
-                '${posts.length} posts',
-              );
-
-              if (posts.isEmpty) {
-                debug.warn('SCREEN', 'Follows feed empty');
-                setState(() => _followsFeedEmpty = true);
-              }
-            } else {
-              // No follows yet - fallback to global feed so user sees content
-              debug.warn(
-                'SCREEN',
-                'User has no follows, falling back to global feed',
-              );
-              setState(() => _followsFeedEmpty = true);
-              // Use DIRECT WebSocket fetch (bypasses nostr_dart issues)
-              posts = await NostrService.fetchGlobalFeedDirect(limit: 50);
-              debug.info(
-                'SCREEN',
-                'Global feed fallback result',
-                '${posts.length} posts',
-              );
-            }
+      // Load cached metadata first
+      _authorMetadataCache = await NostrService.loadCachedMetadata();
+      
+      // Load cached posts
+      final cachedPosts = await NostrService.loadCachedPosts();
+      
+      if (cachedPosts.isNotEmpty) {
+        // Apply cached metadata to posts
+        for (final post in cachedPosts) {
+          if (_authorMetadataCache.containsKey(post.authorPubkey)) {
+            final meta = _authorMetadataCache[post.authorPubkey]!;
+            post.authorName = meta['name'] ?? meta['display_name'] ?? post.authorName;
+            post.authorAvatar = meta['picture'] ?? meta['avatar'];
           }
-        } else {
-          // No account - fallback to global feed
-          debug.info('SCREEN', 'No npub, fetching global feed (direct)...');
-          posts = await NostrService.fetchGlobalFeedDirect(limit: 50);
-          debug.info('SCREEN', 'Global feed result', '${posts.length} posts');
+        }
+        
+        if (mounted) {
+          setState(() {
+            _posts = cachedPosts;
+            _hasCachedContent = true;
+            _applyFilter();
+          });
         }
       } else {
-        // Fetch global feed for Latest and Trending
-        debug.info(
-          'SCREEN',
-          'Fetching global feed (direct) for Latest/Trending...',
-        );
-        // Use DIRECT WebSocket fetch (bypasses nostr_dart issues)
-        posts = await NostrService.fetchGlobalFeedDirect(limit: 50);
-        debug.info('SCREEN', 'Global feed result', '${posts.length} posts');
+        // No cached content - show loading state
+        if (mounted) {
+          setState(() => _isLoading = true);
+        }
+      }
+    } catch (e) {
+      print('Error loading cached content: $e');
+      if (mounted) {
+        setState(() => _isLoading = true);
+      }
+    }
+  }
+
+  /// Refresh feed in background without blocking UI
+  Future<void> _refreshFeedInBackground() async {
+    if (mounted) {
+      setState(() => _isRefreshing = true);
+    }
+
+    final debug = NostrService.debugService;
+    debug.info('SCREEN', 'Background refresh started', 'filter: $_currentFilter');
+
+    try {
+      // Initialize Nostr service (quick if already done)
+      await NostrService.init();
+
+      // Get stored npub
+      final npub = await NostrService.getNpub();
+      _userNpub = npub;
+
+      // Quick relay initialization
+      await NostrService.reinitialize();
+
+      List<NostrFeedPost> newPosts = [];
+
+      if (_currentFilter == FeedFilter.newThreads && npub != null) {
+        _userHexPubkey = NostrService.npubToHex(npub);
+        
+        if (_userHexPubkey != null) {
+          _userFollows = await NostrService.fetchUserFollowsDirect(_userHexPubkey!);
+          
+          if (_userFollows.isNotEmpty) {
+            newPosts = await NostrService.fetchFollowsFeedDirect(
+              followPubkeys: _userFollows,
+              limit: 50,
+            );
+            
+            if (newPosts.isEmpty && mounted) {
+              setState(() => _followsFeedEmpty = true);
+            }
+          } else {
+            if (mounted) setState(() => _followsFeedEmpty = true);
+            newPosts = await NostrService.fetchGlobalFeedDirect(limit: 50);
+          }
+        }
+      } else {
+        newPosts = await NostrService.fetchGlobalFeedDirect(limit: 50);
       }
 
-      // Fetch author metadata for each unique author (limit to first 10 to speed up)
-      debug.info('SCREEN', 'Fetching author metadata...', 'Up to 10 authors');
-      final uniqueAuthors = posts.map((p) => p.authorPubkey).toSet().take(10);
+      // Fetch author metadata for new posts (limit to avoid slowdown)
+      final uniqueAuthors = newPosts.map((p) => p.authorPubkey).toSet().take(15);
       for (final pubkey in uniqueAuthors) {
         if (!_authorMetadataCache.containsKey(pubkey)) {
-          final metadata = await NostrService.fetchAuthorMetadata(pubkey);
+          final metadata = await NostrService.fetchAuthorMetadataDirect(pubkey);
           if (metadata.isNotEmpty) {
             _authorMetadataCache[pubkey] = metadata;
-            // Update posts with metadata
-            for (final post in posts) {
-              if (post.authorPubkey == pubkey) {
-                post.authorName = metadata['name'] ?? post.authorName;
-                post.authorAvatar = metadata['picture'];
-              }
+          }
+        }
+        
+        // Apply metadata to posts as we get it
+        final meta = _authorMetadataCache[pubkey];
+        if (meta != null) {
+          for (final post in newPosts) {
+            if (post.authorPubkey == pubkey) {
+              post.authorName = meta['name'] ?? meta['display_name'] ?? post.authorName;
+              post.authorAvatar = meta['picture'] ?? meta['avatar'];
             }
           }
         }
@@ -178,22 +168,34 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
       if (mounted) {
         setState(() {
-          _posts = posts;
+          // Merge new posts with existing (new first, no duplicates)
+          _posts = NostrService.mergePosts(newPosts, _posts);
           _applyFilter();
           _isLoading = false;
+          _isRefreshing = false;
+          _hasCachedContent = true;
         });
-        debug.success(
-          'SCREEN',
-          '_loadFeed() complete',
-          '${posts.length} posts loaded',
-        );
+        
+        // Save to cache for next time
+        await NostrService.cachePosts(_posts);
+        await NostrService.cacheAuthorMetadata(_authorMetadataCache);
+        
+        debug.success('SCREEN', 'Background refresh complete', '${_posts.length} posts');
       }
     } catch (e, stackTrace) {
-      debug.error('SCREEN', 'Error loading feed', '$e\n$stackTrace');
+      debug.error('SCREEN', 'Background refresh error', '$e\n$stackTrace');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
+        });
       }
     }
+  }
+
+  /// Manual pull-to-refresh
+  Future<void> _loadFeed() async {
+    await _refreshFeedInBackground();
   }
 
   void _openDebugScreen() {
@@ -379,12 +381,21 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                   ),
                   SizedBox(width: 8.w),
                   GestureDetector(
-                    onTap: _loadFeed,
-                    child: Icon(
-                      Icons.refresh,
-                      color: Colors.white,
-                      size: 24.sp,
-                    ),
+                    onTap: _isRefreshing ? null : _loadFeed,
+                    child: _isRefreshing
+                        ? SizedBox(
+                            width: 24.sp,
+                            height: 24.sp,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFF7931A),
+                            ),
+                          )
+                        : Icon(
+                            Icons.refresh,
+                            color: Colors.white,
+                            size: 24.sp,
+                          ),
                   ),
                   SizedBox(width: 8.w),
                   // Debug button
@@ -461,15 +472,43 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             ),
             SizedBox(height: 12.h),
 
+            // Refresh indicator at top when refreshing in background
+            if (_isRefreshing && _hasCachedContent)
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 8.h),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 14.r,
+                      height: 14.r,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFFF7931A),
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Fetching new posts...',
+                      style: TextStyle(
+                        color: const Color(0xFFA1A1B2),
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Feed content
             Expanded(
               child:
-                  _isLoading
+                  (_isLoading && !_hasCachedContent)
                       ? _buildSkeletonLoader()
-                      : _userNpub == null
+                      : _userNpub == null && !_hasCachedContent
                       ? _buildNoAccountState()
                       : (_followsFeedEmpty &&
-                          _currentFilter == FeedFilter.newThreads)
+                          _currentFilter == FeedFilter.newThreads &&
+                          _filteredPosts.isEmpty)
                       ? _buildFollowsEmptyState()
                       : _filteredPosts.isEmpty
                       ? _buildEmptyState()

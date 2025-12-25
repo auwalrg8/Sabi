@@ -2,8 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/services/app_state_service.dart';
 
-/// Enum for the three suggestion types
-enum SuggestionType { backup, nostr, pin }
+/// Enum for suggestion types
+enum SuggestionType { backup, nostr, pin, socialRecovery }
 
 /// Provider for the list of visible suggestion cards
 final suggestionsProvider = StateNotifierProvider<SuggestionsNotifier, List<SuggestionType>>((ref) {
@@ -30,9 +30,14 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionType>> {
     final shouldShowBackup = backupStatus == null && AppStateService.hasWallet;
     final shouldShowNostr = npub == null || npub.isEmpty;
     final shouldShowPin = !hasPin && AppStateService.hasWallet;
+    
+    // Show social recovery suggestion if user backed up with seed phrase but not social recovery
+    final hasSocialRecovery = await _storage.read(key: 'social_recovery_setup') == 'true';
+    final shouldShowSocialRecovery = backupStatus == 'seed_phrase' && !hasSocialRecovery && AppStateService.hasWallet;
 
     final candidates = <SuggestionType>[];
     if (shouldShowBackup) candidates.add(SuggestionType.backup);
+    if (shouldShowSocialRecovery) candidates.add(SuggestionType.socialRecovery);
     if (shouldShowNostr) candidates.add(SuggestionType.nostr);
     if (shouldShowPin) candidates.add(SuggestionType.pin);
 

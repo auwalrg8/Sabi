@@ -1,30 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-
-// Stub for contacts_service - plugin has compatibility issues with newer AGP versions
-// TODO: Replace with maintained alternative like contacts_plus or phone_contacts
-class Contact {
-  String? displayName;
-  Iterable<Phone>? phones;
-  Iterable<Email>? emails;
-}
-
-class Phone {
-  String? value;
-}
-
-class Email {
-  String? value;
-}
-
-class ContactsService {
-  static Future<Iterable<Contact>> getContacts() async {
-    // Stub implementation - returns empty list
-    // Real contact sync can be implemented later with a maintained plugin
-    return [];
-  }
-}
 
 class ContactInfo {
   final String displayName;
@@ -78,24 +55,33 @@ class ContactService {
   /// Import all phone contacts
   static Future<List<ContactInfo>> importPhoneContacts() async {
     try {
-      final hasPermission = await requestContactPermission();
+      // Use flutter_contacts package
+      final hasPermission = await FlutterContacts.requestPermission();
       if (!hasPermission) {
         debugPrint('⚠️ Contact permission denied');
         return [];
       }
 
-      final Iterable<Contact> contacts = await ContactsService.getContacts();
+      // Fetch all contacts with phone properties
+      final List<Contact> contacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withPhoto: false,
+      );
+      
       final List<ContactInfo> contactsList = [];
 
       for (final contact in contacts) {
-        final name = contact.displayName ?? 'Unknown';
+        final name = contact.displayName.isNotEmpty 
+            ? contact.displayName 
+            : 'Unknown';
 
         // Extract phone numbers
-        if (contact.phones != null && contact.phones!.isNotEmpty) {
-          for (final phone in contact.phones!) {
-            final number =
-                phone.value?.replaceAll(RegExp(r'[^\d+]'), '').trim();
-            if (number != null && number.isNotEmpty) {
+        if (contact.phones.isNotEmpty) {
+          for (final phone in contact.phones) {
+            final number = phone.number
+                .replaceAll(RegExp(r'[^\d+]'), '')
+                .trim();
+            if (number.isNotEmpty) {
               contactsList.add(
                 ContactInfo(
                   displayName: name,
@@ -108,10 +94,10 @@ class ContactService {
         }
 
         // Extract emails
-        if (contact.emails != null && contact.emails!.isNotEmpty) {
-          for (final email in contact.emails!) {
-            final value = email.value?.trim();
-            if (value != null && value.isNotEmpty) {
+        if (contact.emails.isNotEmpty) {
+          for (final email in contact.emails) {
+            final value = email.address.trim();
+            if (value.isNotEmpty) {
               contactsList.add(
                 ContactInfo(
                   displayName: name,
@@ -124,10 +110,11 @@ class ContactService {
         }
       }
 
-      debugPrint('✅ Imported ${contactsList.length} contacts');
+      debugPrint('✅ Imported ${contactsList.length} contacts from ${contacts.length} device contacts');
       return contactsList;
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Contact import error: $e');
+      debugPrint('Stack trace: $stackTrace');
       return [];
     }
   }

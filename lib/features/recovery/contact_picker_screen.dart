@@ -1,168 +1,378 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/features/recovery/nostr_invite_service.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
 
-/// Smart contact picker with dual source: phone contacts + Nostr follows
-/// - Shows phone contacts with "Help join Nostr" option
-/// - Shows Nostr follows with "Already on Nostr ✓" badge
-/// - Allows selection of 3 trusted contacts
-class ContactPickerScreen extends ConsumerStatefulWidget {
+/// Contact model for guardian selection
+class ContactWithStatus {
+  final String id; // Unique identifier
+  final String name;
+  final String? phoneNumber;
+  final String? npub;
+  final String? hexPubkey;
+  final bool isOnNostr;
+  final String? avatarUrl;
+  final String source; // 'nostr_follow', 'device_contact', 'manual'
+
+  ContactWithStatus({
+    String? id,
+    required this.name,
+    this.phoneNumber,
+    this.npub,
+    this.hexPubkey,
+    this.isOnNostr = false,
+    this.avatarUrl,
+    this.source = 'device_contact',
+  }) : id = id ?? _generateId(npub, phoneNumber, name);
+  
+  static String _generateId(String? npub, String? phoneNumber, String name) {
+    // Create unique ID from available identifiers
+    if (npub != null && npub.isNotEmpty) return 'nostr_$npub';
+    if (phoneNumber != null && phoneNumber.isNotEmpty) return 'phone_$phoneNumber';
+    return 'name_${name.hashCode}_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  String get displayIdentifier => npub ?? phoneNumber ?? 'No contact info';
+  
+  String get shortNpub {
+    if (npub == null) return '';
+    if (npub!.length <= 16) return npub!;
+    return '${npub!.substring(0, 8)}...${npub!.substring(npub!.length - 8)}';
+  }
+}
+
+/// Screen for picking trusted contacts as recovery guardians
+class ContactPickerScreen extends StatefulWidget {
+  final int maxSelection;
   final Function(List<ContactWithStatus>) onContactsSelected;
 
   const ContactPickerScreen({
-    required this.onContactsSelected,
     super.key,
+    this.maxSelection = 5,
+    required this.onContactsSelected,
   });
 
   @override
-  ConsumerState<ContactPickerScreen> createState() => _ContactPickerScreenState();
+  State<ContactPickerScreen> createState() => _ContactPickerScreenState();
 }
 
-class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
+class _ContactPickerScreenState extends State<ContactPickerScreen>
+    with SingleTickerProviderStateMixin {
+  final List<ContactWithStatus> _selectedContacts = [];
   final TextEditingController _searchController = TextEditingController();
+  
+  List<ContactWithStatus> _nostrFollows = [];
+  List<ContactWithStatus> _deviceContacts = [];
   List<ContactWithStatus> _allContacts = [];
   List<ContactWithStatus> _filteredContacts = [];
-  final List<ContactWithStatus> _selectedContacts = [];
+  
   bool _isLoading = true;
+  
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    _tabController = TabController(length: 3, vsync: this);
     _searchController.addListener(_filterContacts);
+    _loadAllContacts();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadContacts() async {
-    try {
-      setState(() => _isLoading = true);
+  Future<void> _loadAllContacts() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+    });
 
-      // Request contacts permission
-      final status = await Permission.contacts.request();
-      if (!status.isGranted) {
-        print('Contacts permission denied');
+    // Only load Nostr follows automatically
+    // Device contacts are loaded on-demand when user clicks button
+    await _loadNostrFollows();
+
+    _mergeContacts();
+    
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _loadNostrFollows() async {
+    try {
+      // Check if user has Nostr keys
+      final npub = await NostrService.getNpub();
+      if (npub == null || npub.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _nostrFollows = [];
+        });
+        return;
       }
 
-      // Mock phone contacts for demo purposes
-      // In production, integrate with actual contacts_service or platform channel
-      final phoneContactsList = [
-        ContactWithStatus(
-          name: 'Chinedu',
-          phoneNumber: '+234 803 123 4567',
-          email: null,
-          npub: null,
-          isOnNostr: false,
-        ),
-        ContactWithStatus(
-          name: 'Zainab',
-          phoneNumber: '+234 701 987 6543',
-          email: null,
-          npub: null,
-          isOnNostr: false,
-        ),
-        ContactWithStatus(
-          name: 'Tunde',
-          phoneNumber: '+234 809 456 1234',
-          email: null,
-          npub: null,
-          isOnNostr: false,
-        ),
-        ContactWithStatus(
-          name: 'Amara',
-          phoneNumber: '+234 805 555 9999',
-          email: null,
-          npub: null,
-          isOnNostr: false,
-        ),
-        ContactWithStatus(
-          name: 'Obinna',
-          phoneNumber: '+234 701 222 3333',
-          email: null,
-          npub: null,
-          isOnNostr: false,
-        ),
-      ];
+      // Fetch user's follows
+      final hexPubkey = NostrService.npubToHex(npub);
+      if (hexPubkey == null) {
+        if (!mounted) return;
+        setState(() {
+          _nostrFollows = [];
+        });
+        return;
+      }
+      
+      final follows = await NostrService.fetchUserFollowsDirect(hexPubkey);
+      
+      if (follows.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _nostrFollows = [];
+        });
+        return;
+      }
 
+      // Fetch metadata for each follow using direct WebSocket
+      final List<ContactWithStatus> nostrContacts = [];
+      
+      // Limit to first 20 follows to avoid too many requests
+      final limitedFollows = follows.take(20).toList();
+      
+      for (final followHex in limitedFollows) {
+        try {
+          // Use direct metadata fetch for reliability
+          final metadata = await NostrService.fetchAuthorMetadataDirect(followHex);
+          final followNpub = NostrService.hexToNpub(followHex);
+          
+          final name = metadata['name'] ?? 
+                       metadata['display_name'] ?? 
+                       metadata['displayName'] ??
+                       'Nostr User';
+          
+          final avatarUrl = metadata['picture'] ?? metadata['avatar'];
+          
+          nostrContacts.add(ContactWithStatus(
+            name: name,
+            npub: followNpub,
+            hexPubkey: followHex,
+            isOnNostr: true,
+            avatarUrl: avatarUrl,
+            source: 'nostr_follow',
+          ));
+        } catch (e) {
+          // Still add the contact even without metadata
+          final followNpub = NostrService.hexToNpub(followHex);
+          nostrContacts.add(ContactWithStatus(
+            name: 'Nostr User',
+            npub: followNpub,
+            hexPubkey: followHex,
+            isOnNostr: true,
+            source: 'nostr_follow',
+          ));
+        }
+      }
+
+      if (!mounted) return;
       setState(() {
-        _allContacts = phoneContactsList;
-        _filteredContacts = _allContacts;
-        _isLoading = false;
+        _nostrFollows = nostrContacts;
       });
     } catch (e) {
-      print('Error loading contacts: $e');
-      setState(() => _isLoading = false);
+      print('Error loading Nostr follows: $e');
+      if (!mounted) return;
+      setState(() {
+        _nostrFollows = [];
+      });
     }
+  }
+
+  /// Open native contact picker and add selected contact
+  Future<void> _openNativeContactPicker() async {
+    try {
+      // Request permission first
+      final hasPermission = await FlutterContacts.requestPermission();
+      if (!hasPermission) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contact permission is required to select contacts'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Open native contact picker
+      final contact = await FlutterContacts.openExternalPick();
+      
+      if (contact != null) {
+        // Fetch full contact details
+        final fullContact = await FlutterContacts.getContact(
+          contact.id,
+          withProperties: true,
+        );
+        
+        if (fullContact != null && fullContact.phones.isNotEmpty) {
+          final phoneNumber = fullContact.phones.first.number
+              .replaceAll(RegExp(r'[^\d+]'), '')
+              .trim();
+          
+          // Check if contact already exists
+          final exists = _deviceContacts.any(
+            (c) => c.phoneNumber == phoneNumber
+          );
+          
+          if (!exists) {
+            final newContact = ContactWithStatus(
+              name: fullContact.displayName.isNotEmpty 
+                  ? fullContact.displayName 
+                  : 'Unknown',
+              phoneNumber: phoneNumber,
+              isOnNostr: false,
+              source: 'device_contact',
+            );
+            
+            if (!mounted) return;
+            setState(() {
+              _deviceContacts.add(newContact);
+              _mergeContacts();
+            });
+            
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Added ${newContact.name}'),
+                backgroundColor: const Color(0xFF00FFB2),
+              ),
+            );
+          } else {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Contact already added'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Selected contact has no phone number'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error opening contact picker: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _mergeContacts() {
+    // Combine all contacts, prioritizing Nostr follows
+    _allContacts = [..._nostrFollows, ..._deviceContacts];
+    _filterContacts();
   }
 
   void _filterContacts() {
     final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredContacts = _allContacts
-          .where((contact) =>
-            contact.name.toLowerCase().contains(query) ||
-            (contact.phoneNumber?.contains(query) ?? false) ||
-            (contact.npub?.contains(query) ?? false))
-          .toList();
-    });
+    
+    List<ContactWithStatus> sourceList;
+    switch (_tabController.index) {
+      case 0: // All
+        sourceList = _allContacts;
+        break;
+      case 1: // Nostr
+        sourceList = _nostrFollows;
+        break;
+      case 2: // Phone
+        sourceList = _deviceContacts;
+        break;
+      default:
+        sourceList = _allContacts;
+    }
+    
+    if (query.isEmpty) {
+      setState(() => _filteredContacts = sourceList);
+    } else {
+      setState(() {
+        _filteredContacts = sourceList.where((contact) {
+          return contact.name.toLowerCase().contains(query) ||
+                 (contact.phoneNumber?.toLowerCase().contains(query) ?? false) ||
+                 (contact.npub?.toLowerCase().contains(query) ?? false);
+        }).toList();
+      });
+    }
   }
 
   void _toggleContactSelection(ContactWithStatus contact) {
     setState(() {
-      final index = _selectedContacts.indexWhere(
-        (c) => c.phoneNumber == contact.phoneNumber && c.name == contact.name,
+      final existingIndex = _selectedContacts.indexWhere(
+        (c) => c.id == contact.id
       );
-
-      if (index >= 0) {
-        _selectedContacts.removeAt(index);
-      } else if (_selectedContacts.length < 3) {
+      
+      if (existingIndex >= 0) {
+        _selectedContacts.removeAt(existingIndex);
+      } else if (_selectedContacts.length < widget.maxSelection) {
         _selectedContacts.add(contact);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Maximum ${widget.maxSelection} contacts allowed'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     });
   }
 
   bool _isContactSelected(ContactWithStatus contact) {
-    return _selectedContacts.any(
-      (c) => c.phoneNumber == contact.phoneNumber && c.name == contact.name,
-    );
+    return _selectedContacts.any((c) => c.id == contact.id);
   }
 
   void _handleHelpJoinNostr(ContactWithStatus contact) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF111128),
+      backgroundColor: const Color(0xFF1A1A2E),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => _buildHelpJoinModal(contact),
+      builder: (context) => _buildInviteBottomSheet(contact),
     );
   }
 
-  Widget _buildHelpJoinModal(ContactWithStatus contact) {
-    return Container(
-      padding: EdgeInsets.all(20.r),
+  Widget _buildInviteBottomSheet(ContactWithStatus contact) {
+    return Padding(
+      padding: EdgeInsets.all(24.r),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Help ${contact.name} join Nostr (30 seconds)',
+            'Help ${contact.name} join Nostr',
             style: TextStyle(
               fontSize: 18.sp,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: Colors.white,
               fontFamily: 'Google Sans',
             ),
           ),
           SizedBox(height: 8.h),
           Text(
-            'We go create Nostr account for am sharp sharp',
+            'Send them an invite link to set up their Nostr account and become your recovery guardian.',
             style: TextStyle(
               fontSize: 14.sp,
               color: const Color(0xFFA1A1B2),
@@ -170,26 +380,28 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
             ),
           ),
           SizedBox(height: 24.h),
+          
+          // WhatsApp invite
           GestureDetector(
-            onTap: () => _sendInvite(contact),
+            onTap: () => _sendInvite(contact, 'whatsapp'),
             child: Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(vertical: 14.h),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7931A),
+                color: const Color(0xFF25D366),
                 borderRadius: BorderRadius.circular(12.r),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.share, color: Color(0xFF0C0C1A), size: 18),
+                  const Icon(Icons.message, color: Colors.white, size: 18),
                   SizedBox(width: 8.w),
                   Text(
-                    'Send Invite via WhatsApp',
+                    'Send via WhatsApp',
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0C0C1A),
+                      color: Colors.white,
                       fontFamily: 'Google Sans',
                     ),
                   ),
@@ -198,8 +410,10 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
             ),
           ),
           SizedBox(height: 12.h),
+          
+          // SMS invite
           GestureDetector(
-            onTap: () => _sendInviteSms(contact),
+            onTap: () => _sendInvite(contact, 'sms'),
             child: Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(vertical: 14.h),
@@ -220,13 +434,43 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
               ),
             ),
           ),
+          SizedBox(height: 12.h),
+          
+          // Share link
+          GestureDetector(
+            onTap: () => _sendInvite(contact, 'share'),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111128),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.share, color: Color(0xFFA1A1B2), size: 18),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Share Link',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFFA1A1B2),
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           SizedBox(height: 16.h),
         ],
       ),
     );
   }
 
-  Future<void> _sendInvite(ContactWithStatus contact) async {
+  Future<void> _sendInvite(ContactWithStatus contact, String method) async {
     try {
       // Generate temporary keypair for this contact
       final tempKeypair = await NostrInviteService.generateTemporaryKeypair();
@@ -241,16 +485,22 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
       // Generate share message
       final message = NostrInviteService.generateShareMessage(
         contactName: contact.name,
-        senderName: 'Auwal', // TODO: Get from user profile
+        senderName: 'Friend', // TODO: Get from user profile
         inviteLink: inviteLink,
       );
       
-      // TODO: Share via WhatsApp/SMS (use share_plus plugin)
-      print('📱 Share message: $message');
-      
       if (!mounted) return;
       Navigator.pop(context);
+
+      // Share based on method
+      if (method == 'share') {
+        await Share.share(message);
+      } else {
+        // For WhatsApp/SMS, we use share_plus which will show share sheet
+        await Share.share(message);
+      }
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Invite sent to ${contact.name}! 🚀'),
@@ -259,42 +509,13 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
       );
     } catch (e) {
       print('Error sending invite: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Failed to send invite'),
           backgroundColor: Colors.red,
         ),
       );
-    }
-  }
-
-  Future<void> _sendInviteSms(ContactWithStatus contact) async {
-    try {
-      final tempKeypair = await NostrInviteService.generateTemporaryKeypair();
-      final inviteLink = await NostrInviteService.createInviteLink(
-        contactName: contact.name,
-        phoneNumber: contact.phoneNumber,
-        tempNpub: tempKeypair['npub']!,
-      );
-      
-      final message = NostrInviteService.generateSmsMessage(
-        senderName: 'Auwal',
-        inviteLink: inviteLink,
-      );
-      
-      print('📱 SMS message: $message');
-      
-      if (!mounted) return;
-      Navigator.pop(context);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('SMS sent to ${contact.name}! 📲'),
-          backgroundColor: const Color(0xFF00FFB2),
-        ),
-      );
-    } catch (e) {
-      print('Error sending SMS: $e');
     }
   }
 
@@ -310,20 +531,63 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
           child: const Icon(Icons.arrow_back, color: Colors.white),
         ),
         title: Text(
-          'Pick 3 trusted guys',
+          'Select Recovery Guardians',
           style: TextStyle(
-            fontSize: 24.sp,
-            fontWeight: FontWeight.w500,
+            fontSize: 20.sp,
+            fontWeight: FontWeight.w600,
             color: Colors.white,
             fontFamily: 'Google Sans',
           ),
         ),
+        bottom: TabBar(
+          controller: _tabController,
+          onTap: (_) => _filterContacts(),
+          indicatorColor: const Color(0xFFF7931A),
+          labelColor: const Color(0xFFF7931A),
+          unselectedLabelColor: const Color(0xFFA1A1B2),
+          tabs: [
+            Tab(text: 'All (${_allContacts.length})'),
+            Tab(text: 'Nostr (${_nostrFollows.length})'),
+            Tab(text: 'Phone (${_deviceContacts.length})'),
+          ],
+        ),
       ),
       body: Column(
         children: [
+          // Info banner
+          Container(
+            margin: EdgeInsets.all(16.r),
+            padding: EdgeInsets.all(12.r),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: const Color(0xFF333355)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: const Color(0xFFF7931A),
+                  size: 20.r,
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Text(
+                    'Select 3-5 trusted people. They\'ll help you recover your wallet if needed.',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: const Color(0xFFA1A1B2),
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
           // Search Bar
           Padding(
-            padding: EdgeInsets.all(16.r),
+            padding: EdgeInsets.symmetric(horizontal: 16.r),
             child: TextField(
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
@@ -341,201 +605,73 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
               ),
             ),
           ),
+          SizedBox(height: 8.h),
           
-          // Contact Count
+          // Selection counter
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.r),
-            child: Text(
-              'Selected: ${_selectedContacts.length}/3',
-              style: TextStyle(
-                fontSize: 12.sp,
-                color: const Color(0xFFA1A1B2),
-                fontFamily: 'Google Sans',
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Selected: ${_selectedContacts.length}/${widget.maxSelection}',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: _selectedContacts.length >= 3 
+                        ? const Color(0xFF00FFB2) 
+                        : const Color(0xFFA1A1B2),
+                    fontFamily: 'Google Sans',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (_selectedContacts.length < 3)
+                  Text(
+                    'Need ${3 - _selectedContacts.length} more',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: const Color(0xFFF7931A),
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+              ],
             ),
           ),
+          SizedBox(height: 8.h),
           
           // Contacts List
           Expanded(
             child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFF7931A)),
-                )
-              : ListView.builder(
-                  padding: EdgeInsets.all(16.r),
-                  itemCount: _filteredContacts.length,
-                  itemBuilder: (context, index) {
-                    final contact = _filteredContacts[index];
-                    final isSelected = _isContactSelected(contact);
-                    
-                    return Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _toggleContactSelection(contact),
-                          child: Container(
-                            padding: EdgeInsets.all(12.r),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111128),
-                              border: Border.all(
-                                color: isSelected 
-                                  ? const Color(0xFFF7931A) 
-                                  : Colors.transparent,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: Row(
-                              children: [
-                                // Avatar
-                                Container(
-                                  width: 44.r,
-                                  height: 44.r,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF7931A),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      contact.name.isNotEmpty 
-                                        ? contact.name[0].toUpperCase() 
-                                        : '?',
-                                      style: TextStyle(
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF0C0C1A),
-                                        fontFamily: 'Google Sans',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 12.w),
-                                
-                                // Name + Phone/Npub
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        contact.name,
-                                        style: TextStyle(
-                                          fontSize: 14.sp,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white,
-                                          fontFamily: 'Google Sans',
-                                        ),
-                                      ),
-                                      SizedBox(height: 4.h),
-                                      Text(
-                                        contact.phoneNumber ?? contact.npub ?? 'No contact',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12.sp,
-                                          color: const Color(0xFFA1A1B2),
-                                          fontFamily: 'Courier', // Monospace
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                // Badge or Checkbox
-                                if (contact.isOnNostr)
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8.w,
-                                      vertical: 4.h,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF00FFB2).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8.r),
-                                    ),
-                                    child: Text(
-                                      'Already on Nostr ✓',
-                                      style: TextStyle(
-                                        fontSize: 10.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF00FFB2),
-                                        fontFamily: 'Google Sans',
-                                      ),
-                                    ),
-                                  )
-                                else if (isSelected)
-                                  Container(
-                                    width: 24.r,
-                                    height: 24.r,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFF7931A),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      color: Color(0xFF0C0C1A),
-                                      size: 16,
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 24.r,
-                                    height: 24.r,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: const Color(0xFF555566),
-                                        width: 2,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFF7931A)),
+                  )
+                : _filteredContacts.isEmpty
+                    ? _buildEmptyState()
+                    : Stack(
+                        children: [
+                          ListView.builder(
+                            padding: EdgeInsets.all(16.r),
+                            itemCount: _filteredContacts.length,
+                            itemBuilder: (context, index) {
+                              final contact = _filteredContacts[index];
+                              return _buildContactTile(contact);
+                            },
                           ),
-                        ),
-                        
-                        // Help Join Nostr Button (for phone contacts not on Nostr)
-                        if (!contact.isOnNostr && isSelected)
-                          Padding(
-                            padding: EdgeInsets.only(top: 8.h),
-                            child: GestureDetector(
-                              onTap: () => _handleHelpJoinNostr(contact),
-                              child: Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.symmetric(vertical: 10.h),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: const Color(0xFFF7931A),
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8.r),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.mail_outline,
-                                      color: Color(0xFFF7931A),
-                                      size: 16,
-                                    ),
-                                    SizedBox(width: 6.w),
-                                    Text(
-                                      'Help join Nostr',
-                                      style: TextStyle(
-                                        fontSize: 12.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFFF7931A),
-                                        fontFamily: 'Google Sans',
-                                      ),
-                                    ),
-                                  ],
+                          // Add contact button for Phone tab
+                          if (_tabController.index == 2 || _tabController.index == 0)
+                            Positioned(
+                              right: 16.r,
+                              bottom: 16.r,
+                              child: FloatingActionButton(
+                                onPressed: _openNativeContactPicker,
+                                backgroundColor: const Color(0xFFF7931A),
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Color(0xFF0C0C1A),
                                 ),
                               ),
                             ),
-                          ),
-                        
-                        SizedBox(height: 12.h),
-                      ],
-                    );
-                  },
-                ),
+                        ],
+                      ),
           ),
           
           // Continue Button
@@ -543,27 +679,31 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
             padding: EdgeInsets.all(16.r),
             child: GestureDetector(
               onTap: _selectedContacts.length >= 3
-                ? () {
-                    widget.onContactsSelected(_selectedContacts);
-                    Navigator.pop(context, _selectedContacts);
-                  }
-                : null,
+                  ? () {
+                      widget.onContactsSelected(_selectedContacts);
+                      Navigator.pop(context, _selectedContacts);
+                    }
+                  : null,
               child: Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(vertical: 14.h),
                 decoration: BoxDecoration(
                   color: _selectedContacts.length >= 3
-                    ? const Color(0xFFF7931A)
-                    : const Color(0xFF555566),
+                      ? const Color(0xFFF7931A)
+                      : const Color(0xFF333355),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
                   child: Text(
-                    'Continue to Recovery Setup',
+                    _selectedContacts.length >= 3
+                        ? 'Continue with ${_selectedContacts.length} Guardians'
+                        : 'Select at least 3 guardians',
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0C0C1A),
+                      color: _selectedContacts.length >= 3
+                          ? const Color(0xFF0C0C1A)
+                          : const Color(0xFFA1A1B2),
                       fontFamily: 'Google Sans',
                     ),
                   ),
@@ -571,6 +711,315 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final tabIndex = _tabController.index;
+    String message;
+    IconData icon;
+    
+    if (tabIndex == 1) {
+      message = 'No Nostr follows found.\nFollow people on Nostr to add them as guardians.';
+      icon = Icons.group_add;
+    } else if (tabIndex == 2) {
+      message = 'No phone contacts added yet.\nTap the button below to add contacts from your phone.';
+      icon = Icons.contacts;
+    } else {
+      message = 'No contacts found.\nAdd Nostr follows or phone contacts.';
+      icon = Icons.person_search;
+    }
+    
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64.r, color: const Color(0xFF333355)),
+          SizedBox(height: 16.h),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: const Color(0xFFA1A1B2),
+              fontFamily: 'Google Sans',
+            ),
+          ),
+          SizedBox(height: 24.h),
+          if (tabIndex == 2 || tabIndex == 0)
+            GestureDetector(
+              onTap: _openNativeContactPicker,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7931A),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, color: const Color(0xFF0C0C1A), size: 18.r),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Add Phone Contact',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0C0C1A),
+                        fontFamily: 'Google Sans',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactTile(ContactWithStatus contact) {
+    final isSelected = _isContactSelected(contact);
+    
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12.h),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () => _toggleContactSelection(contact),
+            child: Container(
+              padding: EdgeInsets.all(12.r),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111128),
+                border: Border.all(
+                  color: isSelected
+                      ? const Color(0xFFF7931A)
+                      : Colors.transparent,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 48.r,
+                    height: 48.r,
+                    decoration: BoxDecoration(
+                      color: contact.isOnNostr
+                          ? const Color(0xFF8B5CF6)
+                          : const Color(0xFFF7931A),
+                      shape: BoxShape.circle,
+                    ),
+                    child: contact.avatarUrl != null && contact.avatarUrl!.isNotEmpty
+                        ? ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: contact.avatarUrl!,
+                              fit: BoxFit.cover,
+                              width: 48.r,
+                              height: 48.r,
+                              placeholder: (context, url) => Center(
+                                child: Text(
+                                  contact.name.isNotEmpty
+                                      ? contact.name[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    fontSize: 18.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Center(
+                                child: Text(
+                                  contact.name.isNotEmpty
+                                      ? contact.name[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    fontSize: 18.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              contact.name.isNotEmpty
+                                  ? contact.name[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                  ),
+                  SizedBox(width: 12.w),
+                  
+                  // Name + identifier
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                contact.name,
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                  fontFamily: 'Google Sans',
+                                ),
+                              ),
+                            ),
+                            if (contact.source == 'nostr_follow')
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 6.w,
+                                  vertical: 2.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4.r),
+                                ),
+                                child: Text(
+                                  'Following',
+                                  style: TextStyle(
+                                    fontSize: 10.sp,
+                                    color: const Color(0xFF8B5CF6),
+                                    fontFamily: 'Google Sans',
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(
+                          contact.isOnNostr
+                              ? contact.shortNpub
+                              : contact.phoneNumber ?? 'No phone',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: const Color(0xFFA1A1B2),
+                            fontFamily: contact.isOnNostr ? 'Courier' : 'Google Sans',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  
+                  // Status indicator
+                  if (contact.isOnNostr)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00FFB2).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.bolt,
+                            color: const Color(0xFF00FFB2),
+                            size: 12.r,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            'Nostr',
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF00FFB2),
+                              fontFamily: 'Google Sans',
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isSelected)
+                    Container(
+                      width: 24.r,
+                      height: 24.r,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF7931A),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Color(0xFF0C0C1A),
+                        size: 16,
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 24.r,
+                      height: 24.r,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0xFF555566),
+                          width: 2,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Help Join Nostr button for non-Nostr contacts when selected
+          if (!contact.isOnNostr && isSelected)
+            Padding(
+              padding: EdgeInsets.only(top: 8.h),
+              child: GestureDetector(
+                onTap: () => _handleHelpJoinNostr(contact),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: const Color(0xFFF7931A),
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.person_add,
+                        color: const Color(0xFFF7931A),
+                        size: 16.r,
+                      ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        'Help ${contact.name} join Nostr',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFF7931A),
+                          fontFamily: 'Google Sans',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

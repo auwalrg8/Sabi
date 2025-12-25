@@ -237,12 +237,18 @@ class VtuApiService {
       for (final variation in variations) {
         // Only include available plans
         if (variation['availability'] == 'Available') {
+          final price =
+              double.tryParse(variation['price']?.toString() ?? '0') ?? 0;
+          final resellerPrice =
+              double.tryParse(variation['reseller_price']?.toString() ?? '0') ??
+              price;
+
           plans.add(
             VtuDataPlan(
               variationId: variation['variation_id']?.toString() ?? '',
               name: variation['data_plan']?.toString() ?? '',
-              price:
-                  double.tryParse(variation['price']?.toString() ?? '0') ?? 0,
+              price: price,
+              resellerPrice: resellerPrice,
               networkCode:
                   variation['service_id']?.toString() ?? networkCode ?? '',
               serviceName: variation['service_name']?.toString() ?? '',
@@ -251,6 +257,9 @@ class VtuApiService {
           );
         }
       }
+
+      // Sort by reseller price ascending
+      plans.sort((a, b) => a.resellerPrice.compareTo(b.resellerPrice));
 
       debugPrint('📊 Loaded ${plans.length} data plans for $networkCode');
       return plans;
@@ -718,7 +727,8 @@ class VtuBalanceInfo {
 class VtuDataPlan {
   final String variationId;
   final String name;
-  final double price;
+  final double price; // Customer price (retail)
+  final double resellerPrice; // Reseller price (our cost)
   final String networkCode;
   final String serviceName;
   final bool isAvailable;
@@ -727,10 +737,14 @@ class VtuDataPlan {
     required this.variationId,
     required this.name,
     required this.price,
+    required this.resellerPrice,
     required this.networkCode,
     this.serviceName = '',
     this.isAvailable = true,
   });
+
+  /// Profit margin per transaction
+  double get profitMargin => price - resellerPrice;
 
   /// Convert to local DataPlan model
   DataPlan toDataPlan(NetworkProvider network) {
@@ -739,9 +753,11 @@ class VtuDataPlan {
       network: network,
       name: name,
       description: name,
-      priceNaira: price,
+      priceNaira: resellerPrice, // Use reseller price for customer
+      retailPrice: price, // Keep retail for reference
       validity: _extractValidity(name),
       dataAmount: _extractDataAmount(name),
+      serviceName: serviceName, // e.g., "MTN SME", "MTN Gifting"
     );
   }
 

@@ -900,6 +900,32 @@ class NostrService {
     }
   }
 
+  /// Fetch recent events from a specific user (for health check)
+  static Future<List<Map<String, dynamic>>> fetchUserEvents({
+    required String hexPubkey,
+    List<int> kinds = const [0, 1],
+    int limit = 1,
+  }) async {
+    try {
+      final filter = {
+        'authors': [hexPubkey],
+        'kinds': kinds,
+        'limit': limit,
+      };
+      
+      final events = await NostrRelayClient.fetchEvents(
+        relayUrls: _defaultRelays,
+        filter: filter,
+        timeoutSeconds: 5,
+      );
+      
+      return events;
+    } catch (e) {
+      print('⚠️ Error fetching user events: $e');
+      return [];
+    }
+  }
+
   /// Get relay status
   static Map<String, bool> getRelayStatus() {
     final status = <String, bool>{};
@@ -1457,25 +1483,72 @@ class NostrService {
           isCompleted = true;
           try {
             final content = event.content;
-            // Parse JSON metadata
             final metadata = <String, String>{};
-            // Basic parsing - in production use json.decode
-            if (content.contains('"name"')) {
-              final nameMatch = RegExp(
-                r'"name"\s*:\s*"([^"]*)"',
-              ).firstMatch(content);
-              if (nameMatch != null) {
-                metadata['name'] = nameMatch.group(1) ?? '';
+            
+            // Use proper JSON parsing
+            try {
+              final jsonData = json.decode(content) as Map<String, dynamic>;
+              
+              // Extract name (try multiple fields)
+              if (jsonData['name'] != null) {
+                metadata['name'] = jsonData['name'].toString();
+              }
+              if (jsonData['display_name'] != null) {
+                metadata['display_name'] = jsonData['display_name'].toString();
+              }
+              if (jsonData['displayName'] != null) {
+                metadata['displayName'] = jsonData['displayName'].toString();
+              }
+              
+              // Extract picture/avatar
+              if (jsonData['picture'] != null) {
+                metadata['picture'] = jsonData['picture'].toString();
+              }
+              if (jsonData['avatar'] != null) {
+                metadata['avatar'] = jsonData['avatar'].toString();
+              }
+              
+              // Extract other useful fields
+              if (jsonData['about'] != null) {
+                metadata['about'] = jsonData['about'].toString();
+              }
+              if (jsonData['nip05'] != null) {
+                metadata['nip05'] = jsonData['nip05'].toString();
+              }
+              if (jsonData['banner'] != null) {
+                metadata['banner'] = jsonData['banner'].toString();
+              }
+              if (jsonData['lud16'] != null) {
+                metadata['lud16'] = jsonData['lud16'].toString();
+              }
+            } catch (jsonError) {
+              // Fallback to regex parsing if JSON fails
+              if (content.contains('"name"')) {
+                final nameMatch = RegExp(
+                  r'"name"\s*:\s*"([^"]*)"',
+                ).firstMatch(content);
+                if (nameMatch != null) {
+                  metadata['name'] = nameMatch.group(1) ?? '';
+                }
+              }
+              if (content.contains('"display_name"')) {
+                final displayNameMatch = RegExp(
+                  r'"display_name"\s*:\s*"([^"]*)"',
+                ).firstMatch(content);
+                if (displayNameMatch != null) {
+                  metadata['display_name'] = displayNameMatch.group(1) ?? '';
+                }
+              }
+              if (content.contains('"picture"')) {
+                final picMatch = RegExp(
+                  r'"picture"\s*:\s*"([^"]*)"',
+                ).firstMatch(content);
+                if (picMatch != null) {
+                  metadata['picture'] = picMatch.group(1) ?? '';
+                }
               }
             }
-            if (content.contains('"picture"')) {
-              final picMatch = RegExp(
-                r'"picture"\s*:\s*"([^"]*)"',
-              ).firstMatch(content);
-              if (picMatch != null) {
-                metadata['picture'] = picMatch.group(1) ?? '';
-              }
-            }
+            
             completer.complete(metadata);
           } catch (e) {
             completer.complete({});
@@ -1486,6 +1559,68 @@ class NostrService {
       return completer.future;
     } catch (e) {
       print('⚠️ Error fetching author metadata: $e');
+      return {};
+    }
+  }
+
+  /// Fetch author metadata using direct WebSocket (more reliable)
+  static Future<Map<String, String>> fetchAuthorMetadataDirect(String pubkey) async {
+    try {
+      final filter = {
+        'kinds': [0],
+        'authors': [pubkey],
+        'limit': 1,
+      };
+
+      final events = await NostrRelayClient.fetchEvents(
+        relayUrls: _defaultRelays,
+        filter: filter,
+        timeoutSeconds: 5,
+        maxEvents: 1,
+      );
+
+      if (events.isEmpty) return {};
+
+      final eventData = events.first;
+      final content = eventData['content'] as String? ?? '';
+      final metadata = <String, String>{};
+
+      try {
+        final jsonData = json.decode(content) as Map<String, dynamic>;
+        
+        // Extract name (try multiple fields)
+        if (jsonData['name'] != null) {
+          metadata['name'] = jsonData['name'].toString();
+        }
+        if (jsonData['display_name'] != null) {
+          metadata['display_name'] = jsonData['display_name'].toString();
+        }
+        if (jsonData['displayName'] != null) {
+          metadata['displayName'] = jsonData['displayName'].toString();
+        }
+        
+        // Extract picture/avatar
+        if (jsonData['picture'] != null) {
+          metadata['picture'] = jsonData['picture'].toString();
+        }
+        if (jsonData['avatar'] != null) {
+          metadata['avatar'] = jsonData['avatar'].toString();
+        }
+        
+        // Extract other useful fields
+        if (jsonData['about'] != null) {
+          metadata['about'] = jsonData['about'].toString();
+        }
+        if (jsonData['nip05'] != null) {
+          metadata['nip05'] = jsonData['nip05'].toString();
+        }
+      } catch (e) {
+        print('⚠️ Error parsing metadata JSON: $e');
+      }
+
+      return metadata;
+    } catch (e) {
+      print('⚠️ Error fetching author metadata direct: $e');
       return {};
     }
   }
@@ -1506,6 +1641,102 @@ class NostrService {
     } else {
       return '₦${amount.toStringAsFixed(2)}';
     }
+  }
+
+  // ==================== POST CACHING ====================
+  static const _cachedPostsKey = 'nostr_cached_posts';
+  static const _cachedMetadataKey = 'nostr_cached_metadata';
+  static const _maxCachedPosts = 100;
+
+  /// Save posts to local cache
+  static Future<void> cachePosts(List<NostrFeedPost> posts) async {
+    try {
+      final box = await Hive.openBox('nostr_cache');
+      final postsJson = posts.take(_maxCachedPosts).map((p) => p.toJson()).toList();
+      await box.put(_cachedPostsKey, json.encode(postsJson));
+      _debug.info('CACHE', 'Saved ${postsJson.length} posts to cache');
+    } catch (e) {
+      _debug.error('CACHE', 'Error saving posts', '$e');
+    }
+  }
+
+  /// Load posts from local cache
+  static Future<List<NostrFeedPost>> loadCachedPosts() async {
+    try {
+      final box = await Hive.openBox('nostr_cache');
+      final data = box.get(_cachedPostsKey);
+      if (data == null) return [];
+      
+      final List<dynamic> postsJson = json.decode(data);
+      final posts = postsJson.map((p) => NostrFeedPost.fromJson(p as Map<String, dynamic>)).toList();
+      _debug.info('CACHE', 'Loaded ${posts.length} posts from cache');
+      return posts;
+    } catch (e) {
+      _debug.error('CACHE', 'Error loading cached posts', '$e');
+      return [];
+    }
+  }
+
+  /// Save author metadata to cache
+  static Future<void> cacheAuthorMetadata(Map<String, Map<String, String>> metadata) async {
+    try {
+      final box = await Hive.openBox('nostr_cache');
+      // Convert to JSON-serializable format
+      final jsonData = metadata.map((k, v) => MapEntry(k, v));
+      await box.put(_cachedMetadataKey, json.encode(jsonData));
+      _debug.info('CACHE', 'Saved metadata for ${metadata.length} authors');
+    } catch (e) {
+      _debug.error('CACHE', 'Error saving metadata', '$e');
+    }
+  }
+
+  /// Load author metadata from cache
+  static Future<Map<String, Map<String, String>>> loadCachedMetadata() async {
+    try {
+      final box = await Hive.openBox('nostr_cache');
+      final data = box.get(_cachedMetadataKey);
+      if (data == null) return {};
+      
+      final Map<String, dynamic> decoded = json.decode(data);
+      final result = <String, Map<String, String>>{};
+      decoded.forEach((key, value) {
+        if (value is Map) {
+          result[key] = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
+        }
+      });
+      _debug.info('CACHE', 'Loaded metadata for ${result.length} authors');
+      return result;
+    } catch (e) {
+      _debug.error('CACHE', 'Error loading cached metadata', '$e');
+      return {};
+    }
+  }
+
+  /// Merge new posts with existing, removing duplicates, new posts first
+  static List<NostrFeedPost> mergePosts(List<NostrFeedPost> newPosts, List<NostrFeedPost> existingPosts) {
+    final seenIds = <String>{};
+    final merged = <NostrFeedPost>[];
+    
+    // Add new posts first
+    for (final post in newPosts) {
+      if (!seenIds.contains(post.id)) {
+        seenIds.add(post.id);
+        merged.add(post);
+      }
+    }
+    
+    // Then add existing posts that aren't duplicates
+    for (final post in existingPosts) {
+      if (!seenIds.contains(post.id)) {
+        seenIds.add(post.id);
+        merged.add(post);
+      }
+    }
+    
+    // Sort by timestamp, newest first
+    merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    
+    return merged.take(_maxCachedPosts).toList();
   }
 }
 
@@ -1603,5 +1834,37 @@ class NostrFeedPost {
               )
               .toList(),
     );
+  }
+
+  /// Create from JSON (for cache deserialization)
+  factory NostrFeedPost.fromJson(Map<String, dynamic> jsonData) {
+    return NostrFeedPost(
+      id: jsonData['id'] as String? ?? '',
+      authorPubkey: jsonData['authorPubkey'] as String? ?? '',
+      authorName: jsonData['authorName'] as String? ?? 'Anon',
+      authorAvatar: jsonData['authorAvatar'] as String?,
+      content: jsonData['content'] as String? ?? '',
+      timestamp: DateTime.fromMillisecondsSinceEpoch(jsonData['timestamp'] as int? ?? 0),
+      zapAmount: jsonData['zapAmount'] as int? ?? 0,
+      likeCount: jsonData['likeCount'] as int? ?? 0,
+      replyCount: jsonData['replyCount'] as int? ?? 0,
+      tags: (jsonData['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+    );
+  }
+
+  /// Convert to JSON (for cache serialization)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'authorPubkey': authorPubkey,
+      'authorName': authorName,
+      'authorAvatar': authorAvatar,
+      'content': content,
+      'timestamp': timestamp.millisecondsSinceEpoch,
+      'zapAmount': zapAmount,
+      'likeCount': likeCount,
+      'replyCount': replyCount,
+      'tags': tags,
+    };
   }
 }

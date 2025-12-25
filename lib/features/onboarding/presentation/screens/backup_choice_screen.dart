@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/onboarding/presentation/screens/wallet_creation_animation_screen.dart';
 import '../providers/onboarding_provider.dart';
 import '../providers/wallet_creation_helper.dart';
 import 'social_recovery_screen.dart';
@@ -121,45 +120,38 @@ class BackupChoiceScreen extends ConsumerWidget {
                           }
                         },
                       ),
-                      SizedBox(height: 30.h),
-                      _BackupOptionCard(
-                        icon: Icons.warning_amber_outlined,
-                        iconColor: AppColors.accentRed,
-                        iconBackgroundColor: AppColors.accentRed.withValues(
-                          alpha: 0.2,
+                      SizedBox(height: 24.h),
+                      
+                      // Info text about backup importance
+                      Container(
+                        padding: EdgeInsets.all(16.r),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(
+                            color: AppColors.accentGreen.withValues(alpha: 0.3),
+                          ),
                         ),
-                        title: 'Skip for now',
-                        description:
-                            'You fit set am later for Settings. But if phone \nloss, money go loss forever o.',
-                        featureText: 'Very dangerous - not recommended',
-                        featureIcon: Icons.warning_amber_outlined,
-                        featureIconColor: AppColors.accentRed,
-                        featureTextColor: AppColors.accentRed,
-                        buttonText: 'Skip (I understand)',
-                        buttonColor: Colors.transparent,
-                        buttonTextColor: AppColors.primary,
-                        borderColor: AppColors.primary,
-                        onTap: () async {
-                          ref
-                              .read(onboardingNotifierProvider.notifier)
-                              .setBackupMethod(BackupMethod.skip);
-
-                          await WalletCreationHelper.createWalletWithBackupType(
-                            ref: ref,
-                            backupType: 'none',
-                          );
-
-                          if (context.mounted) {
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder:
-                                    (_) =>
-                                        const WalletCreationAnimationScreen(),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.shield_outlined,
+                              color: AppColors.accentGreen,
+                              size: 24.r,
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: Text(
+                                'Backing up your wallet is essential. Without a backup, you cannot recover your funds if you lose your phone.',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12.sp,
+                                  height: 1.5,
+                                ),
                               ),
-                              (route) => false,
-                            );
-                          }
-                        },
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -183,7 +175,6 @@ class _BackupOptionCard extends StatelessWidget {
   final String featureText;
   final IconData featureIcon;
   final Color featureIconColor;
-  final Color? featureTextColor;
   final String buttonText;
   final Color buttonColor;
   final Color buttonTextColor;
@@ -200,7 +191,6 @@ class _BackupOptionCard extends StatelessWidget {
     required this.featureText,
     required this.featureIcon,
     required this.featureIconColor,
-    this.featureTextColor,
     required this.buttonText,
     required this.buttonColor,
     required this.buttonTextColor,
@@ -290,12 +280,9 @@ class _BackupOptionCard extends StatelessWidget {
               Text(
                 featureText,
                 style: TextStyle(
-                  color: featureTextColor ?? AppColors.textTertiary,
+                  color: AppColors.textTertiary,
                   fontSize: 10.sp,
-                  fontWeight:
-                      featureTextColor != null
-                          ? FontWeight.w500
-                          : FontWeight.w400,
+                  fontWeight: FontWeight.w400,
                   height: 1.6,
                 ),
               ),

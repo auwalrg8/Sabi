@@ -6,9 +6,11 @@ class DataPlan {
   final NetworkProvider network;
   final String name;
   final String description;
-  final double priceNaira;
+  final double priceNaira; // Reseller price (our cost)
+  final double? retailPrice; // VTU.ng retail price (customer price)
   final String validity;
   final String dataAmount;
+  final String? serviceName; // e.g., "MTN SME", "MTN Gifting", etc.
 
   const DataPlan({
     required this.id,
@@ -16,9 +18,20 @@ class DataPlan {
     required this.name,
     required this.description,
     required this.priceNaira,
+    this.retailPrice,
     required this.validity,
     required this.dataAmount,
+    this.serviceName,
   });
+
+  /// Profit margin when selling at retail price
+  double get profitMargin => (retailPrice ?? priceNaira) - priceNaira;
+
+  /// Discount percentage from retail
+  double get discountPercent {
+    if (retailPrice == null || retailPrice == 0) return 0;
+    return ((retailPrice! - priceNaira) / retailPrice!) * 100;
+  }
 
   /// Get all available data plans (hardcoded for agent model)
   static List<DataPlan> getPlansForNetwork(NetworkProvider network) {

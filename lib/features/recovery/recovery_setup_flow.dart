@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/features/recovery/contact_picker_screen.dart';
-import 'package:sabi_wallet/features/recovery/nostr_invite_service.dart';
+import 'package:sabi_wallet/features/recovery/nostr_invite_service.dart' hide ContactWithStatus;
 import 'package:sabi_wallet/features/recovery/social_recovery_service.dart';
 import 'package:sabi_wallet/features/recovery/social_recovery_success_screen.dart';
 
@@ -55,7 +55,7 @@ class _RecoverySetupFlowState extends ConsumerState<RecoverySetupFlow> {
           name: contact.name,
           phoneNumber: contact.phoneNumber,
           npub: contact.npub ?? _generateDummyNpub(contact.name),
-          publicKey: contact.tempPublicKey ?? _generateDummyPublicKey(contact.name),
+          publicKey: contact.hexPubkey ?? _generateDummyPublicKey(contact.name),
         );
       }).toList();
 

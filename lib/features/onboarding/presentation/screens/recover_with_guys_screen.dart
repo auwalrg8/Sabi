@@ -1,13 +1,34 @@
-import 'package:flutter/material.dart';
-import 'package:sabi_wallet/core/constants/colors.dart';
-import 'wallet_success_screen.dart';
+import 'dart:async';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
+import 'package:sabi_wallet/features/recovery/social_recovery_service.dart';
+import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'wallet_success_screen.dart';
 
 enum RecoveryState {
   input,
   searching,
   requestingShares,
   restored,
+  failed,
+}
+
+/// Display model for recovery contacts (distinct from SocialRecoveryService.RecoveryContact)
+class RecoveryGuardianDisplay {
+  final String name;
+  final String npub;
+  final String initial;
+  bool shareReceived;
+
+  RecoveryGuardianDisplay({
+    required this.name,
+    required this.npub,
+    required this.initial,
+    this.shareReceived = false,
+  });
 }
 
 class RecoverWithGuysScreen extends StatefulWidget {
@@ -24,16 +45,12 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
   int _sharesReceived = 0;
   late AnimationController _spinController;
   late AnimationController _progressController;
-
-  final List<RecoveryContact> _contacts = [
-    RecoveryContact(name: 'Chidi Okafor', initial: 'C', shareReceived: false),
-    RecoveryContact(
-      name: 'Blessing Adeyemi',
-      initial: 'B',
-      shareReceived: false,
-    ),
-    RecoveryContact(name: 'Tunde Bakare', initial: 'T', shareReceived: false),
-  ];
+  
+  List<RecoveryGuardianDisplay> _contacts = [];
+  List<RecoveryShare> _collectedShares = [];
+  StreamSubscription<RecoveryShare>? _shareSubscription;
+  String? _errorMessage;
+  String? _recoveredSeed;
 
   @override
   void initState() {
@@ -53,51 +70,142 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
     _controller.dispose();
     _spinController.dispose();
     _progressController.dispose();
+    _shareSubscription?.cancel();
     super.dispose();
   }
 
-  void _startRecovery() {
-    setState(() => _state = RecoveryState.searching);
+  Future<void> _startRecovery() async {
+    setState(() {
+      _state = RecoveryState.searching;
+      _errorMessage = null;
+    });
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() => _state = RecoveryState.requestingShares);
-      _simulateShareReceiving();
+    try {
+      // Initialize services
+      await SocialRecoveryService.init();
+      await NostrService.init();
+      
+      // The identifier (npub or phone) could be used in future to look up
+      // the user's recovery contacts from a decentralized registry
+      // For now, we use locally stored contacts
+      
+      // Look up the user's stored recovery contacts
+      final contacts = await SocialRecoveryService.getRecoveryContacts();
+      
+      if (contacts.isEmpty) {
+        setState(() {
+          _state = RecoveryState.failed;
+          _errorMessage = 'No recovery contacts found for this account.';
+        });
+        return;
+      }
+
+      // Convert to display contacts
+      _contacts = contacts.map((c) => RecoveryGuardianDisplay(
+        name: c.name,
+        npub: c.npub,
+        initial: c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+        shareReceived: false,
+      )).toList();
+
+      setState(() {
+        _state = RecoveryState.requestingShares;
+      });
+
+      // Start listening for shares
+      _startListeningForShares();
+
+      // Request shares from all contacts
+      await SocialRecoveryService.requestRecoveryShares();
+      
+    } catch (e) {
+      print('❌ Recovery error: $e');
+      setState(() {
+        _state = RecoveryState.failed;
+        _errorMessage = 'Failed to start recovery: ${e.toString()}';
+      });
+    }
+  }
+
+  void _startListeningForShares() {
+    _shareSubscription = SocialRecoveryService.listenForRecoveryShares().listen(
+      (share) {
+        if (!mounted) return;
+        
+        // Mark the contact as having responded
+        final contactIndex = _contacts.indexWhere(
+          (c) => c.npub == share.senderNpub
+        );
+        
+        if (contactIndex >= 0) {
+          setState(() {
+            _contacts[contactIndex].shareReceived = true;
+            _collectedShares.add(share);
+            _sharesReceived = _collectedShares.length;
+            _progressController.animateTo(
+              _sharesReceived / 3.0,
+              duration: const Duration(milliseconds: 500),
+            );
+          });
+        } else {
+          // Share from unknown contact - still collect it
+          _collectedShares.add(share);
+          setState(() {
+            _sharesReceived = _collectedShares.length;
+            _progressController.animateTo(
+              _sharesReceived / 3.0,
+              duration: const Duration(milliseconds: 500),
+            );
+          });
+        }
+
+        // Check if we have enough shares
+        if (_collectedShares.length >= 3) {
+          _attemptRecovery();
+        }
+      },
+      onError: (error) {
+        print('❌ Share listening error: $error');
+      },
+    );
+
+    // Set a timeout for receiving shares
+    Future.delayed(const Duration(minutes: 5), () {
+      if (mounted && _state == RecoveryState.requestingShares) {
+        if (_collectedShares.length < 3) {
+          setState(() {
+            _state = RecoveryState.failed;
+            _errorMessage = 'Timed out waiting for shares. '
+                'Only received ${_collectedShares.length}/3 shares.';
+          });
+        }
+      }
     });
   }
 
-  void _simulateShareReceiving() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() {
-        _contacts[0].shareReceived = true;
-        _sharesReceived = 1;
-        _progressController.animateTo(0.33);
-      });
+  Future<void> _attemptRecovery() async {
+    try {
+      final recoveredSeed = await SocialRecoveryService.attemptRecovery(
+        _collectedShares
+      );
 
-      Future.delayed(const Duration(seconds: 2), () {
-        if (!mounted) return;
+      if (recoveredSeed != null) {
         setState(() {
-          _contacts[1].shareReceived = true;
-          _sharesReceived = 2;
-          _progressController.animateTo(0.66);
+          _recoveredSeed = recoveredSeed;
+          _state = RecoveryState.restored;
         });
-
-        Future.delayed(const Duration(seconds: 2), () {
-          if (!mounted) return;
-          setState(() {
-            _contacts[2].shareReceived = true;
-            _sharesReceived = 3;
-            _progressController.animateTo(1.0);
-          });
-
-          Future.delayed(const Duration(seconds: 1), () {
-            if (!mounted) return;
-            setState(() => _state = RecoveryState.restored);
-          });
+      } else {
+        setState(() {
+          _state = RecoveryState.failed;
+          _errorMessage = 'Failed to reconstruct wallet from shares.';
         });
+      }
+    } catch (e) {
+      setState(() {
+        _state = RecoveryState.failed;
+        _errorMessage = 'Recovery failed: ${e.toString()}';
       });
-    });
+    }
   }
 
   @override
@@ -106,12 +214,12 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 29),
+          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
-              const SizedBox(height: 28),
+              SizedBox(height: 24.h),
               Expanded(
                 child: _buildContent(),
               ),
@@ -127,32 +235,39 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
       children: [
         GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: CustomPaint(
-            size: const Size(24, 24),
-            painter: BackArrowPainter(),
+          child: Container(
+            padding: EdgeInsets.all(8.r),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 12.w),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Recover Your Wallet',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  height: 1.78,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Google Sans',
                 ),
               ),
-              const Text(
+              Text(
                 'Your guys go help you get am back',
                 style: TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  height: 1.67,
+                  color: const Color(0xFFA1A1B2),
+                  fontSize: 12.sp,
+                  fontFamily: 'Google Sans',
                 ),
               ),
             ],
@@ -172,12 +287,13 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
         return _buildRequestingSharesState();
       case RecoveryState.restored:
         return _buildRestoredState();
+      case RecoveryState.failed:
+        return _buildFailedState();
     }
   }
 
   Widget _buildInputState() {
-    final bool hasInput = _controller.text.isNotEmpty;
-    final bool isEnabled = hasInput || _controller.text == '@sabi/auwal';
+    final bool hasInput = _controller.text.trim().isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -187,18 +303,13 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Social Recovery Card
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(20.r),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: const Color(0xFF1A1A2E),
+                    borderRadius: BorderRadius.circular(16.r),
+                    border: Border.all(color: const Color(0xFF333355)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,18 +317,19 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: EdgeInsets.all(10.r),
                             decoration: BoxDecoration(
-                              color: AppColors.accentGreen.withValues(alpha: 0.2),
+                              color: const Color(0xFF00FFB2).withOpacity(0.2),
                               shape: BoxShape.circle,
                             ),
-                            child: CustomPaint(
-                              size: const Size(24, 24),
-                              painter: UsersIconPainter(),
+                            child: Icon(
+                              Icons.group,
+                              color: const Color(0xFF00FFB2),
+                              size: 24.r,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
+                          SizedBox(width: 12.w),
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -225,19 +337,18 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                                   'Social Recovery',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.71,
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Google Sans',
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                SizedBox(height: 2.h),
                                 Text(
-                                  'Enter your old phone number or @sabi  handle',
+                                  'Enter your Nostr npub or phone number',
                                   style: TextStyle(
-                                    color: Color(0xFF9CA3AF),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.67,
+                                    color: const Color(0xFFA1A1B2),
+                                    fontSize: 12.sp,
+                                    fontFamily: 'Google Sans',
                                   ),
                                 ),
                               ],
@@ -245,33 +356,29 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       Container(
-                        height: 50,
-                        padding: const EdgeInsets.symmetric(horizontal: 17),
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
                         decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFF374151),
-                          ),
+                          color: const Color(0xFF0C0C1A),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(color: const Color(0xFF333355)),
                         ),
                         child: TextField(
                           controller: _controller,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            height: 1.75,
+                            fontSize: 14.sp,
+                            fontFamily: 'Google Sans',
                           ),
-                          decoration: const InputDecoration(
-                            hintText: '+234 803 456 7890 or @sabi/yourname',
+                          decoration: InputDecoration(
+                            hintText: 'npub1... or +234 803 456 7890',
                             hintStyle: TextStyle(
-                              color: Color(0xFF9CA3AF),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
+                              color: const Color(0xFF666680),
+                              fontSize: 13.sp,
                             ),
                             border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 14.h),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -279,51 +386,35 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: 20.h),
+                
+                // Info Card
                 Container(
-                  padding: const EdgeInsets.all(21),
+                  padding: EdgeInsets.all(16.r),
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(20),
+                    color: const Color(0xFF00FFB2).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
-                      color: AppColors.accentGreen,
+                      color: const Color(0xFF00FFB2).withOpacity(0.3),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        'We go look up your Nostr profile, find your 3 ',
-                        style: TextStyle(
-                          color: Color(0xFFD1D5DB),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          height: 1.83,
-                        ),
+                      Icon(
+                        Icons.info_outline,
+                        color: const Color(0xFF00FFB2),
+                        size: 20.r,
                       ),
-                      Text(
-                        'recovery contacts, and send them automatic ',
-                        style: TextStyle(
-                          color: Color(0xFFD1D5DB),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          height: 1.83,
-                        ),
-                      ),
-                      Text(
-                        'message to help you recover.',
-                        style: TextStyle(
-                          color: Color(0xFFD1D5DB),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          height: 1.83,
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Text(
+                          'We\'ll look up your Nostr profile, find your recovery guardians, and send them automatic requests to help you recover.',
+                          style: TextStyle(
+                            color: const Color(0xFFCCCCCC),
+                            fontSize: 12.sp,
+                            fontFamily: 'Google Sans',
+                            height: 1.5,
+                          ),
                         ),
                       ),
                     ],
@@ -333,28 +424,30 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
             ),
           ),
         ),
-        Container(
-          height: 60,
-          margin: const EdgeInsets.only(top: 16),
-          child: ElevatedButton(
-            onPressed: isEnabled ? _startRecovery : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isEnabled
-                  ? AppColors.primary
-                  : const Color(0xFF814F1A),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              disabledBackgroundColor: const Color(0xFF814F1A),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+        
+        // Start Button
+        GestureDetector(
+          onTap: hasInput ? _startRecovery : null,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(vertical: 16.h),
+            decoration: BoxDecoration(
+              color: hasInput
+                  ? const Color(0xFFF7931A)
+                  : const Color(0xFF333355),
+              borderRadius: BorderRadius.circular(12.r),
             ),
-            child: const Text(
-              'Start Recovery',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.71,
+            child: Center(
+              child: Text(
+                'Start Recovery',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: hasInput
+                      ? const Color(0xFF0C0C1A)
+                      : const Color(0xFF666680),
+                  fontFamily: 'Google Sans',
+                ),
               ),
             ),
           ),
@@ -364,856 +457,410 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
   }
 
   Widget _buildSearchingState() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 26,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedBuilder(
-                    animation: _spinController,
-                    builder: (context, child) {
-                      return Transform.rotate(
-                        angle: _spinController.value * 2 * math.pi,
-                        child: CustomPaint(
-                          size: const Size(71, 71),
-                          painter: LoadingIconPainter(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 9),
-                  const Text(
-                    'Looking Up Your Profile',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      height: 1.65,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  const Text(
-                    'Searching Nostr network for your \nrecovery contacts...',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      height: 1.71,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(32.r),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E),
+          borderRadius: BorderRadius.circular(20.r),
         ),
-        Container(
-          height: 60,
-          margin: const EdgeInsets.only(top: 16),
-          child: ElevatedButton(
-            onPressed: null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF814F1A),
-              disabledBackgroundColor: const Color(0xFF814F1A),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _spinController,
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle: _spinController.value * 2 * math.pi,
+                  child: Icon(
+                    Icons.refresh,
+                    color: const Color(0xFFF7931A),
+                    size: 64.r,
+                  ),
+                );
+              },
             ),
-            child: const Text(
-              'Start Recovery',
+            SizedBox(height: 20.h),
+            Text(
+              'Looking Up Your Profile',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.71,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Google Sans',
               ),
             ),
-          ),
+            SizedBox(height: 8.h),
+            Text(
+              'Searching Nostr network for your\nrecovery contacts...',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: const Color(0xFFA1A1B2),
+                fontSize: 14.sp,
+                fontFamily: 'Google Sans',
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildRequestingSharesState() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Progress Card
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(20.r),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: const Color(0xFF1A1A2E),
+            borderRadius: BorderRadius.circular(16.r),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentGreen.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: CustomPaint(
-                      size: const Size(24, 24),
-                      painter: UsersIconPainter(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Requesting Shares',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            height: 1.71,
-                          ),
-                        ),
-                        Text(
-                          '$_sharesReceived/3 shares received',
-                          style: const TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            height: 1.67,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              Text(
+                'Requesting Shares',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Google Sans',
+                ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 8.h),
+              Text(
+                'Waiting for your guardians to respond...',
+                style: TextStyle(
+                  color: const Color(0xFFA1A1B2),
+                  fontSize: 14.sp,
+                  fontFamily: 'Google Sans',
+                ),
+              ),
+              SizedBox(height: 20.h),
+              
+              // Progress bar
               AnimatedBuilder(
                 animation: _progressController,
                 builder: (context, child) {
-                  return Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: _progressController.value,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.accentGreen,
-                          borderRadius: BorderRadius.circular(9999),
+                  return Column(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.r),
+                        child: LinearProgressIndicator(
+                          value: _progressController.value,
+                          backgroundColor: const Color(0xFF333355),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFF00FFB2),
+                          ),
+                          minHeight: 8.h,
                         ),
                       ),
-                    ),
+                      SizedBox(height: 8.h),
+                      Text(
+                        '$_sharesReceived/3 shares received',
+                        style: TextStyle(
+                          color: const Color(0xFF00FFB2),
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Google Sans',
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
             ],
           ),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 20.h),
+        
+        // Contacts List
         Expanded(
-          child: ListView.separated(
+          child: ListView.builder(
             itemCount: _contacts.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 17),
             itemBuilder: (context, index) {
               final contact = _contacts[index];
-              return _buildContactCard(contact);
+              return Container(
+                margin: EdgeInsets.only(bottom: 12.h),
+                padding: EdgeInsets.all(16.r),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color: contact.shareReceived
+                        ? const Color(0xFF00FFB2)
+                        : const Color(0xFF333355),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 48.r,
+                      height: 48.r,
+                      decoration: BoxDecoration(
+                        color: contact.shareReceived
+                            ? const Color(0xFF00FFB2)
+                            : const Color(0xFF8B5CF6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: contact.shareReceived
+                            ? Icon(
+                                Icons.check,
+                                color: const Color(0xFF0C0C1A),
+                                size: 24.r,
+                              )
+                            : Text(
+                                contact.initial,
+                                style: TextStyle(
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    
+                    // Name and status
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            contact.name,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Google Sans',
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            contact.shareReceived
+                                ? 'Share received ✓'
+                                : 'Waiting for response...',
+                            style: TextStyle(
+                              color: contact.shareReceived
+                                  ? const Color(0xFF00FFB2)
+                                  : const Color(0xFFA1A1B2),
+                              fontSize: 12.sp,
+                              fontFamily: 'Google Sans',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Status icon
+                    if (!contact.shareReceived)
+                      AnimatedBuilder(
+                        animation: _spinController,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _spinController.value * 2 * math.pi,
+                            child: Icon(
+                              Icons.refresh,
+                              color: const Color(0xFFA1A1B2),
+                              size: 20.r,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              );
             },
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildContactCard(RecoveryContact contact) {
-    return Container(
-      padding: EdgeInsets.all(contact.shareReceived ? 17 : 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: contact.shareReceived
-            ? Border.all(color: AppColors.accentGreen)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFF7931A), Color(0xFFEA580C)],
-                stops: [0.25, 0.96],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                contact.initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  height: 1.87,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  contact.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.71,
-                  ),
-                ),
-                Text(
-                  contact.shareReceived
-                      ? 'Share received ✓'
-                      : 'Waiting for approval...',
-                  style: const TextStyle(
-                    color: Color(0xFF9CA3AF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    height: 1.67,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-          if (contact.shareReceived)
-            CustomPaint(
-              size: const Size(20, 20),
-              painter: CheckIconPainter(),
-            )
-          else
-            AnimatedBuilder(
-              animation: _spinController,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: _spinController.value * 2 * math.pi,
-                  child: CustomPaint(
-                    size: const Size(26, 26),
-                    painter: SmallLoadingIconPainter(),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
     );
   }
 
   Widget _buildRestoredState() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(33),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.accentGreen),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentGreen.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: CustomPaint(
-                        size: const Size(40, 40),
-                        painter: LargeCheckIconPainter(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Wallet Restored!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      height: 1.6,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Your wallet has been successfully \nrecovered. All your funds are safe and \naccessible.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      height: 1.71,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Recovery Time',
-                              style: TextStyle(
-                                color: Color(0xFF9CA3AF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                height: 1.67,
-                              ),
-                            ),
-                            Text(
-                              '~8 seconds',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                height: 1.71,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Shares Combined',
-                              style: TextStyle(
-                                color: Color(0xFF9CA3AF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                height: 1.67,
-                              ),
-                            ),
-                            Text(
-                              '3/3',
-                              style: TextStyle(
-                                color: Color(0xFF00FFB2),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                height: 1.71,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(24.r),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00FFB2).withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle,
+              color: const Color(0xFF00FFB2),
+              size: 64.r,
             ),
           ),
-        ),
-        Container(
-          height: 50,
-          margin: const EdgeInsets.only(top: 16),
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
+          SizedBox(height: 24.h),
+          Text(
+            'Wallet Recovered! 🎉',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24.sp,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Google Sans',
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Text(
+            'Your wallet has been successfully restored\nusing social recovery.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: const Color(0xFFA1A1B2),
+              fontSize: 14.sp,
+              fontFamily: 'Google Sans',
+            ),
+          ),
+          SizedBox(height: 40.h),
+          GestureDetector(
+            onTap: () {
+              // Store the recovered seed before navigating
+              if (_recoveredSeed != null) {
+                // The recovered seed will be used by the success screen flow
+                // to initialize the wallet
+                SocialRecoveryService.storeRecoveredSeed(_recoveredSeed!);
+              }
+              
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WalletSuccessScreen(),
+                  builder: (_) => const WalletSuccessScreen(),
                 ),
-                (route) => false,
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              margin: EdgeInsets.symmetric(horizontal: 24.w),
+              padding: EdgeInsets.symmetric(vertical: 16.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7931A),
+                borderRadius: BorderRadius.circular(12.r),
               ),
-            ),
-            child: const Text(
-              'Continue to Wallet',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.71,
+              child: Center(
+                child: Text(
+                  'Continue to Wallet',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0C0C1A),
+                    fontFamily: 'Google Sans',
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class RecoveryContact {
-  final String name;
-  final String initial;
-  bool shareReceived;
-
-  RecoveryContact({
-    required this.name,
-    required this.initial,
-    this.shareReceived = false,
-  });
-}
-
-class BackArrowPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    path.moveTo(size.width * 0.5, size.height * 0.21);
-    path.lineTo(size.width * 0.21, size.height * 0.5);
-    path.lineTo(size.width * 0.5, size.height * 0.79);
-
-    canvas.drawPath(path, paint);
-
-    final linePath = Path();
-    linePath.moveTo(size.width * 0.79, size.height * 0.5);
-    linePath.lineTo(size.width * 0.21, size.height * 0.5);
-
-    canvas.drawPath(linePath, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class UsersIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentGreen
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final path1 = Path();
-    path1.moveTo(size.width * 0.67, size.height * 0.88);
-    path1.lineTo(size.width * 0.67, size.height * 0.79);
-    path1.cubicTo(
-      size.width * 0.67,
-      size.height * 0.75,
-      size.width * 0.65,
-      size.height * 0.71,
-      size.width * 0.62,
-      size.height * 0.68,
-    );
-    path1.cubicTo(
-      size.width * 0.59,
-      size.height * 0.65,
-      size.width * 0.54,
-      size.height * 0.63,
-      size.width * 0.5,
-      size.height * 0.63,
-    );
-    path1.lineTo(size.width * 0.25, size.height * 0.63);
-    path1.cubicTo(
-      size.width * 0.21,
-      size.height * 0.63,
-      size.width * 0.16,
-      size.height * 0.65,
-      size.width * 0.13,
-      size.height * 0.68,
-    );
-    path1.cubicTo(
-      size.width * 0.10,
-      size.height * 0.71,
-      size.width * 0.08,
-      size.height * 0.75,
-      size.width * 0.08,
-      size.height * 0.79,
-    );
-    path1.lineTo(size.width * 0.08, size.height * 0.88);
-
-    canvas.drawPath(path1, paint);
-
-    final circlePath = Path();
-    circlePath.addOval(
-      Rect.fromCircle(
-        center: Offset(size.width * 0.375, size.height * 0.29),
-        radius: size.width * 0.17,
+        ],
       ),
     );
-    canvas.drawPath(circlePath, paint);
-
-    final path2 = Path();
-    path2.moveTo(size.width * 0.67, size.height * 0.13);
-    path2.cubicTo(
-      size.width * 0.71,
-      size.height * 0.14,
-      size.width * 0.76,
-      size.height * 0.16,
-      size.width * 0.80,
-      size.height * 0.19,
-    );
-    path2.cubicTo(
-      size.width * 0.84,
-      size.height * 0.22,
-      size.width * 0.87,
-      size.height * 0.25,
-      size.width * 0.87,
-      size.height * 0.29,
-    );
-    path2.cubicTo(
-      size.width * 0.87,
-      size.height * 0.33,
-      size.width * 0.84,
-      size.height * 0.36,
-      size.width * 0.80,
-      size.height * 0.39,
-    );
-    path2.cubicTo(
-      size.width * 0.76,
-      size.height * 0.42,
-      size.width * 0.71,
-      size.height * 0.44,
-      size.width * 0.67,
-      size.height * 0.45,
-    );
-
-    canvas.drawPath(path2, paint);
-
-    final path3 = Path();
-    path3.moveTo(size.width * 0.92, size.height * 0.88);
-    path3.lineTo(size.width * 0.92, size.height * 0.79);
-    path3.cubicTo(
-      size.width * 0.92,
-      size.height * 0.76,
-      size.width * 0.89,
-      size.height * 0.73,
-      size.width * 0.84,
-      size.height * 0.69,
-    );
-    path3.cubicTo(
-      size.width * 0.79,
-      size.height * 0.66,
-      size.width * 0.73,
-      size.height * 0.65,
-      size.width * 0.67,
-      size.height * 0.63,
-    );
-
-    canvas.drawPath(path3, paint);
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class LoadingIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentGreen
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final lines = [
-      [Offset(size.width * 0.5, size.height * 0.08), Offset(size.width * 0.5, size.height * 0.25)],
-      [Offset(size.width * 0.68, size.height * 0.33), Offset(size.width * 0.80, size.height * 0.20)],
-      [Offset(size.width * 0.75, size.height * 0.5), Offset(size.width * 0.92, size.height * 0.5)],
-      [Offset(size.width * 0.68, size.height * 0.68), Offset(size.width * 0.80, size.height * 0.80)],
-      [Offset(size.width * 0.5, size.height * 0.75), Offset(size.width * 0.5, size.height * 0.92)],
-      [Offset(size.width * 0.20, size.height * 0.80), Offset(size.width * 0.33, size.height * 0.68)],
-      [Offset(size.width * 0.08, size.height * 0.5), Offset(size.width * 0.25, size.height * 0.5)],
-      [Offset(size.width * 0.20, size.height * 0.20), Offset(size.width * 0.33, size.height * 0.33)],
-    ];
-
-    for (var line in lines) {
-      canvas.drawLine(line[0], line[1], paint);
-    }
+  Widget _buildFailedState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: EdgeInsets.all(24.r),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 64.r,
+            ),
+          ),
+          SizedBox(height: 24.h),
+          Text(
+            'Recovery Failed',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24.sp,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Google Sans',
+            ),
+          ),
+          SizedBox(height: 12.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32.w),
+            child: Text(
+              _errorMessage ?? 'An unknown error occurred.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: const Color(0xFFA1A1B2),
+                fontSize: 14.sp,
+                fontFamily: 'Google Sans',
+              ),
+            ),
+          ),
+          SizedBox(height: 40.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _state = RecoveryState.input;
+                    _errorMessage = null;
+                    _contacts.clear();
+                    _collectedShares.clear();
+                    _sharesReceived = 0;
+                    _progressController.value = 0;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24.w,
+                    vertical: 14.h,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFF7931A)),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    'Try Again',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFF7931A),
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24.w,
+                    vertical: 14.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF333355),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    'Go Back',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class SmallLoadingIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentGreen
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final lines = [
-      [Offset(size.width * 0.5, size.height * 0.08), Offset(size.width * 0.5, size.height * 0.25)],
-      [Offset(size.width * 0.68, size.height * 0.33), Offset(size.width * 0.80, size.height * 0.20)],
-      [Offset(size.width * 0.75, size.height * 0.5), Offset(size.width * 0.92, size.height * 0.5)],
-      [Offset(size.width * 0.68, size.height * 0.68), Offset(size.width * 0.80, size.height * 0.80)],
-      [Offset(size.width * 0.5, size.height * 0.75), Offset(size.width * 0.5, size.height * 0.92)],
-      [Offset(size.width * 0.20, size.height * 0.80), Offset(size.width * 0.33, size.height * 0.68)],
-      [Offset(size.width * 0.08, size.height * 0.5), Offset(size.width * 0.25, size.height * 0.5)],
-      [Offset(size.width * 0.20, size.height * 0.20), Offset(size.width * 0.33, size.height * 0.33)],
-    ];
-
-    for (var line in lines) {
-      canvas.drawLine(line[0], line[1], paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class CheckIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentGreen
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final circlePath = Path();
-    circlePath.moveTo(size.width * 0.91, size.height * 0.42);
-    circlePath.cubicTo(
-      size.width * 0.93,
-      size.height * 0.51,
-      size.width * 0.91,
-      size.height * 0.61,
-      size.width * 0.87,
-      size.height * 0.69,
-    );
-    circlePath.cubicTo(
-      size.width * 0.83,
-      size.height * 0.76,
-      size.width * 0.76,
-      size.height * 0.82,
-      size.width * 0.67,
-      size.height * 0.85,
-    );
-    circlePath.cubicTo(
-      size.width * 0.58,
-      size.height * 0.88,
-      size.width * 0.48,
-      size.height * 0.88,
-      size.width * 0.39,
-      size.height * 0.85,
-    );
-    circlePath.cubicTo(
-      size.width * 0.30,
-      size.height * 0.82,
-      size.width * 0.22,
-      size.height * 0.76,
-      size.width * 0.16,
-      size.height * 0.67,
-    );
-    circlePath.cubicTo(
-      size.width * 0.10,
-      size.height * 0.58,
-      size.width * 0.06,
-      size.height * 0.48,
-      size.width * 0.06,
-      size.height * 0.38,
-    );
-    circlePath.cubicTo(
-      size.width * 0.06,
-      size.height * 0.29,
-      size.width * 0.10,
-      size.height * 0.19,
-      size.width * 0.16,
-      size.height * 0.12,
-    );
-    circlePath.cubicTo(
-      size.width * 0.22,
-      size.height * 0.05,
-      size.width * 0.30,
-      size.height * 0.00,
-      size.width * 0.39,
-      size.height * -0.02,
-    );
-    circlePath.cubicTo(
-      size.width * 0.48,
-      size.height * -0.04,
-      size.width * 0.58,
-      size.height * -0.02,
-      size.width * 0.67,
-      size.height * 0.03,
-    );
-
-    canvas.drawPath(circlePath, paint);
-
-    final checkPath = Path();
-    checkPath.moveTo(size.width * 0.375, size.height * 0.46);
-    checkPath.lineTo(size.width * 0.5, size.height * 0.58);
-    checkPath.lineTo(size.width * 0.92, size.height * 0.17);
-
-    canvas.drawPath(checkPath, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class LargeCheckIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentGreen
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final circlePath = Path();
-    circlePath.moveTo(size.width * 0.91, size.height * .42);
-    circlePath.cubicTo(
-      size.width * 0.93,
-      size.height * 0.51,
-      size.width * 0.91,
-      size.height * 0.61,
-      size.width * 0.87,
-      size.height * 0.69,
-    );
-    circlePath.cubicTo(
-      size.width * 0.83,
-      size.height * 0.76,
-      size.width * 0.76,
-      size.height * 0.82,
-      size.width * 0.67,
-      size.height * 0.85,
-    );
-    circlePath.cubicTo(
-      size.width * 0.58,
-      size.height * 0.88,
-      size.width * 0.48,
-      size.height * 0.88,
-      size.width * 0.39,
-      size.height * 0.85,
-    );
-    circlePath.cubicTo(
-      size.width * 0.30,
-      size.height * 0.82,
-      size.width * 0.22,
-      size.height * 0.76,
-      size.width * 0.16,
-      size.height * 0.67,
-    );
-    circlePath.cubicTo(
-      size.width * 0.10,
-      size.height * 0.58,
-      size.width * 0.06,
-      size.height * 0.48,
-      size.width * 0.06,
-      size.height * 0.38,
-    );
-    circlePath.cubicTo(
-      size.width * 0.06,
-      size.height * 0.29,
-      size.width * 0.10,
-      size.height * 0.19,
-      size.width * 0.16,
-      size.height * 0.12,
-    );
-    circlePath.cubicTo(
-      size.width * 0.22,
-      size.height * 0.05,
-      size.width * 0.30,
-      size.height * 0.00,
-      size.width * 0.39,
-      size.height * -0.02,
-    );
-    circlePath.cubicTo(
-      size.width * 0.48,
-      size.height * -0.04,
-      size.width * 0.58,
-      size.height * -0.02,
-      size.width * 0.67,
-      size.height * 0.03,
-    );
-
-    canvas.drawPath(circlePath, paint);
-
-    final checkPath = Path();
-    checkPath.moveTo(size.width * 0.375, size.height * 0.46);
-    checkPath.lineTo(size.width * 0.5, size.height * 0.58);
-    checkPath.lineTo(size.width * 0.92, size.height * 0.17);
-
-    canvas.drawPath(checkPath, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

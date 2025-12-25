@@ -740,6 +740,14 @@ class _HomeContentState extends State<_HomeContent> {
                               ),
                             );
                             break;
+                          case SuggestionType.socialRecovery:
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const BackupChoiceScreen(),
+                              ),
+                            );
+                            break;
                           case SuggestionType.nostr:
                             showModalBottomSheet(
                               context: context,

@@ -3,33 +3,116 @@ import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'dart:convert';
 import 'dart:math';
 
-/// Model for recovery contact
+/// Health status for a guardian
+enum GuardianHealthStatus {
+  healthy,   // Online within last 24 hours
+  warning,   // Online within last 7 days
+  offline,   // Not seen in 7+ days
+  unknown,   // Never pinged
+}
+
+/// Model for recovery contact (guardian)
 class RecoveryContact {
   final String name;
   final String? phoneNumber;
   final String npub;
   final String publicKey; // Nostr public key (hex)
+  final int? shareIndex;  // Which share (1-5) this guardian holds
+  final bool shareDelivered; // Whether share was successfully sent
+  final DateTime? lastSeen; // Last time guardian was seen online
+  final DateTime? shareDeliveredAt; // When share was sent
+  final bool isOnNostr; // Whether they have a Nostr account
 
   RecoveryContact({
     required this.name,
     this.phoneNumber,
     required this.npub,
     required this.publicKey,
+    this.shareIndex,
+    this.shareDelivered = false,
+    this.lastSeen,
+    this.shareDeliveredAt,
+    this.isOnNostr = true,
   });
+
+  /// Get health status based on last seen time
+  GuardianHealthStatus get healthStatus {
+    if (lastSeen == null) return GuardianHealthStatus.unknown;
+    
+    final now = DateTime.now();
+    final diff = now.difference(lastSeen!);
+    
+    if (diff.inHours < 24) return GuardianHealthStatus.healthy;
+    if (diff.inDays < 7) return GuardianHealthStatus.warning;
+    return GuardianHealthStatus.offline;
+  }
+  
+  /// Human readable last seen text
+  String get lastSeenText {
+    if (lastSeen == null) return 'Never seen';
+    
+    final now = DateTime.now();
+    final diff = now.difference(lastSeen!);
+    
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${(diff.inDays / 7).floor()}w ago';
+  }
+  
+  /// Copy with updated fields
+  RecoveryContact copyWith({
+    String? name,
+    String? phoneNumber,
+    String? npub,
+    String? publicKey,
+    int? shareIndex,
+    bool? shareDelivered,
+    DateTime? lastSeen,
+    DateTime? shareDeliveredAt,
+    bool? isOnNostr,
+  }) {
+    return RecoveryContact(
+      name: name ?? this.name,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      npub: npub ?? this.npub,
+      publicKey: publicKey ?? this.publicKey,
+      shareIndex: shareIndex ?? this.shareIndex,
+      shareDelivered: shareDelivered ?? this.shareDelivered,
+      lastSeen: lastSeen ?? this.lastSeen,
+      shareDeliveredAt: shareDeliveredAt ?? this.shareDeliveredAt,
+      isOnNostr: isOnNostr ?? this.isOnNostr,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'phoneNumber': phoneNumber,
     'npub': npub,
     'publicKey': publicKey,
+    'shareIndex': shareIndex,
+    'shareDelivered': shareDelivered,
+    'lastSeen': lastSeen?.toIso8601String(),
+    'shareDeliveredAt': shareDeliveredAt?.toIso8601String(),
+    'isOnNostr': isOnNostr,
   };
 
   factory RecoveryContact.fromJson(Map<String, dynamic> json) =>
       RecoveryContact(
-        name: json['name'],
+        name: json['name'] ?? '',
         phoneNumber: json['phoneNumber'],
-        npub: json['npub'],
-        publicKey: json['publicKey'],
+        npub: json['npub'] ?? '',
+        publicKey: json['publicKey'] ?? '',
+        shareIndex: json['shareIndex'],
+        shareDelivered: json['shareDelivered'] ?? false,
+        lastSeen: json['lastSeen'] != null 
+            ? DateTime.tryParse(json['lastSeen']) 
+            : null,
+        shareDeliveredAt: json['shareDeliveredAt'] != null 
+            ? DateTime.tryParse(json['shareDeliveredAt']) 
+            : null,
+        isOnNostr: json['isOnNostr'] ?? true,
       );
 }
 
@@ -70,6 +153,7 @@ class SocialRecoveryService {
   static const _storageKey = 'social_recovery_contacts';
   static const _recoverySharesKey = 'recovery_shares';
   static const _shareKeysKey = 'recovery_share_keys';
+  static const _recoveredSeedKey = 'recovered_seed_temp';
 
   static late FlutterSecureStorage _secureStorage;
   static bool _initialized = false;
@@ -79,6 +163,22 @@ class SocialRecoveryService {
     if (_initialized) return;
     _secureStorage = const FlutterSecureStorage();
     _initialized = true;
+  }
+
+  /// Store recovered seed temporarily for wallet initialization
+  static Future<void> storeRecoveredSeed(String seed) async {
+    await init();
+    await _secureStorage.write(key: _recoveredSeedKey, value: seed);
+  }
+
+  /// Get and clear the recovered seed
+  static Future<String?> getAndClearRecoveredSeed() async {
+    await init();
+    final seed = await _secureStorage.read(key: _recoveredSeedKey);
+    if (seed != null) {
+      await _secureStorage.delete(key: _recoveredSeedKey);
+    }
+    return seed;
   }
 
   /// Split master seed into 5 shares using a proper Shamir-like scheme
@@ -422,6 +522,408 @@ class SocialRecoveryService {
       print('✅ Recovery data cleared');
     } catch (e) {
       print('❌ Error clearing recovery data: $e');
+      rethrow;
+    }
+  }
+
+  /// Send health ping to all guardians
+  /// Returns updated contacts with lastSeen times
+  static Future<List<RecoveryContact>> pingGuardians() async {
+    try {
+      await init();
+      final contacts = await getRecoveryContacts();
+      if (contacts.isEmpty) return [];
+
+      await NostrService.init();
+      
+      final updatedContacts = <RecoveryContact>[];
+      
+      for (final contact in contacts) {
+        try {
+          // Check if guardian is online by looking for their recent activity
+          final lastSeen = await _checkGuardianActivity(contact.npub);
+          
+          updatedContacts.add(contact.copyWith(
+            lastSeen: lastSeen,
+          ));
+        } catch (e) {
+          // Keep existing lastSeen if check fails
+          updatedContacts.add(contact);
+        }
+      }
+      
+      // Update stored contacts with new lastSeen times
+      await _storeRecoveryContacts(updatedContacts);
+      
+      print('✅ Pinged ${contacts.length} guardians');
+      return updatedContacts;
+    } catch (e) {
+      print('❌ Error pinging guardians: $e');
+      return [];
+    }
+  }
+  
+  /// Check a guardian's recent Nostr activity
+  static Future<DateTime?> _checkGuardianActivity(String npub) async {
+    try {
+      final hexPubkey = NostrService.npubToHex(npub);
+      if (hexPubkey == null) return null;
+      
+      // Query for any recent events from this pubkey
+      // This checks their metadata, notes, or any activity
+      final events = await NostrService.fetchUserEvents(
+        hexPubkey: hexPubkey,
+        kinds: [0, 1, 4], // Metadata, notes, DMs
+        limit: 1,
+      );
+      
+      if (events.isNotEmpty) {
+        final latestEvent = events.first;
+        final timestamp = latestEvent['created_at'] as int?;
+        if (timestamp != null) {
+          return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      print('⚠️ Could not check activity for $npub: $e');
+      return null;
+    }
+  }
+  
+  /// Update a single guardian's contact info
+  static Future<void> updateGuardian(RecoveryContact updatedContact) async {
+    try {
+      await init();
+      final contacts = await getRecoveryContacts();
+      
+      final index = contacts.indexWhere((c) => c.npub == updatedContact.npub);
+      if (index >= 0) {
+        contacts[index] = updatedContact;
+        await _storeRecoveryContacts(contacts);
+        print('✅ Updated guardian: ${updatedContact.name}');
+      }
+    } catch (e) {
+      print('❌ Error updating guardian: $e');
+      rethrow;
+    }
+  }
+  
+  /// Replace a guardian with a new one
+  /// This revokes the old share and sends a new one to the new contact
+  static Future<void> replaceGuardian({
+    required RecoveryContact oldGuardian,
+    required RecoveryContact newGuardian,
+    required String masterSeed,
+  }) async {
+    try {
+      await init();
+      
+      final contacts = await getRecoveryContacts();
+      final index = contacts.indexWhere((c) => c.npub == oldGuardian.npub);
+      
+      if (index < 0) {
+        throw Exception('Guardian not found');
+      }
+      
+      final shareIndex = oldGuardian.shareIndex ?? (index + 1);
+      
+      // Generate new shares
+      final shares = await splitSeedIntoShares(masterSeed);
+      final share = shares[shareIndex - 1]; // Convert to 0-based
+      
+      await NostrService.init();
+      await NostrService.reinitialize();
+      
+      // Send share to new guardian
+      final dmContent = jsonEncode({
+        'type': 'sabi_recovery_share',
+        'version': 1,
+        'share_index': shareIndex,
+        'share_data': share,
+        'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'message': 'This is a Sabi Wallet recovery share. Please keep it safe!',
+      });
+      
+      await NostrService.sendEncryptedDM(
+        targetNpub: newGuardian.npub,
+        message: dmContent,
+      );
+      
+      // Notify old guardian that their share is revoked
+      final revokeContent = jsonEncode({
+        'type': 'sabi_share_revoked',
+        'version': 1,
+        'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'message': 'Your recovery share has been revoked. You can delete it.',
+      });
+      
+      try {
+        await NostrService.sendEncryptedDM(
+          targetNpub: oldGuardian.npub,
+          message: revokeContent,
+        );
+      } catch (e) {
+        // Non-critical if revocation notice fails
+        print('⚠️ Could not send revocation notice: $e');
+      }
+      
+      // Update stored contacts
+      final updatedNewGuardian = newGuardian.copyWith(
+        shareIndex: shareIndex,
+        shareDelivered: true,
+        shareDeliveredAt: DateTime.now(),
+      );
+      
+      contacts[index] = updatedNewGuardian;
+      await _storeRecoveryContacts(contacts);
+      
+      print('✅ Replaced guardian ${oldGuardian.name} with ${newGuardian.name}');
+    } catch (e) {
+      print('❌ Error replacing guardian: $e');
+      rethrow;
+    }
+  }
+  
+  /// Add a new guardian (only if we have fewer than 5)
+  static Future<bool> addGuardian({
+    required RecoveryContact newGuardian,
+    required String masterSeed,
+  }) async {
+    try {
+      await init();
+      
+      final contacts = await getRecoveryContacts();
+      if (contacts.length >= 5) {
+        print('⚠️ Cannot add more than 5 guardians');
+        return false;
+      }
+      
+      // Find next available share index
+      final usedIndices = contacts
+          .map((c) => c.shareIndex)
+          .whereType<int>()
+          .toSet();
+      
+      int nextIndex = 1;
+      while (usedIndices.contains(nextIndex) && nextIndex <= 5) {
+        nextIndex++;
+      }
+      
+      if (nextIndex > 5) {
+        print('⚠️ All share indices used');
+        return false;
+      }
+      
+      // Generate shares and send to new guardian
+      final shares = await splitSeedIntoShares(masterSeed);
+      final share = shares[nextIndex - 1];
+      
+      await NostrService.init();
+      await NostrService.reinitialize();
+      
+      final dmContent = jsonEncode({
+        'type': 'sabi_recovery_share',
+        'version': 1,
+        'share_index': nextIndex,
+        'share_data': share,
+        'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'message': 'This is a Sabi Wallet recovery share. Please keep it safe!',
+      });
+      
+      await NostrService.sendEncryptedDM(
+        targetNpub: newGuardian.npub,
+        message: dmContent,
+      );
+      
+      // Store updated contact
+      final updatedGuardian = newGuardian.copyWith(
+        shareIndex: nextIndex,
+        shareDelivered: true,
+        shareDeliveredAt: DateTime.now(),
+      );
+      
+      contacts.add(updatedGuardian);
+      await _storeRecoveryContacts(contacts);
+      
+      print('✅ Added guardian: ${newGuardian.name} with share $nextIndex');
+      return true;
+    } catch (e) {
+      print('❌ Error adding guardian: $e');
+      return false;
+    }
+  }
+  
+  /// Remove a guardian (only if we have more than 3)
+  static Future<bool> removeGuardian(RecoveryContact guardian) async {
+    try {
+      await init();
+      
+      final contacts = await getRecoveryContacts();
+      if (contacts.length <= 3) {
+        print('⚠️ Cannot have fewer than 3 guardians');
+        return false;
+      }
+      
+      // Notify guardian that their share is revoked
+      try {
+        await NostrService.init();
+        await NostrService.reinitialize();
+        
+        final revokeContent = jsonEncode({
+          'type': 'sabi_share_revoked',
+          'version': 1,
+          'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'message': 'Your recovery share has been revoked. You can delete it.',
+        });
+        
+        await NostrService.sendEncryptedDM(
+          targetNpub: guardian.npub,
+          message: revokeContent,
+        );
+      } catch (e) {
+        print('⚠️ Could not send revocation notice: $e');
+      }
+      
+      // Remove from stored contacts
+      contacts.removeWhere((c) => c.npub == guardian.npub);
+      await _storeRecoveryContacts(contacts);
+      
+      print('✅ Removed guardian: ${guardian.name}');
+      return true;
+    } catch (e) {
+      print('❌ Error removing guardian: $e');
+      return false;
+    }
+  }
+  
+  /// Get overall recovery health status
+  static Future<Map<String, dynamic>> getRecoveryHealth() async {
+    try {
+      final contacts = await getRecoveryContacts();
+      if (contacts.isEmpty) {
+        return {
+          'isSetUp': false,
+          'healthyCount': 0,
+          'warningCount': 0,
+          'offlineCount': 0,
+          'totalCount': 0,
+          'overallStatus': GuardianHealthStatus.unknown,
+        };
+      }
+      
+      int healthy = 0;
+      int warning = 0;
+      int offline = 0;
+      
+      for (final contact in contacts) {
+        switch (contact.healthStatus) {
+          case GuardianHealthStatus.healthy:
+            healthy++;
+            break;
+          case GuardianHealthStatus.warning:
+            warning++;
+            break;
+          case GuardianHealthStatus.offline:
+            offline++;
+            break;
+          case GuardianHealthStatus.unknown:
+            offline++; // Treat unknown as offline for safety
+            break;
+        }
+      }
+      
+      // Overall status: healthy if 3+ healthy, warning if 3+ healthy+warning, else offline
+      GuardianHealthStatus overall;
+      if (healthy >= 3) {
+        overall = GuardianHealthStatus.healthy;
+      } else if (healthy + warning >= 3) {
+        overall = GuardianHealthStatus.warning;
+      } else {
+        overall = GuardianHealthStatus.offline;
+      }
+      
+      return {
+        'isSetUp': true,
+        'healthyCount': healthy,
+        'warningCount': warning,
+        'offlineCount': offline,
+        'totalCount': contacts.length,
+        'overallStatus': overall,
+      };
+    } catch (e) {
+      print('❌ Error getting recovery health: $e');
+      return {
+        'isSetUp': false,
+        'healthyCount': 0,
+        'warningCount': 0,
+        'offlineCount': 0,
+        'totalCount': 0,
+        'overallStatus': GuardianHealthStatus.unknown,
+      };
+    }
+  }
+
+  /// Send encrypted shares with proper tracking
+  static Future<List<RecoveryContact>> sendRecoverySharesWithTracking({
+    required String masterSeed,
+    required List<RecoveryContact> selectedContacts,
+  }) async {
+    try {
+      await init();
+
+      if (selectedContacts.length < 3) {
+        throw Exception('Must select at least 3 contacts');
+      }
+
+      await NostrService.init();
+      await NostrService.reinitialize();
+
+      final shares = await splitSeedIntoShares(masterSeed);
+      final updatedContacts = <RecoveryContact>[];
+
+      for (int i = 0; i < selectedContacts.length && i < 5; i++) {
+        final contact = selectedContacts[i];
+        final share = shares[i];
+        final shareIndex = i + 1;
+
+        try {
+          final dmContent = jsonEncode({
+            'type': 'sabi_recovery_share',
+            'version': 1,
+            'share_index': shareIndex,
+            'share_data': share,
+            'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            'message': 'This is a Sabi Wallet recovery share. Please keep it safe!',
+          });
+
+          await NostrService.sendEncryptedDM(
+            targetNpub: contact.npub,
+            message: dmContent,
+          );
+
+          updatedContacts.add(contact.copyWith(
+            shareIndex: shareIndex,
+            shareDelivered: true,
+            shareDeliveredAt: DateTime.now(),
+          ));
+
+          print('✅ Sent share $shareIndex to ${contact.name}');
+        } catch (e) {
+          // Mark as not delivered
+          updatedContacts.add(contact.copyWith(
+            shareIndex: shareIndex,
+            shareDelivered: false,
+          ));
+          print('❌ Failed to send share to ${contact.name}: $e');
+        }
+      }
+
+      await _storeRecoveryContacts(updatedContacts);
+      return updatedContacts;
+    } catch (e) {
+      print('❌ Error sending recovery shares: $e');
       rethrow;
     }
   }

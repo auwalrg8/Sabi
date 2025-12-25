@@ -65,6 +65,14 @@ class _SuggestionCard extends StatelessWidget {
         actionColor = Colors.white.withValues(alpha: 0.7);
         icon = Icons.shield_outlined;
         break;
+      case SuggestionType.socialRecovery:
+        bgColor = const Color.fromARGB(29, 139, 92, 246);
+        title = 'Add Social Recovery';
+        subtitle = 'Let trusted friends help recover your wallet';
+        actionText = 'Set up';
+        actionColor = Colors.white.withValues(alpha: 0.7);
+        icon = Icons.group_outlined;
+        break;
       case SuggestionType.nostr:
         bgColor = const Color.fromARGB(29, 122, 61, 254);
         title = 'Set Up Your Nostr';
@@ -87,6 +95,9 @@ class _SuggestionCard extends StatelessWidget {
     switch (type) {
       case SuggestionType.backup:
         borderColor = const Color.fromARGB(255, 249, 75, 75);
+        break;
+      case SuggestionType.socialRecovery:
+        borderColor = const Color.fromARGB(255, 139, 92, 246);
         break;
       case SuggestionType.nostr:
         borderColor = const Color.fromARGB(255, 122, 61, 254);
