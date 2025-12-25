@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
+import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
@@ -121,158 +123,298 @@ Shared as: $option''';
 
   @override
   Widget build(BuildContext context) {
-    final amountText =
-        '${widget.transaction.amountInSats.toStringAsFixed(0)} sats';
+    final amountSats = widget.transaction.amountInSats.toStringAsFixed(0);
     final timeText =
         '${_completedAt.day}/${_completedAt.month}/${_completedAt.year} • ${_completedAt.hour.toString().padLeft(2, '0')}:${_completedAt.minute.toString().padLeft(2, '0')}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 28.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+              child: Row(
                 children: [
-                  SizedBox(width: 44.w),
-                  Text(
-                    AppLocalizations.of(context)!.paymentSuccess,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: 40),
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context)!.paymentSuccess,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  IconButton(
-                    onPressed:
-                        () => Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst),
-                    icon: const Icon(Icons.close, color: Colors.white),
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    child: Container(
+                      width: 40.w,
+                      height: 40.h,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20.sp,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 40),
-              Center(
-                child: ScaleTransition(
-                  scale: _pulse,
-                  child: Container(
-                    width: 160.w,
-                    height: 160.w,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, AppColors.accentGreen],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accentGreen.withValues(alpha: 0.4),
-                          blurRadius: 24,
-                          offset: const Offset(0, 10),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                child: Column(
+                  children: [
+                    SizedBox(height: 40.h),
+
+                    // Success animation
+                    ScaleTransition(
+                      scale: _pulse,
+                      child: Container(
+                        width: 120.w,
+                        height: 120.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.accentGreen,
+                              AppColors.accentGreen.withValues(alpha: 0.7),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accentGreen.withValues(
+                                alpha: 0.4,
+                              ),
+                              blurRadius: 30,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
+                        child: Center(
+                          child: Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 56.sp,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 24.h),
+
+                    // Success message
+                    Text(
+                      'Payment Sent!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    SizedBox(height: 8.h),
+
+                    Text(
+                      AppLocalizations.of(context)!.paymentSentHeadline,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+
+                    SizedBox(height: 32.h),
+
+                    // Amount display
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 24.h),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0.15),
+                            AppColors.primary.withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Amount sent',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            '$amountSats sats',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (widget.transaction.amount > 0) ...[
+                            SizedBox(height: 4.h),
+                            Text(
+                              '≈ ₦${widget.transaction.amount.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 20.h),
+
+                    // Transaction details
+                    SummaryCard(
+                      title: 'TRANSACTION DETAILS',
+                      items: [
+                        SummaryItem(
+                          label: 'Recipient',
+                          value: widget.transaction.recipient.name,
+                          subtitle: widget.transaction.recipient.identifier,
+                          icon: Icons.person_outline_rounded,
+                        ),
+                        SummaryItem(
+                          label: 'Time',
+                          value: timeText,
+                          icon: Icons.schedule_rounded,
+                        ),
+                        if (widget.transaction.memo != null &&
+                            widget.transaction.memo!.isNotEmpty)
+                          SummaryItem(
+                            label: 'Note',
+                            value: widget.transaction.memo!,
+                            icon: Icons.note_alt_outlined,
+                          ),
+                        if (widget.transaction.feeSats > 0)
+                          SummaryItem(
+                            label: 'Network Fee',
+                            value: '${widget.transaction.feeSats} sats',
+                            icon: Icons.bolt_rounded,
+                            valueColor: AppColors.textSecondary,
+                          ),
                       ],
                     ),
-                    child: Center(
-                      child: Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 64.sp,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 28.h),
-              Text(
-                AppLocalizations.of(context)!.paymentSentHeadline,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14.sp,
-                ),
-              ),
-              SizedBox(height: 24.h),
-              Container(
-                padding: EdgeInsets.all(20.h),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20.r),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Column(
-                  spacing: 12.h,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildRecipientDetailRow(),
 
-                    _buildDetailRow(
-                      AppLocalizations.of(context)!.amount,
-                      amountText,
-                    ),
-
-                    _buildDetailRow(
-                      AppLocalizations.of(context)!.transactionTime,
-                      timeText,
-                    ),
-                    if (widget.transaction.memo != null &&
-                        widget.transaction.memo!.isNotEmpty) ...[
-                      _buildDetailRow(
-                        AppLocalizations.of(context)!.memo,
-                        widget.transaction.memo!,
-                      ),
-                    ],
+                    SizedBox(height: 32.h),
                   ],
                 ),
               ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed:
-                    () => Navigator.of(
-                      context,
-                    ).popUntil((route) => route.isFirst),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: EdgeInsets.symmetric(vertical: 16.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.r),
+            ),
+
+            // Bottom buttons
+            Container(
+              padding: EdgeInsets.all(20.h),
+              child: Column(
+                children: [
+                  // Back to home button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56.h,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.r),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.home_rounded, size: 20.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            AppLocalizations.of(context)!.backToHome,
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.backToHome,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
+
+                  SizedBox(height: 12.h),
+
+                  // Share receipt button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52.h,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _showShareOptions();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14.r),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.share_rounded,
+                            color: AppColors.primary,
+                            size: 18.sp,
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            AppLocalizations.of(context)!.shareReceipt,
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-              SizedBox(height: 12.h),
-              OutlinedButton(
-                onPressed: _showShareOptions,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.primary),
-                  padding: EdgeInsets.symmetric(vertical: 16.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.r),
-                  ),
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.shareReceipt,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
