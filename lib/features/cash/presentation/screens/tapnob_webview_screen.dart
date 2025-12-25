@@ -1,11 +1,12 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-// colors are referenced inline; no AppColors import required here
+import 'package:intl/intl.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -15,13 +16,20 @@ class TapnobWebViewScreen extends ConsumerStatefulWidget {
   final bool isBuying;
   final String? invoice;
 
-  const TapnobWebViewScreen({super.key, required this.amount, required this.isBuying, this.invoice});
+  const TapnobWebViewScreen({
+    super.key,
+    required this.amount,
+    required this.isBuying,
+    this.invoice,
+  });
 
   @override
-  ConsumerState<TapnobWebViewScreen> createState() => _TapnobWebViewScreenState();
+  ConsumerState<TapnobWebViewScreen> createState() =>
+      _TapnobWebViewScreenState();
 }
 
-class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with SingleTickerProviderStateMixin {
+class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
+    with SingleTickerProviderStateMixin {
   late final WebViewController _controller;
   bool _completed = false;
   bool _loading = true;
@@ -42,41 +50,48 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..addJavaScriptChannel(
-        'InvoiceChannel',
-        onMessageReceived: (JavaScriptMessage message) {
-          final invoice = message.message;
-          _detectedInvoice = invoice;
-          _preparePayment(invoice);
-        },
-      )
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageStarted: (url) {
-          _checkForSuccess(url);
-        },
-        onNavigationRequest: (req) {
-          _checkForSuccess(req.url);
-          return NavigationDecision.navigate;
-        },
-        onPageFinished: (url) {
-          setState(() {
-            _loading = false;
-          });
-          _checkForSuccess(url);
-          if (!widget.isBuying) {
-            _injectExtractionScript();
-          } else {
-            // attempt injection from clipboard up to 2 times (immediate + one retry)
-            _buyInjectAttempts = 0;
-            _attemptBuyInjectionFromClipboard();
-          }
-        },
-      ));
+    _controller =
+        WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..addJavaScriptChannel(
+            'InvoiceChannel',
+            onMessageReceived: (JavaScriptMessage message) {
+              final invoice = message.message;
+              _detectedInvoice = invoice;
+              _preparePayment(invoice);
+            },
+          )
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onPageStarted: (url) {
+                _checkForSuccess(url);
+              },
+              onNavigationRequest: (req) {
+                _checkForSuccess(req.url);
+                return NavigationDecision.navigate;
+              },
+              onPageFinished: (url) {
+                setState(() {
+                  _loading = false;
+                });
+                _checkForSuccess(url);
+                if (!widget.isBuying) {
+                  _injectExtractionScript();
+                } else {
+                  // attempt injection from clipboard up to 2 times (immediate + one retry)
+                  _buyInjectAttempts = 0;
+                  _attemptBuyInjectionFromClipboard();
+                }
+              },
+            ),
+          );
 
-    final base = widget.isBuying ? 'https://tapnob.com/buybtc' : 'https://tapnob.com/spendbtc';
-    final full = '$base?amountNGN=${widget.amount.toInt()}&mode=${widget.isBuying ? 'buy' : 'spend'}';
+    final base =
+        widget.isBuying
+            ? 'https://tapnob.com/buybtc'
+            : 'https://tapnob.com/spendbtc';
+    final full =
+        '$base?amountNGN=${widget.amount.toInt()}&mode=${widget.isBuying ? 'buy' : 'spend'}';
     _controller.loadRequest(Uri.parse(full));
   }
 
@@ -156,7 +171,10 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
       }
       if (!injected && _buyInjectAttempts < _buyInjectMaxAttempts) {
         // retry shortly
-        Future.delayed(const Duration(milliseconds: 450), _attemptBuyInjectionFromClipboard);
+        Future.delayed(
+          const Duration(milliseconds: 450),
+          _attemptBuyInjectionFromClipboard,
+        );
       } else if (!injected && invoice != null && invoice.isNotEmpty) {
         // attempts exhausted - install observer-based injector as fallback
         _injectInvoice(invoice);
@@ -302,7 +320,9 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
     if (url == null) return;
     final u = url.toLowerCase();
     if (_completed) return;
-    if (u.contains('success') || u.contains('status=success') || u.contains('tapnob.com/success')) {
+    if (u.contains('success') ||
+        u.contains('status=success') ||
+        u.contains('tapnob.com/success')) {
       setState(() {
         _completed = true;
       });
@@ -321,10 +341,10 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final title = widget.isBuying ? 'Buy Bitcoin on Tapnob' : 'Sell Bitcoin on Tapnob';
+    final title =
+        widget.isBuying ? 'Buy Bitcoin on Tapnob' : 'Spend Bitcoin on Tapnob';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
@@ -346,13 +366,21 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
                         Navigator.of(context).pop();
                       }
                     },
-                    icon: Icon(Icons.arrow_back, color: Colors.white, size: 20.sp),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 20.sp,
+                    ),
                   ),
                   SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
                       title,
-                      style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -366,9 +394,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
                     child: WebViewWidget(controller: _controller),
                   ),
                   if (_loading)
-                    const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    const Center(child: CircularProgressIndicator()),
                   if (_completed)
                     Positioned.fill(
                       child: Container(
@@ -377,11 +403,19 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle_outline, size: 72.sp, color: const Color(0xFF00FFB2)),
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: 72.sp,
+                                color: const Color(0xFF00FFB2),
+                              ),
                               SizedBox(height: 12.h),
                               Text(
                                 'Trade complete! Balance updated.',
-                                style: TextStyle(color: const Color(0xFF00FFB2), fontSize: 18.sp, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  color: const Color(0xFF00FFB2),
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -402,49 +436,216 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   }
 
   Widget _buildPayModal() {
+    final formatter = NumberFormat.decimalPattern();
+    final amountSats = _invoiceAmountSats ?? 0;
+    final amountNgn = _expectedNgn?.toStringAsFixed(0) ?? '0';
+    final balanceSats = _availableBalance;
+    final balanceNgn = _availableNgn?.toStringAsFixed(0) ?? '0';
+
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.7),
         child: Center(
           child: Container(
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
+            margin: EdgeInsets.all(24.w),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Pay ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}) from your Sabi balance?\nAvailable: $_availableBalance SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'})',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
+                // Icon
+                Container(
+                  width: 64.w,
+                  height: 64.w,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.bolt_rounded,
+                    color: AppColors.primary,
+                    size: 32.sp,
+                  ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
+
+                // Title
+                Text(
+                  'Confirm Payment',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+
+                // Subtitle
+                Text(
+                  'Pay from your Sabi wallet',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14.sp,
+                  ),
+                ),
+                SizedBox(height: 24.h),
+
+                // Amount Card
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${formatter.format(amountSats)} sats',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        '≈ ₦$amountNgn',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 12.h),
+
+                // Balance info
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(
+                      color: AppColors.accentGreen.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Available Balance',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(balanceSats)} sats (₦$balanceNgn)',
+                        style: TextStyle(
+                          color: AppColors.accentGreen,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24.h),
+
+                // Buttons
                 if (_isPaying)
-                  const CircularProgressIndicator()
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    child: const CircularProgressIndicator(
+                      color: AppColors.primary,
+                    ),
+                  )
                 else
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _showPayModal = false;
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF7931A),
+                      Expanded(
+                        child: SizedBox(
+                          height: 52.h,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _showPayModal = false);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: const Text('Cancel'),
                       ),
-                      ElevatedButton(
-                        onPressed: _payInvoice,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00FFB2),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: SizedBox(
+                          height: 52.h,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              HapticFeedback.mediumImpact();
+                              _payInvoice();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.accentGreen,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.bolt_rounded, size: 18.sp),
+                                SizedBox(width: 6.w),
+                                Text(
+                                  'Pay Now',
+                                  style: TextStyle(
+                                    fontSize: 15.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        child: const Text('Pay Now'),
                       ),
                     ],
                   ),
@@ -457,38 +658,192 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   }
 
   Widget _buildInsufficientModal() {
+    final formatter = NumberFormat.decimalPattern();
+    final neededSats = _invoiceAmountSats ?? 0;
+    final neededNgn = _expectedNgn?.toStringAsFixed(0) ?? '0';
+    final availableSats = _availableBalance;
+    final availableNgn = _availableNgn?.toStringAsFixed(0) ?? '0';
+    final shortfall = neededSats - availableSats;
+
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.7),
         child: Center(
           child: Container(
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
+            margin: EdgeInsets.all(24.w),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 1,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Color(0xFFF7931A)),
-                const SizedBox(height: 12),
-                Text(
-                  'Insufficient balance.\nYou need ${_invoiceAmountSats ?? 0} SAT (≈₦${_expectedNgn?.toStringAsFixed(0) ?? '0'}).\nAvailable: $_availableBalance SAT (≈₦${_availableNgn?.toStringAsFixed(0) ?? '0'}).',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showInsufficientModal = false;
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF7931A),
+                // Warning icon
+                Container(
+                  width: 64.w,
+                  height: 64.w,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text('OK'),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.primary,
+                    size: 32.sp,
+                  ),
+                ),
+                SizedBox(height: 20.h),
+
+                // Title
+                Text(
+                  'Insufficient Balance',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+
+                Text(
+                  'You need more sats to complete this payment',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14.sp,
+                  ),
+                ),
+                SizedBox(height: 24.h),
+
+                // Needed amount
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(14.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentRed.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: AppColors.accentRed.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Required',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(neededSats)} sats (₦$neededNgn)',
+                        style: TextStyle(
+                          color: AppColors.accentRed,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 8.h),
+
+                // Available amount
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(14.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Available',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(availableSats)} sats (₦$availableNgn)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 8.h),
+
+                // Shortfall
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(14.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Shortfall',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(shortfall)} sats',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24.h),
+
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52.h,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _showInsufficientModal = false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    child: Text(
+                      'Got it',
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -501,36 +856,93 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   Widget _buildErrorModal() {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.7),
         child: Center(
           child: Container(
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
+            margin: EdgeInsets.all(24.w),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: AppColors.accentRed.withValues(alpha: 0.3),
+                width: 1,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Color(0xFFF7931A)),
-                const SizedBox(height: 12),
-                Text(
-                  _errorMessage,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showErrorModal = false;
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF7931A),
+                // Error icon
+                Container(
+                  width: 64.w,
+                  height: 64.w,
+                  decoration: BoxDecoration(
+                    color: AppColors.accentRed.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text('OK'),
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.accentRed,
+                    size: 32.sp,
+                  ),
+                ),
+                SizedBox(height: 20.h),
+
+                // Title
+                Text(
+                  'Payment Failed',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+
+                // Error message
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(14.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    _errorMessage,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 24.h),
+
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52.h,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _showErrorModal = false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    child: Text(
+                      'Dismiss',
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -541,20 +953,86 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen> with 
   }
 
   Widget _buildSuccessOverlay() {
+    final amountNgn = _expectedNgn?.toStringAsFixed(0) ?? '0';
+
     return Positioned.fill(
       child: Container(
-        color: const Color(0xFF00FFB2).withOpacity(0.1),
+        color: AppColors.accentGreen.withValues(alpha: 0.15),
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle, size: 72, color: const Color(0xFF00FFB2)),
-              const SizedBox(height: 12),
-              Text(
-                'Payment sent! You’ll receive ₦${_expectedNgn?.toStringAsFixed(0) ?? '0'} soon',
-                style: const TextStyle(color: Color(0xFF00FFB2), fontSize: 18),
-              ),
-            ],
+          child: Container(
+            margin: EdgeInsets.all(32.w),
+            padding: EdgeInsets.all(32.w),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(24.r),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accentGreen.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80.w,
+                  height: 80.w,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.accentGreen,
+                        AppColors.accentGreen.withValues(alpha: 0.7),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accentGreen.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 40.sp,
+                  ),
+                ),
+                SizedBox(height: 24.h),
+                Text(
+                  'Payment Sent!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'You will receive NGN $amountNgn soon',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.accentGreen,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'Check your bank account shortly',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13.sp,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

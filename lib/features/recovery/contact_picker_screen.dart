@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/features/recovery/nostr_invite_service.dart';
 import 'package:share_plus/share_plus.dart';
@@ -27,16 +28,17 @@ class ContactWithStatus {
     this.avatarUrl,
     this.source = 'device_contact',
   }) : id = id ?? _generateId(npub, phoneNumber, name);
-  
+
   static String _generateId(String? npub, String? phoneNumber, String name) {
     // Create unique ID from available identifiers
     if (npub != null && npub.isNotEmpty) return 'nostr_$npub';
-    if (phoneNumber != null && phoneNumber.isNotEmpty) return 'phone_$phoneNumber';
+    if (phoneNumber != null && phoneNumber.isNotEmpty)
+      return 'phone_$phoneNumber';
     return 'name_${name.hashCode}_${DateTime.now().microsecondsSinceEpoch}';
   }
 
   String get displayIdentifier => npub ?? phoneNumber ?? 'No contact info';
-  
+
   String get shortNpub {
     if (npub == null) return '';
     if (npub!.length <= 16) return npub!;
@@ -63,14 +65,14 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
     with SingleTickerProviderStateMixin {
   final List<ContactWithStatus> _selectedContacts = [];
   final TextEditingController _searchController = TextEditingController();
-  
+
   List<ContactWithStatus> _nostrFollows = [];
   List<ContactWithStatus> _deviceContacts = [];
   List<ContactWithStatus> _allContacts = [];
   List<ContactWithStatus> _filteredContacts = [];
-  
+
   bool _isLoading = true;
-  
+
   late TabController _tabController;
 
   @override
@@ -99,7 +101,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
     await _loadNostrFollows();
 
     _mergeContacts();
-    
+
     if (!mounted) return;
     setState(() {
       _isLoading = false;
@@ -127,9 +129,9 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
         });
         return;
       }
-      
+
       final follows = await NostrService.fetchUserFollowsDirect(hexPubkey);
-      
+
       if (follows.isEmpty) {
         if (!mounted) return;
         setState(() {
@@ -140,41 +142,48 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
 
       // Fetch metadata for each follow using direct WebSocket
       final List<ContactWithStatus> nostrContacts = [];
-      
+
       // Limit to first 20 follows to avoid too many requests
       final limitedFollows = follows.take(20).toList();
-      
+
       for (final followHex in limitedFollows) {
         try {
           // Use direct metadata fetch for reliability
-          final metadata = await NostrService.fetchAuthorMetadataDirect(followHex);
+          final metadata = await NostrService.fetchAuthorMetadataDirect(
+            followHex,
+          );
           final followNpub = NostrService.hexToNpub(followHex);
-          
-          final name = metadata['name'] ?? 
-                       metadata['display_name'] ?? 
-                       metadata['displayName'] ??
-                       'Nostr User';
-          
+
+          final name =
+              metadata['name'] ??
+              metadata['display_name'] ??
+              metadata['displayName'] ??
+              'Nostr User';
+
           final avatarUrl = metadata['picture'] ?? metadata['avatar'];
-          
-          nostrContacts.add(ContactWithStatus(
-            name: name,
-            npub: followNpub,
-            hexPubkey: followHex,
-            isOnNostr: true,
-            avatarUrl: avatarUrl,
-            source: 'nostr_follow',
-          ));
+
+          nostrContacts.add(
+            ContactWithStatus(
+              name: name,
+              npub: followNpub,
+              hexPubkey: followHex,
+              isOnNostr: true,
+              avatarUrl: avatarUrl,
+              source: 'nostr_follow',
+            ),
+          );
         } catch (e) {
           // Still add the contact even without metadata
           final followNpub = NostrService.hexToNpub(followHex);
-          nostrContacts.add(ContactWithStatus(
-            name: 'Nostr User',
-            npub: followNpub,
-            hexPubkey: followHex,
-            isOnNostr: true,
-            source: 'nostr_follow',
-          ));
+          nostrContacts.add(
+            ContactWithStatus(
+              name: 'Nostr User',
+              npub: followNpub,
+              hexPubkey: followHex,
+              isOnNostr: true,
+              source: 'nostr_follow',
+            ),
+          );
         }
       }
 
@@ -194,9 +203,61 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
   /// Open native contact picker and add selected contact
   Future<void> _openNativeContactPicker() async {
     try {
-      // Request permission first
-      final hasPermission = await FlutterContacts.requestPermission();
-      if (!hasPermission) {
+      // Check permission status using permission_handler
+      var status = await Permission.contacts.status;
+      debugPrint('📱 Initial contact permission status: $status');
+
+      // If not granted, request permission
+      if (!status.isGranted) {
+        status = await Permission.contacts.request();
+        debugPrint('📱 Permission request result: $status');
+      }
+
+      // Handle permission states
+      if (status.isPermanentlyDenied) {
+        if (!mounted) return;
+        // Show dialog to open settings
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                backgroundColor: const Color(0xFF111128),
+                title: Text(
+                  'Permission Required',
+                  style: TextStyle(color: Colors.white, fontSize: 18.sp),
+                ),
+                content: Text(
+                  'Contact permission is permanently denied. Please enable it in your device settings to select contacts.',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: const Color(0xFFA1A1B2)),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      openAppSettings();
+                    },
+                    child: Text(
+                      'Open Settings',
+                      style: TextStyle(color: const Color(0xFFF7931A)),
+                    ),
+                  ),
+                ],
+              ),
+        );
+        return;
+      }
+
+      if (!status.isGranted) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -209,40 +270,42 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
 
       // Open native contact picker
       final contact = await FlutterContacts.openExternalPick();
-      
+
       if (contact != null) {
         // Fetch full contact details
         final fullContact = await FlutterContacts.getContact(
           contact.id,
           withProperties: true,
         );
-        
+
         if (fullContact != null && fullContact.phones.isNotEmpty) {
-          final phoneNumber = fullContact.phones.first.number
-              .replaceAll(RegExp(r'[^\d+]'), '')
-              .trim();
-          
+          final phoneNumber =
+              fullContact.phones.first.number
+                  .replaceAll(RegExp(r'[^\d+]'), '')
+                  .trim();
+
           // Check if contact already exists
           final exists = _deviceContacts.any(
-            (c) => c.phoneNumber == phoneNumber
+            (c) => c.phoneNumber == phoneNumber,
           );
-          
+
           if (!exists) {
             final newContact = ContactWithStatus(
-              name: fullContact.displayName.isNotEmpty 
-                  ? fullContact.displayName 
-                  : 'Unknown',
+              name:
+                  fullContact.displayName.isNotEmpty
+                      ? fullContact.displayName
+                      : 'Unknown',
               phoneNumber: phoneNumber,
               isOnNostr: false,
               source: 'device_contact',
             );
-            
+
             if (!mounted) return;
             setState(() {
               _deviceContacts.add(newContact);
               _mergeContacts();
             });
-            
+
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -273,10 +336,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
       print('Error opening contact picker: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -289,7 +349,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
 
   void _filterContacts() {
     final query = _searchController.text.toLowerCase();
-    
+
     List<ContactWithStatus> sourceList;
     switch (_tabController.index) {
       case 0: // All
@@ -304,16 +364,18 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
       default:
         sourceList = _allContacts;
     }
-    
+
     if (query.isEmpty) {
       setState(() => _filteredContacts = sourceList);
     } else {
       setState(() {
-        _filteredContacts = sourceList.where((contact) {
-          return contact.name.toLowerCase().contains(query) ||
-                 (contact.phoneNumber?.toLowerCase().contains(query) ?? false) ||
-                 (contact.npub?.toLowerCase().contains(query) ?? false);
-        }).toList();
+        _filteredContacts =
+            sourceList.where((contact) {
+              return contact.name.toLowerCase().contains(query) ||
+                  (contact.phoneNumber?.toLowerCase().contains(query) ??
+                      false) ||
+                  (contact.npub?.toLowerCase().contains(query) ?? false);
+            }).toList();
       });
     }
   }
@@ -321,9 +383,9 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
   void _toggleContactSelection(ContactWithStatus contact) {
     setState(() {
       final existingIndex = _selectedContacts.indexWhere(
-        (c) => c.id == contact.id
+        (c) => c.id == contact.id,
       );
-      
+
       if (existingIndex >= 0) {
         _selectedContacts.removeAt(existingIndex);
       } else if (_selectedContacts.length < widget.maxSelection) {
@@ -380,7 +442,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
             ),
           ),
           SizedBox(height: 24.h),
-          
+
           // WhatsApp invite
           GestureDetector(
             onTap: () => _sendInvite(contact, 'whatsapp'),
@@ -410,7 +472,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
             ),
           ),
           SizedBox(height: 12.h),
-          
+
           // SMS invite
           GestureDetector(
             onTap: () => _sendInvite(contact, 'sms'),
@@ -435,7 +497,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
             ),
           ),
           SizedBox(height: 12.h),
-          
+
           // Share link
           GestureDetector(
             onTap: () => _sendInvite(contact, 'share'),
@@ -474,21 +536,21 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
     try {
       // Generate temporary keypair for this contact
       final tempKeypair = await NostrInviteService.generateTemporaryKeypair();
-      
+
       // Create invite link
       final inviteLink = await NostrInviteService.createInviteLink(
         contactName: contact.name,
         phoneNumber: contact.phoneNumber,
         tempNpub: tempKeypair['npub']!,
       );
-      
+
       // Generate share message
       final message = NostrInviteService.generateShareMessage(
         contactName: contact.name,
         senderName: 'Friend', // TODO: Get from user profile
         inviteLink: inviteLink,
       );
-      
+
       if (!mounted) return;
       Navigator.pop(context);
 
@@ -499,7 +561,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
         // For WhatsApp/SMS, we use share_plus which will show share sheet
         await Share.share(message);
       }
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -584,7 +646,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
               ],
             ),
           ),
-          
+
           // Search Bar
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.r),
@@ -606,7 +668,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
             ),
           ),
           SizedBox(height: 8.h),
-          
+
           // Selection counter
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.r),
@@ -617,9 +679,10 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
                   'Selected: ${_selectedContacts.length}/${widget.maxSelection}',
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: _selectedContacts.length >= 3 
-                        ? const Color(0xFF00FFB2) 
-                        : const Color(0xFFA1A1B2),
+                    color:
+                        _selectedContacts.length >= 3
+                            ? const Color(0xFF00FFB2)
+                            : const Color(0xFFA1A1B2),
                     fontFamily: 'Google Sans',
                     fontWeight: FontWeight.w500,
                   ),
@@ -637,60 +700,66 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
             ),
           ),
           SizedBox(height: 8.h),
-          
+
           // Contacts List
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFF7931A)),
-                  )
-                : _filteredContacts.isEmpty
+            child:
+                _isLoading
+                    ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFF7931A),
+                      ),
+                    )
+                    : _filteredContacts.isEmpty
                     ? _buildEmptyState()
                     : Stack(
-                        children: [
-                          ListView.builder(
-                            padding: EdgeInsets.all(16.r),
-                            itemCount: _filteredContacts.length,
-                            itemBuilder: (context, index) {
-                              final contact = _filteredContacts[index];
-                              return _buildContactTile(contact);
-                            },
-                          ),
-                          // Add contact button for Phone tab
-                          if (_tabController.index == 2 || _tabController.index == 0)
-                            Positioned(
-                              right: 16.r,
-                              bottom: 16.r,
-                              child: FloatingActionButton(
-                                onPressed: _openNativeContactPicker,
-                                backgroundColor: const Color(0xFFF7931A),
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Color(0xFF0C0C1A),
-                                ),
+                      children: [
+                        ListView.builder(
+                          padding: EdgeInsets.all(16.r),
+                          itemCount: _filteredContacts.length,
+                          itemBuilder: (context, index) {
+                            final contact = _filteredContacts[index];
+                            return _buildContactTile(contact);
+                          },
+                        ),
+                        // Add contact button for Phone tab
+                        if (_tabController.index == 2 ||
+                            _tabController.index == 0)
+                          Positioned(
+                            right: 16.r,
+                            bottom: 16.r,
+                            child: FloatingActionButton(
+                              onPressed: _openNativeContactPicker,
+                              backgroundColor: const Color(0xFFF7931A),
+                              child: const Icon(
+                                Icons.add,
+                                color: Color(0xFF0C0C1A),
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
+                    ),
           ),
-          
+
           // Continue Button
           Padding(
             padding: EdgeInsets.all(16.r),
             child: GestureDetector(
-              onTap: _selectedContacts.length >= 3
-                  ? () {
-                      widget.onContactsSelected(_selectedContacts);
-                      Navigator.pop(context, _selectedContacts);
-                    }
-                  : null,
+              onTap:
+                  _selectedContacts.length >= 3
+                      ? () {
+                        widget.onContactsSelected(_selectedContacts);
+                        Navigator.pop(context, _selectedContacts);
+                      }
+                      : null,
               child: Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(vertical: 14.h),
                 decoration: BoxDecoration(
-                  color: _selectedContacts.length >= 3
-                      ? const Color(0xFFF7931A)
-                      : const Color(0xFF333355),
+                  color:
+                      _selectedContacts.length >= 3
+                          ? const Color(0xFFF7931A)
+                          : const Color(0xFF333355),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
@@ -701,9 +770,10 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
-                      color: _selectedContacts.length >= 3
-                          ? const Color(0xFF0C0C1A)
-                          : const Color(0xFFA1A1B2),
+                      color:
+                          _selectedContacts.length >= 3
+                              ? const Color(0xFF0C0C1A)
+                              : const Color(0xFFA1A1B2),
                       fontFamily: 'Google Sans',
                     ),
                   ),
@@ -720,18 +790,20 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
     final tabIndex = _tabController.index;
     String message;
     IconData icon;
-    
+
     if (tabIndex == 1) {
-      message = 'No Nostr follows found.\nFollow people on Nostr to add them as guardians.';
+      message =
+          'No Nostr follows found.\nFollow people on Nostr to add them as guardians.';
       icon = Icons.group_add;
     } else if (tabIndex == 2) {
-      message = 'No phone contacts added yet.\nTap the button below to add contacts from your phone.';
+      message =
+          'No phone contacts added yet.\nTap the button below to add contacts from your phone.';
       icon = Icons.contacts;
     } else {
       message = 'No contacts found.\nAdd Nostr follows or phone contacts.';
       icon = Icons.person_search;
     }
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -782,7 +854,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
 
   Widget _buildContactTile(ContactWithStatus contact) {
     final isSelected = _isContactSelected(contact);
-    
+
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
       child: Column(
@@ -794,9 +866,8 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
               decoration: BoxDecoration(
                 color: const Color(0xFF111128),
                 border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFFF7931A)
-                      : Colors.transparent,
+                  color:
+                      isSelected ? const Color(0xFFF7931A) : Colors.transparent,
                   width: 2,
                 ),
                 borderRadius: BorderRadius.circular(12.r),
@@ -808,59 +879,64 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
                     width: 48.r,
                     height: 48.r,
                     decoration: BoxDecoration(
-                      color: contact.isOnNostr
-                          ? const Color(0xFF8B5CF6)
-                          : const Color(0xFFF7931A),
+                      color:
+                          contact.isOnNostr
+                              ? const Color(0xFF8B5CF6)
+                              : const Color(0xFFF7931A),
                       shape: BoxShape.circle,
                     ),
-                    child: contact.avatarUrl != null && contact.avatarUrl!.isNotEmpty
-                        ? ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: contact.avatarUrl!,
-                              fit: BoxFit.cover,
-                              width: 48.r,
-                              height: 48.r,
-                              placeholder: (context, url) => Center(
-                                child: Text(
-                                  contact.name.isNotEmpty
-                                      ? contact.name[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    fontSize: 18.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                    child:
+                        contact.avatarUrl != null &&
+                                contact.avatarUrl!.isNotEmpty
+                            ? ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: contact.avatarUrl!,
+                                fit: BoxFit.cover,
+                                width: 48.r,
+                                height: 48.r,
+                                placeholder:
+                                    (context, url) => Center(
+                                      child: Text(
+                                        contact.name.isNotEmpty
+                                            ? contact.name[0].toUpperCase()
+                                            : '?',
+                                        style: TextStyle(
+                                          fontSize: 18.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                errorWidget:
+                                    (context, url, error) => Center(
+                                      child: Text(
+                                        contact.name.isNotEmpty
+                                            ? contact.name[0].toUpperCase()
+                                            : '?',
+                                        style: TextStyle(
+                                          fontSize: 18.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
                               ),
-                              errorWidget: (context, url, error) => Center(
-                                child: Text(
-                                  contact.name.isNotEmpty
-                                      ? contact.name[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    fontSize: 18.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                            )
+                            : Center(
+                              child: Text(
+                                contact.name.isNotEmpty
+                                    ? contact.name[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                          )
-                        : Center(
-                            child: Text(
-                              contact.name.isNotEmpty
-                                  ? contact.name[0].toUpperCase()
-                                  : '?',
-                              style: TextStyle(
-                                fontSize: 18.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
                   ),
                   SizedBox(width: 12.w),
-                  
+
                   // Name + identifier
                   Expanded(
                     child: Column(
@@ -886,7 +962,9 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
                                   vertical: 2.h,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                  color: const Color(
+                                    0xFF8B5CF6,
+                                  ).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(4.r),
                                 ),
                                 child: Text(
@@ -910,14 +988,15 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
                           style: TextStyle(
                             fontSize: 12.sp,
                             color: const Color(0xFFA1A1B2),
-                            fontFamily: contact.isOnNostr ? 'Courier' : 'Google Sans',
+                            fontFamily:
+                                contact.isOnNostr ? 'Courier' : 'Google Sans',
                           ),
                         ),
                       ],
                     ),
                   ),
                   SizedBox(width: 12.w),
-                  
+
                   // Status indicator
                   if (contact.isOnNostr)
                     Container(
@@ -980,7 +1059,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
               ),
             ),
           ),
-          
+
           // Help Join Nostr button for non-Nostr contacts when selected
           if (!contact.isOnNostr && isSelected)
             Padding(

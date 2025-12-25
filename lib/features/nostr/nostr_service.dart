@@ -912,13 +912,13 @@ class NostrService {
         'kinds': kinds,
         'limit': limit,
       };
-      
+
       final events = await NostrRelayClient.fetchEvents(
         relayUrls: _defaultRelays,
         filter: filter,
         timeoutSeconds: 5,
       );
-      
+
       return events;
     } catch (e) {
       print('⚠️ Error fetching user events: $e');
@@ -1484,11 +1484,11 @@ class NostrService {
           try {
             final content = event.content;
             final metadata = <String, String>{};
-            
+
             // Use proper JSON parsing
             try {
               final jsonData = json.decode(content) as Map<String, dynamic>;
-              
+
               // Extract name (try multiple fields)
               if (jsonData['name'] != null) {
                 metadata['name'] = jsonData['name'].toString();
@@ -1499,7 +1499,7 @@ class NostrService {
               if (jsonData['displayName'] != null) {
                 metadata['displayName'] = jsonData['displayName'].toString();
               }
-              
+
               // Extract picture/avatar
               if (jsonData['picture'] != null) {
                 metadata['picture'] = jsonData['picture'].toString();
@@ -1507,7 +1507,7 @@ class NostrService {
               if (jsonData['avatar'] != null) {
                 metadata['avatar'] = jsonData['avatar'].toString();
               }
-              
+
               // Extract other useful fields
               if (jsonData['about'] != null) {
                 metadata['about'] = jsonData['about'].toString();
@@ -1548,7 +1548,7 @@ class NostrService {
                 }
               }
             }
-            
+
             completer.complete(metadata);
           } catch (e) {
             completer.complete({});
@@ -1564,7 +1564,9 @@ class NostrService {
   }
 
   /// Fetch author metadata using direct WebSocket (more reliable)
-  static Future<Map<String, String>> fetchAuthorMetadataDirect(String pubkey) async {
+  static Future<Map<String, String>> fetchAuthorMetadataDirect(
+    String pubkey,
+  ) async {
     try {
       final filter = {
         'kinds': [0],
@@ -1587,7 +1589,7 @@ class NostrService {
 
       try {
         final jsonData = json.decode(content) as Map<String, dynamic>;
-        
+
         // Extract name (try multiple fields)
         if (jsonData['name'] != null) {
           metadata['name'] = jsonData['name'].toString();
@@ -1598,7 +1600,7 @@ class NostrService {
         if (jsonData['displayName'] != null) {
           metadata['displayName'] = jsonData['displayName'].toString();
         }
-        
+
         // Extract picture/avatar
         if (jsonData['picture'] != null) {
           metadata['picture'] = jsonData['picture'].toString();
@@ -1606,7 +1608,7 @@ class NostrService {
         if (jsonData['avatar'] != null) {
           metadata['avatar'] = jsonData['avatar'].toString();
         }
-        
+
         // Extract other useful fields
         if (jsonData['about'] != null) {
           metadata['about'] = jsonData['about'].toString();
@@ -1652,7 +1654,8 @@ class NostrService {
   static Future<void> cachePosts(List<NostrFeedPost> posts) async {
     try {
       final box = await Hive.openBox('nostr_cache');
-      final postsJson = posts.take(_maxCachedPosts).map((p) => p.toJson()).toList();
+      final postsJson =
+          posts.take(_maxCachedPosts).map((p) => p.toJson()).toList();
       await box.put(_cachedPostsKey, json.encode(postsJson));
       _debug.info('CACHE', 'Saved ${postsJson.length} posts to cache');
     } catch (e) {
@@ -1666,9 +1669,12 @@ class NostrService {
       final box = await Hive.openBox('nostr_cache');
       final data = box.get(_cachedPostsKey);
       if (data == null) return [];
-      
+
       final List<dynamic> postsJson = json.decode(data);
-      final posts = postsJson.map((p) => NostrFeedPost.fromJson(p as Map<String, dynamic>)).toList();
+      final posts =
+          postsJson
+              .map((p) => NostrFeedPost.fromJson(p as Map<String, dynamic>))
+              .toList();
       _debug.info('CACHE', 'Loaded ${posts.length} posts from cache');
       return posts;
     } catch (e) {
@@ -1678,7 +1684,9 @@ class NostrService {
   }
 
   /// Save author metadata to cache
-  static Future<void> cacheAuthorMetadata(Map<String, Map<String, String>> metadata) async {
+  static Future<void> cacheAuthorMetadata(
+    Map<String, Map<String, String>> metadata,
+  ) async {
     try {
       final box = await Hive.openBox('nostr_cache');
       // Convert to JSON-serializable format
@@ -1696,12 +1704,14 @@ class NostrService {
       final box = await Hive.openBox('nostr_cache');
       final data = box.get(_cachedMetadataKey);
       if (data == null) return {};
-      
+
       final Map<String, dynamic> decoded = json.decode(data);
       final result = <String, Map<String, String>>{};
       decoded.forEach((key, value) {
         if (value is Map) {
-          result[key] = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
+          result[key] = Map<String, String>.from(
+            value.map((k, v) => MapEntry(k.toString(), v.toString())),
+          );
         }
       });
       _debug.info('CACHE', 'Loaded metadata for ${result.length} authors');
@@ -1713,10 +1723,13 @@ class NostrService {
   }
 
   /// Merge new posts with existing, removing duplicates, new posts first
-  static List<NostrFeedPost> mergePosts(List<NostrFeedPost> newPosts, List<NostrFeedPost> existingPosts) {
+  static List<NostrFeedPost> mergePosts(
+    List<NostrFeedPost> newPosts,
+    List<NostrFeedPost> existingPosts,
+  ) {
     final seenIds = <String>{};
     final merged = <NostrFeedPost>[];
-    
+
     // Add new posts first
     for (final post in newPosts) {
       if (!seenIds.contains(post.id)) {
@@ -1724,7 +1737,7 @@ class NostrService {
         merged.add(post);
       }
     }
-    
+
     // Then add existing posts that aren't duplicates
     for (final post in existingPosts) {
       if (!seenIds.contains(post.id)) {
@@ -1732,10 +1745,10 @@ class NostrService {
         merged.add(post);
       }
     }
-    
+
     // Sort by timestamp, newest first
     merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    
+
     return merged.take(_maxCachedPosts).toList();
   }
 }
@@ -1746,6 +1759,7 @@ class NostrFeedPost {
   final String authorPubkey;
   String authorName;
   String? authorAvatar;
+  String? lightningAddress; // lud16 for zapping
   final String content;
   final DateTime timestamp;
   int zapAmount;
@@ -1758,6 +1772,7 @@ class NostrFeedPost {
     required this.authorPubkey,
     this.authorName = 'Anon',
     this.authorAvatar,
+    this.lightningAddress,
     required this.content,
     required this.timestamp,
     this.zapAmount = 0,
@@ -1844,11 +1859,17 @@ class NostrFeedPost {
       authorName: jsonData['authorName'] as String? ?? 'Anon',
       authorAvatar: jsonData['authorAvatar'] as String?,
       content: jsonData['content'] as String? ?? '',
-      timestamp: DateTime.fromMillisecondsSinceEpoch(jsonData['timestamp'] as int? ?? 0),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        jsonData['timestamp'] as int? ?? 0,
+      ),
       zapAmount: jsonData['zapAmount'] as int? ?? 0,
       likeCount: jsonData['likeCount'] as int? ?? 0,
       replyCount: jsonData['replyCount'] as int? ?? 0,
-      tags: (jsonData['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      tags:
+          (jsonData['tags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 

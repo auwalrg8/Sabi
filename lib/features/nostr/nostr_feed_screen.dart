@@ -1,13 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:http/http.dart' as http;
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
-import 'nostr_debug_screen.dart';
+import '../../services/breez_spark_service.dart';
 
 /// Filter types for the feed
 enum FeedFilter { newThreads, latest, trending24h }
@@ -23,12 +25,14 @@ class NostrFeedScreen extends StatefulWidget {
 class _NostrFeedScreenState extends State<NostrFeedScreen> {
   List<NostrFeedPost> _posts = [];
   List<NostrFeedPost> _filteredPosts = [];
-  bool _isLoading = false; // Start as false - we show cached content immediately
+  bool _isLoading =
+      false; // Start as false - we show cached content immediately
   bool _isRefreshing = false; // Background refresh indicator
   String? _userNpub;
   String? _userHexPubkey;
   List<String> _userFollows = [];
   final Map<String, int> _zapCounts = {};
+  final Set<String> _likedPosts = {}; // Track liked post IDs
   FeedFilter _currentFilter = FeedFilter.newThreads; // Default to follows feed
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -53,7 +57,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   Future<void> _initFeed() async {
     // Step 1: Load cached content immediately (no loading state)
     await _loadCachedContent();
-    
+
     // Step 2: Refresh in background
     _refreshFeedInBackground();
   }
@@ -63,20 +67,22 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     try {
       // Load cached metadata first
       _authorMetadataCache = await NostrService.loadCachedMetadata();
-      
+
       // Load cached posts
       final cachedPosts = await NostrService.loadCachedPosts();
-      
+
       if (cachedPosts.isNotEmpty) {
         // Apply cached metadata to posts
         for (final post in cachedPosts) {
           if (_authorMetadataCache.containsKey(post.authorPubkey)) {
             final meta = _authorMetadataCache[post.authorPubkey]!;
-            post.authorName = meta['name'] ?? meta['display_name'] ?? post.authorName;
+            post.authorName =
+                meta['name'] ?? meta['display_name'] ?? post.authorName;
             post.authorAvatar = meta['picture'] ?? meta['avatar'];
+            post.lightningAddress = meta['lud16'];
           }
         }
-        
+
         if (mounted) {
           setState(() {
             _posts = cachedPosts;
@@ -105,7 +111,11 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     }
 
     final debug = NostrService.debugService;
-    debug.info('SCREEN', 'Background refresh started', 'filter: $_currentFilter');
+    debug.info(
+      'SCREEN',
+      'Background refresh started',
+      'filter: $_currentFilter',
+    );
 
     try {
       // Initialize Nostr service (quick if already done)
@@ -122,16 +132,18 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
       if (_currentFilter == FeedFilter.newThreads && npub != null) {
         _userHexPubkey = NostrService.npubToHex(npub);
-        
+
         if (_userHexPubkey != null) {
-          _userFollows = await NostrService.fetchUserFollowsDirect(_userHexPubkey!);
-          
+          _userFollows = await NostrService.fetchUserFollowsDirect(
+            _userHexPubkey!,
+          );
+
           if (_userFollows.isNotEmpty) {
             newPosts = await NostrService.fetchFollowsFeedDirect(
               followPubkeys: _userFollows,
               limit: 50,
             );
-            
+
             if (newPosts.isEmpty && mounted) {
               setState(() => _followsFeedEmpty = true);
             }
@@ -145,7 +157,10 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
       }
 
       // Fetch author metadata for new posts (limit to avoid slowdown)
-      final uniqueAuthors = newPosts.map((p) => p.authorPubkey).toSet().take(15);
+      final uniqueAuthors = newPosts
+          .map((p) => p.authorPubkey)
+          .toSet()
+          .take(15);
       for (final pubkey in uniqueAuthors) {
         if (!_authorMetadataCache.containsKey(pubkey)) {
           final metadata = await NostrService.fetchAuthorMetadataDirect(pubkey);
@@ -153,14 +168,16 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             _authorMetadataCache[pubkey] = metadata;
           }
         }
-        
+
         // Apply metadata to posts as we get it
         final meta = _authorMetadataCache[pubkey];
         if (meta != null) {
           for (final post in newPosts) {
             if (post.authorPubkey == pubkey) {
-              post.authorName = meta['name'] ?? meta['display_name'] ?? post.authorName;
+              post.authorName =
+                  meta['name'] ?? meta['display_name'] ?? post.authorName;
               post.authorAvatar = meta['picture'] ?? meta['avatar'];
+              post.lightningAddress = meta['lud16'];
             }
           }
         }
@@ -175,12 +192,16 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
           _isRefreshing = false;
           _hasCachedContent = true;
         });
-        
+
         // Save to cache for next time
         await NostrService.cachePosts(_posts);
         await NostrService.cacheAuthorMetadata(_authorMetadataCache);
-        
-        debug.success('SCREEN', 'Background refresh complete', '${_posts.length} posts');
+
+        debug.success(
+          'SCREEN',
+          'Background refresh complete',
+          '${_posts.length} posts',
+        );
       }
     } catch (e, stackTrace) {
       debug.error('SCREEN', 'Background refresh error', '$e\n$stackTrace');
@@ -196,12 +217,6 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   /// Manual pull-to-refresh
   Future<void> _loadFeed() async {
     await _refreshFeedInBackground();
-  }
-
-  void _openDebugScreen() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const NostrDebugScreen()));
   }
 
   void _applyFilter() {
@@ -262,8 +277,111 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   }
 
   void _handleZapPost(NostrFeedPost post, int satoshis) async {
+    final lightningAddress = post.lightningAddress;
+
+    // Check if user has a lightning address
+    if (lightningAddress == null || lightningAddress.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${post.authorName} has no Lightning address configured',
+          ),
+          backgroundColor: const Color(0xFFA1A1B2),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     try {
-      // Show confetti immediately for feedback
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('Sending ${satoshis} sats to ${post.authorName}...'),
+            ],
+          ),
+          backgroundColor: const Color(0xFFF7931A),
+          duration: const Duration(seconds: 10),
+        ),
+      );
+
+      // Step 1: Get LNURL-pay callback from lightning address
+      // Lightning address format: name@domain -> https://domain/.well-known/lnurlp/name
+      final parts = lightningAddress.split('@');
+      if (parts.length != 2) {
+        throw Exception('Invalid lightning address format');
+      }
+      final name = parts[0];
+      final domain = parts[1];
+      final lnurlEndpoint = 'https://$domain/.well-known/lnurlp/$name';
+
+      // Fetch LNURL-pay parameters
+      final lnurlResponse = await http.get(Uri.parse(lnurlEndpoint));
+      if (lnurlResponse.statusCode != 200) {
+        throw Exception('Failed to get LNURL-pay info');
+      }
+
+      final lnurlData = jsonDecode(lnurlResponse.body) as Map<String, dynamic>;
+      final callback = lnurlData['callback'] as String?;
+      final minSendable =
+          (lnurlData['minSendable'] as num?) ?? 1000; // millisats
+      final maxSendable =
+          (lnurlData['maxSendable'] as num?) ?? 100000000000; // millisats
+
+      if (callback == null) {
+        throw Exception('No callback URL in LNURL response');
+      }
+
+      // Convert sats to millisats
+      final amountMsat = satoshis * 1000;
+
+      // Check amount bounds
+      if (amountMsat < minSendable || amountMsat > maxSendable) {
+        throw Exception(
+          'Amount out of range (${minSendable ~/ 1000}-${maxSendable ~/ 1000} sats)',
+        );
+      }
+
+      // Step 2: Request invoice from callback
+      final separator = callback.contains('?') ? '&' : '?';
+      final invoiceUrl = '$callback${separator}amount=$amountMsat';
+      final invoiceResponse = await http.get(Uri.parse(invoiceUrl));
+
+      if (invoiceResponse.statusCode != 200) {
+        throw Exception('Failed to get invoice');
+      }
+
+      final invoiceData =
+          jsonDecode(invoiceResponse.body) as Map<String, dynamic>;
+      final invoice = invoiceData['pr'] as String?;
+
+      if (invoice == null || invoice.isEmpty) {
+        throw Exception('No invoice received');
+      }
+
+      // Step 3: Pay the invoice using Breez SDK
+      await BreezSparkService.sendPayment(
+        invoice,
+        sats: satoshis,
+        comment: 'Zap from Sabi Wallet',
+        recipientName: post.authorName,
+      );
+
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show confetti for success
       Confetti.launch(
         context,
         options: const ConfettiOptions(particleCount: 50, spread: 360, y: 0.5),
@@ -275,11 +393,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             (_zapCounts[post.id] ?? post.zapAmount) + satoshis;
       });
 
-      // Send real payment via Breez SDK
       final nairaAmount = NostrService.satsToNaira(satoshis);
-
-      // For now, show success with naira amount
-      // In production, would create LNURL-pay or zap invoice
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -290,10 +404,10 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         ),
       );
 
-      // TODO: Implement actual Lightning zap payment
-      // await BreezSparkService.sendPayment(zapInvoice);
+      debugPrint('✅ Zap sent: $satoshis sats to ${post.authorName}');
     } catch (e) {
-      print('❌ Error sending zap: $e');
+      debugPrint('❌ Error sending zap: $e');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to zap: ${e.toString()}'),
@@ -301,6 +415,17 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         ),
       );
     }
+  }
+
+  void _handleLikePost(NostrFeedPost post) {
+    setState(() {
+      if (_likedPosts.contains(post.id)) {
+        _likedPosts.remove(post.id);
+      } else {
+        _likedPosts.add(post.id);
+      }
+    });
+    // TODO: Send like reaction to Nostr relays (NIP-25)
   }
 
   void _showCreateAccountModal() {
@@ -380,30 +505,15 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                     ],
                   ),
                   SizedBox(width: 8.w),
+                  // Refresh button
                   GestureDetector(
                     onTap: _isRefreshing ? null : _loadFeed,
-                    child: _isRefreshing
-                        ? SizedBox(
-                            width: 24.sp,
-                            height: 24.sp,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFFF7931A),
-                            ),
-                          )
-                        : Icon(
-                            Icons.refresh,
-                            color: Colors.white,
-                            size: 24.sp,
-                          ),
-                  ),
-                  SizedBox(width: 8.w),
-                  // Debug button
-                  GestureDetector(
-                    onTap: _openDebugScreen,
                     child: Icon(
-                      Icons.bug_report,
-                      color: const Color(0xFFF7931A),
+                      Icons.refresh,
+                      color:
+                          _isRefreshing
+                              ? const Color(0xFFA1A1B2)
+                              : Colors.white,
                       size: 24.sp,
                     ),
                   ),
@@ -526,6 +636,8 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                               zapAmount: _zapCounts[post.id] ?? post.zapAmount,
                               onZap:
                                   (satoshis) => _handleZapPost(post, satoshis),
+                              onLike: () => _handleLikePost(post),
+                              isLiked: _likedPosts.contains(post.id),
                               showImages: _showImages,
                             );
                           },
@@ -838,12 +950,16 @@ class _NostrPostCard extends StatefulWidget {
   final NostrFeedPost post;
   final int zapAmount;
   final Function(int) onZap;
+  final VoidCallback onLike;
+  final bool isLiked;
   final bool showImages;
 
   const _NostrPostCard({
     required this.post,
     required this.zapAmount,
     required this.onZap,
+    required this.onLike,
+    required this.isLiked,
     required this.showImages,
   });
 
@@ -1063,13 +1179,67 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                 SizedBox(height: 8.h),
               ],
 
-              // Zap Button Row (at the bottom, not overlapping)
+              // Action Button Row (at the bottom, not overlapping)
               if (!_showZapSlider)
                 Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      // Like button
+                      GestureDetector(
+                        onTap: widget.onLike,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 8.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                widget.isLiked
+                                    ? const Color(0xFFEC4899).withOpacity(0.15)
+                                    : const Color(0xFF111128),
+                            borderRadius: BorderRadius.circular(20.r),
+                            border: Border.all(
+                              color:
+                                  widget.isLiked
+                                      ? const Color(0xFFEC4899)
+                                      : const Color(
+                                        0xFFA1A1B2,
+                                      ).withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                widget.isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color:
+                                    widget.isLiked
+                                        ? const Color(0xFFEC4899)
+                                        : const Color(0xFFA1A1B2),
+                                size: 16.sp,
+                              ),
+                              SizedBox(width: 4.w),
+                              Text(
+                                'Like',
+                                style: TextStyle(
+                                  color:
+                                      widget.isLiked
+                                          ? const Color(0xFFEC4899)
+                                          : const Color(0xFFA1A1B2),
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      // Zap button
                       GestureDetector(
                         onTap: _showZapSliderModal,
                         child: Container(
