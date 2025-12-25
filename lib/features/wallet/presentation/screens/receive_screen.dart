@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
+import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
@@ -181,39 +182,63 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(30.w, 20.h, 30.w, 0),
+    return Container(
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 20.h),
       child: Column(
         children: [
+          // Top row with back button and title
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Icon(Icons.arrow_back, color: Colors.white, size: 24.sp),
-              ),
-              Text(
-                'Receive',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              GestureDetector(
                 onTap: () {
-                  setState(() {
-                    isStaticMode = !isStaticMode;
-                  });
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context);
                 },
                 child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12.w,
-                    vertical: 6.h,
-                  ),
+                  width: 40.w,
+                  height: 40.h,
                   decoration: BoxDecoration(
-                    color: isStaticMode ? AppColors.primary : AppColors.surface,
-                    borderRadius: BorderRadius.circular(9999),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 20.sp,
+                  ),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Text(
+                  'Receive',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              // Share button
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  final data = _bolt11 ?? _userProfile?.sabiUsername ?? _nostrNpub;
+                  if (data != null) {
+                    _copyToClipboard(data, 'Address');
+                  }
+                },
+                child: Container(
+                  width: 40.w,
+                  height: 40.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    Icons.share_rounded,
+                    color: AppColors.primary,
+                    size: 20.sp,
                   ),
                 ),
               ),
@@ -228,64 +253,109 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   Widget _buildTabSelector() {
     return Container(
-      height: 44.h,
+      height: 48.h,
+      padding: EdgeInsets.all(4.r),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(14.r),
       ),
       child: Row(
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedTab = 'lightning'),
-              child: Container(
-                height: 44.h,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedTab = 'lightning');
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: 40.h,
                 decoration: BoxDecoration(
-                  color:
-                      _selectedTab == 'lightning'
-                          ? AppColors.primary
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12.r),
+                  color: _selectedTab == 'lightning'
+                      ? AppColors.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10.r),
+                  boxShadow: _selectedTab == 'lightning'
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Center(
-                  child: Text(
-                    '⚡ ${AppLocalizations.of(context)!.lightning}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.sp,
-                      fontWeight:
-                          _selectedTab == 'lightning'
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '⚡',
+                        style: TextStyle(fontSize: 16.sp),
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        AppLocalizations.of(context)!.lightning,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                          fontWeight: _selectedTab == 'lightning'
                               ? FontWeight.w600
                               : FontWeight.w400,
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
+          SizedBox(width: 4.w),
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedTab = 'nostr'),
-              child: Container(
-                height: 44.h,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedTab = 'nostr');
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: 40.h,
                 decoration: BoxDecoration(
-                  color:
-                      _selectedTab == 'nostr'
-                          ? AppColors.primary
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12.r),
+                  color: _selectedTab == 'nostr'
+                      ? AppColors.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10.r),
+                  boxShadow: _selectedTab == 'nostr'
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Center(
-                  child: Text(
-                    'Nostr',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.sp,
-                      fontWeight:
-                          _selectedTab == 'nostr'
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.blur_on_rounded,
+                        color: Colors.white,
+                        size: 16.sp,
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        'Nostr',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                          fontWeight: _selectedTab == 'nostr'
                               ? FontWeight.w600
                               : FontWeight.w400,
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -297,24 +367,37 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Widget _buildQRCodeSection() {
-    final displayData = _bolt11;
+    final displayData = _bolt11 ?? _userProfile?.sabiUsername;
 
-    return Container(
-      padding: EdgeInsets.all(20.r),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(color: AppColors.primary, width: 4.w),
-      ),
-      child: Center(
-        child:
+    return GestureDetector(
+      onTap: displayData != null
+          ? () {
+              HapticFeedback.lightImpact();
+              _copyToClipboard(displayData, 'Invoice');
+            }
+          : null,
+      child: Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
             displayData != null
                 ? QrImageView(
                     data: displayData,
                     version: QrVersions.auto,
-                    size: 260.w,
+                    size: 220.w,
                     backgroundColor: Colors.white,
-                    padding: EdgeInsets.all(12.r),
+                    padding: EdgeInsets.all(8.r),
                     errorCorrectionLevel: QrErrorCorrectLevel.M,
                     eyeStyle: const QrEyeStyle(
                       eyeShape: QrEyeShape.square,
@@ -325,45 +408,73 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                       color: Colors.black,
                     ),
                     errorStateBuilder: (context, error) {
-                      return Container(
-                        width: 260.w,
-                        height: 260.w,
-                        color: Colors.grey[200],
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                size: 48.sp,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 8.h),
-                              Text(
-                                'QR generation error',
-                                style: TextStyle(color: Colors.grey, fontSize: 12.sp),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      return _buildQRPlaceholder('QR Error');
                     },
                   )
-                : Container(
-                  width: 260.w,
-                  height: 260.w,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Create invoice to show QR',
-                      style: TextStyle(color: Colors.grey, fontSize: 12.sp),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                : _buildQRPlaceholder('Select amount to create invoice'),
+            if (displayData != null) ...[
+              SizedBox(height: 8.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20.r),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.touch_app_rounded,
+                      color: AppColors.primary,
+                      size: 14.sp,
+                    ),
+                    SizedBox(width: 4.w),
+                    Text(
+                      'Tap to copy',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQRPlaceholder(String message) {
+    return Container(
+      width: 220.w,
+      height: 220.w,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.qr_code_2_rounded,
+              size: 48.sp,
+              color: Colors.grey[400],
+            ),
+            SizedBox(height: 12.h),
+            Text(
+              message,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12.sp,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -373,158 +484,244 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final registered = _userProfile?.hasLightningAddress ?? false;
     final description =
       _userProfile?.lightningAddressDescription ??
-      'Share $username to receive Lightning payments instantly.';
+      'Share your Lightning address to receive payments instantly.';
 
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  username,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Column(
+        children: [
+          // Lightning address with copy
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              _copyToClipboard(username, 'Lightning address');
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  width: 1,
                 ),
               ),
-              SizedBox(width: 8.w),
-              GestureDetector(
-                onTap: () => _copyToClipboard(username, 'Lightning address'),
-                child: Container(
-                  width: 34.w,
-                  height: 34.h,
-                  padding: EdgeInsets.all(8.h),
-                  child: Icon(
-                    Icons.copy,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.bolt_rounded,
+                    color: AppColors.primary,
+                    size: 20.sp,
+                  ),
+                  SizedBox(width: 8.w),
+                  Flexible(
+                    child: Text(
+                      username,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Icon(
+                    Icons.copy_rounded,
                     color: AppColors.primary,
                     size: 18.sp,
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-        SizedBox(height: 8.h),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w),
-          child: Text(
+          SizedBox(height: 12.h),
+          // Description
+          Text(
             description,
             style: TextStyle(
-              color: Colors.white70,
+              color: AppColors.textSecondary,
               fontSize: 12.sp,
             ),
             textAlign: TextAlign.center,
           ),
-        ),
-        SizedBox(height: 8.h),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              registered ? Icons.check_circle : Icons.lightbulb,
-              color: registered ? AppColors.accentGreen : AppColors.primary,
-              size: 18.sp,
+          SizedBox(height: 12.h),
+          // Registration status
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: registered
+                  ? AppColors.accentGreen.withValues(alpha: 0.1)
+                  : AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20.r),
             ),
-            SizedBox(width: 6.w),
-            Text(
-              registered
-                  ? 'Lightning address registered'
-                  : 'Register to receive via Lightning address',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  registered ? Icons.check_circle : Icons.info_outline_rounded,
+                  color: registered ? AppColors.accentGreen : AppColors.primary,
+                  size: 16.sp,
+                ),
+                SizedBox(width: 6.w),
+                Text(
+                  registered ? 'Address active' : 'Not registered',
+                  style: TextStyle(
+                    color: registered ? AppColors.accentGreen : AppColors.primary,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        SizedBox(height: 6.h),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40.w),
-          child: SizedBox(
+          ),
+          SizedBox(height: 12.h),
+          // Action button
+          SizedBox(
             width: double.infinity,
-            child:
-                registered
-                    ? OutlinedButton(
-                      onPressed:
-                          _isSyncingLightningAddress
-                              ? null
-                              : _refreshLightningAddress,
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16.r),
-                        ),
-                      ),
-                      child: Text(
-                        _isSyncingLightningAddress
-                            ? 'Refreshing…'
-                            : 'Refresh LN address',
-                        style: const TextStyle(color: AppColors.primary),
-                      ),
-                    )
-                    : ElevatedButton(
-                      onPressed:
-                          _isSyncingLightningAddress
-                              ? null
-                              : _registerLightningAddress,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16.r),
-                        ),
-                      ),
-                      child: Text(
-                        _isSyncingLightningAddress
-                            ? 'Registering…'
-                            : 'Register Lightning address',
-                        style: const TextStyle(color: AppColors.surface),
+            height: 44.h,
+            child: registered
+                ? OutlinedButton(
+                    onPressed: _isSyncingLightningAddress
+                        ? null
+                        : _refreshLightningAddress,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isSyncingLightningAddress)
+                          SizedBox(
+                            width: 16.w,
+                            height: 16.h,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.w,
+                              color: AppColors.primary,
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.refresh_rounded,
+                            color: AppColors.primary,
+                            size: 18.sp,
+                          ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          _isSyncingLightningAddress ? 'Refreshing...' : 'Refresh',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ElevatedButton(
+                    onPressed: _isSyncingLightningAddress
+                        ? null
+                        : _registerLightningAddress,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isSyncingLightningAddress)
+                          SizedBox(
+                            width: 16.w,
+                            height: 16.h,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.w,
+                              color: Colors.white,
+                            ),
+                          )
+                        else
+                          Icon(Icons.add_rounded, size: 18.sp),
+                        SizedBox(width: 8.w),
+                        Text(
+                          _isSyncingLightningAddress ? 'Registering...' : 'Register Address',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildAmountSelector() {
-    return Wrap(
-      spacing: 8.w,
-      runSpacing: 8.w,
-      alignment: WrapAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          'Amount (sats)',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 12.h),
+        // Custom amount input
         Container(
-          width: 120.w,
-          height: 40.h,
-          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          height: 52.h,
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(9999),
-            border: Border.all(color: Colors.transparent),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 1,
+            ),
           ),
           child: TextField(
             keyboardType: TextInputType.number,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
-              hintText: 'Custom',
+              hintText: 'Enter custom amount',
               hintStyle: TextStyle(
-                color: Color(0xFFCCCCCC),
+                color: AppColors.textSecondary,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w400,
               ),
+              prefixIcon: Icon(
+                Icons.edit_rounded,
+                color: AppColors.textSecondary,
+                size: 20.sp,
+              ),
+              suffixText: 'sats',
+              suffixStyle: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14.sp,
+              ),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 10.h),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16.w,
+                vertical: 14.h,
+              ),
             ),
             onChanged: (value) {
               final amount = int.tryParse(value.replaceAll(',', ''));
@@ -534,35 +731,29 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             },
           ),
         ),
-        ...presetAmounts.map((amount) => _buildAmountButton(amount)),
+        SizedBox(height: 16.h),
+        // Preset amounts using AmountChips
+        AmountChips(
+          amounts: presetAmounts,
+          selectedAmount: selectedAmount,
+          currency: '',
+          formatAmount: (amount) => '${_formatAmountShort(amount)} sats',
+          onSelected: (amount) {
+            HapticFeedback.selectionClick();
+            setState(() {
+              selectedAmount = amount;
+            });
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildAmountButton(int amount) {
-    final isSelected = selectedAmount == amount;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedAmount = isSelected ? null : amount;
-        });
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 9.h),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(9999),
-        ),
-        child: Text(
-          '₦ ${_formatAmount(amount)}',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
+  String _formatAmountShort(int amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}k';
+    }
+    return amount.toString();
   }
 
   String _formatAmount(int amount) {
@@ -573,84 +764,154 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Widget _buildExpiryAndDescription() {
-    return Column(
-      children: [
-        SizedBox(height: 10.h),
-        SizedBox(
-          width: double.infinity,
-          child: Container(
-            height: 48.h,
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: Colors.transparent),
-            ),
-            child: TextField(
-              controller: _descriptionController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Describe the payment you want to receive',
-                hintStyle: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w400,
-                ),
-                border: InputBorder.none,
-              ),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14.r),
+      ),
+      child: TextField(
+        controller: _descriptionController,
+        style: TextStyle(color: Colors.white, fontSize: 14.sp),
+        maxLines: 2,
+        minLines: 1,
+        decoration: InputDecoration(
+          hintText: 'Add a description (optional)',
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13.sp,
+          ),
+          prefixIcon: Icon(
+            Icons.note_alt_outlined,
+            color: AppColors.textSecondary,
+            size: 20.sp,
+          ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 16.w,
+            vertical: 14.h,
           ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildActionButtons() {
+    final hasInvoice = _bolt11 != null;
+    final canCreate = selectedAmount != null && selectedAmount! > 0;
+
     return Column(
       children: [
+        // Create Invoice button (primary action)
         SizedBox(
           width: double.infinity,
-          height: 50.h,
+          height: 56.h,
           child: ElevatedButton(
-            onPressed:
-                _bolt11 == null
-                    ? null
-                    : () => _copyToClipboard(_bolt11!, 'Invoice'),
+            onPressed: !canCreate || _creating ? null : () {
+              HapticFeedback.mediumImpact();
+              _createInvoice();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
+              disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
               ),
             ),
-            child: Text(
-              'Share Invoice',
-              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
-            ),
+            child: _creating
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20.w,
+                        height: 20.h,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.w,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Text(
+                        'Creating Invoice...',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.qr_code_rounded, size: 20.sp),
+                      SizedBox(width: 8.w),
+                      Text(
+                        hasInvoice ? 'Create New Invoice' : 'Create Invoice',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
-        if (selectedAmount != null) ...[
-          SizedBox(height: 17.h),
+        // Share button (only shown when invoice exists)
+        if (hasInvoice) ...[
+          SizedBox(height: 12.h),
           SizedBox(
             width: double.infinity,
             height: 52.h,
             child: OutlinedButton(
-              onPressed: _creating ? null : _createInvoice,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _copyToClipboard(_bolt11!, 'Invoice');
+              },
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
-                backgroundColor: Colors.transparent,
-                elevation: 0,
+                side: const BorderSide(color: AppColors.primary),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.r),
+                  borderRadius: BorderRadius.circular(14.r),
                 ),
               ),
-              child: Text(
-                _creating ? 'Creating…' : 'Create Invoice',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.copy_rounded, size: 18.sp),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Copy Invoice',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ],
+        // Hint when no amount selected
+        if (!canCreate && !hasInvoice) ...[
+          SizedBox(height: 16.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.textSecondary,
+                size: 16.sp,
+              ),
+              SizedBox(width: 6.w),
+              Text(
+                'Select an amount to create an invoice',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12.sp,
+                ),
+              ),
+            ],
           ),
         ],
       ],

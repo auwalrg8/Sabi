@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
+import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -447,6 +449,17 @@ class _SendScreenState extends State<SendScreen>
     return recipient.identifier;
   }
 
+  int get _currentStepIndex {
+    switch (_step) {
+      case _SendStep.recipient:
+        return 0;
+      case _SendStep.amount:
+        return 1;
+      case _SendStep.confirm:
+        return 2;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -454,49 +467,97 @@ class _SendScreenState extends State<SendScreen>
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: 25.sp,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  SizedBox(width: 8.w),
-                  Text(
-                    _step == _SendStep.recipient
-                        ? '${AppLocalizations.of(context)!.send} – ${AppLocalizations.of(context)!.chooseRecipient}'
-                        : _step == _SendStep.amount
-                        ? '${AppLocalizations.of(context)!.send} – ${AppLocalizations.of(context)!.enterAmount}'
-                        : '${AppLocalizations.of(context)!.send} – ${AppLocalizations.of(context)!.confirm}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_isSending)
-                    SizedBox(
-                      height: 22.h,
-                      width: 22.w,
-                      child: CircularProgressIndicator(strokeWidth: 2.w),
-                    ),
-                ],
-              ),
-            ),
+            _buildHeader(),
             Expanded(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.05, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
                 child: _buildStep(),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 20.h),
+      child: Column(
+        children: [
+          // Top row with back button and title
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  if (_step == _SendStep.recipient) {
+                    Navigator.pop(context);
+                  } else if (_step == _SendStep.amount) {
+                    setState(() => _step = _SendStep.recipient);
+                  } else {
+                    setState(() => _step = _SendStep.amount);
+                  }
+                },
+                child: Container(
+                  width: 40.w,
+                  height: 40.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 20.sp,
+                  ),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.send,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (_isSending)
+                SizedBox(
+                  height: 24.h,
+                  width: 24.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.w,
+                    color: AppColors.primary,
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+          // Step indicator
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: StepIndicator(
+              currentStep: _currentStepIndex,
+              totalSteps: 3,
+              stepLabels: const ['To', 'Amount', 'Confirm'],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -518,104 +579,164 @@ class _SendScreenState extends State<SendScreen>
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(20.h),
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
-                  controller: _recipientController,
-                  decoration: InputDecoration(
-                    hintText: 'Paste phone, @handle, npub, LN address',
-                    hintStyle: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14.sp,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: const Icon(
-                        Icons.qr_code_scanner,
-                        color: AppColors.textSecondary,
-                      ),
-                      onPressed: _openQRScanner,
+                // Main input field with scan button
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16.r),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      width: 1.5,
                     ),
                   ),
-                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                  onSubmitted: _selectRecipientFromInput,
+                  child: TextField(
+                    controller: _recipientController,
+                    decoration: InputDecoration(
+                      hintText: 'Phone, @handle, npub, or LN address',
+                      hintStyle: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14.sp,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 16.h,
+                      ),
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          _openQRScanner();
+                        },
+                        child: Container(
+                          margin: EdgeInsets.all(8.r),
+                          padding: EdgeInsets.all(10.r),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Icon(
+                            Icons.qr_code_scanner_rounded,
+                            color: AppColors.primary,
+                            size: 22.sp,
+                          ),
+                        ),
+                      ),
+                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 15.sp),
+                    onSubmitted: _selectRecipientFromInput,
+                  ),
                 ),
                 SizedBox(height: 16.h),
+                // Action buttons row
                 Row(
                   children: [
                     Expanded(
-                      child: _outlinedButton(
+                      child: _actionButton(
                         'Contacts',
-                        Icons.contacts,
+                        Icons.people_outline_rounded,
                         _importContacts,
                       ),
                     ),
-                    SizedBox(width: 10.w),
+                    SizedBox(width: 12.w),
                     Expanded(
-                      child: _outlinedButton('Recent', Icons.history, () {
-                        if (_recent.isEmpty) {
-                          _showSnack('No recent recipients');
-                          return;
-                        }
-                        _showRecentBottomSheet();
-                      }),
+                      child: _actionButton(
+                        'Recent',
+                        Icons.history_rounded,
+                        () {
+                          if (_recent.isEmpty) {
+                            _showSnack('No recent recipients');
+                            return;
+                          }
+                          _showRecentBottomSheet();
+                        },
+                      ),
                     ),
                   ],
                 ),
                 SizedBox(height: 24.h),
+                // Loading state
                 if (_loadingContacts)
                   Center(
                     child: Padding(
-                      padding: EdgeInsets.all(12.h),
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
+                      padding: EdgeInsets.all(20.h),
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2.w,
+                          ),
+                          SizedBox(height: 12.h),
+                          Text(
+                            'Loading contacts...',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                // Contacts section
                 if (_contacts.isNotEmpty) ...[
-                  Text(
-                    'Contacts',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                  SizedBox(height: 10.h),
+                  _sectionHeader('Contacts', Icons.people_rounded),
+                  SizedBox(height: 12.h),
                   ..._contacts.take(5).map((c) => _contactTile(c)),
                 ],
+                // Recent section
                 if (_recent.isNotEmpty) ...[
                   SizedBox(height: 20.h),
-                  Text(
-                    'Recent',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                  SizedBox(height: 10.h),
+                  _sectionHeader('Recent', Icons.schedule_rounded),
+                  SizedBox(height: 12.h),
                   ..._recent.take(5).map((c) => _contactTile(c)),
                 ],
+                // Empty state
+                if (!_loadingContacts && _contacts.isEmpty && _recent.isEmpty)
+                  Container(
+                    margin: EdgeInsets.only(top: 40.h),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.send_rounded,
+                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                            size: 48.sp,
+                          ),
+                          SizedBox(height: 16.h),
+                          Text(
+                            'Enter a recipient or scan a QR code',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
-        Padding(
+        // Continue button
+        Container(
           padding: EdgeInsets.all(20.h),
           child: SizedBox(
             width: double.infinity,
             height: 56.h,
             child: ElevatedButton(
-              onPressed:
-                  () => _selectRecipientFromInput(_recipientController.text),
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                _selectRecipientFromInput(_recipientController.text);
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14.r),
                 ),
@@ -654,139 +775,171 @@ class _SendScreenState extends State<SendScreen>
   }
 
   Widget _buildAmountStep() {
-    final quickLabels =
-        _mode == _CurrencyMode.sats
-            ? ['1k', '5k', '10k', '50k']
-            : ['₦1k', '₦5k', '₦10k', '₦50k'];
-
     final ngn = _amountNgn();
     final sats = _amountSats();
 
-    return SingleChildScrollView(
+    return Column(
       key: const ValueKey('amount'),
-      padding: EdgeInsets.all(22.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _recipient?.name ?? 'Recipient',
-            style: TextStyle(color: Colors.white, fontSize: 16.sp),
-          ),
-          SizedBox(height: 12.h),
-          Center(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
               children: [
-                Text(
-                  _mode == _CurrencyMode.sats ? 'sats' : '₦',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 18.sp,
+                // Recipient card
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16.r),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16.r),
                   ),
-                ),
-                SizedBox(height: 6.h),
-                Text(
-                  _amountText,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 56.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 6.h),
-                Text(
-                  _mode == _CurrencyMode.sats
-                      ? '≈ ₦${ngn.toStringAsFixed(0)}'
-                      : '≈ $sats sats',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14.sp,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children:
-                quickLabels
-                    .asMap()
-                    .entries
-                    .map(
-                      (e) => Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4.w),
-                          child: GestureDetector(
-                            onTap: () => _setQuickAmount(e.key),
-                            child: Container(
-                              height: 42.h,
-                              decoration: BoxDecoration(
-                                color:
-                                    _quickIndex == e.key
-                                        ? AppColors.primary
-                                        : AppColors.surface,
-                                borderRadius: BorderRadius.circular(32.r),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                e.value,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44.w,
+                        height: 44.h,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: Center(
+                          child: Text(
+                            (_recipient?.name ?? 'R')[0].toUpperCase(),
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                       ),
-                    )
-                    .toList(),
-          ),
-          SizedBox(height: 18.h),
-          TextField(
-            controller: _memoController,
-            decoration: InputDecoration(
-              hintText: 'Memo (optional)',
-              hintStyle: const TextStyle(color: AppColors.textSecondary),
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14.r),
-                borderSide: BorderSide.none,
-              ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sending to',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              _recipient?.name ?? 'Recipient',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.check_circle,
+                        color: AppColors.accentGreen,
+                        size: 22.sp,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 32.h),
+                // Amount display
+                AmountDisplay(
+                  amount: _amountText,
+                  currency: _mode == _CurrencyMode.sats ? 'sats' : '₦',
+                  secondaryAmount: _mode == _CurrencyMode.sats
+                      ? ngn.toStringAsFixed(0)
+                      : sats.toString(),
+                  secondaryCurrency: _mode == _CurrencyMode.sats ? '₦' : '',
+                  onToggleCurrency: _toggleMode,
+                ),
+                SizedBox(height: 24.h),
+                // Quick amount chips
+                AmountChips(
+                  amounts: const [1000, 5000, 10000, 50000],
+                  selectedAmount: _quickIndex >= 0 ? [1000, 5000, 10000, 50000][_quickIndex] : null,
+                  currency: _mode == _CurrencyMode.sats ? '' : '₦',
+                  onSelected: (amount) {
+                    if (amount != null) {
+                      final idx = [1000, 5000, 10000, 50000].indexOf(amount);
+                      if (idx >= 0) _setQuickAmount(idx);
+                    }
+                  },
+                ),
+                SizedBox(height: 20.h),
+                // Memo field
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                  child: TextField(
+                    controller: _memoController,
+                    decoration: InputDecoration(
+                      hintText: 'Add a note (optional)',
+                      hintStyle: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14.sp,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.note_alt_outlined,
+                        color: AppColors.textSecondary,
+                        size: 20.sp,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 16.h,
+                      ),
+                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                // Keypad
+                AmountKeypad(
+                  onDigit: _appendDigit,
+                  onDelete: _deleteDigit,
+                ),
+              ],
             ),
-            style: const TextStyle(color: Colors.white),
           ),
-          SizedBox(height: 12.h),
-          TextButton(
-            onPressed: _toggleMode,
-            child: Text(
-              _mode == _CurrencyMode.sats
-                  ? 'Switch to naira'
-                  : 'Switch to sats',
-              style: TextStyle(color: AppColors.primary),
-            ),
-          ),
-          SizedBox(height: 12.h),
-          _buildKeypad(),
-          SizedBox(height: 16.h),
-          SizedBox(
+        ),
+        // Continue button
+        Container(
+          padding: EdgeInsets.all(20.h),
+          child: SizedBox(
             width: double.infinity,
             height: 56.h,
             child: ElevatedButton(
-              onPressed: _nextFromAmount,
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                _nextFromAmount();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14.r),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
-              child: const Text('Continue'),
+              child: Text(
+                'Continue',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -794,54 +947,200 @@ class _SendScreenState extends State<SendScreen>
     final sats = _amountSats();
     final ngn = _amountNgn();
 
-    return SingleChildScrollView(
+    return Column(
       key: const ValueKey('confirm'),
-      padding: EdgeInsets.all(20.h),
-      child: Column(
-        spacing: 10.h,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _summaryRow('To', _recipient?.name ?? ''),
-
-          _summaryRow('Identifier', _recipient?.identifier ?? ''),
-
-          _summaryRow('Amount', '$sats sats (₦${ngn.toStringAsFixed(0)})'),
-
-          _summaryRow(
-            'Memo',
-            _memoController.text.isEmpty ? '—' : _memoController.text,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Column(
+              children: [
+                SizedBox(height: 12.h),
+                // Amount highlight
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(vertical: 28.h),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.15),
+                        AppColors.primary.withValues(alpha: 0.05),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'You\'re sending',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Text(
+                        '$sats sats',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 36.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        '≈ ₦${ngn.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24.h),
+                // Summary card
+                SummaryCard(
+                  title: 'TRANSACTION DETAILS',
+                  items: [
+                    SummaryItem(
+                      label: 'Recipient',
+                      value: _recipient?.name ?? '',
+                      icon: Icons.person_outline_rounded,
+                    ),
+                    SummaryItem(
+                      label: 'Address',
+                      value: _recipient?.identifier ?? '',
+                      icon: Icons.link_rounded,
+                      isCopyable: true,
+                    ),
+                    if (_memoController.text.isNotEmpty)
+                      SummaryItem(
+                        label: 'Note',
+                        value: _memoController.text,
+                        icon: Icons.note_alt_outlined,
+                      ),
+                  ],
+                ),
+                SizedBox(height: 16.h),
+                // Fee notice
+                Container(
+                  padding: EdgeInsets.all(14.r),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.textSecondary,
+                        size: 18.sp,
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Text(
+                          'Network fees will be calculated at time of sending',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          SizedBox(height: 24.h),
-          SizedBox(
+        ),
+        // Send button
+        Container(
+          padding: EdgeInsets.all(20.h),
+          child: SizedBox(
             width: double.infinity,
             height: 56.h,
             child: ElevatedButton(
-              onPressed: _isSending ? null : _confirmAndSend,
+              onPressed: _isSending
+                  ? null
+                  : () {
+                      HapticFeedback.heavyImpact();
+                      _confirmAndSend();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                foregroundColor: Colors.white,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
-              child: Text(
-                _isSending ? 'Sending…' : 'Send',
-                style: TextStyle(color: Colors.white, fontSize: 16.sp),
-              ),
+              child: _isSending
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20.w,
+                          height: 20.h,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.w,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 12.w),
+                        Text(
+                          'Sending...',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send_rounded, size: 20.sp),
+                        SizedBox(width: 8.w),
+                        Text(
+                          'Send Payment',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _outlinedButton(String label, IconData icon, VoidCallback onTap) {
+  Widget _actionButton(String label, IconData icon, VoidCallback onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 14.h),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.primary, width: 1.5.w),
-          borderRadius: BorderRadius.circular(24.r),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -851,7 +1150,7 @@ class _SendScreenState extends State<SendScreen>
             Text(
               label,
               style: TextStyle(
-                color: AppColors.primary,
+                color: Colors.white,
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
               ),
@@ -862,149 +1161,103 @@ class _SendScreenState extends State<SendScreen>
     );
   }
 
-  Widget _buildKeypad() {
-    final rows = [
-      ['1', '2', '3'],
-      ['4', '5', '6'],
-      ['7', '8', '9'],
-      ['.', '0', '⌫'],
-    ];
-
-    return Column(
-      children:
-          rows
-              .map(
-                (row) => Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4.h),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children:
-                        row
-                            .map(
-                              (value) => Expanded(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 6.w,
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      if (value == '⌫') {
-                                        _deleteDigit();
-                                        return;
-                                      }
-                                      _appendDigit(value);
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 18.h,
-                                      ),
-                                      backgroundColor: AppColors.surface,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          16.r,
-                                        ),
-                                        side: const BorderSide(
-                                          color: Colors.transparent,
-                                        ),
-                                      ),
-                                    ),
-                                    child:
-                                        value == '⌫'
-                                            ? Icon(
-                                              Icons.backspace,
-                                              color: Colors.white,
-                                            )
-                                            : Text(
-                                              value,
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 24.sp,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                  ),
-                ),
-              )
-              .toList(),
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16.sp, color: AppColors.textSecondary),
+        SizedBox(width: 8.w),
+        Text(
+          title,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _contactTile(ContactInfo c) {
-    return InkWell(
-      onTap: () => _selectRecipient(c),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 8.h),
-        child: Row(
-          children: [
-            Container(
-              width: 40.w,
-              height: 40.h,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  c.displayName.isNotEmpty
-                      ? c.displayName[0].toUpperCase()
-                      : 'C',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _selectRecipient(c);
+        },
+        borderRadius: BorderRadius.circular(12.r),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
+          margin: EdgeInsets.only(bottom: 4.h),
+          decoration: BoxDecoration(
+            color: AppColors.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44.w,
+                height: 44.h,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.3),
+                      AppColors.primary.withValues(alpha: 0.15),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Center(
+                  child: Text(
+                    c.displayName.isNotEmpty
+                        ? c.displayName[0].toUpperCase()
+                        : 'C',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    c.displayName,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w500,
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.displayName,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 2.h),
-                  Text(
-                    c.identifier,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13.sp,
+                    SizedBox(height: 2.h),
+                    Text(
+                      c.identifier,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _summaryRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary)),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: TextStyle(color: Colors.white, fontSize: 15.sp),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: AppColors.textSecondary,
+                size: 16.sp,
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
