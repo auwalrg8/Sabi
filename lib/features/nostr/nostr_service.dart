@@ -974,7 +974,7 @@ class NostrService {
     final rawEvents = await NostrRelayClient.fetchEvents(
       relayUrls: _defaultRelays,
       filter: filter,
-      timeoutSeconds: 15,
+      timeoutSeconds: 8,
       maxEvents: limit,
     );
 
@@ -1092,7 +1092,7 @@ class NostrService {
     final rawEvents = await NostrRelayClient.fetchEvents(
       relayUrls: _defaultRelays,
       filter: filter,
-      timeoutSeconds: 15,
+      timeoutSeconds: 8,
       maxEvents: limit,
     );
 
@@ -1577,7 +1577,7 @@ class NostrService {
       final events = await NostrRelayClient.fetchEvents(
         relayUrls: _defaultRelays,
         filter: filter,
-        timeoutSeconds: 5,
+        timeoutSeconds: 3,
         maxEvents: 1,
       );
 
@@ -1615,6 +1615,15 @@ class NostrService {
         }
         if (jsonData['nip05'] != null) {
           metadata['nip05'] = jsonData['nip05'].toString();
+        }
+
+        // Extract lightning address (lud16) - CRITICAL for zaps
+        if (jsonData['lud16'] != null) {
+          metadata['lud16'] = jsonData['lud16'].toString();
+        }
+        // Fallback to lud06 (LNURL) if lud16 not present
+        if (jsonData['lud06'] != null) {
+          metadata['lud06'] = jsonData['lud06'].toString();
         }
       } catch (e) {
         print('⚠️ Error parsing metadata JSON: $e');

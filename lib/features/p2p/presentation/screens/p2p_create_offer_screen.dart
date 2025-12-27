@@ -4,7 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
+import 'package:sabi_wallet/features/p2p/data/models/payment_method_international.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 
 /// P2P Create Offer Screen - Binance/NoOnes inspired
 class P2PCreateOfferScreen extends ConsumerStatefulWidget {
@@ -23,7 +25,8 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
   double _marginPercent = 1.5;
   int _minLimit = 10000;
   int _maxLimit = 1000000;
-  bool _requiresKyc = false;
+  bool _useTradeCode = false; // Optional trade code verification
+  bool _openToProfileSharing = false; // Allow trust profile sharing
   final Set<String> _selectedPaymentMethods = {};
   final TextEditingController _minController = TextEditingController(
     text: '10,000',
@@ -498,7 +501,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         ),
         SizedBox(height: 24.h),
 
-        // KYC Toggle
+        // Trade Code Toggle (optional extra verification)
         Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
@@ -508,7 +511,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
           child: Row(
             children: [
               Icon(
-                Icons.verified_user,
+                Icons.security,
                 color: const Color(0xFFA1A1B2),
                 size: 24.sp,
               ),
@@ -518,7 +521,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Require KYC',
+                      'Trade Code Verification',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14.sp,
@@ -526,7 +529,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                       ),
                     ),
                     Text(
-                      'Only verified traders can respond',
+                      'Add extra security with split 6-digit code',
                       style: TextStyle(
                         color: const Color(0xFFA1A1B2),
                         fontSize: 12.sp,
@@ -536,8 +539,8 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                 ),
               ),
               Switch(
-                value: _requiresKyc,
-                onChanged: (value) => setState(() => _requiresKyc = value),
+                value: _useTradeCode,
+                onChanged: (value) => setState(() => _useTradeCode = value),
                 activeThumbColor: const Color(0xFFF7931A),
                 activeTrackColor: const Color(
                   0xFFF7931A,
@@ -548,12 +551,165 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             ],
           ),
         ),
+        
+        // Trade Code Info
+        if (_useTradeCode) ...[
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4FC3F7).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: const Color(0xFF4FC3F7).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: const Color(0xFF4FC3F7),
+                  size: 18.sp,
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: Text(
+                    'A 6-digit code will be generated. You share first 3 digits, buyer shares last 3. Both must match for trade completion.',
+                    style: TextStyle(
+                      color: const Color(0xFF4FC3F7),
+                      fontSize: 12.sp,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        
+        SizedBox(height: 16.h),
+        
+        // Profile Sharing Toggle
+        Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111128),
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  Icons.handshake_outlined,
+                  color: const Color(0xFF00FFB2),
+                  size: 20.sp,
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Open to Trust Sharing',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Allow traders to request social profile exchange',
+                      style: TextStyle(
+                        color: const Color(0xFFA1A1B2),
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _openToProfileSharing,
+                onChanged: (value) => setState(() => _openToProfileSharing = value),
+                activeThumbColor: const Color(0xFF00FFB2),
+                activeTrackColor: const Color(0xFF00FFB2).withValues(alpha: 0.3),
+                inactiveThumbColor: const Color(0xFFA1A1B2),
+                inactiveTrackColor: const Color(0xFF2A2A3E),
+              ),
+            ],
+          ),
+        ),
+        
+        // Profile Sharing Info
+        if (_openToProfileSharing) ...[
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: const Color(0xFF00FFB2).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      color: const Color(0xFF00FFB2),
+                      size: 18.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Build Trust Without KYC',
+                      style: TextStyle(
+                        color: const Color(0xFF00FFB2),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  '• Traders can request to share social profiles\n'
+                  '• You control what to share per trade\n'
+                  '• Profiles never stored or shown publicly',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 12.sp,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
 
   Widget _buildStep3PaymentMethods() {
     final paymentMethods = ref.watch(paymentMethodsProvider);
+    final internationalMethods = PaymentMethods.getAllMethods();
+    
+    // Group international methods by primary region (first region in list)
+    final methodsByRegion = <PaymentRegion, List<InternationalPaymentMethod>>{};
+    for (final method in internationalMethods) {
+      if (method.regions.isNotEmpty) {
+        final primaryRegion = method.regions.first;
+        methodsByRegion.putIfAbsent(primaryRegion, () => []).add(method);
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,100 +729,77 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         ),
         SizedBox(height: 24.h),
 
-        // Payment Methods List
-        ...paymentMethods.map((method) {
-          final isSelected = _selectedPaymentMethods.contains(method.id);
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isSelected) {
-                  _selectedPaymentMethods.remove(method.id);
-                } else {
-                  _selectedPaymentMethods.add(method.id);
-                }
-              });
-            },
-            child: Container(
-              margin: EdgeInsets.only(bottom: 12.h),
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                color: const Color(0xFF111128),
-                borderRadius: BorderRadius.circular(16.r),
-                border: Border.all(
-                  color:
-                      isSelected
-                          ? const Color(0xFFF7931A)
-                          : const Color(0xFF2A2A3E),
-                  width: isSelected ? 2 : 1,
-                ),
+        // Nigerian Payment Methods (from existing provider)
+        if (paymentMethods.isNotEmpty) ...[
+          _PaymentCategoryHeader(
+            title: '🇳🇬 Nigerian Methods',
+            subtitle: 'Local bank transfers and mobile money',
+          ),
+          SizedBox(height: 12.h),
+          ...paymentMethods.map((method) {
+            final isSelected = _selectedPaymentMethods.contains(method.id);
+            return _PaymentMethodTile(
+              id: method.id,
+              name: method.name,
+              subtitle: method.type.name
+                  .replaceAllMapped(
+                    RegExp(r'([A-Z])'),
+                    (m) => ' ${m.group(1)}',
+                  )
+                  .trim(),
+              icon: _getPaymentMethodIcon(method.type),
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedPaymentMethods.remove(method.id);
+                  } else {
+                    _selectedPaymentMethods.add(method.id);
+                  }
+                });
+              },
+            );
+          }),
+          SizedBox(height: 24.h),
+        ],
+
+        // International Payment Methods by Region
+        ...methodsByRegion.entries.map((entry) {
+          final region = entry.key;
+          final methods = entry.value;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PaymentCategoryHeader(
+                title: '${_getRegionEmoji(region)} ${_getRegionName(region)}',
+                subtitle: _getRegionSubtitle(region),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24.w,
-                    height: 24.h,
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected
-                              ? const Color(0xFFF7931A)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6.r),
-                      border: Border.all(
-                        color:
-                            isSelected
-                                ? const Color(0xFFF7931A)
-                                : const Color(0xFFA1A1B2),
-                        width: 2,
-                      ),
-                    ),
-                    child:
-                        isSelected
-                            ? Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 16.sp,
-                            )
-                            : null,
-                  ),
-                  SizedBox(width: 16.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          method.name,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          method.type.name
-                              .replaceAllMapped(
-                                RegExp(r'([A-Z])'),
-                                (m) => ' ${m.group(1)}',
-                              )
-                              .trim(),
-                          style: TextStyle(
-                            color: const Color(0xFFA1A1B2),
-                            fontSize: 12.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    _getPaymentMethodIcon(method.type),
-                    color: const Color(0xFFA1A1B2),
-                    size: 24.sp,
-                  ),
-                ],
-              ),
-            ),
+              SizedBox(height: 12.h),
+              ...methods.map((method) {
+                final isSelected = _selectedPaymentMethods.contains(method.id);
+                return _PaymentMethodTile(
+                  id: method.id,
+                  name: method.name,
+                  subtitle: '~${method.estimatedMinutes} min',
+                  icon: Icons.payment,
+                  isSelected: isSelected,
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedPaymentMethods.remove(method.id);
+                      } else {
+                        _selectedPaymentMethods.add(method.id);
+                      }
+                    });
+                  },
+                );
+              }),
+              SizedBox(height: 16.h),
+            ],
           );
         }),
-        SizedBox(height: 24.h),
+        
+        SizedBox(height: 8.h),
 
         // Payment Instructions
         Text(
@@ -753,6 +886,87 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
     }
   }
 
+  String _getRegionEmoji(PaymentRegion region) {
+    switch (region) {
+      case PaymentRegion.nigeria:
+        return '🇳🇬';
+      case PaymentRegion.global:
+        return '🌍';
+      case PaymentRegion.usa:
+        return '🇺🇸';
+      case PaymentRegion.europe:
+        return '🇪🇺';
+      case PaymentRegion.uk:
+        return '🇬🇧';
+      case PaymentRegion.india:
+        return '🇮🇳';
+      case PaymentRegion.brazil:
+        return '🇧🇷';
+      case PaymentRegion.canada:
+        return '🇨🇦';
+      case PaymentRegion.africa:
+        return '🌍';
+      case PaymentRegion.latinAmerica:
+        return '🌎';
+      case PaymentRegion.asia:
+        return '🌏';
+    }
+  }
+
+  String _getRegionName(PaymentRegion region) {
+    switch (region) {
+      case PaymentRegion.nigeria:
+        return 'Nigeria';
+      case PaymentRegion.global:
+        return 'Global';
+      case PaymentRegion.usa:
+        return 'United States';
+      case PaymentRegion.europe:
+        return 'Europe';
+      case PaymentRegion.uk:
+        return 'United Kingdom';
+      case PaymentRegion.india:
+        return 'India';
+      case PaymentRegion.brazil:
+        return 'Brazil';
+      case PaymentRegion.canada:
+        return 'Canada';
+      case PaymentRegion.africa:
+        return 'Africa';
+      case PaymentRegion.latinAmerica:
+        return 'Latin America';
+      case PaymentRegion.asia:
+        return 'Asia';
+    }
+  }
+
+  String _getRegionSubtitle(PaymentRegion region) {
+    switch (region) {
+      case PaymentRegion.nigeria:
+        return 'Local Nigerian payment methods';
+      case PaymentRegion.global:
+        return 'Available worldwide';
+      case PaymentRegion.usa:
+        return 'US-based payment methods';
+      case PaymentRegion.europe:
+        return 'European payment methods';
+      case PaymentRegion.uk:
+        return 'UK-based payment methods';
+      case PaymentRegion.india:
+        return 'Indian payment methods';
+      case PaymentRegion.brazil:
+        return 'Brazilian payment methods';
+      case PaymentRegion.canada:
+        return 'Canadian payment methods';
+      case PaymentRegion.africa:
+        return 'Pan-African mobile money';
+      case PaymentRegion.latinAmerica:
+        return 'Latin American payment methods';
+      case PaymentRegion.asia:
+        return 'Asian payment methods';
+    }
+  }
+
   String _formatRate(double rate) {
     if (rate >= 1000000) {
       return '${(rate / 1000000).toStringAsFixed(2)}M';
@@ -767,10 +981,20 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      P2PLogger.info('Offer', 'Creating P2P offer', metadata: {
+        'type': _isSellOffer ? 'sell' : 'buy',
+        'marginPercent': _marginPercent,
+        'minLimit': _minLimit,
+        'maxLimit': _maxLimit,
+        'useTradeCode': _useTradeCode,
+        'openToProfileSharing': _openToProfileSharing,
+        'paymentMethods': _selectedPaymentMethods.toList(),
+      });
+
       // TODO: Create offer with provider
-      // Using limit values: min=$_minLimit, max=$_maxLimit
-      debugPrint('Creating offer with limits: $_minLimit - $_maxLimit NGN');
       await Future.delayed(const Duration(seconds: 2));
+
+      P2PLogger.info('Offer', 'P2P offer created successfully');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -785,18 +1009,26 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         );
         Navigator.pop(context);
       }
-    } catch (e) {
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to create offer: $e'),
-          backgroundColor: const Color(0xFFFF6B6B),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+    } catch (e, stack) {
+      P2PLogger.error(
+        'Offer',
+        'Failed to create P2P offer: $e',
+        errorCode: P2PErrorCodes.tradeCreationFailed,
+        stackTrace: stack,
       );
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create offer: $e'),
+            backgroundColor: const Color(0xFFFF6B6B),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
     }
   }
 }
@@ -954,6 +1186,127 @@ class _QuickLimitChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
+        ),
+      ),
+    );
+  }
+}
+
+/// Payment Category Header
+class _PaymentCategoryHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _PaymentCategoryHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        SizedBox(height: 2.h),
+        Text(
+          subtitle,
+          style: TextStyle(
+            color: const Color(0xFFA1A1B2),
+            fontSize: 12.sp,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Payment Method Tile (reusable)
+class _PaymentMethodTile extends StatelessWidget {
+  final String id;
+  final String name;
+  final String subtitle;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PaymentMethodTile({
+    required this.id,
+    required this.name,
+    required this.subtitle,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.all(14.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111128),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 22.w,
+              height: 22.h,
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFF7931A) : Colors.transparent,
+                borderRadius: BorderRadius.circular(5.r),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFF7931A) : const Color(0xFFA1A1B2),
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Icon(Icons.check, color: Colors.white, size: 14.sp)
+                  : null,
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: const Color(0xFFA1A1B2),
+                      fontSize: 11.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              icon,
+              color: const Color(0xFFA1A1B2),
+              size: 20.sp,
+            ),
+          ],
         ),
       ),
     );

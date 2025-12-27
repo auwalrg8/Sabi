@@ -709,7 +709,7 @@ class _HomeContentState extends State<_HomeContent> {
                               () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const UtilitiesScreen(),
+                                  builder: (_) => const UtilitiesHubScreen(),
                                 ),
                               ),
                         ),

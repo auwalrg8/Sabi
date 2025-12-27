@@ -456,6 +456,162 @@ class VtuApiService {
     }
   }
 
+  // ==================== CABLE TV ====================
+
+  /// Get service ID for cable TV provider
+  static String _getCableTvServiceId(String providerCode) {
+    switch (providerCode.toLowerCase()) {
+      case 'dstv':
+        return 'dstv';
+      case 'gotv':
+        return 'gotv';
+      case 'startimes':
+        return 'startimes';
+      default:
+        return providerCode.toLowerCase();
+    }
+  }
+
+  /// Get cable TV plan variations (public endpoint - no auth required)
+  static Future<List<VtuCableTvPlan>> getCableTvPlans(
+    String providerCode,
+  ) async {
+    try {
+      final serviceId = _getCableTvServiceId(providerCode);
+      final url = '${VtuConfig.apiV2Url}/variations/tv?service_id=$serviceId';
+
+      debugPrint('📺 Fetching Cable TV plans for $providerCode from: $url');
+
+      final response = await _client.get(Uri.parse(url));
+      final data = jsonDecode(response.body);
+
+      if (data['code'] != 'success') {
+        debugPrint('⚠️ Cable TV plans error: ${data['message']}');
+        return [];
+      }
+
+      final plans = <VtuCableTvPlan>[];
+      final variations = data['data'] as List? ?? [];
+
+      for (final variation in variations) {
+        // Only include available plans
+        if (variation['availability'] == 'Available') {
+          final price =
+              double.tryParse(variation['price']?.toString() ?? '0') ?? 0;
+          final resellerPrice =
+              double.tryParse(variation['reseller_price']?.toString() ?? '0') ??
+              price;
+
+          plans.add(
+            VtuCableTvPlan(
+              variationId: variation['variation_id']?.toString() ?? '',
+              name: variation['plan_name']?.toString() ??
+                  variation['name']?.toString() ??
+                  '',
+              price: price,
+              resellerPrice: resellerPrice,
+              providerCode: providerCode.toLowerCase(),
+              serviceName:
+                  variation['service_name']?.toString() ?? providerCode,
+              isAvailable: true,
+            ),
+          );
+        }
+      }
+
+      // Sort by reseller price ascending
+      plans.sort((a, b) => a.resellerPrice.compareTo(b.resellerPrice));
+
+      debugPrint('📺 Loaded ${plans.length} cable TV plans for $providerCode');
+      return plans;
+    } catch (e) {
+      debugPrint('❌ VTU Cable TV plans error: $e');
+      return [];
+    }
+  }
+
+  /// Verify cable TV customer (smartcard number)
+  static Future<VtuCableTvCustomerInfo?> verifyCableTvCustomer({
+    required String smartcardNumber,
+    required String providerCode,
+  }) async {
+    try {
+      debugPrint(
+        '📺 Verifying Cable TV customer: $smartcardNumber for $providerCode',
+      );
+
+      final headers = await _getAuthHeaders();
+      final serviceId = _getCableTvServiceId(providerCode);
+
+      final response = await _client.post(
+        Uri.parse('${VtuConfig.apiV2Url}/verify-customer'),
+        headers: headers,
+        body: jsonEncode({
+          'customer_id': smartcardNumber,
+          'service_id': serviceId,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data['code'] == 'success' && data['data'] != null) {
+        final d = data['data'];
+        return VtuCableTvCustomerInfo(
+          customerName: d['customer_name']?.toString() ?? '',
+          smartcardNumber: d['customer_id']?.toString() ?? smartcardNumber,
+          currentBouquet: d['current_bouquet']?.toString() ?? '',
+          dueDate: d['due_date']?.toString() ?? '',
+          isValid: true,
+        );
+      }
+
+      debugPrint('⚠️ Cable TV verification failed: ${data['message']}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Cable TV verify error: $e');
+      return null;
+    }
+  }
+
+  /// Purchase cable TV subscription
+  static Future<VtuApiResponse> buyCableTv({
+    required String smartcardNumber,
+    required String providerCode,
+    required String variationId,
+    required String phone,
+  }) async {
+    try {
+      debugPrint(
+        '📺 [API v2] Buying Cable TV: $variationId for $smartcardNumber',
+      );
+
+      final requestId = _generateRequestId('cabletv');
+      final headers = await _getAuthHeaders();
+      final serviceId = _getCableTvServiceId(providerCode);
+
+      final response = await _client.post(
+        Uri.parse('${VtuConfig.apiV2Url}/tv'),
+        headers: headers,
+        body: jsonEncode({
+          'request_id': requestId,
+          'customer_id': smartcardNumber,
+          'service_id': serviceId,
+          'variation_id': variationId,
+          'phone': phone,
+        }),
+      );
+
+      return _parseOrderResponse(response, 'Cable TV');
+    } catch (e) {
+      if (e is VtuApiException) rethrow;
+      return VtuApiResponse(
+        success: false,
+        message: e.toString(),
+        errorCode: 'network_error',
+      );
+    }
+  }
+
   // ==================== RESPONSE PARSING ====================
 
   /// Parse order response from VTU.ng API v2
@@ -811,6 +967,66 @@ class VtuMeterInfo {
     this.minAmount = 1000,
     this.maxAmount = 100000,
     this.arrears = 0,
+    required this.isValid,
+  });
+}
+
+/// Cable TV plan from VTU.ng API v2
+class VtuCableTvPlan {
+  final String variationId;
+  final String name;
+  final double price; // Customer price (retail)
+  final double resellerPrice; // Reseller price (our cost)
+  final String providerCode; // dstv, gotv, startimes
+  final String serviceName;
+  final bool isAvailable;
+
+  const VtuCableTvPlan({
+    required this.variationId,
+    required this.name,
+    required this.price,
+    required this.resellerPrice,
+    required this.providerCode,
+    this.serviceName = '',
+    this.isAvailable = true,
+  });
+
+  /// Profit margin per transaction
+  double get profitMargin => price - resellerPrice;
+
+  /// Get display price (use reseller price for customer)
+  double get displayPrice => resellerPrice;
+
+  /// Extract validity/duration from plan name
+  String get validity {
+    final lower = name.toLowerCase();
+    if (lower.contains('weekly') || lower.contains('1 week')) return '7 days';
+    if (lower.contains('monthly') ||
+        lower.contains('1 month') ||
+        lower.contains('30 day'))
+      return '30 days';
+    if (lower.contains('3 month') || lower.contains('quarterly'))
+      return '90 days';
+    if (lower.contains('6 month')) return '180 days';
+    if (lower.contains('annual') || lower.contains('12 month'))
+      return '365 days';
+    return '30 days'; // Default to monthly
+  }
+}
+
+/// Cable TV customer verification info (API v2)
+class VtuCableTvCustomerInfo {
+  final String customerName;
+  final String smartcardNumber;
+  final String currentBouquet;
+  final String dueDate;
+  final bool isValid;
+
+  const VtuCableTvCustomerInfo({
+    required this.customerName,
+    required this.smartcardNumber,
+    this.currentBouquet = '',
+    this.dueDate = '',
     required this.isValid,
   });
 }

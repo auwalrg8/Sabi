@@ -6,7 +6,7 @@ import '../../data/models/models.dart';
 import '../../services/vtu_service.dart';
 import '../../services/vtu_api_service.dart';
 import '../widgets/network_selector.dart';
-import '../widgets/phone_input_field.dart';
+import '../widgets/phone_input_with_contacts.dart';
 import 'vtu_confirm_screen.dart';
 import 'vtu_order_history_screen.dart';
 
@@ -193,7 +193,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
                     SizedBox(height: 24.h),
 
                     // Phone Number Input
-                    PhoneInputField(
+                    PhoneInputWithContacts(
                       controller: _phoneController,
                       detectedNetwork: _selectedNetwork?.name,
                       networkColor:
@@ -202,6 +202,9 @@ class _DataScreenState extends ConsumerState<DataScreen> {
                               : null,
                       errorText: _phoneError,
                       onChanged: _onPhoneChanged,
+                      accentColor: _selectedNetwork != null 
+                          ? Color(_selectedNetwork!.primaryColor) 
+                          : const Color(0xFFF7931A),
                     ),
                     SizedBox(height: 24.h),
 

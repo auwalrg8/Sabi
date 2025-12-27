@@ -18,6 +18,9 @@ class VtuConfirmScreen extends ConsumerStatefulWidget {
   final ElectricityProvider? electricityProvider;
   final MeterType? meterType;
   final String? variationId; // For live API data plans
+  final CableTvProvider? cableTvProvider;
+  final String? cableTvPlanName;
+  final String? phone; // Contact phone for notifications
 
   const VtuConfirmScreen({
     super.key,
@@ -30,6 +33,9 @@ class VtuConfirmScreen extends ConsumerStatefulWidget {
     this.electricityProvider,
     this.meterType,
     this.variationId,
+    this.cableTvProvider,
+    this.cableTvPlanName,
+    this.phone,
   });
 
   @override
@@ -73,6 +79,9 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
     if (widget.electricityProvider != null) {
       return Color(widget.electricityProvider!.primaryColor);
     }
+    if (widget.cableTvProvider != null) {
+      return Color(widget.cableTvProvider!.primaryColor);
+    }
     return const Color(0xFFF7931A);
   }
 
@@ -84,6 +93,8 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
         return '${widget.network?.name ?? ''} Data';
       case VtuServiceType.electricity:
         return '${widget.electricityProvider?.shortName ?? ''} Electricity';
+      case VtuServiceType.cableTv:
+        return '${widget.cableTvProvider?.name ?? ''} Cable TV';
     }
   }
 
@@ -95,6 +106,8 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
         return Icons.wifi;
       case VtuServiceType.electricity:
         return Icons.bolt;
+      case VtuServiceType.cableTv:
+        return Icons.tv;
     }
   }
 
@@ -137,7 +150,18 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
             discoCode: widget.electricityProvider?.code ?? '',
             meterType: widget.meterType?.code ?? 'prepaid',
             amountNaira: widget.amountNaira,
-            phone: widget.recipient, // Use meter as phone for notifications
+            phone: widget.phone ?? widget.recipient, // Use phone or meter for notifications
+          );
+          break;
+
+        case VtuServiceType.cableTv:
+          completedOrder = await VtuService.processCableTvPurchase(
+            smartcardNumber: widget.recipient,
+            providerCode: widget.cableTvProvider?.code ?? '',
+            variationId: widget.variationId ?? '',
+            amountNaira: widget.amountNaira,
+            planName: widget.cableTvPlanName ?? 'Cable TV Subscription',
+            phone: widget.phone ?? '',
           );
           break;
       }

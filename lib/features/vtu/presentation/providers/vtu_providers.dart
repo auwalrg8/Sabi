@@ -62,6 +62,27 @@ class VtuOrdersNotifier extends StateNotifier<AsyncValue<List<VtuOrder>>> {
     await VtuService.updateOrderStatus(orderId, VtuOrderStatus.failed, errorMessage: errorMessage);
     await loadOrders();
   }
+
+  /// Request a refund for a failed order
+  Future<VtuOrder?> requestRefund(String orderId) async {
+    final order = await VtuService.requestRefund(orderId);
+    await loadOrders();
+    return order;
+  }
+
+  /// Mark a refund as completed
+  Future<VtuOrder?> markRefundCompleted(String orderId) async {
+    final order = await VtuService.markRefundCompleted(orderId);
+    await loadOrders();
+    return order;
+  }
+
+  /// Cancel a pending refund request
+  Future<VtuOrder?> cancelRefundRequest(String orderId) async {
+    final order = await VtuService.cancelRefundRequest(orderId);
+    await loadOrders();
+    return order;
+  }
 }
 
 /// Provider for selected network

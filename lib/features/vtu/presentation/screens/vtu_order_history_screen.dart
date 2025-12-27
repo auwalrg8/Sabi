@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
 import '../../data/models/models.dart';
 import '../providers/vtu_providers.dart';
+import '../widgets/refund_dialog.dart';
 
 class VtuOrderHistoryScreen extends ConsumerStatefulWidget {
   const VtuOrderHistoryScreen({super.key});
@@ -238,7 +239,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerWidget {
   final VtuOrder order;
 
   const _OrderCard({required this.order});
@@ -265,6 +266,15 @@ class _OrderCard extends StatelessWidget {
         return const Color(0xFF2196F3);
       case VtuServiceType.electricity:
         return const Color(0xFF1E88E5);
+      case VtuServiceType.cableTv:
+        if (order.cableTvProvider != null) {
+          final provider = CableTvProvider.values.firstWhere(
+            (p) => p.code == order.cableTvProvider,
+            orElse: () => CableTvProvider.dstv,
+          );
+          return Color(provider.primaryColor);
+        }
+        return const Color(0xFF0033A1);
     }
   }
 
@@ -276,11 +286,13 @@ class _OrderCard extends StatelessWidget {
         return Icons.wifi;
       case VtuServiceType.electricity:
         return Icons.bolt;
+      case VtuServiceType.cableTv:
+        return Icons.tv;
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -523,9 +535,233 @@ class _OrderCard extends StatelessWidget {
               ),
             ),
           ],
+          // Refund section - show for failed orders
+          if (order.canRequestRefund) ...[
+            SizedBox(height: 14.h),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _requestRefund(context, ref),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF7931A).withOpacity(0.15),
+                  foregroundColor: const Color(0xFFF7931A),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.r),
+                    side: const BorderSide(color: Color(0xFFF7931A)),
+                  ),
+                  elevation: 0,
+                ),
+                icon: Icon(Icons.receipt_long, size: 18.sp),
+                label: Text(
+                  'Request Refund',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          // Show pending refund status
+          if (order.hasRefundPending) ...[
+            SizedBox(height: 14.h),
+            GestureDetector(
+              onTap: () => RefundDialog.show(context, order),
+              child: Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFA726).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(
+                    color: const Color(0xFFFFA726).withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.hourglass_empty,
+                      color: const Color(0xFFFFA726),
+                      size: 18.sp,
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Refund Requested',
+                            style: TextStyle(
+                              color: const Color(0xFFFFA726),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: 2.h),
+                          Text(
+                            'Tap to view refund invoice',
+                            style: TextStyle(
+                              color: const Color(0xFFA1A1B2),
+                              fontSize: 11.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: const Color(0xFF6B7280),
+                      size: 14.sp,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          // Show completed refund status
+          if (order.refundStatus == RefundStatus.completed) ...[
+            SizedBox(height: 14.h),
+            Container(
+              padding: EdgeInsets.all(10.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF66BB6A).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: const Color(0xFF66BB6A),
+                    size: 16.sp,
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Text(
+                      'Refund completed - ${order.amountSats} sats credited',
+                      style: TextStyle(
+                        color: const Color(0xFF66BB6A),
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _requestRefund(BuildContext context, WidgetRef ref) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF111128),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Text(
+          'Request Refund?',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will generate a Lightning invoice for ${order.amountSats} sats.',
+              style: TextStyle(
+                color: const Color(0xFFA1A1B2),
+                fontSize: 14.sp,
+              ),
+            ),
+            SizedBox(height: 12.h),
+            Text(
+              'Share the invoice with the agent to receive your refund.',
+              style: TextStyle(
+                color: const Color(0xFFA1A1B2),
+                fontSize: 14.sp,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: const Color(0xFF6B7280),
+                fontSize: 14.sp,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF7931A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+            ),
+            child: Text(
+              'Request Refund',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFF7931A)),
+      ),
+    );
+
+    try {
+      final updatedOrder = await ref
+          .read(vtuOrdersProvider.notifier)
+          .requestRefund(order.id);
+      
+      Navigator.pop(context); // Close loading
+
+      if (updatedOrder != null && context.mounted) {
+        // Show refund dialog
+        RefundDialog.show(context, updatedOrder);
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to request refund: $e'),
+            backgroundColor: const Color(0xFFFF4D4F),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   String _formatDate(DateTime date) {

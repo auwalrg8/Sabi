@@ -312,7 +312,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Bottom sheets remain structurally same—just scaled
 
   void _showCurrencyPicker(BuildContext context, WidgetRef ref) {
-    final currencies = ['NGN', 'USD', 'EUR', 'GBP'];
+    // Only NGN and USD supported
+    final currencies = [
+      {'code': 'NGN', 'name': 'Nigerian Naira', 'symbol': '₦'},
+      {'code': 'USD', 'name': 'US Dollar', 'symbol': '\$'},
+    ];
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -331,7 +335,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     vertical: 10.h,
                   ),
                   child: Text(
-                    'Select Currency',
+                    'Select Display Currency',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontFamily: 'Inter',
@@ -340,32 +344,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Text(
+                    'Choose the fiat currency for displaying Bitcoin values',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SizedBox(height: 8.h),
                 Divider(height: 1, color: AppColors.borderColor),
                 ...currencies.map(
                   (currency) => ListTile(
+                    leading: Container(
+                      width: 40.w,
+                      height: 40.w,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Center(
+                        child: Text(
+                          currency['symbol']!,
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                     title: Text(
-                      currency,
+                      currency['code']!,
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      currency['name']!,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13.sp,
                       ),
                     ),
                     trailing:
-                        ref.watch(settingsNotifierProvider).currency == currency
+                        ref.watch(settingsNotifierProvider).currency == currency['code']
                             ? Icon(
-                              Icons.check,
+                              Icons.check_circle,
                               color: AppColors.primary,
-                              size: 22.sp,
+                              size: 24.sp,
                             )
-                            : null,
+                            : Icon(
+                              Icons.circle_outlined,
+                              color: AppColors.textSecondary,
+                              size: 24.sp,
+                            ),
                     onTap: () {
                       ref
                           .read(settingsNotifierProvider.notifier)
-                          .setCurrency(currency);
+                          .setCurrency(currency['code']!);
                       Navigator.pop(context);
                     },
                   ),
                 ),
+                SizedBox(height: 12.h),
               ],
             ),
           ),

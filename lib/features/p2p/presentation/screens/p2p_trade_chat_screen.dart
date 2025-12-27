@@ -7,8 +7,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_dispute_screen.dart';
+import 'package:sabi_wallet/features/p2p/data/models/social_profile_model.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_success_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/widgets/social_profile_widget.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_service.dart';
+import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 
 /// P2P Trade Chat Screen with escrow timer
 class P2PTradeChatScreen extends ConsumerStatefulWidget {
@@ -34,18 +37,28 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   final formatter = NumberFormat('#,###');
 
   TradeStatus _tradeStatus = TradeStatus.awaitingPayment;
-  int _escrowTimeLeft = 30 * 60; // 30 minutes in seconds
+  int _escrowTimeLeft = kTradeTimerSeconds; // 4 minutes - protects against BTC price volatility
   Timer? _escrowTimer;
   final List<_ChatMessage> _messages = [];
   bool _isTyping = false;
   File? _selectedProof; // Store selected proof image
+  
+  // Profile sharing state
+  ProfileShareRequest? _profileShareRequest;
+  List<SocialProfile>? _sharedCounterpartyProfiles;
+  bool _hasRequestedProfileShare = false;
 
   @override
   void initState() {
     super.initState();
     _startEscrowTimer();
-    _addSystemMessage('Trade started. Please complete payment within 30 minutes.');
-    _addSystemMessage('BTC is now held in escrow. It will be released when you confirm payment.');
+    P2PLogger.info('Trade', 'Trade chat started', metadata: {
+      'offerId': widget.offer.id,
+      'tradeAmount': widget.tradeAmount,
+      'receiveSats': widget.receiveSats,
+    });
+    _addSystemMessage('Trade started. Complete payment within 4 minutes.');
+    _addSystemMessage('⚠️ 4-minute window protects against BTC price changes. Act fast!');
   }
 
   @override
@@ -60,9 +73,21 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     _escrowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_escrowTimeLeft > 0) {
         setState(() => _escrowTimeLeft--);
+        
+        // Add warning messages at specific times
+        if (_escrowTimeLeft == kWarning2Min) {
+          _addSystemMessage('⏰ 2 minutes remaining! Complete payment now.');
+        } else if (_escrowTimeLeft == kWarning1Min) {
+          _addSystemMessage('⚠️ 1 minute remaining! Hurry up!');
+        } else if (_escrowTimeLeft == kWarning30Sec) {
+          _addSystemMessage('🚨 30 seconds remaining! Trade will expire soon!');
+        }
       } else {
         timer.cancel();
-        _addSystemMessage('Payment window expired. Trade will be cancelled.');
+        P2PLogger.warning('Trade', 'Trade timer expired', metadata: {
+          'offerId': widget.offer.id,
+        });
+        _addSystemMessage('⏰ Payment window expired. Trade cancelled.');
         setState(() => _tradeStatus = TradeStatus.cancelled);
       }
     });
@@ -193,8 +218,12 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   }
 
   void _markAsPaid() {
+    P2PLogger.info('Trade', 'User marked trade as paid', metadata: {
+      'offerId': widget.offer.id,
+      'timeRemaining': _escrowTimeLeft,
+    });
     setState(() => _tradeStatus = TradeStatus.paid);
-    _addSystemMessage('You marked this order as paid. Waiting for seller to release BTC.');
+    _addSystemMessage('✅ You marked this order as paid. Waiting for seller to release BTC.');
 
     // Simulate seller release after delay
     Future.delayed(const Duration(seconds: 5), () {
@@ -206,6 +235,10 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
 
   void _releaseBtc() {
     _escrowTimer?.cancel();
+    P2PLogger.info('Trade', 'BTC released successfully', metadata: {
+      'offerId': widget.offer.id,
+      'satsReceived': widget.receiveSats,
+    });
     setState(() => _tradeStatus = TradeStatus.released);
     _addSystemMessage('🎉 BTC has been released to your wallet!');
 
@@ -226,16 +259,20 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     });
   }
 
-  void _openDispute() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => P2PDisputeScreen(
-          offer: widget.offer,
-          tradeAmount: widget.tradeAmount,
-        ),
-      ),
-    );
+  void _cancelTrade() {
+    P2PLogger.info('Trade', 'User cancelled trade', metadata: {
+      'offerId': widget.offer.id,
+      'timeRemaining': _escrowTimeLeft,
+    });
+    _escrowTimer?.cancel();
+    setState(() => _tradeStatus = TradeStatus.cancelled);
+    _addSystemMessage('Trade has been cancelled.');
+    
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    });
   }
 
   @override
@@ -303,11 +340,12 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       ),
       body: Column(
         children: [
-          // Escrow Timer Bar
+          // Escrow Timer Bar - 4 minute countdown
           _EscrowTimerBar(
             timeLeft: _formattedTime,
             status: _tradeStatus,
-            progress: _escrowTimeLeft / (30 * 60),
+            progress: _escrowTimeLeft / kTradeTimerSeconds,
+            isUrgent: _escrowTimeLeft <= kWarning1Min,
           ),
 
           // Trade Info Card
@@ -316,6 +354,28 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
             sats: widget.receiveSats,
             paymentMethod: widget.offer.paymentMethod,
           ),
+          
+          // Incoming profile share request
+          if (_profileShareRequest != null && _profileShareRequest!.isPending)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: ProfileShareRequestCard(
+                request: _profileShareRequest!,
+                onAcceptMutual: () => _respondToProfileRequest(ShareConsent.mutual),
+                onAcceptViewOnly: () => _respondToProfileRequest(ShareConsent.viewOnly),
+                onDecline: () => _respondToProfileRequest(ShareConsent.declined),
+              ),
+            ),
+          
+          // Shared counterparty profiles
+          if (_sharedCounterpartyProfiles != null && _sharedCounterpartyProfiles!.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              child: SharedProfilesView(
+                profiles: _sharedCounterpartyProfiles!,
+                traderName: widget.offer.name,
+              ),
+            ),
 
           // Chat Messages
           Expanded(
@@ -603,19 +663,21 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
               ),
             ),
             SizedBox(height: 24.h),
-            _OptionTile(
-              icon: Icons.gavel,
-              label: 'Open Dispute',
-              color: const Color(0xFFFF6B6B),
-              onTap: () {
-                Navigator.pop(ctx);
-                _openDispute();
-              },
-            ),
+            // Profile sharing option
+            if (SocialProfileService.hasProfilesToShare && !_hasRequestedProfileShare)
+              _OptionTile(
+                icon: Icons.handshake_outlined,
+                label: 'Request Trust Share',
+                color: const Color(0xFFF7931A),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showProfileShareDialog();
+                },
+              ),
             _OptionTile(
               icon: Icons.cancel,
               label: 'Cancel Trade',
-              color: const Color(0xFFA1A1B2),
+              color: const Color(0xFFFF6B6B),
               onTap: () {
                 Navigator.pop(ctx);
                 _showCancelConfirmation();
@@ -633,6 +695,113 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       ),
     );
   }
+  
+  void _showProfileShareDialog() {
+    final profiles = SocialProfileService.getProfiles();
+    if (profiles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Add social profiles in Settings first'),
+          backgroundColor: const Color(0xFFF7931A),
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => ProfileShareDialog(
+        availableProfiles: profiles,
+        counterpartyName: widget.offer.name,
+        onSubmit: (platforms) => _sendProfileShareRequest(platforms),
+      ),
+    );
+  }
+  
+  void _sendProfileShareRequest(List<SocialPlatform> platforms) {
+    setState(() {
+      _hasRequestedProfileShare = true;
+    });
+    
+    P2PLogger.info('Trade', 'Sent profile share request', metadata: {
+      'offerId': widget.offer.id,
+      'platforms': platforms.map((p) => p.name).toList(),
+    });
+    
+    _addSystemMessage('📤 You sent a trust profile share request to ${widget.offer.name}');
+    
+    // Simulate response (in real app, this would be via chat/messaging)
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _handleProfileShareResponse(accepted: true, mutual: true);
+      }
+    });
+  }
+  
+  void _handleProfileShareResponse({required bool accepted, required bool mutual}) {
+    if (!accepted) {
+      _addSystemMessage('${widget.offer.name} declined the profile share request');
+      return;
+    }
+    
+    // Mock shared profiles from counterparty
+    setState(() {
+      _sharedCounterpartyProfiles = [
+        SocialProfile(
+          id: '1',
+          platform: SocialPlatform.x,
+          handle: '@${widget.offer.name.toLowerCase().replaceAll(' ', '')}',
+          isVerified: true,
+          addedAt: DateTime.now(),
+        ),
+        SocialProfile(
+          id: '2', 
+          platform: SocialPlatform.telegram,
+          handle: '@${widget.offer.name.toLowerCase().replaceAll(' ', '')}',
+          isVerified: false,
+          addedAt: DateTime.now(),
+        ),
+      ];
+    });
+    
+    if (mutual) {
+      _addSystemMessage('🤝 Both profiles shared! You can now view each other\'s social profiles.');
+    } else {
+      _addSystemMessage('👁️ ${widget.offer.name} shared their profiles with you.');
+    }
+  }
+  
+  void _respondToProfileRequest(ShareConsent consent) {
+    if (_profileShareRequest == null) return;
+    
+    final request = _profileShareRequest!;
+    P2PLogger.info('Trade', 'Responded to profile share request', metadata: {
+      'offerId': widget.offer.id,
+      'consent': consent.name,
+    });
+    
+    setState(() {
+      _profileShareRequest = request.copyWith(
+        status: consent == ShareConsent.declined 
+            ? ProfileShareStatus.declined 
+            : ProfileShareStatus.accepted,
+        response: consent,
+        respondedAt: DateTime.now(),
+      );
+    });
+    
+    if (consent == ShareConsent.declined) {
+      _addSystemMessage('You declined the profile share request');
+    } else if (consent == ShareConsent.mutual) {
+      // Share my profiles (would be sent to counterparty in real implementation)
+      _addSystemMessage('🤝 Profiles shared mutually!');
+      // Mock receiving their profiles
+      _handleProfileShareResponse(accepted: true, mutual: true);
+    } else {
+      _addSystemMessage('👁️ You can view their profiles (one-way)');
+      _handleProfileShareResponse(accepted: true, mutual: false);
+    }
+  }
 
   void _showCancelConfirmation() {
     showDialog(
@@ -645,7 +814,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
           style: TextStyle(color: Colors.white, fontSize: 18.sp),
         ),
         content: Text(
-          'Are you sure you want to cancel this trade? This action cannot be undone.',
+          'Are you sure you want to cancel this trade? BTC will be returned to escrow. This action cannot be undone.',
           style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         actions: [
@@ -656,9 +825,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _tradeStatus = TradeStatus.cancelled);
-              _escrowTimer?.cancel();
-              _addSystemMessage('Trade has been cancelled.');
+              _cancelTrade();
             },
             child: Text('Yes, Cancel', style: TextStyle(color: const Color(0xFFFF6B6B))),
           ),
@@ -673,21 +840,31 @@ class _EscrowTimerBar extends StatelessWidget {
   final String timeLeft;
   final TradeStatus status;
   final double progress;
+  final bool isUrgent;
 
   const _EscrowTimerBar({
     required this.timeLeft,
     required this.status,
     required this.progress,
+    this.isUrgent = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isActive = status == TradeStatus.awaitingPayment || status == TradeStatus.paid;
-    final color = progress > 0.3 ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B);
+    // Use more urgent colors for 4-minute timer
+    Color color;
+    if (progress > 0.5) {
+      color = const Color(0xFF00FFB2); // Green - plenty of time
+    } else if (progress > 0.25) {
+      color = const Color(0xFFF7931A); // Orange - hurry up
+    } else {
+      color = const Color(0xFFFF6B6B); // Red - very urgent
+    }
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-      color: const Color(0xFF111128),
+      color: isUrgent ? const Color(0xFF1A0A0A) : const Color(0xFF111128),
       child: Column(
         children: [
           Row(
@@ -702,10 +879,11 @@ class _EscrowTimerBar extends StatelessWidget {
                   ),
                   SizedBox(width: 8.w),
                   Text(
-                    'Escrow Active',
+                    isUrgent ? '⚠️ Complete Now!' : 'Escrow Active',
                     style: TextStyle(
-                      color: const Color(0xFFA1A1B2),
+                      color: isUrgent ? const Color(0xFFFF6B6B) : const Color(0xFFA1A1B2),
                       fontSize: 13.sp,
+                      fontWeight: isUrgent ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -716,6 +894,7 @@ class _EscrowTimerBar extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20.r),
+                    border: isUrgent ? Border.all(color: color, width: 1) : null,
                   ),
                   child: Row(
                     children: [

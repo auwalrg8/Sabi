@@ -156,30 +156,45 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         newPosts = await NostrService.fetchGlobalFeedDirect(limit: 50);
       }
 
-      // Fetch author metadata for new posts (limit to avoid slowdown)
-      final uniqueAuthors = newPosts
-          .map((p) => p.authorPubkey)
-          .toSet()
-          .take(15);
-      for (final pubkey in uniqueAuthors) {
-        if (!_authorMetadataCache.containsKey(pubkey)) {
-          final metadata = await NostrService.fetchAuthorMetadataDirect(pubkey);
-          if (metadata.isNotEmpty) {
-            _authorMetadataCache[pubkey] = metadata;
+      // Fetch author metadata for new posts in PARALLEL (much faster than sequential)
+      final uniqueAuthors =
+          newPosts
+              .map((p) => p.authorPubkey)
+              .toSet()
+              .where((pubkey) => !_authorMetadataCache.containsKey(pubkey))
+              .take(15)
+              .toList();
+
+      // Parallel fetch - all metadata at once instead of one-by-one
+      if (uniqueAuthors.isNotEmpty) {
+        final metadataFutures =
+            uniqueAuthors.map((pubkey) async {
+              try {
+                final metadata = await NostrService.fetchAuthorMetadataDirect(
+                  pubkey,
+                );
+                return MapEntry(pubkey, metadata);
+              } catch (e) {
+                return MapEntry(pubkey, <String, String>{});
+              }
+            }).toList();
+
+        final results = await Future.wait(metadataFutures);
+        for (final entry in results) {
+          if (entry.value.isNotEmpty) {
+            _authorMetadataCache[entry.key] = entry.value;
           }
         }
+      }
 
-        // Apply metadata to posts as we get it
-        final meta = _authorMetadataCache[pubkey];
+      // Apply all cached metadata to posts
+      for (final post in newPosts) {
+        final meta = _authorMetadataCache[post.authorPubkey];
         if (meta != null) {
-          for (final post in newPosts) {
-            if (post.authorPubkey == pubkey) {
-              post.authorName =
-                  meta['name'] ?? meta['display_name'] ?? post.authorName;
-              post.authorAvatar = meta['picture'] ?? meta['avatar'];
-              post.lightningAddress = meta['lud16'];
-            }
-          }
+          post.authorName =
+              meta['name'] ?? meta['display_name'] ?? post.authorName;
+          post.authorAvatar = meta['picture'] ?? meta['avatar'];
+          post.lightningAddress = meta['lud16'];
         }
       }
 

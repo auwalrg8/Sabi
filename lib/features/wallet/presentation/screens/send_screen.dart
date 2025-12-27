@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -14,20 +16,20 @@ import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'qr_scanner_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_success_screen.dart';
 
-class SendScreen extends StatefulWidget {
+class SendScreen extends ConsumerStatefulWidget {
   final String? initialAddress;
 
   const SendScreen({super.key, this.initialAddress});
 
   @override
-  State<SendScreen> createState() => _SendScreenState();
+  ConsumerState<SendScreen> createState() => _SendScreenState();
 }
 
 enum _SendStep { recipient, amount, confirm }
 
-enum _CurrencyMode { sats, ngn }
+enum _CurrencyMode { sats, fiat }
 
-class _SendScreenState extends State<SendScreen>
+class _SendScreenState extends ConsumerState<SendScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _recipientController = TextEditingController();
   final TextEditingController _memoController = TextEditingController();
@@ -38,7 +40,8 @@ class _SendScreenState extends State<SendScreen>
 
   Recipient? _recipient;
   bool _isSending = false;
-  double? _ngnPerSat;
+  double? _fiatPerSat;
+  FiatCurrency _selectedCurrency = FiatCurrency.ngn;
 
   String _amountText = '0';
   int _quickIndex = 0;
@@ -64,11 +67,12 @@ class _SendScreenState extends State<SendScreen>
 
   Future<void> _fetchRate() async {
     try {
-      final btcToNgn = await RateService.getBtcToNgnRate();
-      _ngnPerSat = btcToNgn / 100000000;
+      _selectedCurrency = ref.read(selectedFiatCurrencyProvider);
+      final btcToFiat = await RateService.getBtcToFiatRate(_selectedCurrency);
+      _fiatPerSat = btcToFiat / 100000000;
     } catch (e) {
       debugPrint('Failed to fetch rate: $e');
-      _ngnPerSat = null;
+      _fiatPerSat = null;
     }
   }
 
@@ -209,15 +213,15 @@ class _SendScreenState extends State<SendScreen>
   int _amountSats() {
     final amt = _parsedAmount();
     if (_mode == _CurrencyMode.sats) return amt.round();
-    if (_ngnPerSat == null) return 0;
-    return (amt / _ngnPerSat!).round();
+    if (_fiatPerSat == null) return 0;
+    return (amt / _fiatPerSat!).round();
   }
 
-  double _amountNgn() {
+  double _amountFiat() {
     final amt = _parsedAmount();
-    if (_mode == _CurrencyMode.ngn) return amt;
-    if (_ngnPerSat == null) return 0;
-    return amt * _ngnPerSat!;
+    if (_mode == _CurrencyMode.fiat) return amt;
+    if (_fiatPerSat == null) return 0;
+    return amt * _fiatPerSat!;
   }
 
   void _setQuickAmount(int value) {
@@ -264,14 +268,14 @@ class _SendScreenState extends State<SendScreen>
     setState(() {
       if (_mode == _CurrencyMode.sats) {
         final sats = _parsedAmount();
-        if (_ngnPerSat != null) {
-          _amountText = (sats * _ngnPerSat!).toStringAsFixed(0);
+        if (_fiatPerSat != null) {
+          _amountText = (sats * _fiatPerSat!).toStringAsFixed(0);
         }
-        _mode = _CurrencyMode.ngn;
+        _mode = _CurrencyMode.fiat;
       } else {
-        final ngn = _parsedAmount();
-        if (_ngnPerSat != null) {
-          _amountText = (ngn / _ngnPerSat!).toStringAsFixed(0);
+        final fiat = _parsedAmount();
+        if (_fiatPerSat != null) {
+          _amountText = (fiat / _fiatPerSat!).toStringAsFixed(0);
         }
         _mode = _CurrencyMode.sats;
       }
@@ -308,8 +312,8 @@ class _SendScreenState extends State<SendScreen>
   }
 
   Future<void> _confirmAndSend() async {
-    final ngn = _amountNgn();
-    if (ngn > 10000) {
+    final fiat = _amountFiat();
+    if (fiat > 10000) {
       await _showPinSheet();
     } else {
       await _executeSend();
@@ -405,14 +409,14 @@ class _SendScreenState extends State<SendScreen>
       if (!mounted) return;
       final feeSats = BreezSparkService.extractSendFeeSats(result);
       final amountSats = BreezSparkService.extractSendAmountSats(result);
-      final feeNgn = _ngnPerSat != null ? feeSats * _ngnPerSat! : 0.0;
-      final amountNgn = _ngnPerSat != null ? _amountNgn() : 0.0;
+      final feeFiat = _fiatPerSat != null ? feeSats * _fiatPerSat! : 0.0;
+      final amountFiat = _fiatPerSat != null ? _amountFiat() : 0.0;
       final transactionId = (result['payment'] as dynamic)?.id as String?;
       final transaction = SendTransaction(
         recipient: _recipient!,
-        amount: amountNgn,
+        amount: amountFiat,
         memo: _memoController.text.isEmpty ? null : _memoController.text,
-        fee: feeNgn,
+        fee: feeFiat,
         transactionId: transactionId,
         amountSats: amountSats,
         feeSats: feeSats,
@@ -781,7 +785,7 @@ class _SendScreenState extends State<SendScreen>
   }
 
   Widget _buildAmountStep() {
-    final ngn = _amountNgn();
+    final fiat = _amountFiat();
     final sats = _amountSats();
 
     return Column(
@@ -857,11 +861,11 @@ class _SendScreenState extends State<SendScreen>
                 // Amount display
                 AmountDisplay(
                   amount: _amountText,
-                  currency: _mode == _CurrencyMode.sats ? 'sats' : '₦',
+                  currency: _mode == _CurrencyMode.sats ? 'sats' : _selectedCurrency.symbol,
                   secondaryAmount: _mode == _CurrencyMode.sats
-                      ? ngn.toStringAsFixed(0)
+                      ? fiat.toStringAsFixed(_selectedCurrency == FiatCurrency.usd ? 2 : 0)
                       : sats.toString(),
-                  secondaryCurrency: _mode == _CurrencyMode.sats ? '₦' : '',
+                  secondaryCurrency: _mode == _CurrencyMode.sats ? _selectedCurrency.symbol : '',
                   onToggleCurrency: _toggleMode,
                 ),
                 SizedBox(height: 24.h),
@@ -869,7 +873,7 @@ class _SendScreenState extends State<SendScreen>
                 AmountChips(
                   amounts: const [1000, 5000, 10000, 50000],
                   selectedAmount: _quickIndex >= 0 ? [1000, 5000, 10000, 50000][_quickIndex] : null,
-                  currency: _mode == _CurrencyMode.sats ? '' : '₦',
+                  currency: _mode == _CurrencyMode.sats ? '' : _selectedCurrency.symbol,
                   onSelected: (amount) {
                     if (amount != null) {
                       final idx = [1000, 5000, 10000, 50000].indexOf(amount);
@@ -951,7 +955,7 @@ class _SendScreenState extends State<SendScreen>
 
   Widget _buildConfirmStep() {
     final sats = _amountSats();
-    final ngn = _amountNgn();
+    final fiat = _amountFiat();
 
     return Column(
       key: const ValueKey('confirm'),
@@ -1001,7 +1005,7 @@ class _SendScreenState extends State<SendScreen>
                       ),
                       SizedBox(height: 4.h),
                       Text(
-                        '≈ ₦${ngn.toStringAsFixed(0)}',
+                        '≈ ${_selectedCurrency.symbol}${fiat.toStringAsFixed(_selectedCurrency == FiatCurrency.usd ? 2 : 0)}',
                         style: TextStyle(
                           color: AppColors.primary,
                           fontSize: 16.sp,
