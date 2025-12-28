@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_offer_detail_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_create_offer_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_history_screen.dart';
@@ -73,7 +74,12 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
   Future<void> _loadData() async {
     try {
       setState(() => _isLoading = true);
-      await Future.delayed(const Duration(milliseconds: 800));
+
+      // Invalidate fetched offers to trigger a fresh fetch from relays
+      ref.invalidate(fetchedNostrOffersProvider);
+
+      // Give relays time to respond
+      await Future.delayed(const Duration(milliseconds: 1500));
       if (mounted) setState(() => _isLoading = false);
     } catch (e, stack) {
       P2PLogger.error(
@@ -159,7 +165,11 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                             ),
                           ],
                         ),
-                        SizedBox(height: 16.h),
+                        SizedBox(height: 12.h),
+
+                        // NIP-99 Relay Status Indicator
+                        const _Nip99StatusBanner(),
+                        SizedBox(height: 12.h),
 
                         // Live Rates Card - Real rates from API
                         const _LiveRatesCard(),
@@ -240,16 +250,36 @@ class _BuyBtcTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Combine seed offers, user offers and nostr offers
-    final seedOffers = ref.watch(p2pOffersProvider);
-    final userOffers = ref.watch(userOffersProvider);
-    final nostrOffersAsync = ref.watch(nostrOffersProvider);
-    final nostrOffers = nostrOffersAsync.asData?.value ?? [];
+    // Use NIP-99 offers (kind 30402) as primary source
+    final nip99OffersAsync = ref.watch(nip99P2POffersStreamProvider);
+    final nip99FetchedAsync = ref.watch(nip99P2POffersProvider);
 
-    final allOffers = [...seedOffers, ...userOffers, ...nostrOffers];
+    // Fallback to legacy fetched offers if NIP-99 stream is empty
+    final legacyFetchedAsync = ref.watch(fetchedNostrOffersProvider);
+
+    // Combine NIP-99 streamed and fetched offers, deduplicating by ID
+    final nip99Offers = nip99OffersAsync.asData?.value ?? [];
+    final nip99Fetched = nip99FetchedAsync.asData?.value ?? [];
+    final legacyOffers = legacyFetchedAsync.asData?.value ?? [];
+
+    final offerMap = <String, P2POfferModel>{};
+
+    // Priority: NIP-99 fetched -> NIP-99 streamed -> Legacy fallback
+    for (final o in legacyOffers) {
+      offerMap[o.id] = o;
+    }
+    for (final o in nip99Fetched) {
+      offerMap[o.id] = o;
+    }
+    for (final o in nip99Offers) {
+      offerMap[o.id] = o; // Streamed offers override fetched
+    }
+
+    final dedupedOffers = offerMap.values.toList();
+
     // Get sell offers (offers from sellers who want to sell BTC)
     final sellOffers =
-        allOffers.where((o) => o.type == OfferType.sell).toList();
+        dedupedOffers.where((o) => o.type == OfferType.sell).toList();
 
     // Apply payment filter
     final filteredOffers =
@@ -327,7 +357,8 @@ class _BuyBtcTab extends ConsumerWidget {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final offer = filteredOffers[index];
-                    final isRemote = nostrOffers.any((o) => o.id == offer.id);
+                    // All offers are now from NIP-99 (remote)
+                    const isRemote = true;
                     return Padding(
                       padding: EdgeInsets.only(bottom: 12.h),
                       child: _BuyOfferCard(
@@ -456,9 +487,11 @@ class _SellBtcTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userOffers = ref.watch(userOffersProvider);
-    final nostrOffersAsync = ref.watch(nostrOffersProvider);
-    final nostrOffers = nostrOffersAsync.asData?.value ?? [];
+    // Use NIP-99 user offers instead of local storage
+    final userOffersAsync = ref.watch(userNip99OffersProvider);
+    final userOffers = userOffersAsync.asData?.value ?? [];
+    final nip99OffersAsync = ref.watch(nip99P2POffersStreamProvider);
+    final nostrOffers = nip99OffersAsync.asData?.value ?? [];
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
@@ -931,16 +964,32 @@ class _BuyOfferCard extends StatelessWidget {
                                 vertical: 2.h,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.deepPurple,
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF9333EA),
+                                    Color(0xFF7C3AED),
+                                  ],
+                                ),
                                 borderRadius: BorderRadius.circular(6.r),
                               ),
-                              child: Text(
-                                'Nostr',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.bolt,
+                                    color: Colors.white,
+                                    size: 10.sp,
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Text(
+                                    'NIP-99',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10.sp,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -1174,16 +1223,29 @@ class _SellOfferCard extends StatelessWidget {
                             vertical: 4.h,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.deepPurple,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF9333EA), Color(0xFF7C3AED)],
+                            ),
                             borderRadius: BorderRadius.circular(8.r),
                           ),
-                          child: Text(
-                            'Nostr',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.bolt,
+                                color: Colors.white,
+                                size: 11.sp,
+                              ),
+                              SizedBox(width: 2.w),
+                              Text(
+                                'NIP-99',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -1531,5 +1593,89 @@ class _IconButton extends StatelessWidget {
       return Tooltip(message: tooltip!, child: button);
     }
     return button;
+  }
+}
+
+/// NIP-99 Relay Status Banner
+class _Nip99StatusBanner extends ConsumerWidget {
+  const _Nip99StatusBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nip99Offers = ref.watch(nip99P2POffersProvider);
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF9333EA).withOpacity(0.15),
+            const Color(0xFF7C3AED).withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: const Color(0xFF9333EA).withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8.w,
+            height: 8.h,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: nip99Offers.when(
+                data: (_) => const Color(0xFF00C853),
+                loading: () => const Color(0xFFFFA726),
+                error: (_, __) => Colors.red,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: nip99Offers.when(
+                    data: (_) => const Color(0xFF00C853).withOpacity(0.5),
+                    loading: () => const Color(0xFFFFA726).withOpacity(0.5),
+                    error: (_, __) => Colors.red.withOpacity(0.5),
+                  ),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Icon(Icons.bolt, color: const Color(0xFF9333EA), size: 14.sp),
+          SizedBox(width: 4.w),
+          Text(
+            'NIP-99 Marketplace',
+            style: TextStyle(
+              color: const Color(0xFF9333EA),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          nip99Offers.when(
+            data:
+                (offers) => Text(
+                  '${offers.length} offers',
+                  style: TextStyle(color: Colors.white54, fontSize: 11.sp),
+                ),
+            loading:
+                () => SizedBox(
+                  width: 12.w,
+                  height: 12.h,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: const Color(0xFF9333EA),
+                  ),
+                ),
+            error:
+                (_, __) => Text(
+                  'Offline',
+                  style: TextStyle(color: Colors.red, fontSize: 11.sp),
+                ),
+          ),
+        ],
+      ),
+    );
   }
 }

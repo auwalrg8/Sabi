@@ -6,6 +6,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 
 /// P2P My Trades Screen - Active trades list
 class P2PMyTradesScreen extends ConsumerStatefulWidget {
@@ -37,7 +38,10 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final userOffers = ref.watch(userOffersProvider);
+    // Use NIP-99 user offers instead of local storage
+    final userOffersAsync = ref.watch(userNip99OffersProvider);
+    final userOffers = userOffersAsync.asData?.value ?? [];
+    final isLoading = userOffersAsync.isLoading;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
@@ -85,7 +89,9 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
               ),
               tabs: [
                 Tab(text: 'Active (${_activeTrades.length})'),
-                Tab(text: 'My Offers (${userOffers.length})'),
+                Tab(
+                  text: 'My Offers (${isLoading ? '...' : userOffers.length})',
+                ),
               ],
             ),
           ),
@@ -177,45 +183,6 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
     );
   }
 
-  void _showDeleteConfirmation(_MockTrade offer) {
-    showDialog(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF111128),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20.r),
-            ),
-            title: Text(
-              'Delete Offer?',
-              style: TextStyle(color: Colors.white, fontSize: 18.sp),
-            ),
-            content: Text(
-              'Are you sure you want to delete this offer? This action cannot be undone.',
-              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: const Color(0xFFA1A1B2)),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                },
-                child: Text(
-                  'Delete',
-                  style: TextStyle(color: const Color(0xFFFF6B6B)),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
-
   void _showDeleteOfferConfirmation(P2POfferModel offer) {
     showDialog(
       context: context,
@@ -244,20 +211,30 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
               TextButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  await ref
-                      .read(userOffersProvider.notifier)
-                      .removeOffer(offer.id);
+                  // Delete via NIP-99 (publishes deletion event to relays)
+                  final success = await ref
+                      .read(nip99OfferNotifierProvider.notifier)
+                      .deleteOffer(offer.id);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('Offer deleted'),
-                        backgroundColor: const Color(0xFF00FFB2),
+                        content: Text(
+                          success ? 'Offer deleted' : 'Failed to delete offer',
+                        ),
+                        backgroundColor:
+                            success
+                                ? const Color(0xFF00FFB2)
+                                : const Color(0xFFFF6B6B),
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     );
+                    // Refresh the offers list
+                    if (success) {
+                      ref.invalidate(userNip99OffersProvider);
+                    }
                   }
                 },
                 child: Text(
@@ -350,36 +327,6 @@ class _ActiveTradeCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trade.timeLeft != null)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10.w,
-                    vertical: 6.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7931A).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20.r),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.timer,
-                        color: const Color(0xFFF7931A),
-                        size: 14.sp,
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(
-                        '${trade.timeLeft!.inMinutes}m',
-                        style: TextStyle(
-                          color: const Color(0xFFF7931A),
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
           SizedBox(height: 16.h),
@@ -511,158 +458,6 @@ class _ActiveTradeCard extends StatelessWidget {
       default:
         return 'In progress';
     }
-  }
-}
-
-/// My Offer Card
-class _MyOfferCard extends StatelessWidget {
-  final _MockTrade offer;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _MyOfferCard({
-    required this.offer,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final formatter = NumberFormat('#,###');
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111128),
-        borderRadius: BorderRadius.circular(20.r),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: (offer.isBuying
-                          ? const Color(0xFF00FFB2)
-                          : const Color(0xFFFF6B6B))
-                      .withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Text(
-                  offer.isBuying ? 'BUY OFFER' : 'SELL OFFER',
-                  style: TextStyle(
-                    color:
-                        offer.isBuying
-                            ? const Color(0xFF00FFB2)
-                            : const Color(0xFFFF6B6B),
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    width: 8.w,
-                    height: 8.h,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF00FFB2),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  SizedBox(width: 6.w),
-                  Text(
-                    'Active',
-                    style: TextStyle(
-                      color: const Color(0xFF00FFB2),
-                      fontSize: 12.sp,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 16.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Available',
-                    style: TextStyle(
-                      color: const Color(0xFFA1A1B2),
-                      fontSize: 11.sp,
-                    ),
-                  ),
-                  Text(
-                    '${formatter.format(offer.sats.toInt())} sats',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Payment Methods',
-                    style: TextStyle(
-                      color: const Color(0xFFA1A1B2),
-                      fontSize: 11.sp,
-                    ),
-                  ),
-                  Text(
-                    offer.paymentMethod,
-                    style: TextStyle(color: Colors.white, fontSize: 13.sp),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 16.h),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onEdit,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFF2A2A3E)),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                  child: Text('Edit', style: TextStyle(fontSize: 14.sp)),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onDelete,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFF6B6B),
-                    side: const BorderSide(color: Color(0xFFFF6B6B)),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                  child: Text('Delete', style: TextStyle(fontSize: 14.sp)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -927,7 +722,6 @@ class _MockTrade {
   final TradeStatus status;
   final String paymentMethod;
   final DateTime createdAt;
-  final Duration? timeLeft;
   final bool isBuying;
 
   _MockTrade({
@@ -938,7 +732,6 @@ class _MockTrade {
     required this.status,
     required this.paymentMethod,
     required this.createdAt,
-    this.timeLeft,
     required this.isBuying,
   });
 }

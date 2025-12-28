@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
 import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
@@ -62,9 +63,28 @@ void main() async {
 
   try {
     await NostrService.init();
-    debugPrint('✅ NostrService initialized');
+    debugPrint('✅ NostrService (legacy) initialized');
   } catch (e) {
     debugPrint('⚠️ NostrService error: $e');
+  }
+
+  // Initialize new high-performance Nostr services (v2)
+  try {
+    await nostr_v2.EventCacheService().initialize();
+    debugPrint('✅ Nostr EventCacheService initialized');
+  } catch (e) {
+    debugPrint('⚠️ Nostr EventCacheService error: $e');
+  }
+
+  try {
+    // Connect to relays in background (non-blocking)
+    nostr_v2.RelayPoolManager().init().then((_) {
+      debugPrint('✅ Nostr RelayPoolManager connected');
+    }).catchError((e) {
+      debugPrint('⚠️ Nostr RelayPoolManager error: $e');
+    });
+  } catch (e) {
+    debugPrint('⚠️ Nostr RelayPoolManager init error: $e');
   }
 
   try {

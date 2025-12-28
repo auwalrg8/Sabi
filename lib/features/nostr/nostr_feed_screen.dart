@@ -1,28 +1,35 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:http/http.dart' as http;
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
 import '../../services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
+
+// New services - to be used for enhanced features
+// ignore: unused_import
+import 'providers/nostr_providers.dart';
+// ignore: unused_import
+import 'widgets/enhanced_zap_slider.dart';
 
 /// Filter types for the feed
 enum FeedFilter { global, following, trending24h }
 
 /// Nostr feed screen displaying real posts from relays
-class NostrFeedScreen extends StatefulWidget {
+/// Now uses the upgraded Nostr services with FeedAggregator
+class NostrFeedScreen extends ConsumerStatefulWidget {
   const NostrFeedScreen({super.key});
 
   @override
-  State<NostrFeedScreen> createState() => _NostrFeedScreenState();
+  ConsumerState<NostrFeedScreen> createState() => _NostrFeedScreenState();
 }
 
-class _NostrFeedScreenState extends State<NostrFeedScreen> {
+class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   List<NostrFeedPost> _posts = [];
   List<NostrFeedPost> _filteredPosts = [];
   bool _isLoading =
@@ -33,7 +40,8 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   List<String> _userFollows = [];
   final Map<String, int> _zapCounts = {};
   final Set<String> _likedPosts = {}; // Track liked post IDs
-  FeedFilter _currentFilter = FeedFilter.global; // Default to global feed
+  FeedFilter _currentFilter =
+      FeedFilter.following; // Default to following feed (Primal-style)
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showImages = false; // Default to text-only mode for low-data users
@@ -291,6 +299,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     }
   }
 
+  /// Handle zap using the new ZapService (NIP-57 compliant)
   void _handleZapPost(NostrFeedPost post, int satoshis) async {
     final lightningAddress = post.lightningAddress;
 
@@ -323,7 +332,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Sending ${satoshis} sats to ${post.authorName}...'),
+              Text('Sending $satoshis sats to ${post.authorName}...'),
             ],
           ),
           backgroundColor: const Color(0xFFF7931A),
@@ -331,95 +340,77 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         ),
       );
 
-      // Step 1: Get LNURL-pay callback from lightning address
-      // Lightning address format: name@domain -> https://domain/.well-known/lnurlp/name
-      final parts = lightningAddress.split('@');
-      if (parts.length != 2) {
-        throw Exception('Invalid lightning address format');
-      }
-      final name = parts[0];
-      final domain = parts[1];
-      final lnurlEndpoint = 'https://$domain/.well-known/lnurlp/$name';
-
-      // Fetch LNURL-pay parameters
-      final lnurlResponse = await http.get(Uri.parse(lnurlEndpoint));
-      if (lnurlResponse.statusCode != 200) {
-        throw Exception('Failed to get LNURL-pay info');
-      }
-
-      final lnurlData = jsonDecode(lnurlResponse.body) as Map<String, dynamic>;
-      final callback = lnurlData['callback'] as String?;
-      final minSendable =
-          (lnurlData['minSendable'] as num?) ?? 1000; // millisats
-      final maxSendable =
-          (lnurlData['maxSendable'] as num?) ?? 100000000000; // millisats
-
-      if (callback == null) {
-        throw Exception('No callback URL in LNURL response');
-      }
-
-      // Convert sats to millisats
-      final amountMsat = satoshis * 1000;
-
-      // Check amount bounds
-      if (amountMsat < minSendable || amountMsat > maxSendable) {
-        throw Exception(
-          'Amount out of range (${minSendable ~/ 1000}-${maxSendable ~/ 1000} sats)',
-        );
-      }
-
-      // Step 2: Request invoice from callback
-      final separator = callback.contains('?') ? '&' : '?';
-      final invoiceUrl = '$callback${separator}amount=$amountMsat';
-      final invoiceResponse = await http.get(Uri.parse(invoiceUrl));
-
-      if (invoiceResponse.statusCode != 200) {
-        throw Exception('Failed to get invoice');
-      }
-
-      final invoiceData =
-          jsonDecode(invoiceResponse.body) as Map<String, dynamic>;
-      final invoice = invoiceData['pr'] as String?;
-
-      if (invoice == null || invoice.isEmpty) {
-        throw Exception('No invoice received');
-      }
-
-      // Step 3: Pay the invoice using Breez SDK
-      await BreezSparkService.sendPayment(
-        invoice,
-        sats: satoshis,
+      // Use the new ZapService for NIP-57 compliant zaps
+      final zapService = nostr_v2.ZapService();
+      final result = await zapService.sendZap(
+        recipientPubkey: post.authorPubkey,
+        amountSats: satoshis,
+        eventId: post.id,
         comment: 'Zap from Sabi Wallet',
-        recipientName: post.authorName,
+        getBalance: () async {
+          // Get balance from Breez SDK
+          final balance = await BreezSparkService.getBalance();
+          return balance;
+        },
+        payInvoice: (String bolt11) async {
+          // Pay invoice using Breez SDK and return payment hash
+          final paymentResult = await BreezSparkService.sendPayment(
+            bolt11,
+            sats: satoshis,
+            comment: 'Zap from Sabi Wallet',
+            recipientName: post.authorName,
+          );
+          // Extract payment hash from result
+          return paymentResult['payment']?.id as String?;
+        },
       );
 
       // Hide loading snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // Show confetti for success
-      Confetti.launch(
-        context,
-        options: const ConfettiOptions(particleCount: 50, spread: 360, y: 0.5),
-      );
-
-      // Update local zap count
-      setState(() {
-        _zapCounts[post.id] =
-            (_zapCounts[post.id] ?? post.zapAmount) + satoshis;
-      });
-
-      final nairaAmount = NostrService.satsToNaira(satoshis);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '⚡ Zapped ${post.authorName} ${NostrService.formatNaira(nairaAmount)}!',
+      if (result.isSuccess) {
+        // Show confetti for success
+        Confetti.launch(
+          context,
+          options: const ConfettiOptions(
+            particleCount: 50,
+            spread: 360,
+            y: 0.5,
           ),
-          backgroundColor: const Color(0xFFF7931A),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
 
-      debugPrint('✅ Zap sent: $satoshis sats to ${post.authorName}');
+        // Update local zap count
+        setState(() {
+          _zapCounts[post.id] =
+              (_zapCounts[post.id] ?? post.zapAmount) + satoshis;
+        });
+
+        final nairaAmount = NostrService.satsToNaira(satoshis);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚡ Zapped ${post.authorName} ${NostrService.formatNaira(nairaAmount)}!',
+            ),
+            backgroundColor: const Color(0xFFF7931A),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        debugPrint('✅ Zap sent: $satoshis sats to ${post.authorName}');
+      } else if (result.isInsufficientBalance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Insufficient balance'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Zap failed: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('❌ Error sending zap: $e');
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -570,21 +561,21 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             ),
             SizedBox(height: 12.h),
 
-            // Filter tabs
+            // Filter tabs - Following first (Primal-style default)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: Row(
                 children: [
                   _FilterTab(
-                    label: 'Global',
-                    isSelected: _currentFilter == FeedFilter.global,
-                    onTap: () => _onFilterChanged(FeedFilter.global),
-                  ),
-                  SizedBox(width: 8.w),
-                  _FilterTab(
                     label: 'Following',
                     isSelected: _currentFilter == FeedFilter.following,
                     onTap: () => _onFilterChanged(FeedFilter.following),
+                  ),
+                  SizedBox(width: 8.w),
+                  _FilterTab(
+                    label: 'Global',
+                    isSelected: _currentFilter == FeedFilter.global,
+                    onTap: () => _onFilterChanged(FeedFilter.global),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
@@ -960,7 +951,8 @@ class _FilterTab extends StatelessWidget {
   }
 }
 
-/// Nostr post card widget with Moniepoint navy style
+/// Nostr post card widget with Primal-inspired design
+/// Features: Clean layout, bottom action bar with reply/repost/like/zap
 class _NostrPostCard extends StatefulWidget {
   final NostrFeedPost post;
   final int zapAmount;
@@ -984,8 +976,10 @@ class _NostrPostCard extends StatefulWidget {
 
 class _NostrPostCardState extends State<_NostrPostCard> {
   bool _showZapSlider = false;
-  double _zapValue = 100; // Default 100 sats
+  double _zapValue = 21; // Default 21 sats (Primal-style)
   final Set<int> _unblurredImages = {};
+  int _replyCount = 0;
+  int _repostCount = 0;
 
   // Extract image URLs from post content
   List<String> _extractImageUrls(String content) {
@@ -1039,270 +1033,211 @@ class _NostrPostCardState extends State<_NostrPostCard> {
     final hasImages = imageUrls.isNotEmpty && widget.showImages;
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12.h),
+      margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
         color: const Color(0xFF111128),
-        borderRadius: BorderRadius.circular(20.r),
+        border: Border(
+          bottom: BorderSide(color: const Color(0xFF1E1E3F), width: 0.5),
+        ),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.all(16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header: Avatar + Name + Time + Zap Amount
-                    Row(
-                      children: [
-                        // Avatar with image support
-                        Container(
-                          width: 44.w,
-                          height: 44.h,
-                          decoration: BoxDecoration(
-                            color: _getAvatarColor(widget.post.authorName),
-                            shape: BoxShape.circle,
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child:
-                              widget.post.authorAvatar != null
-                                  ? CachedNetworkImage(
-                                    imageUrl: widget.post.authorAvatar!,
-                                    fit: BoxFit.cover,
-                                    placeholder:
-                                        (context, url) => Center(
-                                          child: Text(
-                                            widget.post.authorName.isNotEmpty
-                                                ? widget.post.authorName[0]
-                                                    .toUpperCase()
-                                                : '?',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18.sp,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                    errorWidget:
-                                        (context, url, error) => Center(
-                                          child: Text(
-                                            widget.post.authorName.isNotEmpty
-                                                ? widget.post.authorName[0]
-                                                    .toUpperCase()
-                                                : '?',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18.sp,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                  )
-                                  : Center(
-                                    child: Text(
-                                      widget.post.authorName.isNotEmpty
-                                          ? widget.post.authorName[0]
-                                              .toUpperCase()
-                                          : '?',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18.sp,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                        ),
-                        SizedBox(width: 12.w),
-                        // Name + Time
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.post.authorName,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                _formatTime(widget.post.timestamp),
-                                style: TextStyle(
-                                  color: const Color(0xFFA1A1B2),
-                                  fontSize: 12.sp,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Zap amount display
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7931A).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.electric_bolt,
-                                color: const Color(0xFFF7931A),
-                                size: 14.sp,
-                              ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                NostrService.formatNaira(
-                                  NostrService.satsToNaira(widget.zapAmount),
-                                ),
-                                style: TextStyle(
-                                  color: const Color(0xFFF7931A),
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+          // Main content area
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 8.h),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar
+                GestureDetector(
+                  onTap: () {
+                    // TODO: Navigate to profile
+                  },
+                  child: Container(
+                    width: 40.w,
+                    height: 40.h,
+                    decoration: BoxDecoration(
+                      color: _getAvatarColor(widget.post.authorName),
+                      shape: BoxShape.circle,
                     ),
-                    SizedBox(height: 12.h),
-
-                    // Text Content
-                    if (textContent.isNotEmpty)
-                      Text(
-                        textContent,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.sp,
-                          height: 1.5,
-                        ),
-                      ),
-                  ],
+                    clipBehavior: Clip.antiAlias,
+                    child:
+                        widget.post.authorAvatar != null
+                            ? CachedNetworkImage(
+                              imageUrl: widget.post.authorAvatar!,
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) => _buildAvatarPlaceholder(),
+                              errorWidget:
+                                  (context, url, error) =>
+                                      _buildAvatarPlaceholder(),
+                            )
+                            : _buildAvatarPlaceholder(),
+                  ),
                 ),
-              ),
-
-              // Images section
-              if (hasImages) ...[
-                _buildImagesSection(imageUrls),
-                SizedBox(height: 8.h),
-              ],
-
-              // Action Button Row (at the bottom, not overlapping)
-              if (!_showZapSlider)
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                SizedBox(width: 12.w),
+                // Content column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Like button
-                      GestureDetector(
-                        onTap: widget.onLike,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12.w,
-                            vertical: 8.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                widget.isLiked
-                                    ? const Color(0xFFEC4899).withOpacity(0.15)
-                                    : const Color(0xFF111128),
-                            borderRadius: BorderRadius.circular(20.r),
-                            border: Border.all(
-                              color:
-                                  widget.isLiked
-                                      ? const Color(0xFFEC4899)
-                                      : const Color(
-                                        0xFFA1A1B2,
-                                      ).withOpacity(0.3),
+                      // Header: Name, handle, time
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              widget.post.authorName,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                widget.isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color:
-                                    widget.isLiked
-                                        ? const Color(0xFFEC4899)
-                                        : const Color(0xFFA1A1B2),
-                                size: 16.sp,
-                              ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                'Like',
-                                style: TextStyle(
-                                  color:
-                                      widget.isLiked
-                                          ? const Color(0xFFEC4899)
-                                          : const Color(0xFFA1A1B2),
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          SizedBox(width: 4.w),
+                          // Verified badge (if applicable)
+                          if (widget.post.authorName.toLowerCase().contains(
+                                'bitcoin',
+                              ) ||
+                              widget.zapAmount > 1000)
+                            Icon(
+                              Icons.verified,
+                              color: const Color(0xFFF7931A),
+                              size: 14.sp,
+                            ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            '· ${_formatTime(widget.post.timestamp)}',
+                            style: TextStyle(
+                              color: const Color(0xFF6B6B80),
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // NIP-05 identifier if available
+                      if (widget.post.lightningAddress != null)
+                        Padding(
+                          padding: EdgeInsets.only(top: 1.h),
+                          child: Text(
+                            widget.post.lightningAddress!,
+                            style: TextStyle(
+                              color: const Color(0xFF6B6B80),
+                              fontSize: 12.sp,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      SizedBox(width: 8.w),
-                      // Zap button
-                      GestureDetector(
-                        onTap: _showZapSliderModal,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12.w,
-                            vertical: 8.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7931A),
-                            borderRadius: BorderRadius.circular(20.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFF7931A).withOpacity(0.4),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.electric_bolt,
-                                color: Colors.white,
-                                size: 16.sp,
-                              ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                'Zap',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                      SizedBox(height: 6.h),
+                      // Post content
+                      if (textContent.isNotEmpty)
+                        Text(
+                          textContent,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.sp,
+                            height: 1.4,
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
-
-              // Zap Slider (when active)
-              if (_showZapSlider) _buildZapSlider(),
-            ],
+              ],
+            ),
           ),
+
+          // Images section (if any)
+          if (hasImages) ...[
+            SizedBox(height: 8.h),
+            _buildImagesSection(imageUrls),
+          ],
+
+          // Zap slider (when active)
+          if (_showZapSlider) ...[SizedBox(height: 8.h), _buildZapSlider()],
+
+          // Action bar (Primal-style bottom icons)
+          if (!_showZapSlider)
+            Padding(
+              padding: EdgeInsets.fromLTRB(52.w, 8.h, 16.w, 12.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Reply
+                  _ActionButton(
+                    icon: Icons.chat_bubble_outline,
+                    count: _replyCount,
+                    color: const Color(0xFF6B6B80),
+                    onTap: () {
+                      // TODO: Open reply
+                    },
+                  ),
+                  // Repost
+                  _ActionButton(
+                    icon: Icons.repeat,
+                    count: _repostCount,
+                    color: const Color(0xFF6B6B80),
+                    onTap: () {
+                      // TODO: Repost
+                    },
+                  ),
+                  // Like
+                  _ActionButton(
+                    icon:
+                        widget.isLiked ? Icons.favorite : Icons.favorite_border,
+                    count: widget.isLiked ? 1 : 0,
+                    color:
+                        widget.isLiked
+                            ? const Color(0xFFE91E63)
+                            : const Color(0xFF6B6B80),
+                    activeColor: const Color(0xFFE91E63),
+                    isActive: widget.isLiked,
+                    onTap: widget.onLike,
+                  ),
+                  // Zap
+                  _ActionButton(
+                    icon: Icons.electric_bolt,
+                    count: widget.zapAmount,
+                    color:
+                        widget.zapAmount > 0
+                            ? const Color(0xFFF7931A)
+                            : const Color(0xFF6B6B80),
+                    activeColor: const Color(0xFFF7931A),
+                    isActive: widget.zapAmount > 0,
+                    showSats: true,
+                    onTap: _showZapSliderModal,
+                  ),
+                  // Share/More
+                  GestureDetector(
+                    onTap: () {
+                      // TODO: Share options
+                    },
+                    child: Icon(
+                      Icons.ios_share,
+                      color: const Color(0xFF6B6B80),
+                      size: 18.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarPlaceholder() {
+    return Center(
+      child: Text(
+        widget.post.authorName.isNotEmpty
+            ? widget.post.authorName[0].toUpperCase()
+            : '?',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -1730,6 +1665,65 @@ class _FullScreenImageView extends StatelessWidget {
                   ),
                 ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Primal-style action button for post cards
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final int count;
+  final Color color;
+  final Color? activeColor;
+  final bool isActive;
+  final bool showSats;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.count,
+    required this.color,
+    this.activeColor,
+    this.isActive = false,
+    this.showSats = false,
+    required this.onTap,
+  });
+
+  String _formatCount(int n) {
+    if (n == 0) return '';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayCount = _formatCount(count);
+    final displayColor = isActive ? (activeColor ?? color) : color;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 4.w),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: displayColor, size: 18.sp),
+            if (displayCount.isNotEmpty) ...[
+              SizedBox(width: 4.w),
+              Text(
+                showSats && count > 0 ? '$displayCount sats' : displayCount,
+                style: TextStyle(
+                  color: displayColor,
+                  fontSize: 12.sp,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

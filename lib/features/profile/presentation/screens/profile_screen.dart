@@ -10,6 +10,7 @@ import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/features/nostr/nostr_edit_modal.dart';
+import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -36,7 +37,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _nostrNpub;
   int _zapCount = 0;
   int _zapTotal = 0;
+  int _followersCount = 0;
+  int _followingCount = 0;
+  int _relaysConnected = 0;
   bool _isLoadingNostr = true;
+  nostr_v2.NostrProfile? _nostrProfile;
 
   @override
   void initState() {
@@ -63,12 +68,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final npub = await NostrService.getNpub();
       int zapCount = 0;
       int zapTotal = 0;
+      int followers = 0;
+      int following = 0;
+      int relays = 0;
+      nostr_v2.NostrProfile? profile;
 
       if (npub != null) {
-        // In a real implementation, fetch zaps from relay
-        // For now, using mock data
-        zapCount = 0;
-        zapTotal = 0;
+        // Use new services to get real stats
+        try {
+          final profileService = nostr_v2.NostrProfileService();
+          final relayPool = nostr_v2.RelayPoolManager();
+          final feedAggregator = nostr_v2.FeedAggregator();
+
+          // Get connected relay count
+          relays = relayPool.connectedCount;
+
+          // Get following count from feed aggregator
+          following = feedAggregator.followsCount;
+
+          // Get profile from new service
+          profile = profileService.currentProfile;
+
+          // Get zap stats from ZapService (if available)
+          final zapService = nostr_v2.ZapService();
+          final recentZaps = zapService.recentZapsReceived;
+          zapCount = recentZaps.length;
+          zapTotal = recentZaps.fold(0, (sum, zap) => sum + zap.amountSats);
+        } catch (e) {
+          debugPrint('⚠️ Could not load enhanced stats: $e');
+        }
       }
 
       if (mounted) {
@@ -76,11 +104,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _nostrNpub = npub;
           _zapCount = zapCount;
           _zapTotal = zapTotal;
+          _followersCount = followers;
+          _followingCount = following;
+          _relaysConnected = relays;
+          _nostrProfile = profile;
           _isLoadingNostr = false;
         });
       }
     } catch (e) {
-      print('❌ Error loading Nostr stats: $e');
+      debugPrint('❌ Error loading Nostr stats: $e');
       if (mounted) {
         setState(() => _isLoadingNostr = false);
       }
@@ -345,6 +377,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SizedBox(height: 12.h),
 
           if (hasNostr) ...[
+            // Profile name if available
+            if (_nostrProfile?.name != null ||
+                _nostrProfile?.displayName != null) ...[
+              Text(
+                _nostrProfile?.displayName ?? _nostrProfile?.name ?? '',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8.h),
+            ],
+
             // npub display
             Text(
               'Public Key:',
@@ -384,20 +430,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             SizedBox(height: 12.h),
 
-            // Zap stats
+            // Connection status
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color:
+                    _relaysConnected > 0
+                        ? AppColors.accentGreen.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8.r),
+                border: Border.all(
+                  color:
+                      _relaysConnected > 0
+                          ? AppColors.accentGreen.withValues(alpha: 0.3)
+                          : Colors.orange.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6.w,
+                    height: 6.h,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          _relaysConnected > 0
+                              ? AppColors.accentGreen
+                              : Colors.orange,
+                    ),
+                  ),
+                  SizedBox(width: 6.w),
+                  Text(
+                    _relaysConnected > 0
+                        ? '$_relaysConnected relays connected'
+                        : 'Connecting...',
+                    style: TextStyle(
+                      color:
+                          _relaysConnected > 0
+                              ? AppColors.accentGreen
+                              : Colors.orange,
+                      fontSize: 11.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+
+            // Stats grid - now with 4 stats
             Row(
               children: [
                 _StatBadge(
                   icon: Icons.electric_bolt,
-                  label: 'Zaps Received',
+                  label: 'Zaps',
                   value: _zapCount.toString(),
                 ),
-                SizedBox(width: 12.w),
+                SizedBox(width: 8.w),
                 _StatBadge(
                   icon: Icons.bolt,
-                  label: 'Total Sats',
-                  value: _zapTotal.toString(),
+                  label: 'Sats',
+                  value: _formatSats(_zapTotal),
                 ),
+                SizedBox(width: 8.w),
+                _StatBadge(
+                  icon: Icons.people_outline,
+                  label: 'Following',
+                  value: _followingCount.toString(),
+                ),
+                if (_followersCount > 0) ...[
+                  SizedBox(width: 8.w),
+                  _StatBadge(
+                    icon: Icons.person_add_outlined,
+                    label: 'Followers',
+                    value: _followersCount.toString(),
+                  ),
+                ],
               ],
             ),
           ] else ...[
@@ -884,6 +992,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  /// Format sats for display (e.g., 1000 -> 1k, 1000000 -> 1M)
+  String _formatSats(int sats) {
+    if (sats >= 1000000) {
+      return '${(sats / 1000000).toStringAsFixed(1)}M';
+    } else if (sats >= 1000) {
+      return '${(sats / 1000).toStringAsFixed(1)}k';
+    }
+    return sats.toString();
   }
 }
 

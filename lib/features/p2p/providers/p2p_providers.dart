@@ -81,6 +81,30 @@ final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
   return [];
 });
 
+// Fetch P2P offers from Nostr relays (one-shot query, refreshable)
+final fetchedNostrOffersProvider =
+    FutureProvider.autoDispose<List<P2POfferModel>>((ref) async {
+      // Ensure Nostr is initialized
+      final isReady = await NostrService.ensureInitialized();
+      if (!isReady) return [];
+
+      final rawOffers = await NostrService.fetchOffers(limit: 100);
+      final offers = <P2POfferModel>[];
+
+      for (final map in rawOffers) {
+        try {
+          final action = map['action'] as String?;
+          if (action == 'cancel') continue; // Skip cancelled offers
+
+          offers.add(P2POfferModel.fromJson(map));
+        } catch (e) {
+          // Skip malformed offers
+        }
+      }
+
+      return offers;
+    });
+
 // Nostr-published P2P offers (real-time, decentralized)
 final nostrOffersProvider = StreamProvider.autoDispose<List<P2POfferModel>>((
   ref,
@@ -88,7 +112,32 @@ final nostrOffersProvider = StreamProvider.autoDispose<List<P2POfferModel>>((
   final controller = StreamController<List<P2POfferModel>>();
   final offers = <String, P2POfferModel>{};
 
-  final sub = NostrService.subscribeToOffers().listen((event) {
+  // Check if Nostr is initialized before subscribing
+  if (!NostrService.isInitialized) {
+    // Try to initialize, then start subscription
+    NostrService.ensureInitialized().then((ok) {
+      if (!ok) {
+        controller.add([]);
+        return;
+      }
+      _startSubscription(controller, offers);
+    });
+  } else {
+    _startSubscription(controller, offers);
+  }
+
+  ref.onDispose(() async {
+    await controller.close();
+  });
+
+  return controller.stream;
+});
+
+void _startSubscription(
+  StreamController<List<P2POfferModel>> controller,
+  Map<String, P2POfferModel> offers,
+) {
+  NostrService.subscribeToOffers().listen((event) {
     try {
       final content = event.content;
       final map = jsonDecode(content) as Map<String, dynamic>;
@@ -110,14 +159,7 @@ final nostrOffersProvider = StreamProvider.autoDispose<List<P2POfferModel>>((
       // ignore malformed events
     }
   });
-
-  ref.onDispose(() async {
-    await sub.cancel();
-    await controller.close();
-  });
-
-  return controller.stream;
-});
+}
 
 // User-created offers persisted locally
 class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {

@@ -223,7 +223,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
-                  final data = _bolt11 ?? _userProfile?.sabiUsername ?? _nostrNpub;
+                  final data =
+                      _bolt11 ?? _userProfile?.sabiUsername ?? _nostrNpub;
                   if (data != null) {
                     _copyToClipboard(data, 'Address');
                   }
@@ -271,37 +272,37 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 duration: const Duration(milliseconds: 200),
                 height: 40.h,
                 decoration: BoxDecoration(
-                  color: _selectedTab == 'lightning'
-                      ? AppColors.primary
-                      : Colors.transparent,
+                  color:
+                      _selectedTab == 'lightning'
+                          ? AppColors.primary
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(10.r),
-                  boxShadow: _selectedTab == 'lightning'
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
+                  boxShadow:
+                      _selectedTab == 'lightning'
+                          ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : null,
                 ),
                 child: Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '⚡',
-                        style: TextStyle(fontSize: 16.sp),
-                      ),
+                      Text('⚡', style: TextStyle(fontSize: 16.sp)),
                       SizedBox(width: 6.w),
                       Text(
                         AppLocalizations.of(context)!.lightning,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14.sp,
-                          fontWeight: _selectedTab == 'lightning'
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                          fontWeight:
+                              _selectedTab == 'lightning'
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                         ),
                       ),
                     ],
@@ -321,19 +322,21 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 duration: const Duration(milliseconds: 200),
                 height: 40.h,
                 decoration: BoxDecoration(
-                  color: _selectedTab == 'nostr'
-                      ? AppColors.primary
-                      : Colors.transparent,
+                  color:
+                      _selectedTab == 'nostr'
+                          ? AppColors.primary
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(10.r),
-                  boxShadow: _selectedTab == 'nostr'
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
+                  boxShadow:
+                      _selectedTab == 'nostr'
+                          ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : null,
                 ),
                 child: Center(
                   child: Row(
@@ -350,9 +353,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14.sp,
-                          fontWeight: _selectedTab == 'nostr'
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                          fontWeight:
+                              _selectedTab == 'nostr'
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                         ),
                       ),
                     ],
@@ -370,12 +374,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final displayData = _bolt11 ?? _userProfile?.sabiUsername;
 
     return GestureDetector(
-      onTap: displayData != null
-          ? () {
-              HapticFeedback.lightImpact();
-              _copyToClipboard(displayData, 'Invoice');
-            }
-          : null,
+      onTap:
+          displayData != null
+              ? () {
+                HapticFeedback.lightImpact();
+                _copyToClipboard(displayData, 'Invoice');
+              }
+              : null,
       child: Container(
         padding: EdgeInsets.all(16.r),
         decoration: BoxDecoration(
@@ -393,24 +398,24 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           children: [
             displayData != null
                 ? QrImageView(
-                    data: displayData,
-                    version: QrVersions.auto,
-                    size: 220.w,
-                    backgroundColor: Colors.white,
-                    padding: EdgeInsets.all(8.r),
-                    errorCorrectionLevel: QrErrorCorrectLevel.M,
-                    eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: Colors.black,
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: Colors.black,
-                    ),
-                    errorStateBuilder: (context, error) {
-                      return _buildQRPlaceholder('QR Error');
-                    },
-                  )
+                  data: displayData,
+                  version: QrVersions.auto,
+                  size: 220.w,
+                  backgroundColor: Colors.white,
+                  padding: EdgeInsets.all(8.r),
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Colors.black,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Colors.black,
+                  ),
+                  errorStateBuilder: (context, error) {
+                    return _buildQRPlaceholder('QR Error');
+                  },
+                )
                 : _buildQRPlaceholder('Select amount to create invoice'),
             if (displayData != null) ...[
               SizedBox(height: 8.h),
@@ -459,18 +464,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.qr_code_2_rounded,
-              size: 48.sp,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.qr_code_2_rounded, size: 48.sp, color: Colors.grey[400]),
             SizedBox(height: 12.h),
             Text(
               message,
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12.sp,
-              ),
+              style: TextStyle(color: Colors.grey[500], fontSize: 12.sp),
               textAlign: TextAlign.center,
             ),
           ],
@@ -483,8 +481,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final username = _userProfile?.sabiUsername ?? '@sabi/user';
     final registered = _userProfile?.hasLightningAddress ?? false;
     final description =
-      _userProfile?.lightningAddressDescription ??
-      'Share your Lightning address to receive payments instantly.';
+        _userProfile?.lightningAddressDescription ??
+        'Share your Lightning address to receive payments instantly.';
 
     return Container(
       padding: EdgeInsets.all(16.r),
@@ -544,10 +542,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           // Description
           Text(
             description,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 12.h),
@@ -555,9 +550,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
             decoration: BoxDecoration(
-              color: registered
-                  ? AppColors.accentGreen.withValues(alpha: 0.1)
-                  : AppColors.primary.withValues(alpha: 0.1),
+              color:
+                  registered
+                      ? AppColors.accentGreen.withValues(alpha: 0.1)
+                      : AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20.r),
             ),
             child: Row(
@@ -572,7 +568,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 Text(
                   registered ? 'Address active' : 'Not registered',
                   style: TextStyle(
-                    color: registered ? AppColors.accentGreen : AppColors.primary,
+                    color:
+                        registered ? AppColors.accentGreen : AppColors.primary,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                   ),
@@ -585,84 +582,91 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           SizedBox(
             width: double.infinity,
             height: 44.h,
-            child: registered
-                ? OutlinedButton(
-                    onPressed: _isSyncingLightningAddress
-                        ? null
-                        : _refreshLightningAddress,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
+            child:
+                registered
+                    ? OutlinedButton(
+                      onPressed:
+                          _isSyncingLightningAddress
+                              ? null
+                              : _refreshLightningAddress,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_isSyncingLightningAddress)
-                          SizedBox(
-                            width: 16.w,
-                            height: 16.h,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.w,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isSyncingLightningAddress)
+                            SizedBox(
+                              width: 16.w,
+                              height: 16.h,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.w,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          else
+                            Icon(
+                              Icons.refresh_rounded,
                               color: AppColors.primary,
+                              size: 18.sp,
                             ),
-                          )
-                        else
-                          Icon(
-                            Icons.refresh_rounded,
-                            color: AppColors.primary,
-                            size: 18.sp,
+                          SizedBox(width: 8.w),
+                          Text(
+                            _isSyncingLightningAddress
+                                ? 'Refreshing...'
+                                : 'Refresh',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        SizedBox(width: 8.w),
-                        Text(
-                          _isSyncingLightningAddress ? 'Refreshing...' : 'Refresh',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        ],
+                      ),
+                    )
+                    : ElevatedButton(
+                      onPressed:
+                          _isSyncingLightningAddress
+                              ? null
+                              : _registerLightningAddress,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
-                      ],
-                    ),
-                  )
-                : ElevatedButton(
-                    onPressed: _isSyncingLightningAddress
-                        ? null
-                        : _registerLightningAddress,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isSyncingLightningAddress)
+                            SizedBox(
+                              width: 16.w,
+                              height: 16.h,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.w,
+                                color: Colors.white,
+                              ),
+                            )
+                          else
+                            Icon(Icons.add_rounded, size: 18.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            _isSyncingLightningAddress
+                                ? 'Registering...'
+                                : 'Register Address',
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_isSyncingLightningAddress)
-                          SizedBox(
-                            width: 16.w,
-                            height: 16.h,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.w,
-                              color: Colors.white,
-                            ),
-                          )
-                        else
-                          Icon(Icons.add_rounded, size: 18.sp),
-                        SizedBox(width: 8.w),
-                        Text(
-                          _isSyncingLightningAddress ? 'Registering...' : 'Register Address',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
           ),
         ],
       ),
@@ -756,13 +760,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     return amount.toString();
   }
 
-  String _formatAmount(int amount) {
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)},${(amount % 1000).toString().padLeft(3, '0')}';
-    }
-    return amount.toString();
-  }
-
   Widget _buildExpiryAndDescription() {
     return Container(
       decoration: BoxDecoration(
@@ -776,10 +773,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         minLines: 1,
         decoration: InputDecoration(
           hintText: 'Add a description (optional)',
-          hintStyle: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13.sp,
-          ),
+          hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13.sp),
           prefixIcon: Icon(
             Icons.note_alt_outlined,
             color: AppColors.textSecondary,
@@ -806,10 +800,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           width: double.infinity,
           height: 56.h,
           child: ElevatedButton(
-            onPressed: !canCreate || _creating ? null : () {
-              HapticFeedback.mediumImpact();
-              _createInvoice();
-            },
+            onPressed:
+                !canCreate || _creating
+                    ? null
+                    : () {
+                      HapticFeedback.mediumImpact();
+                      _createInvoice();
+                    },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
@@ -819,42 +816,43 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 borderRadius: BorderRadius.circular(16.r),
               ),
             ),
-            child: _creating
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20.w,
-                        height: 20.h,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.w,
-                          color: Colors.white,
+            child:
+                _creating
+                    ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20.w,
+                          height: 20.h,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.w,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Text(
-                        'Creating Invoice...',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
+                        SizedBox(width: 12.w),
+                        Text(
+                          'Creating Invoice...',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.qr_code_rounded, size: 20.sp),
-                      SizedBox(width: 8.w),
-                      Text(
-                        hasInvoice ? 'Create New Invoice' : 'Create Invoice',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
+                      ],
+                    )
+                    : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.qr_code_rounded, size: 20.sp),
+                        SizedBox(width: 8.w),
+                        Text(
+                          hasInvoice ? 'Create New Invoice' : 'Create Invoice',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
           ),
         ),
         // Share button (only shown when invoice exists)

@@ -24,6 +24,9 @@ class P2POfferModel {
   final String? responseTime;
   final double? volume;
 
+  /// Map of payment method ID to account details (e.g., "gtbank" -> "GTBank 0123456789 - John Doe")
+  final Map<String, String>? paymentAccountDetails;
+
   P2POfferModel({
     required this.id,
     required this.name,
@@ -44,6 +47,7 @@ class P2POfferModel {
     this.lockedSats,
     this.responseTime,
     this.volume,
+    this.paymentAccountDetails,
   });
 
   /// Returns the effective available sats (total minus locked)
@@ -69,6 +73,7 @@ class P2POfferModel {
     double? lockedSats,
     String? responseTime,
     double? volume,
+    Map<String, String>? paymentAccountDetails,
   }) {
     return P2POfferModel(
       id: id ?? this.id,
@@ -90,6 +95,8 @@ class P2POfferModel {
       lockedSats: lockedSats ?? this.lockedSats,
       responseTime: responseTime ?? this.responseTime,
       volume: volume ?? this.volume,
+      paymentAccountDetails:
+          paymentAccountDetails ?? this.paymentAccountDetails,
     );
   }
 
@@ -113,6 +120,7 @@ class P2POfferModel {
       'lockedSats': lockedSats,
       'responseTime': responseTime,
       'volume': volume,
+      'paymentAccountDetails': paymentAccountDetails,
     };
   }
 
@@ -121,6 +129,16 @@ class P2POfferModel {
     MerchantModel? merchant,
     List<PaymentMethodModel>? acceptedMethods,
   }) {
+    // Parse paymentAccountDetails from JSON
+    Map<String, String>? accountDetails;
+    if (json['paymentAccountDetails'] != null) {
+      accountDetails = Map<String, String>.from(
+        (json['paymentAccountDetails'] as Map).map(
+          (key, value) => MapEntry(key.toString(), value.toString()),
+        ),
+      );
+    }
+
     return P2POfferModel(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -141,6 +159,7 @@ class P2POfferModel {
       lockedSats: (json['lockedSats'] as num?)?.toDouble(),
       responseTime: json['responseTime'] as String?,
       volume: (json['volume'] as num?)?.toDouble(),
+      paymentAccountDetails: accountDetails,
     );
   }
 }

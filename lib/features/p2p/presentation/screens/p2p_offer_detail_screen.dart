@@ -6,8 +6,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_merchant_profile_screen.dart';
+import 'package:sabi_wallet/services/nostr/models/nostr_offer.dart';
 
 /// P2P Offer Detail Screen - Binance/NoOnes inspired
 class P2POfferDetailScreen extends ConsumerStatefulWidget {
@@ -64,7 +66,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
   Widget build(BuildContext context) {
     // Watch exchange rates for real-time updates
     ref.watch(exchangeRatesProvider);
-    final userOffers = ref.watch(userOffersProvider);
+
+    // Check ownership using NIP-99 user offers
+    final userOffersAsync = ref.watch(userNip99OffersProvider);
+    final userOffers = userOffersAsync.asData?.value ?? [];
     final isOwner = userOffers.any((o) => o.id == widget.offer.id);
 
     return Scaffold(
@@ -121,10 +126,23 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                               ),
                         );
                         if (confirm == true) {
-                          await ref
-                              .read(userOffersProvider.notifier)
-                              .removeOffer(widget.offer.id);
-                          if (mounted) Navigator.pop(context);
+                          // Delete via NIP-99 (publishes deletion event to relays)
+                          final success = await ref
+                              .read(nip99OfferNotifierProvider.notifier)
+                              .deleteOffer(widget.offer.id);
+                          if (mounted) {
+                            if (success) {
+                              ref.invalidate(userNip99OffersProvider);
+                              Navigator.pop(context);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to cancel offer'),
+                                  backgroundColor: Color(0xFFFF6B6B),
+                                ),
+                              );
+                            }
+                          }
                         }
                       }
                     },
@@ -404,6 +422,101 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                     SizedBox(height: 24.h),
                   ],
 
+                  // Payment Account Details
+                  if (widget.offer.paymentAccountDetails != null &&
+                      widget.offer.paymentAccountDetails!.isNotEmpty) ...[
+                    Text(
+                      'Payment Account Details',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    ...widget.offer.paymentAccountDetails!.entries.map((entry) {
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 8.h),
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF111128),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF00FFB2,
+                            ).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8.w),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF00FFB2,
+                                ).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
+                              child: Icon(
+                                Icons.account_balance_wallet,
+                                color: const Color(0xFF00FFB2),
+                                size: 18.sp,
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.key
+                                        .replaceAll('_', ' ')
+                                        .toUpperCase(),
+                                    style: TextStyle(
+                                      color: const Color(0xFFA1A1B2),
+                                      fontSize: 11.sp,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2.h),
+                                  Text(
+                                    entry.value,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.copy,
+                                color: const Color(0xFFA1A1B2),
+                                size: 18.sp,
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: entry.value),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Copied to clipboard'),
+                                    backgroundColor: const Color(0xFF00FFB2),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    SizedBox(height: 24.h),
+                  ],
+
                   // Trade Terms
                   _buildTradeTerms(),
                 ],
@@ -454,7 +567,6 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
   }
 
   Future<void> _showEditDialog(BuildContext context) async {
-    final notifier = ref.read(userOffersProvider.notifier);
     final current = widget.offer;
     final marginController = TextEditingController(
       text: (current.marginPercent ?? 0).toString(),
@@ -516,23 +628,43 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
               ),
               TextButton(
                 onPressed: () async {
-                  final updated = widget.offer.copyWith(
-                    marginPercent:
-                        double.tryParse(marginController.text) ??
-                        widget.offer.marginPercent,
-                    minLimit:
-                        int.tryParse(minController.text) ??
-                        widget.offer.minLimit,
-                    maxLimit:
-                        int.tryParse(maxController.text) ??
-                        widget.offer.maxLimit,
-                    paymentInstructions:
-                        instrController.text.isEmpty
-                            ? null
-                            : instrController.text,
+                  // Use NIP-99 to update the offer
+                  final notifier = ref.read(
+                    nip99OfferNotifierProvider.notifier,
                   );
-                  await notifier.updateOffer(updated);
-                  Navigator.pop(context, true);
+
+                  // Re-publish updated offer via NIP-99
+                  final newMinLimit =
+                      int.tryParse(minController.text) ?? widget.offer.minLimit;
+                  final newMaxLimit =
+                      int.tryParse(maxController.text) ?? widget.offer.maxLimit;
+                  final pricePerBtc = widget.offer.pricePerBtc;
+
+                  try {
+                    await notifier.publishOffer(
+                      type:
+                          widget.offer.type == OfferType.sell
+                              ? P2POfferType.sell
+                              : P2POfferType.buy,
+                      title:
+                          '${widget.offer.type == OfferType.sell ? "Selling" : "Buying"} BTC for NGN',
+                      description:
+                          instrController.text.isEmpty
+                              ? 'P2P ${widget.offer.type == OfferType.sell ? "sell" : "buy"} offer via Sabi Wallet'
+                              : instrController.text,
+                      pricePerBtc: pricePerBtc,
+                      currency: 'NGN',
+                      minSats:
+                          (newMinLimit / (pricePerBtc / 100000000)).round(),
+                      maxSats:
+                          (newMaxLimit / (pricePerBtc / 100000000)).round(),
+                      paymentMethods: [widget.offer.paymentMethod],
+                    );
+                    ref.invalidate(userNip99OffersProvider);
+                    Navigator.pop(context, true);
+                  } catch (e) {
+                    Navigator.pop(context, false);
+                  }
                 },
                 child: const Text('Save'),
               ),

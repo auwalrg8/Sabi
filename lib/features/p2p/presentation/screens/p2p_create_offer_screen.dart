@@ -6,10 +6,12 @@ import 'package:intl/intl.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
 import 'package:sabi_wallet/features/p2p/data/models/payment_method_international.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/services/nostr_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
+import 'package:sabi_wallet/services/nostr/models/nostr_offer.dart';
 
 /// P2P Create Offer Screen - Binance/NoOnes inspired
 class P2PCreateOfferScreen extends ConsumerStatefulWidget {
@@ -31,6 +33,12 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
   bool _useTradeCode = false; // Optional trade code verification
   bool _openToProfileSharing = false; // Allow trust profile sharing
   final Set<String> _selectedPaymentMethods = {};
+
+  /// Map of payment method ID to account details entered by user
+  final Map<String, String> _paymentAccountDetails = {};
+
+  /// Controllers for each payment method's account details input
+  final Map<String, TextEditingController> _accountDetailsControllers = {};
   final TextEditingController _minController = TextEditingController(
     text: '10,000',
   );
@@ -46,6 +54,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
     _minController.dispose();
     _maxController.dispose();
     _instructionsController.dispose();
+    // Dispose all account details controllers
+    for (final controller in _accountDetailsControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -804,9 +816,129 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
 
         SizedBox(height: 8.h),
 
+        // Account Details for Selected Payment Methods
+        if (_selectedPaymentMethods.isNotEmpty) ...[
+          Text(
+            'Account Details',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            'Enter your account details for each payment method. Buyers will see this information when trading.',
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
+          ),
+          SizedBox(height: 12.h),
+          ..._selectedPaymentMethods.map((methodId) {
+            // Get method name for display
+            final paymentMethods = ref.read(paymentMethodsProvider);
+            final internationalMethods = PaymentMethods.getAllMethods();
+            String methodName = methodId;
+            String placeholder = 'Enter account details...';
+
+            // Find in Nigerian methods
+            final nigerianMethod =
+                paymentMethods.where((m) => m.id == methodId).firstOrNull;
+            if (nigerianMethod != null) {
+              methodName = nigerianMethod.name;
+              if (nigerianMethod.type == PaymentMethodType.bankTransfer) {
+                placeholder = 'e.g., GTBank 0123456789 - John Doe';
+              } else if (nigerianMethod.type == PaymentMethodType.mobileMoney) {
+                placeholder = 'e.g., 08012345678 - John Doe';
+              } else if (nigerianMethod.type == PaymentMethodType.giftCard) {
+                placeholder = 'e.g., Amazon email: john@email.com';
+              } else {
+                placeholder = 'e.g., Location: Lekki Phase 1, Lagos';
+              }
+            } else {
+              // Find in international methods
+              final intlMethod =
+                  internationalMethods
+                      .where((m) => m.id == methodId)
+                      .firstOrNull;
+              if (intlMethod != null) {
+                methodName = intlMethod.name;
+                placeholder = 'Enter ${intlMethod.name} account details...';
+              }
+            }
+
+            // Create controller if not exists
+            _accountDetailsControllers.putIfAbsent(
+              methodId,
+              () => TextEditingController(
+                text: _paymentAccountDetails[methodId] ?? '',
+              ),
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111128),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: const Color(0xFF2A2A3E)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.account_balance_wallet,
+                          color: const Color(0xFFF7931A),
+                          size: 18.sp,
+                        ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          methodName,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8.h),
+                    TextField(
+                      controller: _accountDetailsControllers[methodId],
+                      onChanged: (value) {
+                        _paymentAccountDetails[methodId] = value;
+                      },
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                      decoration: InputDecoration(
+                        hintText: placeholder,
+                        hintStyle: TextStyle(
+                          color: const Color(0xFF6B6B80),
+                          fontSize: 14.sp,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF0C0C1A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12.w,
+                          vertical: 10.h,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          SizedBox(height: 16.h),
+        ],
+
         // Payment Instructions
         Text(
-          'Payment Instructions',
+          'Additional Instructions (Optional)',
           style: TextStyle(
             color: Colors.white,
             fontSize: 16.sp,
@@ -826,7 +958,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             style: TextStyle(color: Colors.white, fontSize: 14.sp),
             decoration: InputDecoration(
               hintText:
-                  'Add any special instructions for buyers (e.g., account details, transfer notes)...',
+                  'Add any special instructions for buyers (e.g., preferred transfer times, notes)...',
               hintStyle: TextStyle(
                 color: const Color(0xFF6B6B80),
                 fontSize: 14.sp,
@@ -1047,6 +1179,15 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         availableSats = walletBalance.toDouble();
       }
 
+      // Collect payment account details from controllers
+      final accountDetails = <String, String>{};
+      for (final methodId in _selectedPaymentMethods) {
+        final controller = _accountDetailsControllers[methodId];
+        if (controller != null && controller.text.isNotEmpty) {
+          accountDetails[methodId] = controller.text;
+        }
+      }
+
       final offer = P2POfferModel(
         id: id,
         name: name,
@@ -1071,16 +1212,58 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
                 : _instructionsController.text,
         availableSats: availableSats,
         lockedSats: 0, // No sats locked initially
+        paymentAccountDetails:
+            accountDetails.isNotEmpty ? accountDetails : null,
       );
 
-      // Persist locally
-      await ref.read(userOffersProvider.notifier).addOffer(offer);
-
-      // Publish to Nostr relays so other users can see it
+      // Publish to Nostr relays using NIP-99 (kind 30402) - no local storage
       try {
-        await NostrService.publishOffer(offer.toJson());
-      } catch (_) {
-        // non-fatal: publishing may fail if nostr not initialized
+        // Use NIP-99 service for publishing offers
+        final eventId = await ref
+            .read(nip99OfferNotifierProvider.notifier)
+            .publishOffer(
+              type: _isSellOffer ? P2POfferType.sell : P2POfferType.buy,
+              title: '${_isSellOffer ? "Selling" : "Buying"} BTC for NGN',
+              description:
+                  _instructionsController.text.isEmpty
+                      ? 'P2P ${_isSellOffer ? "sell" : "buy"} offer via Sabi Wallet'
+                      : _instructionsController.text,
+              pricePerBtc: pricePerBtc,
+              currency: 'NGN',
+              minSats: (_minLimit / (pricePerBtc / 100000000)).round(),
+              maxSats: (_maxLimit / (pricePerBtc / 100000000)).round(),
+              paymentMethods: _selectedPaymentMethods.toList(),
+              paymentDetails: accountDetails.isNotEmpty ? accountDetails : null,
+            );
+
+        if (eventId != null) {
+          P2PLogger.info(
+            'Offer',
+            'Published via NIP-99 successfully: $eventId',
+          );
+        } else {
+          // Fallback to legacy NostrService if NIP-99 fails
+          try {
+            await NostrService.publishOffer(offer.toJson());
+            P2PLogger.info('Offer', 'Published via legacy Nostr service');
+          } catch (_) {
+            P2PLogger.warning('Offer', 'Failed to publish to Nostr relays');
+            throw Exception('Failed to publish offer to Nostr network');
+          }
+        }
+      } catch (e) {
+        // Fallback to legacy NostrService
+        try {
+          await NostrService.publishOffer(offer.toJson());
+          P2PLogger.info(
+            'Offer',
+            'Published via legacy Nostr service (fallback)',
+          );
+        } catch (_) {
+          // non-fatal: publishing may fail if nostr not initialized
+          P2PLogger.warning('Offer', 'Failed to publish to Nostr relays');
+          rethrow; // Re-throw to show error to user
+        }
       }
 
       P2PLogger.info('Offer', 'P2P offer created successfully');
