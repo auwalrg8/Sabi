@@ -16,7 +16,7 @@ import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// P2P Home Screen - Differentiated Buy/Sell UX
-/// 
+///
 /// BUY BTC Tab: Browse sellers' offers, filter by payment method
 /// SELL BTC Tab: Create your own offer, manage active sales
 class P2PHomeScreen extends ConsumerStatefulWidget {
@@ -61,7 +61,10 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
   void _onTabChanged() {
     if (_tabController.indexIsChanging) {
       setState(() {});
-      P2PLogger.debug('Home', 'Tab changed to: ${_tabController.index == 0 ? "Buy" : "Sell"}');
+      P2PLogger.debug(
+        'Home',
+        'Tab changed to: ${_tabController.index == 0 ? "Buy" : "Sell"}',
+      );
     }
   }
 
@@ -88,103 +91,113 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
       backgroundColor: const Color(0xFF0C0C1A),
       body: SafeArea(
         child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top bar with title and actions
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          headerSliverBuilder:
+              (context, innerBoxIsScrolled) => [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'P2P Trading',
-                          style: TextStyle(
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        // Top bar with title and actions
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _IconButton(
-                              icon: Icons.help_outline,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const P2PEscrowInfoScreen(),
-                                ),
+                            Text(
+                              'P2P Trading',
+                              style: TextStyle(
+                                fontSize: 24.sp,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                              tooltip: 'How it works',
                             ),
-                            SizedBox(width: 8.w),
-                            _IconButton(
-                              icon: Icons.history,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const P2PTradeHistoryScreen(),
+                            Row(
+                              children: [
+                                _IconButton(
+                                  icon: Icons.help_outline,
+                                  onTap:
+                                      () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) =>
+                                                  const P2PEscrowInfoScreen(),
+                                        ),
+                                      ),
+                                  tooltip: 'How it works',
                                 ),
-                              ),
-                              tooltip: 'Trade History',
-                            ),
-                            SizedBox(width: 8.w),
-                            _IconButton(
-                              icon: Icons.list_alt,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const P2PMyTradesScreen(),
+                                SizedBox(width: 8.w),
+                                _IconButton(
+                                  icon: Icons.history,
+                                  onTap:
+                                      () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) =>
+                                                  const P2PTradeHistoryScreen(),
+                                        ),
+                                      ),
+                                  tooltip: 'Trade History',
                                 ),
-                              ),
-                              tooltip: 'My Trades',
+                                SizedBox(width: 8.w),
+                                _IconButton(
+                                  icon: Icons.list_alt,
+                                  onTap:
+                                      () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => const P2PMyTradesScreen(),
+                                        ),
+                                      ),
+                                  tooltip: 'My Trades',
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        SizedBox(height: 16.h),
+
+                        // Live Rates Card - Real rates from API
+                        const _LiveRatesCard(),
+                        SizedBox(height: 16.h),
+
+                        // Tab Bar - Buy BTC / Sell BTC
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111128),
+                            borderRadius: BorderRadius.circular(16.r),
+                          ),
+                          padding: EdgeInsets.all(4.w),
+                          child: TabBar(
+                            controller: _tabController,
+                            indicator: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12.r),
+                              color:
+                                  _tabController.index == 0
+                                      ? const Color(0xFF00C853)
+                                      : const Color(0xFFF7931A),
+                            ),
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            dividerColor: Colors.transparent,
+                            labelColor: Colors.white,
+                            unselectedLabelColor: Colors.white54,
+                            labelStyle: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            tabs: const [
+                              Tab(text: 'Buy BTC'),
+                              Tab(text: 'Sell BTC'),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    SizedBox(height: 16.h),
-
-                    // Live Rates Card - Real rates from API
-                    const _LiveRatesCard(),
-                    SizedBox(height: 16.h),
-
-                    // Tab Bar - Buy BTC / Sell BTC
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF111128),
-                        borderRadius: BorderRadius.circular(16.r),
-                      ),
-                      padding: EdgeInsets.all(4.w),
-                      child: TabBar(
-                        controller: _tabController,
-                        indicator: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12.r),
-                          color: _tabController.index == 0
-                              ? const Color(0xFF00C853)
-                              : const Color(0xFFF7931A),
-                        ),
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        dividerColor: Colors.transparent,
-                        labelColor: Colors.white,
-                        unselectedLabelColor: Colors.white54,
-                        labelStyle: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        tabs: const [
-                          Tab(text: 'Buy BTC'),
-                          Tab(text: 'Sell BTC'),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
           body: TabBarView(
             controller: _tabController,
             children: [
@@ -193,15 +206,12 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                 isLoading: _isLoading,
                 selectedPaymentFilter: _selectedPaymentFilter,
                 paymentFilters: _paymentFilters,
-                onFilterChanged: (filter) =>
-                    setState(() => _selectedPaymentFilter = filter),
+                onFilterChanged:
+                    (filter) => setState(() => _selectedPaymentFilter = filter),
                 onRefresh: _loadData,
               ),
               // Sell BTC Tab
-              _SellBtcTab(
-                isLoading: _isLoading,
-                onRefresh: _loadData,
-              ),
+              _SellBtcTab(isLoading: _isLoading, onRefresh: _loadData),
             ],
           ),
         ),
@@ -228,19 +238,35 @@ class _BuyBtcTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Combine seed offers, user offers and nostr offers
+    final seedOffers = ref.watch(p2pOffersProvider);
+    final userOffers = ref.watch(userOffersProvider);
+    final nostrOffersAsync = ref.watch(nostrOffersProvider);
+    final nostrOffers = nostrOffersAsync.asData?.value ?? [];
+
+    final allOffers = [...seedOffers, ...userOffers, ...nostrOffers];
     // Get sell offers (offers from sellers who want to sell BTC)
-    final allOffers = ref.watch(p2pOffersProvider);
-    final sellOffers = allOffers.where((o) => o.type == OfferType.sell).toList();
-    
+    final sellOffers =
+        allOffers.where((o) => o.type == OfferType.sell).toList();
+
     // Apply payment filter
-    final filteredOffers = selectedPaymentFilter == 'All'
-        ? sellOffers
-        : sellOffers.where((o) => 
-            o.paymentMethod.toLowerCase().contains(selectedPaymentFilter.toLowerCase()) ||
-            (o.acceptedMethods?.any((pm) => 
-              pm.name.toLowerCase().contains(selectedPaymentFilter.toLowerCase())
-            ) ?? false)
-          ).toList();
+    final filteredOffers =
+        selectedPaymentFilter == 'All'
+            ? sellOffers
+            : sellOffers
+                .where(
+                  (o) =>
+                      o.paymentMethod.toLowerCase().contains(
+                        selectedPaymentFilter.toLowerCase(),
+                      ) ||
+                      (o.acceptedMethods?.any(
+                            (pm) => pm.name.toLowerCase().contains(
+                              selectedPaymentFilter.toLowerCase(),
+                            ),
+                          ) ??
+                          false),
+                )
+                .toList();
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
@@ -256,7 +282,8 @@ class _BuyBtcTab extends ConsumerWidget {
                 icon: Icons.shopping_cart,
                 iconColor: const Color(0xFF00C853),
                 title: 'Buy Bitcoin',
-                description: 'Browse offers from sellers. Pay with your preferred method and receive BTC directly to your wallet.',
+                description:
+                    'Browse offers from sellers. Pay with your preferred method and receive BTC directly to your wallet.',
               ),
             ),
           ),
@@ -268,18 +295,19 @@ class _BuyBtcTab extends ConsumerWidget {
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: paymentFilters.map((filter) {
-                    final isSelected = selectedPaymentFilter == filter;
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8.w),
-                      child: _FilterChip(
-                        label: filter,
-                        isSelected: isSelected,
-                        selectedColor: const Color(0xFF00C853),
-                        onTap: () => onFilterChanged(filter),
-                      ),
-                    );
-                  }).toList(),
+                  children:
+                      paymentFilters.map((filter) {
+                        final isSelected = selectedPaymentFilter == filter;
+                        return Padding(
+                          padding: EdgeInsets.only(right: 8.w),
+                          child: _FilterChip(
+                            label: filter,
+                            isSelected: isSelected,
+                            selectedColor: const Color(0xFF00C853),
+                            onTap: () => onFilterChanged(filter),
+                          ),
+                        );
+                      }).toList(),
                 ),
               ),
             ),
@@ -291,42 +319,44 @@ class _BuyBtcTab extends ConsumerWidget {
           isLoading
               ? SliverToBoxAdapter(child: _buildSkeletonLoader())
               : filteredOffers.isEmpty
-                  ? SliverToBoxAdapter(child: _buildEmptyState())
-                  : SliverPadding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final offer = filteredOffers[index];
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: 12.h),
-                              child: _BuyOfferCard(
-                                offer: offer,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => P2POfferDetailScreen(offer: offer),
-                                  ),
-                                ),
-                                onMerchantTap: () {
-                                  if (offer.merchant != null) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => P2PMerchantProfileScreen(
-                                          merchant: offer.merchant!,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
+              ? SliverToBoxAdapter(child: _buildEmptyState())
+              : SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final offer = filteredOffers[index];
+                    final isRemote = nostrOffers.any((o) => o.id == offer.id);
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: 12.h),
+                      child: _BuyOfferCard(
+                        offer: offer,
+                        isRemote: isRemote,
+                        onTap:
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => P2POfferDetailScreen(offer: offer),
+                              ),
+                            ),
+                        onMerchantTap: () {
+                          if (offer.merchant != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => P2PMerchantProfileScreen(
+                                      merchant: offer.merchant!,
+                                    ),
                               ),
                             );
-                          },
-                          childCount: filteredOffers.length,
-                        ),
+                          }
+                        },
                       ),
-                    ),
+                    );
+                  }, childCount: filteredOffers.length),
+                ),
+              ),
 
           // Bottom padding
           SliverToBoxAdapter(child: SizedBox(height: 24.h)),
@@ -358,15 +388,27 @@ class _BuyBtcTab extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(width: 100.w, height: 16.h, color: Colors.white),
+                        Container(
+                          width: 100.w,
+                          height: 16.h,
+                          color: Colors.white,
+                        ),
                         SizedBox(height: 4.h),
-                        Container(width: 60.w, height: 12.h, color: Colors.white),
+                        Container(
+                          width: 60.w,
+                          height: 12.h,
+                          color: Colors.white,
+                        ),
                       ],
                     ),
                   ],
                 ),
                 SizedBox(height: 16.h),
-                Container(width: double.infinity, height: 40.h, color: Colors.white),
+                Container(
+                  width: double.infinity,
+                  height: 40.h,
+                  color: Colors.white,
+                ),
               ],
             ),
           ),
@@ -381,11 +423,7 @@ class _BuyBtcTab extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.search_off,
-            size: 64.sp,
-            color: Colors.white24,
-          ),
+          Icon(Icons.search_off, size: 64.sp, color: Colors.white24),
           SizedBox(height: 16.h),
           Text(
             'No offers available',
@@ -399,10 +437,7 @@ class _BuyBtcTab extends ConsumerWidget {
           Text(
             'Try changing your payment filter or check back later',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14.sp,
-              color: Colors.white54,
-            ),
+            style: TextStyle(fontSize: 14.sp, color: Colors.white54),
           ),
         ],
       ),
@@ -415,14 +450,13 @@ class _SellBtcTab extends ConsumerWidget {
   final bool isLoading;
   final VoidCallback onRefresh;
 
-  const _SellBtcTab({
-    required this.isLoading,
-    required this.onRefresh,
-  });
+  const _SellBtcTab({required this.isLoading, required this.onRefresh});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userOffers = ref.watch(userOffersProvider);
+    final nostrOffersAsync = ref.watch(nostrOffersProvider);
+    final nostrOffers = nostrOffersAsync.asData?.value ?? [];
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
@@ -438,7 +472,8 @@ class _SellBtcTab extends ConsumerWidget {
                 icon: Icons.sell,
                 iconColor: const Color(0xFFF7931A),
                 title: 'Sell Bitcoin',
-                description: 'Create an offer to sell your BTC. Buyers will pay you via your preferred payment method.',
+                description:
+                    'Create an offer to sell your BTC. Buyers will pay you via your preferred payment method.',
               ),
             ),
           ),
@@ -448,12 +483,13 @@ class _SellBtcTab extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: _CreateOfferCard(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const P2PCreateOfferScreen(),
-                  ),
-                ),
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const P2PCreateOfferScreen(),
+                      ),
+                    ),
               ),
             ),
           ),
@@ -488,10 +524,7 @@ class _SellBtcTab extends ConsumerWidget {
                     ),
                     Text(
                       '${userOffers.length} offer${userOffers.length > 1 ? 's' : ''}',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.white54,
-                      ),
+                      style: TextStyle(fontSize: 14.sp, color: Colors.white54),
                     ),
                   ],
                 ),
@@ -501,24 +534,24 @@ class _SellBtcTab extends ConsumerWidget {
             SliverPadding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final offer = userOffers[index];
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _SellOfferCard(
-                        offer: offer,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => P2POfferDetailScreen(offer: offer),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final offer = userOffers[index];
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _SellOfferCard(
+                      offer: offer,
+                      isRemote: nostrOffers.any((o) => o.id == offer.id),
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => P2POfferDetailScreen(offer: offer),
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                  childCount: userOffers.length,
-                ),
+                    ),
+                  );
+                }, childCount: userOffers.length),
               ),
             ),
           ],
@@ -547,10 +580,7 @@ class _SellBtcTab extends ConsumerWidget {
                     SizedBox(height: 4.h),
                     Text(
                       'Create your first offer to start selling',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.white54,
-                      ),
+                      style: TextStyle(fontSize: 14.sp, color: Colors.white54),
                     ),
                   ],
                 ),
@@ -644,10 +674,7 @@ class _CreateOfferCard extends StatelessWidget {
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              const Color(0xFFF7931A),
-              const Color(0xFFE8820F),
-            ],
+            colors: [const Color(0xFFF7931A), const Color(0xFFE8820F)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -668,11 +695,7 @@ class _CreateOfferCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12.r),
               ),
-              child: Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 28.sp,
-              ),
+              child: Icon(Icons.add, color: Colors.white, size: 28.sp),
             ),
             SizedBox(width: 16.w),
             Expanded(
@@ -759,10 +782,13 @@ class _ImportantInfoCard extends StatelessWidget {
           ),
           SizedBox(height: 12.h),
           InkWell(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const P2PEscrowInfoScreen()),
-            ),
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const P2PEscrowInfoScreen(),
+                  ),
+                ),
             child: Row(
               children: [
                 Text(
@@ -819,11 +845,13 @@ class _InfoPoint extends StatelessWidget {
 /// Offer Card for Buy Tab (shows seller info prominently)
 class _BuyOfferCard extends StatelessWidget {
   final P2POfferModel offer;
+  final bool isRemote;
   final VoidCallback onTap;
   final VoidCallback onMerchantTap;
 
   const _BuyOfferCard({
     required this.offer,
+    this.isRemote = false,
     required this.onTap,
     required this.onMerchantTap,
   });
@@ -851,12 +879,20 @@ class _BuyOfferCard extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 22.r,
                     backgroundColor: const Color(0xFF1A1A3E),
-                    backgroundImage: offer.merchant?.avatarUrl != null
-                        ? CachedNetworkImageProvider(offer.merchant!.avatarUrl!)
-                        : null,
-                    child: offer.merchant?.avatarUrl == null
-                        ? Icon(Icons.person, color: Colors.white54, size: 22.sp)
-                        : null,
+                    backgroundImage:
+                        offer.merchant?.avatarUrl != null
+                            ? CachedNetworkImageProvider(
+                              offer.merchant!.avatarUrl!,
+                            )
+                            : null,
+                    child:
+                        offer.merchant?.avatarUrl == null
+                            ? Icon(
+                              Icons.person,
+                              color: Colors.white54,
+                              size: 22.sp,
+                            )
+                            : null,
                   ),
                 ),
                 SizedBox(width: 12.w),
@@ -883,6 +919,27 @@ class _BuyOfferCard extends StatelessWidget {
                               Icons.verified,
                               color: const Color(0xFF4FC3F7),
                               size: 16.sp,
+                            ),
+                          ],
+                          if (isRemote) ...[
+                            SizedBox(width: 6.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6.w,
+                                vertical: 2.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple,
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Text(
+                                'Nostr',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ],
                         ],
@@ -948,10 +1005,7 @@ class _BuyOfferCard extends StatelessWidget {
                   children: [
                     Text(
                       'Price',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.white54,
-                      ),
+                      style: TextStyle(fontSize: 12.sp, color: Colors.white54),
                     ),
                     SizedBox(height: 2.h),
                     Text(
@@ -969,18 +1023,12 @@ class _BuyOfferCard extends StatelessWidget {
                   children: [
                     Text(
                       'Limits',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.white54,
-                      ),
+                      style: TextStyle(fontSize: 12.sp, color: Colors.white54),
                     ),
                     SizedBox(height: 2.h),
                     Text(
                       '₦${_formatCompact(offer.minLimit.toDouble())} - ₦${_formatCompact(offer.maxLimit.toDouble())}',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 14.sp, color: Colors.white),
                     ),
                   ],
                 ),
@@ -998,10 +1046,7 @@ class _BuyOfferCard extends StatelessWidget {
               ),
               child: Text(
                 offer.paymentMethod,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 12.sp, color: Colors.white70),
               ),
             ),
 
@@ -1036,10 +1081,12 @@ class _BuyOfferCard extends StatelessWidget {
   }
 
   String _formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
   String _formatCompact(double number) {
@@ -1055,10 +1102,12 @@ class _BuyOfferCard extends StatelessWidget {
 /// Offer Card for Sell Tab (shows your offer details)
 class _SellOfferCard extends StatelessWidget {
   final P2POfferModel offer;
+  final bool isRemote;
   final VoidCallback onTap;
 
   const _SellOfferCard({
     required this.offer,
+    this.isRemote = false,
     required this.onTap,
   });
 
@@ -1072,9 +1121,7 @@ class _SellOfferCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF111128),
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: const Color(0xFFF7931A).withOpacity(0.3),
-          ),
+          border: Border.all(color: const Color(0xFFF7931A).withOpacity(0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1084,31 +1131,61 @@ class _SellOfferCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
-                    color: offer.type == OfferType.sell
-                        ? const Color(0xFFF7931A).withOpacity(0.2)
-                        : const Color(0xFF00C853).withOpacity(0.2),
+                    color:
+                        offer.type == OfferType.sell
+                            ? const Color(0xFFF7931A).withOpacity(0.2)
+                            : const Color(0xFF00C853).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Text(
                     offer.type == OfferType.sell ? 'Selling' : 'Buying',
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: offer.type == OfferType.sell
-                          ? const Color(0xFFF7931A)
-                          : const Color(0xFF00C853),
+                      color:
+                          offer.type == OfferType.sell
+                              ? const Color(0xFFF7931A)
+                              : const Color(0xFF00C853),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
                 if (offer.marginPercent != null)
-                  Text(
-                    '${offer.marginPercent! >= 0 ? '+' : ''}${offer.marginPercent!.toStringAsFixed(1)}% margin',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Colors.white54,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${offer.marginPercent! >= 0 ? '+' : ''}${offer.marginPercent!.toStringAsFixed(1)}% margin',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.white54,
+                        ),
+                      ),
+                      if (isRemote) ...[
+                        SizedBox(width: 8.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 4.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Text(
+                            'Nostr',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
               ],
             ),
@@ -1124,10 +1201,7 @@ class _SellOfferCard extends StatelessWidget {
                   children: [
                     Text(
                       'Your Price',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.white54,
-                      ),
+                      style: TextStyle(fontSize: 12.sp, color: Colors.white54),
                     ),
                     SizedBox(height: 2.h),
                     Text(
@@ -1145,10 +1219,7 @@ class _SellOfferCard extends StatelessWidget {
                   children: [
                     Text(
                       'Limits',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.white54,
-                      ),
+                      style: TextStyle(fontSize: 12.sp, color: Colors.white54),
                     ),
                     SizedBox(height: 2.h),
                     Text(
@@ -1175,10 +1246,7 @@ class _SellOfferCard extends StatelessWidget {
               ),
               child: Text(
                 offer.paymentMethod,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 12.sp, color: Colors.white70),
               ),
             ),
           ],
@@ -1188,10 +1256,12 @@ class _SellOfferCard extends StatelessWidget {
   }
 
   String _formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
   String _formatCompact(double number) {
@@ -1247,95 +1317,38 @@ class _LiveRatesCardState extends ConsumerState<_LiveRatesCard> {
   Widget build(BuildContext context) {
     final selectedCurrency = ref.watch(selectedFiatCurrencyProvider);
     final showBtcUsd = selectedCurrency == FiatCurrency.usd;
-    
+
     final btcRate = showBtcUsd ? (_btcUsdRate ?? 0) : (_btcNgnRate ?? 0);
     final usdRate = _usdNgnRate ?? 0;
-    
+
     return GestureDetector(
       onTap: _loadRates,
       child: Container(
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              const Color(0xFF1A1A3E),
-              const Color(0xFF111128),
-            ],
+            colors: [const Color(0xFF1A1A3E), const Color(0xFF111128)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16.r),
           border: Border.all(color: Colors.white12),
         ),
-        child: _isLoading
-            ? Center(
-                child: SizedBox(
-                  width: 20.w,
-                  height: 20.h,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFFF7931A),
-                  ),
-                ),
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(6.w),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF7931A).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(6.r),
-                              ),
-                              child: Icon(
-                                Icons.currency_bitcoin,
-                                color: const Color(0xFFF7931A),
-                                size: 14.sp,
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(
-                              showBtcUsd ? 'BTC/USD' : 'BTC/NGN',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: Colors.white54,
-                              ),
-                            ),
-                            SizedBox(width: 4.w),
-                            Icon(
-                              Icons.refresh,
-                              color: Colors.white24,
-                              size: 12.sp,
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          showBtcUsd
-                              ? '\$${_formatNumber(btcRate)}'
-                              : '₦${_formatNumber(btcRate)}',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+        child:
+            _isLoading
+                ? Center(
+                  child: SizedBox(
+                    width: 20.w,
+                    height: 20.h,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFF7931A),
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 50.h,
-                    color: Colors.white12,
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(left: 16.w),
+                )
+                : Row(
+                  children: [
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1344,28 +1357,38 @@ class _LiveRatesCardState extends ConsumerState<_LiveRatesCard> {
                               Container(
                                 padding: EdgeInsets.all(6.w),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF00C853).withOpacity(0.2),
+                                  color: const Color(
+                                    0xFFF7931A,
+                                  ).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(6.r),
                                 ),
                                 child: Icon(
-                                  Icons.attach_money,
-                                  color: const Color(0xFF00C853),
+                                  Icons.currency_bitcoin,
+                                  color: const Color(0xFFF7931A),
                                   size: 14.sp,
                                 ),
                               ),
                               SizedBox(width: 8.w),
                               Text(
-                                'USD/NGN',
+                                showBtcUsd ? 'BTC/USD' : 'BTC/NGN',
                                 style: TextStyle(
                                   fontSize: 12.sp,
                                   color: Colors.white54,
                                 ),
                               ),
+                              SizedBox(width: 4.w),
+                              Icon(
+                                Icons.refresh,
+                                color: Colors.white24,
+                                size: 12.sp,
+                              ),
                             ],
                           ),
                           SizedBox(height: 8.h),
                           Text(
-                            '₦${_formatNumber(usdRate)}',
+                            showBtcUsd
+                                ? '\$${_formatNumber(btcRate)}'
+                                : '₦${_formatNumber(btcRate)}',
                             style: TextStyle(
                               fontSize: 16.sp,
                               fontWeight: FontWeight.bold,
@@ -1375,18 +1398,65 @@ class _LiveRatesCardState extends ConsumerState<_LiveRatesCard> {
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    Container(width: 1, height: 50.h, color: Colors.white12),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(6.w),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF00C853,
+                                    ).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(6.r),
+                                  ),
+                                  child: Icon(
+                                    Icons.attach_money,
+                                    color: const Color(0xFF00C853),
+                                    size: 14.sp,
+                                  ),
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'USD/NGN',
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              '₦${_formatNumber(usdRate)}',
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
       ),
     );
   }
 
   String _formatNumber(double number) {
-    return number.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 }
 
@@ -1437,11 +1507,7 @@ class _IconButton extends StatelessWidget {
   final VoidCallback onTap;
   final String? tooltip;
 
-  const _IconButton({
-    required this.icon,
-    required this.onTap,
-    this.tooltip,
-  });
+  const _IconButton({required this.icon, required this.onTap, this.tooltip});
 
   @override
   Widget build(BuildContext context) {
@@ -1460,10 +1526,7 @@ class _IconButton extends StatelessWidget {
     );
 
     if (tooltip != null) {
-      return Tooltip(
-        message: tooltip!,
-        child: button,
-      );
+      return Tooltip(message: tooltip!, child: button);
     }
     return button;
   }

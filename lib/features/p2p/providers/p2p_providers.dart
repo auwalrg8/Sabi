@@ -1,24 +1,24 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/data/merchant_model.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
 import 'package:sabi_wallet/features/p2p/data/models/p2p_models.dart';
 
 // Real-time exchange rates provider (fetches from API)
-final liveExchangeRatesProvider = FutureProvider<Map<String, double>>((ref) async {
+final liveExchangeRatesProvider = FutureProvider<Map<String, double>>((
+  ref,
+) async {
   final btcNgn = await RateService.getBtcToNgnRate();
   final btcUsd = await RateService.getBtcToUsdRate();
   final usdNgn = await RateService.getUsdToNgnRate();
-  return {
-    'BTC_NGN': btcNgn,
-    'BTC_USD': btcUsd,
-    'USD_NGN': usdNgn,
-  };
+  return {'BTC_NGN': btcNgn, 'BTC_USD': btcUsd, 'USD_NGN': usdNgn};
 });
 
 // Legacy provider for compatibility (now returns default values, use liveExchangeRatesProvider instead)
@@ -27,7 +27,8 @@ final exchangeRatesProvider = Provider<Map<String, double>>((ref) {
   final liveRates = ref.watch(liveExchangeRatesProvider);
   return liveRates.maybeWhen(
     data: (rates) => rates,
-    orElse: () => {'BTC_NGN': 150000000.0, 'BTC_USD': 95000.0, 'USD_NGN': 1580.0},
+    orElse:
+        () => {'BTC_NGN': 150000000.0, 'BTC_USD': 95000.0, 'USD_NGN': 1580.0},
   );
 });
 
@@ -78,6 +79,44 @@ final merchantsProvider = Provider<List<MerchantModel>>((ref) {
 // Real offers come from user-created offers via userOffersProvider
 final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
   return [];
+});
+
+// Nostr-published P2P offers (real-time, decentralized)
+final nostrOffersProvider = StreamProvider.autoDispose<List<P2POfferModel>>((
+  ref,
+) {
+  final controller = StreamController<List<P2POfferModel>>();
+  final offers = <String, P2POfferModel>{};
+
+  final sub = NostrService.subscribeToOffers().listen((event) {
+    try {
+      final content = event.content;
+      final map = jsonDecode(content) as Map<String, dynamic>;
+      final action = map['action'] as String?;
+      if (action == 'cancel') {
+        final id = map['id'] as String? ?? event.id;
+        offers.remove(id);
+        controller.add(offers.values.toList());
+        return;
+      }
+
+      // Update or create
+      final id = map['id'] as String? ?? event.id;
+      map['id'] = id;
+      final model = P2POfferModel.fromJson(map);
+      offers[id] = model;
+      controller.add(offers.values.toList());
+    } catch (e) {
+      // ignore malformed events
+    }
+  });
+
+  ref.onDispose(() async {
+    await sub.cancel();
+    await controller.close();
+  });
+
+  return controller.stream;
 });
 
 // User-created offers persisted locally
@@ -134,9 +173,26 @@ class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
     await _save();
   }
 
+  Future<void> updateOffer(P2POfferModel updated) async {
+    state = state.map((o) => o.id == updated.id ? updated : o).toList();
+    await _save();
+    // Publish update to Nostr
+    try {
+      await NostrService.publishOfferUpdate(updated.toJson());
+    } catch (_) {
+      // non-fatal
+    }
+  }
+
   Future<void> removeOffer(String id) async {
     state = state.where((o) => o.id != id).toList();
     await _save();
+    // Publish cancel to Nostr so remote clients can remove the offer
+    try {
+      await NostrService.publishOfferCancel(id);
+    } catch (_) {
+      // non-fatal if Nostr not initialized
+    }
   }
 }
 
@@ -195,7 +251,9 @@ final p2pFilterProvider =
 final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
   final seedOffers = ref.watch(p2pOffersProvider);
   final userOffers = ref.watch(userOffersProvider);
-  final offers = [...seedOffers, ...userOffers];
+  final nostrOffersAsync = ref.watch(nostrOffersProvider);
+  final nostrOffers = nostrOffersAsync.asData?.value ?? [];
+  final offers = [...seedOffers, ...userOffers, ...nostrOffers];
   final filter = ref.watch(p2pFilterProvider);
 
   var filtered =

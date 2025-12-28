@@ -16,7 +16,8 @@ class P2POfferDetailScreen extends ConsumerStatefulWidget {
   const P2POfferDetailScreen({super.key, required this.offer});
 
   @override
-  ConsumerState<P2POfferDetailScreen> createState() => _P2POfferDetailScreenState();
+  ConsumerState<P2POfferDetailScreen> createState() =>
+      _P2POfferDetailScreenState();
 }
 
 class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
@@ -63,6 +64,8 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
   Widget build(BuildContext context) {
     // Watch exchange rates for real-time updates
     ref.watch(exchangeRatesProvider);
+    final userOffers = ref.watch(userOffersProvider);
+    final isOwner = userOffers.any((o) => o.id == widget.offer.id);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
@@ -70,7 +73,11 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
         backgroundColor: const Color(0xFF0C0C1A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -81,6 +88,60 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
             color: Colors.white,
           ),
         ),
+        actions:
+            isOwner
+                ? [
+                  PopupMenuButton<String>(
+                    color: const Color(0xFF0C0C1A),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        await _showEditDialog(context);
+                      } else if (value == 'cancel') {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder:
+                              (_) => AlertDialog(
+                                backgroundColor: const Color(0xFF0C0C1A),
+                                title: const Text('Cancel Offer'),
+                                content: const Text(
+                                  'Are you sure you want to cancel this offer?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.pop(context, false),
+                                    child: const Text('No'),
+                                  ),
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.pop(context, true),
+                                    child: const Text('Yes'),
+                                  ),
+                                ],
+                              ),
+                        );
+                        if (confirm == true) {
+                          await ref
+                              .read(userOffersProvider.notifier)
+                              .removeOffer(widget.offer.id);
+                          if (mounted) Navigator.pop(context);
+                        }
+                      }
+                    },
+                    itemBuilder:
+                        (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit Offer'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'cancel',
+                            child: Text('Cancel Offer'),
+                          ),
+                        ],
+                  ),
+                ]
+                : null,
       ),
       body: Column(
         children: [
@@ -98,9 +159,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => P2PMerchantProfileScreen(
-                              merchant: widget.offer.merchant!,
-                            ),
+                            builder:
+                                (_) => P2PMerchantProfileScreen(
+                                  merchant: widget.offer.merchant!,
+                                ),
                           ),
                         );
                       }
@@ -111,18 +173,21 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                   // Price Info
                   _PriceInfoRow(
                     label: 'Price',
-                    value: '₦${formatter.format(widget.offer.pricePerBtc.toInt())}',
+                    value:
+                        '₦${formatter.format(widget.offer.pricePerBtc.toInt())}',
                     valueColor: const Color(0xFF00FFB2),
                   ),
                   SizedBox(height: 12.h),
                   _PriceInfoRow(
                     label: 'Available',
-                    value: '${(widget.offer.availableSats ?? 0).toStringAsFixed(0)} sats',
+                    value:
+                        '${(widget.offer.availableSats ?? 0).toStringAsFixed(0)} sats',
                   ),
                   SizedBox(height: 12.h),
                   _PriceInfoRow(
                     label: 'Limits',
-                    value: '₦${formatter.format(widget.offer.minLimit)} - ₦${formatter.format(widget.offer.maxLimit)}',
+                    value:
+                        '₦${formatter.format(widget.offer.minLimit)} - ₦${formatter.format(widget.offer.maxLimit)}',
                   ),
                   SizedBox(height: 24.h),
 
@@ -142,9 +207,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                       color: const Color(0xFF111128),
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: _isValidAmount
-                            ? const Color(0xFF00FFB2).withOpacity(0.3)
-                            : const Color(0xFFFF6B6B).withOpacity(0.3),
+                        color:
+                            _isValidAmount
+                                ? const Color(0xFF00FFB2).withOpacity(0.3)
+                                : const Color(0xFFFF6B6B).withOpacity(0.3),
                       ),
                     ),
                     child: Row(
@@ -179,7 +245,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                           ),
                         ),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 6.h,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1A1A2E),
                             borderRadius: BorderRadius.circular(8.r),
@@ -203,7 +272,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                     children: [
                       _QuickAmountButton(
                         label: 'Min',
-                        onTap: () => _setPresetAmount(widget.offer.minLimit.toDouble()),
+                        onTap:
+                            () => _setPresetAmount(
+                              widget.offer.minLimit.toDouble(),
+                            ),
                       ),
                       SizedBox(width: 8.w),
                       _QuickAmountButton(
@@ -218,7 +290,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                       SizedBox(width: 8.w),
                       _QuickAmountButton(
                         label: 'Max',
-                        onTap: () => _setPresetAmount(widget.offer.maxLimit.toDouble()),
+                        onTap:
+                            () => _setPresetAmount(
+                              widget.offer.maxLimit.toDouble(),
+                            ),
                       ),
                     ],
                   ),
@@ -342,19 +417,14 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF111128),
               border: Border(
-                top: BorderSide(
-                  color: const Color(0xFF2A2A3E),
-                  width: 1,
-                ),
+                top: BorderSide(color: const Color(0xFF2A2A3E), width: 1),
               ),
             ),
             child: SafeArea(
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isValidAmount
-                      ? () => _startTrade(context)
-                      : null,
+                  onPressed: _isValidAmount ? () => _startTrade(context) : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00FFB2),
                     disabledBackgroundColor: const Color(0xFF2A2A3E),
@@ -366,7 +436,10 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
                   child: Text(
                     'Buy BTC with ₦${formatter.format(_amount.toInt())}',
                     style: TextStyle(
-                      color: _isValidAmount ? const Color(0xFF0C0C1A) : const Color(0xFF6B6B80),
+                      color:
+                          _isValidAmount
+                              ? const Color(0xFF0C0C1A)
+                              : const Color(0xFF6B6B80),
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
                     ),
@@ -380,6 +453,101 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
     );
   }
 
+  Future<void> _showEditDialog(BuildContext context) async {
+    final notifier = ref.read(userOffersProvider.notifier);
+    final current = widget.offer;
+    final marginController = TextEditingController(
+      text: (current.marginPercent ?? 0).toString(),
+    );
+    final minController = TextEditingController(
+      text: current.minLimit.toString(),
+    );
+    final maxController = TextEditingController(
+      text: current.maxLimit.toString(),
+    );
+    final instrController = TextEditingController(
+      text: current.paymentInstructions ?? '',
+    );
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            backgroundColor: const Color(0xFF0C0C1A),
+            title: const Text('Edit Offer'),
+            content: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TextField(
+                    controller: marginController,
+                    keyboardType: TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Margin %'),
+                  ),
+                  TextField(
+                    controller: minController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Min Limit (₦)',
+                    ),
+                  ),
+                  TextField(
+                    controller: maxController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Max Limit (₦)',
+                    ),
+                  ),
+                  TextField(
+                    controller: instrController,
+                    keyboardType: TextInputType.text,
+                    decoration: const InputDecoration(
+                      labelText: 'Payment Instructions',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final updated = widget.offer.copyWith(
+                    marginPercent:
+                        double.tryParse(marginController.text) ??
+                        widget.offer.marginPercent,
+                    minLimit:
+                        int.tryParse(minController.text) ??
+                        widget.offer.minLimit,
+                    maxLimit:
+                        int.tryParse(maxController.text) ??
+                        widget.offer.maxLimit,
+                    paymentInstructions:
+                        instrController.text.isEmpty
+                            ? null
+                            : instrController.text,
+                  );
+                  await notifier.updateOffer(updated);
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
+
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Offer updated')));
+      setState(() {});
+    }
+  }
+
   Widget _buildPaymentMethods() {
     final methods = [
       widget.offer.paymentMethod,
@@ -388,70 +556,78 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
     ];
 
     return Column(
-      children: methods.asMap().entries.map((entry) {
-        final index = entry.key;
-        final method = entry.value;
-        final isSelected = _selectedPaymentIndex == index;
+      children:
+          methods.asMap().entries.map((entry) {
+            final index = entry.key;
+            final method = entry.value;
+            final isSelected = _selectedPaymentIndex == index;
 
-        return GestureDetector(
-          onTap: () => setState(() => _selectedPaymentIndex = index),
-          child: Container(
-            margin: EdgeInsets.only(bottom: 8.h),
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(
-                color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
-                width: isSelected ? 2 : 1,
+            return GestureDetector(
+              onTap: () => setState(() => _selectedPaymentIndex = index),
+              child: Container(
+                margin: EdgeInsets.only(bottom: 8.h),
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111128),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color:
+                        isSelected
+                            ? const Color(0xFFF7931A)
+                            : const Color(0xFF2A2A3E),
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 20.w,
+                      height: 20.h,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? const Color(0xFFF7931A)
+                                  : const Color(0xFFA1A1B2),
+                          width: 2,
+                        ),
+                      ),
+                      child:
+                          isSelected
+                              ? Center(
+                                child: Container(
+                                  width: 10.w,
+                                  height: 10.h,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF7931A),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              )
+                              : null,
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Text(
+                        method,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.account_balance,
+                      color: const Color(0xFFA1A1B2),
+                      size: 20.sp,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 20.w,
-                  height: 20.h,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFFF7931A) : const Color(0xFFA1A1B2),
-                      width: 2,
-                    ),
-                  ),
-                  child: isSelected
-                      ? Center(
-                          child: Container(
-                            width: 10.w,
-                            height: 10.h,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF7931A),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: Text(
-                    method,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.account_balance,
-                  color: const Color(0xFFA1A1B2),
-                  size: 20.sp,
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 
@@ -504,11 +680,12 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => P2PTradeChatScreen(
-          offer: widget.offer,
-          tradeAmount: _amount,
-          receiveSats: _receiveSats,
-        ),
+        builder:
+            (_) => P2PTradeChatScreen(
+              offer: widget.offer,
+              tradeAmount: _amount,
+              receiveSats: _receiveSats,
+            ),
       ),
     );
   }
@@ -519,10 +696,7 @@ class _MerchantInfoCard extends StatelessWidget {
   final P2POfferModel offer;
   final VoidCallback onProfileTap;
 
-  const _MerchantInfoCard({
-    required this.offer,
-    required this.onProfileTap,
-  });
+  const _MerchantInfoCard({required this.offer, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context) {
@@ -544,13 +718,14 @@ class _MerchantInfoCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               clipBehavior: Clip.antiAlias,
-              child: offer.merchant?.avatarUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: offer.merchant!.avatarUrl!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _buildInitial(),
-                    )
-                  : _buildInitial(),
+              child:
+                  offer.merchant?.avatarUrl != null
+                      ? CachedNetworkImage(
+                        imageUrl: offer.merchant!.avatarUrl!,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => _buildInitial(),
+                      )
+                      : _buildInitial(),
             ),
             SizedBox(width: 16.w),
             Expanded(
@@ -678,10 +853,7 @@ class _PriceInfoRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         Text(
           value,
@@ -701,10 +873,7 @@ class _QuickAmountButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _QuickAmountButton({
-    required this.label,
-    required this.onTap,
-  });
+  const _QuickAmountButton({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -756,10 +925,7 @@ class _TermRow extends StatelessWidget {
         SizedBox(width: 8.w),
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 13.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
         ),
         const Spacer(),
         Text(

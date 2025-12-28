@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
 import 'package:sabi_wallet/features/p2p/data/models/payment_method_international.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 
 /// P2P Create Offer Screen - Binance/NoOnes inspired
@@ -510,11 +512,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.security,
-                color: const Color(0xFFA1A1B2),
-                size: 24.sp,
-              ),
+              Icon(Icons.security, color: const Color(0xFFA1A1B2), size: 24.sp),
               SizedBox(width: 12.w),
               Expanded(
                 child: Column(
@@ -551,7 +549,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             ],
           ),
         ),
-        
+
         // Trade Code Info
         if (_useTradeCode) ...[
           SizedBox(height: 12.h),
@@ -587,9 +585,9 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             ),
           ),
         ],
-        
+
         SizedBox(height: 16.h),
-        
+
         // Profile Sharing Toggle
         Container(
           padding: EdgeInsets.all(16.w),
@@ -636,16 +634,19 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
               ),
               Switch(
                 value: _openToProfileSharing,
-                onChanged: (value) => setState(() => _openToProfileSharing = value),
+                onChanged:
+                    (value) => setState(() => _openToProfileSharing = value),
                 activeThumbColor: const Color(0xFF00FFB2),
-                activeTrackColor: const Color(0xFF00FFB2).withValues(alpha: 0.3),
+                activeTrackColor: const Color(
+                  0xFF00FFB2,
+                ).withValues(alpha: 0.3),
                 inactiveThumbColor: const Color(0xFFA1A1B2),
                 inactiveTrackColor: const Color(0xFF2A2A3E),
               ),
             ],
           ),
         ),
-        
+
         // Profile Sharing Info
         if (_openToProfileSharing) ...[
           SizedBox(height: 12.h),
@@ -701,7 +702,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
   Widget _buildStep3PaymentMethods() {
     final paymentMethods = ref.watch(paymentMethodsProvider);
     final internationalMethods = PaymentMethods.getAllMethods();
-    
+
     // Group international methods by primary region (first region in list)
     final methodsByRegion = <PaymentRegion, List<InternationalPaymentMethod>>{};
     for (final method in internationalMethods) {
@@ -741,12 +742,13 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             return _PaymentMethodTile(
               id: method.id,
               name: method.name,
-              subtitle: method.type.name
-                  .replaceAllMapped(
-                    RegExp(r'([A-Z])'),
-                    (m) => ' ${m.group(1)}',
-                  )
-                  .trim(),
+              subtitle:
+                  method.type.name
+                      .replaceAllMapped(
+                        RegExp(r'([A-Z])'),
+                        (m) => ' ${m.group(1)}',
+                      )
+                      .trim(),
               icon: _getPaymentMethodIcon(method.type),
               isSelected: isSelected,
               onTap: () {
@@ -798,7 +800,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             ],
           );
         }),
-        
+
         SizedBox(height: 8.h),
 
         // Payment Instructions
@@ -981,18 +983,60 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      P2PLogger.info('Offer', 'Creating P2P offer', metadata: {
-        'type': _isSellOffer ? 'sell' : 'buy',
-        'marginPercent': _marginPercent,
-        'minLimit': _minLimit,
-        'maxLimit': _maxLimit,
-        'useTradeCode': _useTradeCode,
-        'openToProfileSharing': _openToProfileSharing,
-        'paymentMethods': _selectedPaymentMethods.toList(),
-      });
+      P2PLogger.info(
+        'Offer',
+        'Creating P2P offer',
+        metadata: {
+          'type': _isSellOffer ? 'sell' : 'buy',
+          'marginPercent': _marginPercent,
+          'minLimit': _minLimit,
+          'maxLimit': _maxLimit,
+          'useTradeCode': _useTradeCode,
+          'openToProfileSharing': _openToProfileSharing,
+          'paymentMethods': _selectedPaymentMethods.toList(),
+        },
+      );
 
-      // TODO: Create offer with provider
-      await Future.delayed(const Duration(seconds: 2));
+      // Build offer model
+      final id = 'offer_${DateTime.now().millisecondsSinceEpoch}';
+      final name = 'You';
+      final exchangeRates = ref.read(exchangeRatesProvider);
+      final marketRate = exchangeRates['BTC_NGN'] ?? 131448939.22;
+      final pricePerBtc = marketRate * (1 + _marginPercent / 100);
+
+      final offer = P2POfferModel(
+        id: id,
+        name: name,
+        pricePerBtc: pricePerBtc,
+        paymentMethod:
+            _selectedPaymentMethods.isNotEmpty
+                ? _selectedPaymentMethods.first
+                : 'Unknown',
+        eta: '5–15 min',
+        ratingPercent: 100,
+        trades: 0,
+        minLimit: _minLimit,
+        maxLimit: _maxLimit,
+        type: _isSellOffer ? OfferType.sell : OfferType.buy,
+        merchant: null,
+        acceptedMethods: null,
+        marginPercent: _marginPercent,
+        requiresKyc: _useTradeCode,
+        paymentInstructions:
+            _instructionsController.text.isEmpty
+                ? null
+                : _instructionsController.text,
+      );
+
+      // Persist locally
+      await ref.read(userOffersProvider.notifier).addOffer(offer);
+
+      // Publish to Nostr relays so other users can see it
+      try {
+        await NostrService.publishOffer(offer.toJson());
+      } catch (_) {
+        // non-fatal: publishing may fail if nostr not initialized
+      }
 
       P2PLogger.info('Offer', 'P2P offer created successfully');
 
@@ -1197,10 +1241,7 @@ class _PaymentCategoryHeader extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _PaymentCategoryHeader({
-    required this.title,
-    required this.subtitle,
-  });
+  const _PaymentCategoryHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -1218,10 +1259,7 @@ class _PaymentCategoryHeader extends StatelessWidget {
         SizedBox(height: 2.h),
         Text(
           subtitle,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 12.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
         ),
       ],
     );
@@ -1257,7 +1295,8 @@ class _PaymentMethodTile extends StatelessWidget {
           color: const Color(0xFF111128),
           borderRadius: BorderRadius.circular(14.r),
           border: Border.all(
-            color: isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
+            color:
+                isSelected ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -1267,16 +1306,21 @@ class _PaymentMethodTile extends StatelessWidget {
               width: 22.w,
               height: 22.h,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFF7931A) : Colors.transparent,
+                color:
+                    isSelected ? const Color(0xFFF7931A) : Colors.transparent,
                 borderRadius: BorderRadius.circular(5.r),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFF7931A) : const Color(0xFFA1A1B2),
+                  color:
+                      isSelected
+                          ? const Color(0xFFF7931A)
+                          : const Color(0xFFA1A1B2),
                   width: 2,
                 ),
               ),
-              child: isSelected
-                  ? Icon(Icons.check, color: Colors.white, size: 14.sp)
-                  : null,
+              child:
+                  isSelected
+                      ? Icon(Icons.check, color: Colors.white, size: 14.sp)
+                      : null,
             ),
             SizedBox(width: 12.w),
             Expanded(
@@ -1301,11 +1345,7 @@ class _PaymentMethodTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              icon,
-              color: const Color(0xFFA1A1B2),
-              size: 20.sp,
-            ),
+            Icon(icon, color: const Color(0xFFA1A1B2), size: 20.sp),
           ],
         ),
       ),
