@@ -84,8 +84,6 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final exchangeRates = ref.watch(exchangeRatesProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
       body: SafeArea(
@@ -149,11 +147,8 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                     ),
                     SizedBox(height: 16.h),
 
-                    // Live Rates Card
-                    _LiveRatesCard(
-                      btcNgnRate: exchangeRates['BTC_NGN'] ?? 150000000,
-                      usdNgnRate: exchangeRates['USD_NGN'] ?? 1650,
-                    ),
+                    // Live Rates Card - Real rates from API
+                    const _LiveRatesCard(),
                     SizedBox(height: 16.h),
 
                     // Tab Bar - Buy BTC / Sell BTC
@@ -1209,132 +1204,180 @@ class _SellOfferCard extends StatelessWidget {
   }
 }
 
-/// Live Rates Card - Displays BTC rates in user's selected currency
-class _LiveRatesCard extends ConsumerWidget {
-  final double btcNgnRate;
-  final double usdNgnRate;
-
-  const _LiveRatesCard({
-    required this.btcNgnRate,
-    required this.usdNgnRate,
-  });
+/// Live Rates Card - Displays REAL BTC rates from API
+class _LiveRatesCard extends ConsumerStatefulWidget {
+  const _LiveRatesCard();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LiveRatesCard> createState() => _LiveRatesCardState();
+}
+
+class _LiveRatesCardState extends ConsumerState<_LiveRatesCard> {
+  double? _btcNgnRate;
+  double? _btcUsdRate;
+  double? _usdNgnRate;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRates();
+  }
+
+  Future<void> _loadRates() async {
+    setState(() => _isLoading = true);
+    try {
+      final btcNgn = await RateService.getBtcToNgnRate();
+      final btcUsd = await RateService.getBtcToUsdRate();
+      final usdNgn = await RateService.getUsdToNgnRate();
+      if (mounted) {
+        setState(() {
+          _btcNgnRate = btcNgn;
+          _btcUsdRate = btcUsd;
+          _usdNgnRate = usdNgn;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedCurrency = ref.watch(selectedFiatCurrencyProvider);
-    
-    // For display purposes:
-    // - If user prefers USD, show BTC/USD and USD/NGN
-    // - If user prefers NGN, show BTC/NGN and USD/NGN
     final showBtcUsd = selectedCurrency == FiatCurrency.usd;
     
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF1A1A3E),
-            const Color(0xFF111128),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    final btcRate = showBtcUsd ? (_btcUsdRate ?? 0) : (_btcNgnRate ?? 0);
+    final usdRate = _usdNgnRate ?? 0;
+    
+    return GestureDetector(
+      onTap: _loadRates,
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF1A1A3E),
+              const Color(0xFF111128),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: Colors.white12),
         ),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(6.w),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7931A).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: Icon(
-                        Icons.currency_bitcoin,
-                        color: const Color(0xFFF7931A),
-                        size: 14.sp,
-                      ),
-                    ),
-                    SizedBox(width: 8.w),
-                    Text(
-                      showBtcUsd ? 'BTC/USD' : 'BTC/NGN',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  showBtcUsd 
-                      ? '\$${_formatNumber(btcNgnRate / usdNgnRate)}'
-                      : '₦${_formatNumber(btcNgnRate)}',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+        child: _isLoading
+            ? Center(
+                child: SizedBox(
+                  width: 20.w,
+                  height: 20.h,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFFF7931A),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 50.h,
-            color: Colors.white12,
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(left: 16.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              )
+            : Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(6.w),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00C853).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(6.r),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(6.w),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF7931A).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Icon(
+                                Icons.currency_bitcoin,
+                                color: const Color(0xFFF7931A),
+                                size: 14.sp,
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            Text(
+                              showBtcUsd ? 'BTC/USD' : 'BTC/NGN',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.white54,
+                              ),
+                            ),
+                            SizedBox(width: 4.w),
+                            Icon(
+                              Icons.refresh,
+                              color: Colors.white24,
+                              size: 12.sp,
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.attach_money,
-                          color: const Color(0xFF00C853),
-                          size: 14.sp,
+                        SizedBox(height: 8.h),
+                        Text(
+                          showBtcUsd
+                              ? '\$${_formatNumber(btcRate)}'
+                              : '₦${_formatNumber(btcRate)}',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'USD/NGN',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Colors.white54,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    '₦${_formatNumber(usdNgnRate)}',
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  Container(
+                    width: 1,
+                    height: 50.h,
+                    color: Colors.white12,
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(6.w),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00C853).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6.r),
+                                ),
+                                child: Icon(
+                                  Icons.attach_money,
+                                  color: const Color(0xFF00C853),
+                                  size: 14.sp,
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'USD/NGN',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            '₦${_formatNumber(usdRate)}',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
       ),
     );
   }

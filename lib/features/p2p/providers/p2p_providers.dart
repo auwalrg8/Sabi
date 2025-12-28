@@ -3,14 +3,32 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/data/merchant_model.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
 import 'package:sabi_wallet/features/p2p/data/models/p2p_models.dart';
 
-// Exchange rates provider
+// Real-time exchange rates provider (fetches from API)
+final liveExchangeRatesProvider = FutureProvider<Map<String, double>>((ref) async {
+  final btcNgn = await RateService.getBtcToNgnRate();
+  final btcUsd = await RateService.getBtcToUsdRate();
+  final usdNgn = await RateService.getUsdToNgnRate();
+  return {
+    'BTC_NGN': btcNgn,
+    'BTC_USD': btcUsd,
+    'USD_NGN': usdNgn,
+  };
+});
+
+// Legacy provider for compatibility (now returns default values, use liveExchangeRatesProvider instead)
 final exchangeRatesProvider = Provider<Map<String, double>>((ref) {
-  return {'BTC_NGN': 131448939.22, 'USD_NGN': 1614.0};
+  // Try to get live rates, fallback to defaults
+  final liveRates = ref.watch(liveExchangeRatesProvider);
+  return liveRates.maybeWhen(
+    data: (rates) => rates,
+    orElse: () => {'BTC_NGN': 150000000.0, 'BTC_USD': 95000.0, 'USD_NGN': 1580.0},
+  );
 });
 
 // Payment methods provider
@@ -50,108 +68,16 @@ final paymentMethodsProvider = Provider<List<PaymentMethodModel>>((ref) {
   ];
 });
 
-// Mock merchants
+// Merchants provider - empty for real trading (no mock data)
+// Real merchant profiles will be loaded from trade counterparties
 final merchantsProvider = Provider<List<MerchantModel>>((ref) {
-  return [
-    MerchantModel(
-      id: 'merchant_1',
-      name: 'Mubarak',
-      isVerified: true,
-      isNostrVerified: true,
-      trades30d: 160,
-      completionRate: 100.0,
-      avgReleaseMinutes: 17,
-      totalVolume: 85000000,
-      positiveFeedback: 526,
-      negativeFeedback: 0,
-      joinedDate: DateTime(2023, 3, 1),
-      firstTradeDate: DateTime(2023, 3, 13),
-    ),
-    MerchantModel(
-      id: 'merchant_2',
-      name: 'Almohad',
-      isVerified: true,
-      isNostrVerified: true,
-      trades30d: 180,
-      completionRate: 100.0,
-      avgReleaseMinutes: 15,
-      totalVolume: 95000000,
-      positiveFeedback: 612,
-      negativeFeedback: 0,
-      joinedDate: DateTime(2023, 2, 15),
-      firstTradeDate: DateTime(2023, 2, 20),
-    ),
-  ];
+  return [];
 });
 
-// P2P offers provider with enhanced data
+// P2P offers provider - returns empty list (no mock data)
+// Real offers come from user-created offers via userOffersProvider
 final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
-  final merchants = ref.watch(merchantsProvider);
-  final paymentMethods = ref.watch(paymentMethodsProvider);
-
-  return [
-    P2POfferModel(
-      id: 'offer_1',
-      name: 'Mubarak',
-      pricePerBtc: 131448939.22,
-      paymentMethod: 'GTBank',
-      eta: '5–15 min',
-      ratingPercent: 98,
-      trades: 1247,
-      minLimit: 50000,
-      maxLimit: 8000000,
-      type: OfferType.sell,
-      merchant: merchants[0],
-      acceptedMethods: [paymentMethods[0]],
-      marginPercent: 1.5,
-      requiresKyc: true,
-      paymentInstructions:
-          'Send to GTBank 0123456789 – Auwal Abubakar. Use your full name as narration.',
-      availableSats: 5000,
-      responseTime: '<3 min',
-      volume: 45000000,
-    ),
-    P2POfferModel(
-      id: 'offer_2',
-      name: 'Almohad',
-      pricePerBtc: 131448939.22,
-      paymentMethod: 'Moniepoint',
-      eta: '3–15 min',
-      ratingPercent: 99,
-      trades: 2156,
-      minLimit: 100000,
-      maxLimit: 5000000,
-      type: OfferType.sell,
-      merchant: merchants[1],
-      acceptedMethods: [paymentMethods[3]],
-      marginPercent: 1.2,
-      requiresKyc: false,
-      paymentInstructions:
-          'Send to Moniepoint account details will be shared in chat.',
-      availableSats: 8000,
-      responseTime: '<5 min',
-      volume: 52000000,
-    ),
-    P2POfferModel(
-      id: 'offer_3',
-      name: 'Mubarak',
-      pricePerBtc: 131450000.00,
-      paymentMethod: 'GTBank',
-      eta: '5–15 min',
-      ratingPercent: 98,
-      trades: 1247,
-      minLimit: 50000,
-      maxLimit: 8000000,
-      type: OfferType.sell,
-      merchant: merchants[0],
-      acceptedMethods: [paymentMethods[0]],
-      marginPercent: 1.5,
-      requiresKyc: true,
-      availableSats: 5000,
-      responseTime: '<3 min',
-      volume: 45000000,
-    ),
-  ];
+  return [];
 });
 
 // User-created offers persisted locally
