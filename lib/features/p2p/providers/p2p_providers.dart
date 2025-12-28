@@ -194,6 +194,79 @@ class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
       // non-fatal if Nostr not initialized
     }
   }
+
+  /// Lock sats when a trade starts - prevents overselling
+  /// Returns true if lock was successful, false if insufficient available sats
+  Future<bool> lockSats(String offerId, double amount) async {
+    final index = state.indexWhere((o) => o.id == offerId);
+    if (index == -1) return false;
+
+    final offer = state[index];
+    final available = offer.effectiveAvailableSats;
+
+    // Check if we have enough unlocked sats
+    if (amount > available) {
+      return false;
+    }
+
+    // Lock the sats
+    final updatedOffer = offer.copyWith(
+      lockedSats: (offer.lockedSats ?? 0) + amount,
+    );
+    state = [...state];
+    state[index] = updatedOffer;
+    await _save();
+    return true;
+  }
+
+  /// Unlock sats when a trade is cancelled - makes sats available again
+  Future<void> unlockSats(String offerId, double amount) async {
+    final index = state.indexWhere((o) => o.id == offerId);
+    if (index == -1) return;
+
+    final offer = state[index];
+    final newLockedSats = ((offer.lockedSats ?? 0) - amount).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    final updatedOffer = offer.copyWith(lockedSats: newLockedSats);
+    state = [...state];
+    state[index] = updatedOffer;
+    await _save();
+  }
+
+  /// Deduct sats permanently after a trade completes
+  /// Reduces both availableSats and lockedSats
+  Future<void> deductSats(String offerId, double amount) async {
+    final index = state.indexWhere((o) => o.id == offerId);
+    if (index == -1) return;
+
+    final offer = state[index];
+    final newAvailable = ((offer.availableSats ?? 0) - amount).clamp(
+      0.0,
+      double.infinity,
+    );
+    final newLocked = ((offer.lockedSats ?? 0) - amount).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    final updatedOffer = offer.copyWith(
+      availableSats: newAvailable,
+      lockedSats: newLocked,
+    );
+    state = [...state];
+    state[index] = updatedOffer;
+    await _save();
+
+    // Publish updated availability to Nostr
+    try {
+      await NostrService.publishOfferUpdate(updatedOffer.toJson());
+    } catch (_) {
+      // non-fatal
+    }
+  }
 }
 
 final userOffersProvider =

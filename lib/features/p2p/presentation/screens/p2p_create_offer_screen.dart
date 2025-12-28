@@ -8,6 +8,7 @@ import 'package:sabi_wallet/features/p2p/data/models/payment_method_internationa
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/services/nostr_service.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 
 /// P2P Create Offer Screen - Binance/NoOnes inspired
@@ -983,6 +984,40 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      // For sell offers, check wallet balance first
+      int walletBalance = 0;
+      if (_isSellOffer) {
+        walletBalance = await BreezSparkService.getBalance();
+
+        // Calculate required sats based on max limit
+        // maxLimit is in NGN, convert to sats using current rate
+        final exchangeRates = ref.read(exchangeRatesProvider);
+        final marketRate = exchangeRates['BTC_NGN'] ?? 131448939.22;
+        final btcAmount = _maxLimit / marketRate;
+        final requiredSats =
+            (btcAmount * 100000000).round(); // Convert BTC to sats
+
+        if (walletBalance < requiredSats) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Insufficient balance. You have ${formatter.format(walletBalance)} sats but need ${formatter.format(requiredSats)} sats for this offer.',
+                ),
+                backgroundColor: const Color(0xFFFF6B6B),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          setState(() => _isSubmitting = false);
+          return;
+        }
+      }
+
       P2PLogger.info(
         'Offer',
         'Creating P2P offer',
@@ -994,6 +1029,7 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
           'useTradeCode': _useTradeCode,
           'openToProfileSharing': _openToProfileSharing,
           'paymentMethods': _selectedPaymentMethods.toList(),
+          'walletBalance': walletBalance,
         },
       );
 
@@ -1003,6 +1039,13 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
       final exchangeRates = ref.read(exchangeRatesProvider);
       final marketRate = exchangeRates['BTC_NGN'] ?? 131448939.22;
       final pricePerBtc = marketRate * (1 + _marginPercent / 100);
+
+      // For sell offers, set availableSats to wallet balance
+      // This represents the max sats this offer can sell
+      double? availableSats;
+      if (_isSellOffer) {
+        availableSats = walletBalance.toDouble();
+      }
 
       final offer = P2POfferModel(
         id: id,
@@ -1026,6 +1069,8 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
             _instructionsController.text.isEmpty
                 ? null
                 : _instructionsController.text,
+        availableSats: availableSats,
+        lockedSats: 0, // No sats locked initially
       );
 
       // Persist locally

@@ -549,11 +549,14 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
   }
 
   Widget _buildPaymentMethods() {
-    final methods = [
-      widget.offer.paymentMethod,
-      if (widget.offer.acceptedMethods != null)
-        ...widget.offer.acceptedMethods!.map((m) => m.name),
-    ];
+    // Build unique list of payment methods (avoid duplicates)
+    final methodsSet = <String>{widget.offer.paymentMethod};
+    if (widget.offer.acceptedMethods != null) {
+      for (final m in widget.offer.acceptedMethods!) {
+        methodsSet.add(m.name);
+      }
+    }
+    final methods = methodsSet.toList();
 
     return Column(
       children:

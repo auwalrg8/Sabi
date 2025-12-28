@@ -32,14 +32,16 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
   String _selectedPaymentFilter = 'All';
   bool _isLoading = true;
 
-  // Popular payment methods for quick filter
+  // Popular payment methods for quick filter (including Nigerian methods)
   final List<String> _paymentFilters = [
     'All',
+    'GTBank',
+    'Opay',
+    'PalmPay',
+    'Moniepoint',
     'Bank Transfer',
     'Mobile Money',
-    'Wise',
-    'PayPal',
-    'Cash App',
+    'Cash',
   ];
 
   @override

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
+import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
+import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 
 /// P2P My Trades Screen - Active trades list
 class P2PMyTradesScreen extends ConsumerStatefulWidget {
@@ -18,44 +20,8 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
   late TabController _tabController;
   final formatter = NumberFormat('#,###');
 
-  // Mock active trades
-  final List<_MockTrade> _activeTrades = [
-    _MockTrade(
-      id: 'trade_1',
-      merchantName: 'Mubarak',
-      amount: 150000,
-      sats: 114000,
-      status: TradeStatus.awaitingPayment,
-      paymentMethod: 'GTBank',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-      timeLeft: const Duration(minutes: 25),
-      isBuying: true,
-    ),
-    _MockTrade(
-      id: 'trade_2',
-      merchantName: 'Almohad',
-      amount: 500000,
-      sats: 380500,
-      status: TradeStatus.paid,
-      paymentMethod: 'Moniepoint',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-      timeLeft: const Duration(minutes: 15),
-      isBuying: true,
-    ),
-  ];
-
-  final List<_MockTrade> _pendingOffers = [
-    _MockTrade(
-      id: 'offer_1',
-      merchantName: 'You',
-      amount: 0,
-      sats: 500000,
-      status: TradeStatus.created,
-      paymentMethod: 'GTBank, Opay',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      isBuying: false,
-    ),
-  ];
+  // Active trades - real trades will come from provider
+  final List<_MockTrade> _activeTrades = [];
 
   @override
   void initState() {
@@ -71,6 +37,8 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final userOffers = ref.watch(userOffersProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
       appBar: AppBar(
@@ -117,7 +85,7 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
               ),
               tabs: [
                 Tab(text: 'Active (${_activeTrades.length})'),
-                Tab(text: 'My Offers (${_pendingOffers.length})'),
+                Tab(text: 'My Offers (${userOffers.length})'),
               ],
             ),
           ),
@@ -125,7 +93,7 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildActiveTradesTab(), _buildMyOffersTab()],
+        children: [_buildActiveTradesTab(), _buildMyOffersTab(userOffers)],
       ),
     );
   }
@@ -152,8 +120,8 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
     );
   }
 
-  Widget _buildMyOffersTab() {
-    if (_pendingOffers.isEmpty) {
+  Widget _buildMyOffersTab(List<P2POfferModel> offers) {
+    if (offers.isEmpty) {
       return _buildEmptyState(
         icon: Icons.storefront,
         title: 'No active offers',
@@ -163,15 +131,17 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
-      itemCount: _pendingOffers.length,
+      itemCount: offers.length,
       itemBuilder: (context, index) {
-        final offer = _pendingOffers[index];
+        final offer = offers[index];
         return Padding(
           padding: EdgeInsets.only(bottom: 12.h),
-          child: _MyOfferCard(
+          child: _RealOfferCard(
             offer: offer,
-            onEdit: () {},
-            onDelete: () => _showDeleteConfirmation(offer),
+            onEdit: () {
+              // TODO: Navigate to edit screen
+            },
+            onDelete: () => _showDeleteOfferConfirmation(offer),
           ),
         );
       },
@@ -235,9 +205,60 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  setState(() {
-                    _pendingOffers.removeWhere((o) => o.id == offer.id);
-                  });
+                },
+                child: Text(
+                  'Delete',
+                  style: TextStyle(color: const Color(0xFFFF6B6B)),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showDeleteOfferConfirmation(P2POfferModel offer) {
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            title: Text(
+              'Delete Offer?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'Are you sure you want to delete this offer? This action cannot be undone.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: const Color(0xFFA1A1B2)),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await ref
+                      .read(userOffersProvider.notifier)
+                      .removeOffer(offer.id);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Offer deleted'),
+                        backgroundColor: const Color(0xFF00FFB2),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                  }
                 },
                 child: Text(
                   'Delete',
@@ -602,6 +623,258 @@ class _MyOfferCard extends StatelessWidget {
                     style: TextStyle(color: Colors.white, fontSize: 13.sp),
                   ),
                 ],
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onEdit,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF2A2A3E)),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  child: Text('Edit', style: TextStyle(fontSize: 14.sp)),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onDelete,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF6B6B),
+                    side: const BorderSide(color: Color(0xFFFF6B6B)),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  child: Text('Delete', style: TextStyle(fontSize: 14.sp)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Real Offer Card - Uses P2POfferModel from provider
+class _RealOfferCard extends StatelessWidget {
+  final P2POfferModel offer;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _RealOfferCard({
+    required this.offer,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final formatter = NumberFormat('#,###');
+    final isSellOffer = offer.type == OfferType.sell;
+    final availableSats = offer.availableSats ?? 0;
+    final lockedSats = offer.lockedSats ?? 0;
+    final effectiveAvailable = offer.effectiveAvailableSats;
+
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111128),
+        borderRadius: BorderRadius.circular(20.r),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: (isSellOffer
+                          ? const Color(0xFFFF6B6B)
+                          : const Color(0xFF00FFB2))
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Text(
+                  isSellOffer ? 'SELL OFFER' : 'BUY OFFER',
+                  style: TextStyle(
+                    color:
+                        isSellOffer
+                            ? const Color(0xFFFF6B6B)
+                            : const Color(0xFF00FFB2),
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 8.w,
+                    height: 8.h,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF00FFB2),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  SizedBox(width: 6.w),
+                  Text(
+                    'Active',
+                    style: TextStyle(
+                      color: const Color(0xFF00FFB2),
+                      fontSize: 12.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          // Sats available and locked info
+          if (isSellOffer && availableSats > 0) ...[
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0C0C1A),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Available',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(effectiveAvailable.toInt())} sats',
+                        style: TextStyle(
+                          color: const Color(0xFF00FFB2),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (lockedSats > 0)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Locked in trades',
+                          style: TextStyle(
+                            color: const Color(0xFFA1A1B2),
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                        Text(
+                          '${formatter.format(lockedSats.toInt())} sats',
+                          style: TextStyle(
+                            color: const Color(0xFFF7931A),
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Total',
+                          style: TextStyle(
+                            color: const Color(0xFFA1A1B2),
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                        Text(
+                          '${formatter.format(availableSats.toInt())} sats',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Limits',
+                    style: TextStyle(
+                      color: const Color(0xFFA1A1B2),
+                      fontSize: 11.sp,
+                    ),
+                  ),
+                  Text(
+                    '₦${formatter.format(offer.minLimit)} - ₦${formatter.format(offer.maxLimit)}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Margin',
+                    style: TextStyle(
+                      color: const Color(0xFFA1A1B2),
+                      fontSize: 11.sp,
+                    ),
+                  ),
+                  Text(
+                    '+${offer.marginPercent?.toStringAsFixed(1) ?? '0'}%',
+                    style: TextStyle(
+                      color: const Color(0xFF00FFB2),
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Icon(Icons.payment, size: 14.sp, color: const Color(0xFFA1A1B2)),
+              SizedBox(width: 6.w),
+              Expanded(
+                child: Text(
+                  offer.paymentMethod,
+                  style: TextStyle(color: Colors.white, fontSize: 12.sp),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

@@ -20,6 +20,7 @@ class P2POfferModel {
   final bool requiresKyc;
   final String? paymentInstructions;
   final double? availableSats;
+  final double? lockedSats; // Sats locked in active trades
   final String? responseTime;
   final double? volume;
 
@@ -40,9 +41,13 @@ class P2POfferModel {
     this.requiresKyc = false,
     this.paymentInstructions,
     this.availableSats,
+    this.lockedSats,
     this.responseTime,
     this.volume,
   });
+
+  /// Returns the effective available sats (total minus locked)
+  double get effectiveAvailableSats => (availableSats ?? 0) - (lockedSats ?? 0);
 
   P2POfferModel copyWith({
     String? id,
@@ -61,6 +66,7 @@ class P2POfferModel {
     bool? requiresKyc,
     String? paymentInstructions,
     double? availableSats,
+    double? lockedSats,
     String? responseTime,
     double? volume,
   }) {
@@ -81,6 +87,7 @@ class P2POfferModel {
       requiresKyc: requiresKyc ?? this.requiresKyc,
       paymentInstructions: paymentInstructions ?? this.paymentInstructions,
       availableSats: availableSats ?? this.availableSats,
+      lockedSats: lockedSats ?? this.lockedSats,
       responseTime: responseTime ?? this.responseTime,
       volume: volume ?? this.volume,
     );
@@ -103,12 +110,17 @@ class P2POfferModel {
       'requiresKyc': requiresKyc,
       'paymentInstructions': paymentInstructions,
       'availableSats': availableSats,
+      'lockedSats': lockedSats,
       'responseTime': responseTime,
       'volume': volume,
     };
   }
 
-  factory P2POfferModel.fromJson(Map<String, dynamic> json, {MerchantModel? merchant, List<PaymentMethodModel>? acceptedMethods}) {
+  factory P2POfferModel.fromJson(
+    Map<String, dynamic> json, {
+    MerchantModel? merchant,
+    List<PaymentMethodModel>? acceptedMethods,
+  }) {
     return P2POfferModel(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -126,6 +138,7 @@ class P2POfferModel {
       requiresKyc: json['requiresKyc'] as bool? ?? false,
       paymentInstructions: json['paymentInstructions'] as String?,
       availableSats: (json['availableSats'] as num?)?.toDouble(),
+      lockedSats: (json['lockedSats'] as num?)?.toDouble(),
       responseTime: json['responseTime'] as String?,
       volume: (json['volume'] as num?)?.toDouble(),
     );
