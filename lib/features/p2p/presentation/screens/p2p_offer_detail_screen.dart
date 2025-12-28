@@ -656,7 +656,7 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
           _TermRow(
             icon: Icons.timer,
             label: 'Payment Window',
-            value: '30 minutes',
+            value: '4 minutes',
           ),
           SizedBox(height: 8.h),
           _TermRow(
