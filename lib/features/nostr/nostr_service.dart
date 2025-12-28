@@ -27,18 +27,24 @@ class NostrService {
   static Nostr? _nostr;
   static bool _initialized = false;
 
-  // Optimized relay list for reliable global feed and discovery
+  // Top global relays - optimized for speed and broad coverage
+  // Prioritized by reliability, speed, and global reach
   static final List<String> _defaultRelays = [
+    // Tier 1: Fastest, most reliable global relays
+    'wss://relay.damus.io', // Most popular, high traffic
     'wss://nos.lol', // Best overall - fast, broad coverage
+    'wss://relay.primal.net', // High traffic, reliable, good for discovery
+    'wss://relay.nostr.band', // Excellent for search and discovery
+    'wss://nostr.wine', // Premium, low spam, fast
+    // Tier 2: High-quality international relays
+    'wss://relay.snort.social', // Great for discovery, Snort app
     'wss://nostr.mom', // Fast, excellent for global feed
-    'wss://relay.snort.social', // Great for discovery
-    'wss://relay.f7z.io', // High uptime
-    'wss://eden.nostr.land', // Clean, active
     'wss://relay.nostr.bg', // Solid international coverage
-    'wss://relay.damus.io', // Most popular relay
-    'wss://relay.primal.net', // High traffic, reliable
-    'wss://nostr.wine', // Premium, low spam
+    'wss://eden.nostr.land', // Clean, active
+    'wss://purplepag.es', // Good for profile discovery
+    // Tier 3: Specialized/backup relays
     'wss://relay.nostriches.org', // Good for bitcoiners
+    'wss://relay.f7z.io', // High uptime backup
   ];
 
   // Key for storing cached follows

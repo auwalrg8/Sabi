@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
+import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 
 enum PinChangeStep { enterCurrent, enterNew, confirmNew }
@@ -154,6 +155,9 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
 
     final storage = ref.read(secureStorageServiceProvider);
     await storage.savePinCode(_newPin);
+
+    // Mark PIN suggestion as completed so it disappears from home screen
+    ref.read(suggestionsProvider.notifier).markCompleted(SuggestionType.pin);
 
     if (!mounted) return;
 

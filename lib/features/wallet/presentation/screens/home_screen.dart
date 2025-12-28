@@ -74,6 +74,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Initialize Breez SDK first, then poll payments
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        // Refresh suggestions to reflect any completed tasks
+        ref.read(suggestionsProvider.notifier).refresh();
+
         await _initializeBreezSDK();
 
         // Check if SDK initialized successfully
@@ -323,7 +326,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Handle app lifecycle changes if needed
+    // Refresh suggestions when app resumes to reflect completed tasks
+    if (state == AppLifecycleState.resumed) {
+      ref.read(suggestionsProvider.notifier).refresh();
+    }
   }
 
   @override
@@ -753,7 +759,15 @@ class _HomeContentState extends State<_HomeContent> {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              builder: (_) => NostrEditModal(onSaved: () {}),
+                              builder:
+                                  (_) => NostrEditModal(
+                                    onSaved: () {
+                                      // Mark nostr suggestion as completed
+                                      ref
+                                          .read(suggestionsProvider.notifier)
+                                          .markCompleted(SuggestionType.nostr);
+                                    },
+                                  ),
                             );
                             break;
                           case SuggestionType.pin:

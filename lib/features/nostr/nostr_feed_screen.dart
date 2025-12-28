@@ -12,7 +12,7 @@ import 'nostr_edit_modal.dart';
 import '../../services/breez_spark_service.dart';
 
 /// Filter types for the feed
-enum FeedFilter { newThreads, latest, trending24h }
+enum FeedFilter { global, following, trending24h }
 
 /// Nostr feed screen displaying real posts from relays
 class NostrFeedScreen extends StatefulWidget {
@@ -33,7 +33,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   List<String> _userFollows = [];
   final Map<String, int> _zapCounts = {};
   final Set<String> _likedPosts = {}; // Track liked post IDs
-  FeedFilter _currentFilter = FeedFilter.newThreads; // Default to follows feed
+  FeedFilter _currentFilter = FeedFilter.global; // Default to global feed
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showImages = false; // Default to text-only mode for low-data users
@@ -130,7 +130,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
       List<NostrFeedPost> newPosts = [];
 
-      if (_currentFilter == FeedFilter.newThreads && npub != null) {
+      if (_currentFilter == FeedFilter.following && npub != null) {
         _userHexPubkey = NostrService.npubToHex(npub);
 
         if (_userHexPubkey != null) {
@@ -255,12 +255,12 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
     // Apply feed filter
     switch (_currentFilter) {
-      case FeedFilter.newThreads:
-        // Posts from follows, sorted by timestamp
+      case FeedFilter.global:
+        // Global posts, sorted by timestamp
         filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
-      case FeedFilter.latest:
-        // Global posts, sorted by timestamp
+      case FeedFilter.following:
+        // Posts from follows, sorted by timestamp
         filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
       case FeedFilter.trending24h:
@@ -576,15 +576,15 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               child: Row(
                 children: [
                   _FilterTab(
-                    label: 'New Threads',
-                    isSelected: _currentFilter == FeedFilter.newThreads,
-                    onTap: () => _onFilterChanged(FeedFilter.newThreads),
+                    label: 'Global',
+                    isSelected: _currentFilter == FeedFilter.global,
+                    onTap: () => _onFilterChanged(FeedFilter.global),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
-                    label: 'Latest',
-                    isSelected: _currentFilter == FeedFilter.latest,
-                    onTap: () => _onFilterChanged(FeedFilter.latest),
+                    label: 'Following',
+                    isSelected: _currentFilter == FeedFilter.following,
+                    onTap: () => _onFilterChanged(FeedFilter.following),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
@@ -632,7 +632,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                       : _userNpub == null && !_hasCachedContent
                       ? _buildNoAccountState()
                       : (_followsFeedEmpty &&
-                          _currentFilter == FeedFilter.newThreads &&
+                          _currentFilter == FeedFilter.following &&
                           _filteredPosts.isEmpty)
                       ? _buildFollowsEmptyState()
                       : _filteredPosts.isEmpty
@@ -789,7 +789,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton.icon(
-                  onPressed: () => _onFilterChanged(FeedFilter.latest),
+                  onPressed: () => _onFilterChanged(FeedFilter.global),
                   icon: Icon(
                     Icons.public,
                     size: 18.sp,
