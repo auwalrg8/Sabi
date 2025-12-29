@@ -2301,10 +2301,10 @@ class NostrFeedPost {
       authorName: shortPubkey,
       content: event.content,
       timestamp: DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000),
-      zapAmount: (event.createdAt % 5000) + 100, // Mock zap amount for demo
-      likeCount: event.createdAt % 50, // Mock likes for demo
+      zapAmount: 0, // Real data fetched via fetchEngagement()
+      likeCount: 0, // Real data fetched via fetchEngagement()
       replyCount: replyCount,
-      repostCount: event.createdAt % 20, // Mock reposts for demo
+      repostCount: 0, // Real data fetched via fetchEngagement()
       tags:
           event.tags
               .map(
@@ -2338,10 +2338,10 @@ class NostrFeedPost {
       authorName: shortPubkey,
       content: eventData['content'] as String? ?? '',
       timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
-      zapAmount: (createdAt % 5000) + 100,
-      likeCount: createdAt % 50,
+      zapAmount: 0, // Real data fetched via fetchEngagement()
+      likeCount: 0, // Real data fetched via fetchEngagement()
       replyCount: replyCount,
-      repostCount: createdAt % 20,
+      repostCount: 0, // Real data fetched via fetchEngagement()
       tags:
           tags
               .map(

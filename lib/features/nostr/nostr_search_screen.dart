@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'nostr_service.dart';
 import 'nostr_profile_screen.dart';
+import '../../services/nostr/nostr_service.dart' as nostr_v2;
 
 /// Search type tabs
 enum SearchType { users, notes, hashtags }
@@ -147,6 +148,8 @@ class _NostrSearchScreenState extends State<NostrSearchScreen>
           final results = await NostrService.searchNotes(query);
           if (mounted) {
             setState(() => _noteResults = results);
+            // Fetch real engagement data in background
+            _fetchEngagementForNotes(results);
           }
           break;
 
@@ -154,6 +157,8 @@ class _NostrSearchScreenState extends State<NostrSearchScreen>
           final results = await NostrService.searchHashtag(query);
           if (mounted) {
             setState(() => _hashtagResults = results);
+            // Fetch real engagement data in background
+            _fetchEngagementForNotes(results);
           }
           break;
       }
@@ -171,6 +176,38 @@ class _NostrSearchScreenState extends State<NostrSearchScreen>
       if (mounted) {
         setState(() => _isSearching = false);
       }
+    }
+  }
+
+  /// Fetch real engagement data for notes in background
+  Future<void> _fetchEngagementForNotes(List<NostrFeedPost> posts) async {
+    if (posts.isEmpty) return;
+
+    try {
+      final socialService = nostr_v2.SocialInteractionService();
+      final eventIds = posts.take(20).map((p) => p.id).toList();
+
+      final engagementMap = await socialService.fetchBatchEngagement(eventIds);
+
+      if (mounted && engagementMap.isNotEmpty) {
+        setState(() {
+          for (final post in posts) {
+            final engagement = engagementMap[post.id];
+            if (engagement != null) {
+              post.likeCount = engagement.likeCount;
+              post.replyCount = engagement.replyCount;
+              post.repostCount = engagement.repostCount;
+              post.zapAmount = engagement.zapTotalSats;
+            }
+          }
+        });
+
+        debugPrint(
+          '📊 [SEARCH] Fetched engagement for ${engagementMap.length} posts',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ [SEARCH] Failed to fetch engagement: $e');
     }
   }
 

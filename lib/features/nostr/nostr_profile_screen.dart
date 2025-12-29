@@ -44,6 +44,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   // Stats
   int _followerCount = 0;
   int _followingCount = 0;
+  int _totalZapsReceived = 0;
 
   // Tabs
   late TabController _tabController;
@@ -113,6 +114,15 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
         widget.pubkey,
       );
 
+      // Fetch total zaps received
+      int totalZaps = 0;
+      try {
+        final zapService = nostr_v2.ZapService();
+        totalZaps = await zapService.getTotalZapsReceived(widget.pubkey);
+      } catch (e) {
+        debugPrint('Error fetching zaps: $e');
+      }
+
       // Check if current user follows this profile
       if (_currentUserPubkey != null && !_isCurrentUser) {
         final userFollows = await NostrService.getCachedFollows();
@@ -127,6 +137,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
           _mediaPosts = mediaPosts;
           _followingCount = followingCount;
           _followerCount = followerCount;
+          _totalZapsReceived = totalZaps;
           _isLoading = false;
         });
       }
@@ -830,6 +841,10 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                     _buildStat(_formatCount(_followerCount), 'Followers'),
                     SizedBox(width: 24.w),
                     _buildStat(_formatCount(_followingCount), 'Following'),
+                    if (_totalZapsReceived > 0) ...[  
+                      SizedBox(width: 24.w),
+                      _buildZapStat(_formatCount(_totalZapsReceived)),
+                    ],
                   ],
                 ),
               ],
@@ -854,6 +869,32 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
         SizedBox(width: 4.w),
         Text(
           label,
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildZapStat(String value) {
+    return Row(
+      children: [
+        Icon(
+          Icons.electric_bolt,
+          color: const Color(0xFFF7931A),
+          size: 14.sp,
+        ),
+        SizedBox(width: 2.w),
+        Text(
+          value,
+          style: TextStyle(
+            color: const Color(0xFFF7931A),
+            fontSize: 14.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(width: 4.w),
+        Text(
+          'sats',
           style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
       ],
