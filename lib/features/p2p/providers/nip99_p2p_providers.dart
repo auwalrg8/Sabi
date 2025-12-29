@@ -28,7 +28,11 @@ final nip99P2POffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>((
   await marketplace.enrichOffersWithProfiles(nostrOffers);
 
   // Convert to P2POfferModel for compatibility with existing UI
-  return nostrOffers.map((offer) => _convertToP2POfferModel(offer)).toList();
+  // Filter out expired/cancelled offers (null values)
+  return nostrOffers
+      .map((offer) => _convertToP2POfferModel(offer))
+      .whereType<P2POfferModel>()
+      .toList();
 });
 
 /// Stream of real-time NIP-99 offers
@@ -42,14 +46,23 @@ final nip99P2POffersStreamProvider =
       marketplace.fetchOffers(limit: 100).then((nostrOffers) async {
         await marketplace.enrichOffersWithProfiles(nostrOffers);
         for (final offer in nostrOffers) {
-          offers[offer.id] = _convertToP2POfferModel(offer);
+          final converted = _convertToP2POfferModel(offer);
+          if (converted != null) {
+            offers[offer.id] = converted;
+          }
         }
         controller.add(offers.values.toList());
       });
 
       // Then subscribe to real-time updates
       final subscription = marketplace.subscribeToOffers().listen((nostrOffer) {
-        offers[nostrOffer.id] = _convertToP2POfferModel(nostrOffer);
+        final converted = _convertToP2POfferModel(nostrOffer);
+        if (converted != null) {
+          offers[nostrOffer.id] = converted;
+        } else {
+          // Remove expired/cancelled offers from cache
+          offers.remove(nostrOffer.id);
+        }
         controller.add(offers.values.toList());
       });
 
@@ -71,7 +84,10 @@ final userNip99OffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>(
     if (pubkey == null) return [];
 
     final nostrOffers = await marketplace.fetchUserOffers(pubkey);
-    return nostrOffers.map((offer) => _convertToP2POfferModel(offer)).toList();
+    return nostrOffers
+        .map((offer) => _convertToP2POfferModel(offer))
+        .whereType<P2POfferModel>()
+        .toList();
   },
 );
 
@@ -193,11 +209,24 @@ final filteredNip99OffersProvider =
 
       return nostrOffers
           .map((offer) => _convertToP2POfferModel(offer))
+          .whereType<P2POfferModel>()
           .toList();
     });
 
 /// Helper to convert NostrP2POffer to P2POfferModel for UI compatibility
-P2POfferModel _convertToP2POfferModel(NostrP2POffer offer) {
+/// Returns null if the offer has expired
+P2POfferModel? _convertToP2POfferModel(NostrP2POffer offer) {
+  // Filter out expired offers
+  if (offer.expiresAt != null && offer.expiresAt!.isBefore(DateTime.now())) {
+    return null; // Expired offer
+  }
+
+  // Filter out cancelled/completed offers
+  if (offer.status == P2POfferStatus.cancelled ||
+      offer.status == P2POfferStatus.completed) {
+    return null;
+  }
+
   return P2POfferModel(
     id: offer.id,
     name: offer.sellerName ?? offer.npub?.substring(0, 12) ?? 'Anonymous',

@@ -11,6 +11,7 @@ import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
 import 'nostr_profile_screen.dart';
 import 'nostr_search_screen.dart';
+import 'nostr_dm_inbox_screen.dart';
 import '../../services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
@@ -322,6 +323,13 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const NostrSearchScreen()),
+    );
+  }
+
+  void _openMessagesScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NostrDMInboxScreen()),
     );
   }
 
@@ -731,6 +739,22 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
                     ),
                   ),
                   const Spacer(),
+                  // Messages button with unread badge
+                  GestureDetector(
+                    onTap: () => _openMessagesScreen(),
+                    child: Stack(
+                      children: [
+                        Icon(
+                          Icons.mail_outline,
+                          color: Colors.white,
+                          size: 24.sp,
+                        ),
+                        // Unread badge will be shown via StreamBuilder in actual implementation
+                        // For now just the icon
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
                   // Search button - opens search screen
                   GestureDetector(
                     onTap: () => _openSearchScreen(),
