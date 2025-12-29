@@ -335,11 +335,11 @@ class P2PTradeManager extends ChangeNotifier {
   }
 
   /// Start a new trade as buyer
+  /// Automatically creates a Lightning invoice for the buyer to receive sats
   Future<P2PTrade?> startBuyTrade({
     required P2POfferModel offer,
     required double fiatAmount,
     required int satsAmount,
-    String? buyerLightningInvoice,
   }) async {
     try {
       // Get current user's npub and convert to hex pubkey
@@ -349,13 +349,33 @@ class P2PTradeManager extends ChangeNotifier {
         throw Exception('No Nostr identity');
       }
 
+      // Auto-create Lightning invoice for buyer to receive sats
+      String? buyerInvoice;
+      try {
+        P2PLogger.info(
+          'TradeManager',
+          'Creating Lightning invoice for $satsAmount sats',
+        );
+        buyerInvoice = await BreezSparkService.createInvoice(
+          sats: satsAmount,
+          memo: 'P2P Trade: Buying $satsAmount sats',
+        );
+        P2PLogger.info('TradeManager', 'Invoice created successfully');
+      } catch (e) {
+        P2PLogger.error(
+          'TradeManager',
+          'Failed to create invoice: $e - trade will continue without invoice',
+        );
+        // Continue without invoice - can be added later if needed
+      }
+
       final tradeId = _uuid.v4();
       final trade = P2PTrade(
         id: tradeId,
         offerId: offer.id,
         offerPubkey: offer.merchant?.id ?? '',
         buyerPubkey: myPubkey,
-        buyerLightningAddress: buyerLightningInvoice,
+        buyerLightningAddress: buyerInvoice,
         myRole: TradeRole.buyer,
         fiatAmount: fiatAmount,
         fiatCurrency: 'NGN',
