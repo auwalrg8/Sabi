@@ -39,13 +39,40 @@ class NostrProfileService {
   String? get currentNpub => _currentProfile?.npub;
 
   /// Initialize the profile service
-  Future<void> init() async {
-    if (_initialized) return;
+  /// Set [force] to true to re-check keys even if already initialized
+  Future<void> init({bool force = false}) async {
+    if (_initialized && !force) return;
 
     try {
       // Load keys from secure storage
       _hexPrivateKey = await _secureStorage.read(key: _hexPrivKey);
       _hexPublicKey = await _secureStorage.read(key: _hexPubKey);
+
+      // If hex keys not found, check for legacy bech32 keys from NostrService
+      if (_hexPrivateKey == null) {
+        final legacyNsec = await _secureStorage.read(key: _nsecKey);
+        final legacyNpub = await _secureStorage.read(key: _npubKey);
+        
+        if (legacyNsec != null && legacyNsec.startsWith('nsec1')) {
+          debugPrint('🔄 Found legacy nsec, converting to hex...');
+          _hexPrivateKey = _nsecToHex(legacyNsec);
+          if (_hexPrivateKey != null) {
+            _hexPublicKey = getPublicKey(_hexPrivateKey!);
+            // Store hex versions for future use
+            await _secureStorage.write(key: _hexPrivKey, value: _hexPrivateKey);
+            await _secureStorage.write(key: _hexPubKey, value: _hexPublicKey);
+            debugPrint('✅ Converted legacy keys to hex format');
+          }
+        } else if (legacyNpub != null && legacyNpub.startsWith('npub1')) {
+          // Read-only mode - only public key available
+          debugPrint('🔄 Found legacy npub, converting to hex...');
+          _hexPublicKey = npubToHex(legacyNpub);
+          if (_hexPublicKey != null) {
+            await _secureStorage.write(key: _hexPubKey, value: _hexPublicKey);
+            debugPrint('✅ Converted legacy npub to hex format');
+          }
+        }
+      }
 
       // If we have hex keys, try to load/fetch profile
       if (_hexPublicKey != null) {

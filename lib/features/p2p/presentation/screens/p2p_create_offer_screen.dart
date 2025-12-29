@@ -59,7 +59,8 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
 
   Future<void> _checkNostrIdentity() async {
     final profileService = ref.read(nostrP2PProfileProvider);
-    await profileService.init();
+    // Force re-check to pick up any keys set up via Profile screen
+    await profileService.init(force: true);
 
     if (mounted) {
       setState(() {
