@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
 import 'nostr_profile_screen.dart';
+import 'nostr_search_screen.dart';
 import '../../services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
@@ -44,8 +45,6 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   final Set<String> _likedPosts = {}; // Track liked post IDs
   FeedFilter _currentFilter =
       FeedFilter.following; // Default to following feed (Primal-style)
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
   Map<String, Map<String, String>> _authorMetadataCache = {};
   bool _followsFeedEmpty = false; // Track if follows feed returned no posts
   bool _hasCachedContent = false;
@@ -58,7 +57,6 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -295,22 +293,6 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   void _applyFilter() {
     List<NostrFeedPost> filtered = List.from(_posts);
 
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      filtered =
-          filtered
-              .where(
-                (post) =>
-                    post.content.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ) ||
-                    post.authorName.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ),
-              )
-              .toList();
-    }
-
     // Apply feed filter
     switch (_currentFilter) {
       case FeedFilter.global:
@@ -336,9 +318,11 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
     setState(() => _filteredPosts = filtered);
   }
 
-  void _onSearchChanged(String query) {
-    setState(() => _searchQuery = query);
-    _applyFilter();
+  void _openSearchScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NostrSearchScreen()),
+    );
   }
 
   void _onFilterChanged(FeedFilter filter) {
@@ -747,55 +731,14 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // Refresh button
+                  // Search button - opens search screen
                   GestureDetector(
-                    onTap: _isRefreshing ? null : _loadFeed,
-                    child: Icon(
-                      Icons.refresh,
-                      color:
-                          _isRefreshing
-                              ? const Color(0xFFA1A1B2)
-                              : Colors.white,
-                      size: 24.sp,
-                    ),
+                    onTap: () => _openSearchScreen(),
+                    child: Icon(Icons.search, color: Colors.white, size: 24.sp),
                   ),
                 ],
               ),
             ),
-
-            // Search bar
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111128),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                  decoration: InputDecoration(
-                    hintText: 'Search posts...',
-                    hintStyle: TextStyle(
-                      color: const Color(0xFFA1A1B2),
-                      fontSize: 14.sp,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: const Color(0xFFA1A1B2),
-                      size: 20.sp,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 12.h,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 12.h),
 
             // Filter tabs - Following first (Primal-style default)
             Padding(

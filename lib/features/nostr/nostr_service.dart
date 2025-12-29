@@ -1976,6 +1976,266 @@ class NostrService {
 
     return merged.take(_maxCachedPosts).toList();
   }
+
+  // ==================== SEARCH METHODS ====================
+
+  /// Search for users by name or npub
+  /// Uses kind:0 (metadata) events
+  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    _debug.info('SEARCH', 'Searching users', 'query: $query');
+
+    if (query.isEmpty) return [];
+
+    // Check if query is an npub or hex pubkey
+    String? directPubkey;
+    if (query.startsWith('npub1')) {
+      directPubkey = npubToHex(query);
+    } else if (RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(query)) {
+      directPubkey = query;
+    }
+
+    final results = <Map<String, dynamic>>[];
+
+    // If direct pubkey, fetch that user's metadata
+    if (directPubkey != null) {
+      final metadata = await fetchAuthorMetadataDirect(directPubkey);
+      if (metadata.isNotEmpty) {
+        results.add({
+          'pubkey': directPubkey,
+          'npub': hexToNpub(directPubkey),
+          ...metadata,
+        });
+      }
+      return results;
+    }
+
+    // Search via relay.nostr.band which supports NIP-50 search
+    try {
+      final filter = {
+        'kinds': [0],
+        'search': query,
+        'limit': 20,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: ['wss://relay.nostr.band', 'wss://nostr.wine'],
+        filter: filter,
+        timeoutSeconds: 8,
+        maxEvents: 20,
+      );
+
+      for (final event in rawEvents) {
+        try {
+          final pubkey = event['pubkey'] as String;
+          final content = event['content'] as String?;
+          if (content != null && content.isNotEmpty) {
+            final metadata = json.decode(content) as Map<String, dynamic>;
+            results.add({
+              'pubkey': pubkey,
+              'npub': hexToNpub(pubkey),
+              'name': metadata['name'] ?? metadata['display_name'],
+              'display_name': metadata['display_name'] ?? metadata['name'],
+              'picture': metadata['picture'],
+              'about': metadata['about'],
+              'nip05': metadata['nip05'],
+              'lud16': metadata['lud16'],
+              'banner': metadata['banner'],
+            });
+          }
+        } catch (e) {
+          // Skip malformed events
+        }
+      }
+
+      _debug.success(
+        'SEARCH',
+        'User search complete',
+        '${results.length} results',
+      );
+    } catch (e) {
+      _debug.error('SEARCH', 'User search failed', '$e');
+    }
+
+    return results;
+  }
+
+  /// Search notes/posts by content (NIP-50 full-text search)
+  static Future<List<NostrFeedPost>> searchNotes(String query) async {
+    _debug.info('SEARCH', 'Searching notes', 'query: $query');
+
+    if (query.isEmpty) return [];
+
+    try {
+      final filter = {
+        'kinds': [1],
+        'search': query,
+        'limit': 30,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: ['wss://relay.nostr.band', 'wss://nostr.wine'],
+        filter: filter,
+        timeoutSeconds: 10,
+        maxEvents: 30,
+      );
+
+      final posts = <NostrFeedPost>[];
+      for (final event in rawEvents) {
+        try {
+          posts.add(NostrFeedPost.fromRawEvent(event));
+        } catch (e) {
+          // Skip malformed events
+        }
+      }
+
+      posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      _debug.success('SEARCH', 'Note search complete', '${posts.length} posts');
+      return posts;
+    } catch (e) {
+      _debug.error('SEARCH', 'Note search failed', '$e');
+      return [];
+    }
+  }
+
+  /// Search posts by hashtag
+  static Future<List<NostrFeedPost>> searchHashtag(String hashtag) async {
+    // Remove # if present
+    final tag = hashtag.startsWith('#') ? hashtag.substring(1) : hashtag;
+    _debug.info('SEARCH', 'Searching hashtag', '#$tag');
+
+    if (tag.isEmpty) return [];
+
+    try {
+      final filter = {
+        'kinds': [1],
+        '#t': [tag.toLowerCase()],
+        'limit': 50,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: _defaultRelays,
+        filter: filter,
+        timeoutSeconds: 10,
+        maxEvents: 50,
+      );
+
+      final posts = <NostrFeedPost>[];
+      for (final event in rawEvents) {
+        try {
+          posts.add(NostrFeedPost.fromRawEvent(event));
+        } catch (e) {
+          // Skip malformed events
+        }
+      }
+
+      posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      _debug.success(
+        'SEARCH',
+        'Hashtag search complete',
+        '${posts.length} posts',
+      );
+      return posts;
+    } catch (e) {
+      _debug.error('SEARCH', 'Hashtag search failed', '$e');
+      return [];
+    }
+  }
+
+  /// Lookup a specific event by ID (note1, nevent, or hex)
+  static Future<NostrFeedPost?> lookupEvent(String eventId) async {
+    _debug.info('SEARCH', 'Looking up event', eventId);
+
+    String? hexId;
+
+    // Parse event ID format
+    if (eventId.startsWith('note1')) {
+      hexId = _decodeNote1(eventId);
+    } else if (eventId.startsWith('nevent1')) {
+      hexId = _decodeNevent(eventId);
+    } else if (RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(eventId)) {
+      hexId = eventId;
+    }
+
+    if (hexId == null) {
+      _debug.warn('SEARCH', 'Invalid event ID format');
+      return null;
+    }
+
+    try {
+      final filter = {
+        'ids': [hexId],
+        'limit': 1,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: _defaultRelays,
+        filter: filter,
+        timeoutSeconds: 8,
+        maxEvents: 1,
+      );
+
+      if (rawEvents.isNotEmpty) {
+        final post = NostrFeedPost.fromRawEvent(rawEvents.first);
+        _debug.success('SEARCH', 'Event found', post.id);
+        return post;
+      }
+    } catch (e) {
+      _debug.error('SEARCH', 'Event lookup failed', '$e');
+    }
+
+    return null;
+  }
+
+  /// Decode note1 bech32 to hex
+  static String? _decodeNote1(String note1) {
+    try {
+      final codec = Bech32Codec();
+      final bech32 = codec.decode(note1);
+      final data = _convertBits(bech32.data, 5, 8, false);
+      if (data == null) return null;
+      return data.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Decode nevent bech32 to hex (simplified - just extracts event id)
+  static String? _decodeNevent(String nevent) {
+    try {
+      final codec = Bech32Codec();
+      final bech32 = codec.decode(nevent);
+      final data = _convertBits(bech32.data, 5, 8, false);
+      if (data == null) return null;
+      // nevent TLV format: type(1) + length(1) + value(32 for event id)
+      // Skip TLV header, extract 32 bytes for event id
+      if (data.length >= 34) {
+        return data
+            .sublist(2, 34)
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get trending hashtags (simplified - returns common Bitcoin/Nostr tags)
+  static Future<List<String>> getTrendingHashtags() async {
+    // For now, return curated list. In production, could query relay.nostr.band
+    return [
+      'bitcoin',
+      'nostr',
+      'zap',
+      'lightning',
+      'plebchain',
+      'grownostr',
+      'btc',
+      'satoshi',
+      'freedom',
+      'africa',
+    ];
+  }
 }
 
 /// Model for Nostr feed posts
