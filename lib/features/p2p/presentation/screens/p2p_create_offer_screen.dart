@@ -48,6 +48,130 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
   final TextEditingController _instructionsController = TextEditingController();
   bool _isSubmitting = false;
   int _currentStep = 0;
+  bool _hasNostrKeys = false;
+  bool _isCheckingNostr = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNostrIdentity();
+  }
+
+  Future<void> _checkNostrIdentity() async {
+    final profileService = ref.read(nostrP2PProfileProvider);
+    await profileService.init();
+
+    if (mounted) {
+      setState(() {
+        _hasNostrKeys = profileService.hasKeys;
+        _isCheckingNostr = false;
+      });
+
+      // If no Nostr keys, show setup dialog
+      if (!_hasNostrKeys) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showNostrSetupDialog();
+        });
+      }
+    }
+  }
+
+  Future<void> _showNostrSetupDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.electric_bolt,
+                  color: const Color(0xFFF7931A),
+                  size: 24.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'Nostr Setup Required',
+                  style: TextStyle(color: Colors.white, fontSize: 18.sp),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'To create P2P offers, you need to set up your Nostr identity first.',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                Text(
+                  'Your offers will be published to Nostr relays and visible to other users.',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 12.sp,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF7931A),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                ),
+                child: Text(
+                  'Set Up Nostr',
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (result == true) {
+      // Navigate to profile screen to set up Nostr
+      if (mounted) {
+        Navigator.pop(context);
+        // User can set up Nostr in Profile screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please set up your Nostr identity in Profile'),
+            backgroundColor: const Color(0xFFF7931A),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } else {
+      // User cancelled, go back
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -63,6 +187,31 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading while checking Nostr identity
+    if (_isCheckingNostr) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0C0C1A),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Checking Nostr identity...',
+                style: TextStyle(
+                  color: const Color(0xFFA1A1B2),
+                  fontSize: 14.sp,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final exchangeRates = ref.watch(exchangeRatesProvider);
     final marketRate = exchangeRates['BTC_NGN'] ?? 131448939.22;
     final yourRate = marketRate * (1 + _marginPercent / 100);
@@ -1116,6 +1265,32 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Check if Nostr identity is available
+      final profileService = ref.read(nostrP2PProfileProvider);
+      if (!profileService.hasKeys) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Please set up your Nostr identity in Profile first',
+              ),
+              backgroundColor: const Color(0xFFF7931A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              action: SnackBarAction(
+                label: 'Go to Profile',
+                textColor: Colors.white,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          );
+        }
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
       // For sell offers, check wallet balance first
       int walletBalance = 0;
       if (_isSellOffer) {

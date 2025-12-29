@@ -9,3 +9,4 @@ export 'feed_aggregator.dart';
 export 'nostr_profile_service.dart';
 export 'zap_service.dart';
 export 'nip99_marketplace_service.dart';
+export 'social_interaction_service.dart';

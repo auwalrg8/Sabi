@@ -25,7 +25,8 @@ class NostrP2POffer {
   final int? maxTradeMinutes;
   final DateTime createdAt;
   final DateTime? expiresAt;
-  
+  final Map<String, String>? paymentAccountDetails;
+
   // Seller profile info (enriched)
   String? sellerName;
   String? sellerAvatar;
@@ -52,6 +53,7 @@ class NostrP2POffer {
     this.maxTradeMinutes,
     required this.createdAt,
     this.expiresAt,
+    this.paymentAccountDetails,
     this.sellerName,
     this.sellerAvatar,
     this.sellerTradeCount = 0,
@@ -73,13 +75,13 @@ class NostrP2POffer {
   String get amountRange {
     final min = minAmountSats ?? 0;
     final max = maxAmountSats ?? 0;
-    
+
     String formatSats(int sats) {
       if (sats >= 1000000) return '${(sats / 1000000).toStringAsFixed(1)}M';
       if (sats >= 1000) return '${(sats / 1000).toStringAsFixed(0)}k';
       return sats.toString();
     }
-    
+
     if (min > 0 && max > 0) {
       return '${formatSats(min)} - ${formatSats(max)} sats';
     } else if (max > 0) {
@@ -106,6 +108,7 @@ class NostrP2POffer {
     int? maxAmount;
     P2POfferType type = P2POfferType.sell;
     final paymentMethods = <String>[];
+    final accountDetails = <String, String>{};
     String? location;
     DateTime? expiresAt;
 
@@ -144,6 +147,12 @@ class NostrP2POffer {
         case 'payment_method':
           paymentMethods.add(tagValue);
           break;
+        case 'payment_details':
+          // Format: ["payment_details", "method_id", "account_info"]
+          if (tag.length > 2) {
+            accountDetails[tagValue] = tag[2];
+          }
+          break;
         case 'min_amount':
           minAmount = int.tryParse(tagValue);
           break;
@@ -171,6 +180,7 @@ class NostrP2POffer {
       maxAmountSats: maxAmount,
       type: type,
       paymentMethods: paymentMethods,
+      paymentAccountDetails: accountDetails.isNotEmpty ? accountDetails : null,
       location: location,
       createdAt: createdAt,
       expiresAt: expiresAt,
@@ -189,14 +199,22 @@ class NostrP2POffer {
 
     // Price tag
     if (minAmountSats != null) {
-      tags.add(['price', pricePerBtc.toString(), currency, minAmountSats.toString(), 'sats']);
+      tags.add([
+        'price',
+        pricePerBtc.toString(),
+        currency,
+        minAmountSats.toString(),
+        'sats',
+      ]);
     } else {
       tags.add(['price', pricePerBtc.toString(), currency]);
     }
 
     // Amount limits
-    if (minAmountSats != null) tags.add(['min_amount', minAmountSats.toString()]);
-    if (maxAmountSats != null) tags.add(['max_amount', maxAmountSats.toString()]);
+    if (minAmountSats != null)
+      tags.add(['min_amount', minAmountSats.toString()]);
+    if (maxAmountSats != null)
+      tags.add(['max_amount', maxAmountSats.toString()]);
 
     // Location
     if (location != null) tags.add(['location', location!]);
@@ -206,9 +224,19 @@ class NostrP2POffer {
       tags.add(['payment_method', pm]);
     }
 
+    // Payment account details
+    if (paymentAccountDetails != null) {
+      for (final entry in paymentAccountDetails!.entries) {
+        tags.add(['payment_details', entry.key, entry.value]);
+      }
+    }
+
     // Expiration
     if (expiresAt != null) {
-      tags.add(['expiration', (expiresAt!.millisecondsSinceEpoch ~/ 1000).toString()]);
+      tags.add([
+        'expiration',
+        (expiresAt!.millisecondsSinceEpoch ~/ 1000).toString(),
+      ]);
     }
 
     return tags;
@@ -230,6 +258,7 @@ class NostrP2POffer {
       'type': type == P2POfferType.buy ? 'buy' : 'sell',
       'status': status.name,
       'payment_methods': paymentMethods,
+      'payment_account_details': paymentAccountDetails,
       'location': location,
       'terms': terms,
       'min_trade_minutes': minTradeMinutes,
@@ -244,6 +273,13 @@ class NostrP2POffer {
   }
 
   factory NostrP2POffer.fromJson(Map<String, dynamic> json) {
+    // Parse payment account details
+    Map<String, String>? accountDetails;
+    if (json['payment_account_details'] != null) {
+      accountDetails = (json['payment_account_details'] as Map<String, dynamic>)
+          .map((k, v) => MapEntry(k, v.toString()));
+    }
+
     return NostrP2POffer(
       id: json['id'] as String? ?? '',
       eventId: json['event_id'] as String? ?? '',
@@ -260,22 +296,29 @@ class NostrP2POffer {
         (s) => s.name == json['status'],
         orElse: () => P2POfferStatus.active,
       ),
-      paymentMethods: (json['payment_methods'] as List<dynamic>?)?.cast<String>() ?? [],
+      paymentMethods:
+          (json['payment_methods'] as List<dynamic>?)?.cast<String>() ?? [],
+      paymentAccountDetails: accountDetails,
       location: json['location'] as String?,
       terms: json['terms'] as String?,
       minTradeMinutes: json['min_trade_minutes'] as int?,
       maxTradeMinutes: json['max_trade_minutes'] as int?,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int? ?? 0),
-      expiresAt: json['expires_at'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['expires_at'] as int)
-          : null,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        json['created_at'] as int? ?? 0,
+      ),
+      expiresAt:
+          json['expires_at'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(json['expires_at'] as int)
+              : null,
       sellerName: json['seller_name'] as String?,
       sellerAvatar: json['seller_avatar'] as String?,
       sellerTradeCount: json['seller_trade_count'] as int? ?? 0,
-      sellerCompletionRate: (json['seller_completion_rate'] as num?)?.toDouble() ?? 0,
+      sellerCompletionRate:
+          (json['seller_completion_rate'] as num?)?.toDouble() ?? 0,
     );
   }
 
   @override
-  String toString() => 'NostrP2POffer(id: $id, type: $type, price: $formattedPrice)';
+  String toString() =>
+      'NostrP2POffer(id: $id, type: $type, price: $formattedPrice)';
 }

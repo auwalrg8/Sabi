@@ -1133,6 +1133,57 @@ class NostrService {
     return posts;
   }
 
+  /// Fetch posts from a specific user using DIRECT WebSocket connections
+  static Future<List<NostrFeedPost>> fetchUserPostsDirect(
+    String pubkey, {
+    int limit = 20,
+  }) async {
+    _debug.info(
+      'USER_POSTS_DIRECT',
+      'Fetching posts for user',
+      pubkey.substring(0, 8),
+    );
+
+    final filter = {
+      'kinds': [1],
+      'authors': [pubkey],
+      'limit': limit,
+    };
+
+    final rawEvents = await NostrRelayClient.fetchEvents(
+      relayUrls: _defaultRelays,
+      filter: filter,
+      timeoutSeconds: 8,
+      maxEvents: limit,
+    );
+
+    _debug.info(
+      'USER_POSTS_DIRECT',
+      'Raw events received',
+      '${rawEvents.length} events',
+    );
+
+    // Convert to NostrFeedPost objects
+    final posts = <NostrFeedPost>[];
+    for (final eventData in rawEvents) {
+      try {
+        posts.add(NostrFeedPost.fromRawEvent(eventData));
+      } catch (e) {
+        _debug.warn('USER_POSTS_DIRECT', 'Failed to parse event', e.toString());
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    _debug.success(
+      'USER_POSTS_DIRECT',
+      'User posts fetched',
+      '${posts.length} posts',
+    );
+    return posts;
+  }
+
   /// Fetch global feed from relays (uses nostr_dart - may not work on Windows)
   /// Returns list of text note events (kind 1)
   static Future<List<NostrFeedPost>> fetchGlobalFeed({int limit = 50}) async {
@@ -1780,6 +1831,7 @@ class NostrFeedPost {
   int zapAmount;
   int likeCount;
   int replyCount;
+  int repostCount;
   final List<String> tags;
 
   NostrFeedPost({
@@ -1793,8 +1845,23 @@ class NostrFeedPost {
     this.zapAmount = 0,
     this.likeCount = 0,
     this.replyCount = 0,
+    this.repostCount = 0,
     this.tags = const [],
   });
+
+  /// Time ago string
+  String get timeAgo {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
+
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo';
+    return '${(diff.inDays / 365).floor()}y';
+  }
 
   factory NostrFeedPost.fromEvent(Event event) {
     // Extract author name from pubKey (first 8 chars as fallback)
@@ -1818,6 +1885,7 @@ class NostrFeedPost {
       zapAmount: (event.createdAt % 5000) + 100, // Mock zap amount for demo
       likeCount: event.createdAt % 50, // Mock likes for demo
       replyCount: replyCount,
+      repostCount: event.createdAt % 20, // Mock reposts for demo
       tags:
           event.tags
               .map(
@@ -1854,6 +1922,7 @@ class NostrFeedPost {
       zapAmount: (createdAt % 5000) + 100,
       likeCount: createdAt % 50,
       replyCount: replyCount,
+      repostCount: createdAt % 20,
       tags:
           tags
               .map(
@@ -1880,6 +1949,7 @@ class NostrFeedPost {
       zapAmount: jsonData['zapAmount'] as int? ?? 0,
       likeCount: jsonData['likeCount'] as int? ?? 0,
       replyCount: jsonData['replyCount'] as int? ?? 0,
+      repostCount: jsonData['repostCount'] as int? ?? 0,
       tags:
           (jsonData['tags'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -1900,6 +1970,7 @@ class NostrFeedPost {
       'zapAmount': zapAmount,
       'likeCount': likeCount,
       'replyCount': replyCount,
+      'repostCount': repostCount,
       'tags': tags,
     };
   }

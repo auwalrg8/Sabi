@@ -16,68 +16,73 @@ final nostrP2PProfileProvider = Provider<NostrProfileService>((ref) {
 
 /// NIP-99 P2P Offers - Fetched from Nostr relays (kind 30402)
 /// This replaces the legacy kind 38383 implementation
-final nip99P2POffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>((ref) async {
+final nip99P2POffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>((
+  ref,
+) async {
   final marketplace = ref.watch(nip99ServiceProvider);
-  
+
   // Fetch offers from relays
   final nostrOffers = await marketplace.fetchOffers(limit: 100);
-  
+
   // Enrich with seller profiles
   await marketplace.enrichOffersWithProfiles(nostrOffers);
-  
+
   // Convert to P2POfferModel for compatibility with existing UI
   return nostrOffers.map((offer) => _convertToP2POfferModel(offer)).toList();
 });
 
 /// Stream of real-time NIP-99 offers
-final nip99P2POffersStreamProvider = StreamProvider.autoDispose<List<P2POfferModel>>((ref) {
-  final marketplace = ref.watch(nip99ServiceProvider);
-  final controller = StreamController<List<P2POfferModel>>();
-  final offers = <String, P2POfferModel>{};
-  
-  // First, load existing offers
-  marketplace.fetchOffers(limit: 100).then((nostrOffers) async {
-    await marketplace.enrichOffersWithProfiles(nostrOffers);
-    for (final offer in nostrOffers) {
-      offers[offer.id] = _convertToP2POfferModel(offer);
-    }
-    controller.add(offers.values.toList());
-  });
-  
-  // Then subscribe to real-time updates
-  final subscription = marketplace.subscribeToOffers().listen((nostrOffer) {
-    offers[nostrOffer.id] = _convertToP2POfferModel(nostrOffer);
-    controller.add(offers.values.toList());
-  });
-  
-  ref.onDispose(() {
-    subscription.cancel();
-    controller.close();
-  });
-  
-  return controller.stream;
-});
+final nip99P2POffersStreamProvider =
+    StreamProvider.autoDispose<List<P2POfferModel>>((ref) {
+      final marketplace = ref.watch(nip99ServiceProvider);
+      final controller = StreamController<List<P2POfferModel>>();
+      final offers = <String, P2POfferModel>{};
+
+      // First, load existing offers
+      marketplace.fetchOffers(limit: 100).then((nostrOffers) async {
+        await marketplace.enrichOffersWithProfiles(nostrOffers);
+        for (final offer in nostrOffers) {
+          offers[offer.id] = _convertToP2POfferModel(offer);
+        }
+        controller.add(offers.values.toList());
+      });
+
+      // Then subscribe to real-time updates
+      final subscription = marketplace.subscribeToOffers().listen((nostrOffer) {
+        offers[nostrOffer.id] = _convertToP2POfferModel(nostrOffer);
+        controller.add(offers.values.toList());
+      });
+
+      ref.onDispose(() {
+        subscription.cancel();
+        controller.close();
+      });
+
+      return controller.stream;
+    });
 
 /// Current user's P2P offers (NIP-99)
-final userNip99OffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>((ref) async {
-  final marketplace = ref.watch(nip99ServiceProvider);
-  final profileService = ref.watch(nostrP2PProfileProvider);
-  
-  final pubkey = profileService.currentPubkey;
-  if (pubkey == null) return [];
-  
-  final nostrOffers = await marketplace.fetchUserOffers(pubkey);
-  return nostrOffers.map((offer) => _convertToP2POfferModel(offer)).toList();
-});
+final userNip99OffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>(
+  (ref) async {
+    final marketplace = ref.watch(nip99ServiceProvider);
+    final profileService = ref.watch(nostrP2PProfileProvider);
+
+    final pubkey = profileService.currentPubkey;
+    if (pubkey == null) return [];
+
+    final nostrOffers = await marketplace.fetchUserOffers(pubkey);
+    return nostrOffers.map((offer) => _convertToP2POfferModel(offer)).toList();
+  },
+);
 
 /// Notifier for publishing/managing NIP-99 offers
 class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
   final NIP99MarketplaceService _marketplace;
   final NostrProfileService _profileService;
-  
-  Nip99OfferNotifier(this._marketplace, this._profileService) 
-      : super(const AsyncValue.data(null));
-  
+
+  Nip99OfferNotifier(this._marketplace, this._profileService)
+    : super(const AsyncValue.data(null));
+
   /// Publish a new P2P offer
   Future<String?> publishOffer({
     required P2POfferType type,
@@ -92,13 +97,13 @@ class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
     Map<String, String>? paymentDetails,
   }) async {
     state = const AsyncValue.loading();
-    
+
     try {
       final pubkey = _profileService.currentPubkey;
       if (pubkey == null) {
         throw Exception('No Nostr identity - please set up your keys first');
       }
-      
+
       final offer = NostrP2POffer(
         id: '', // Will be generated
         eventId: '',
@@ -111,13 +116,14 @@ class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
         minAmountSats: minSats,
         maxAmountSats: maxSats,
         paymentMethods: paymentMethods,
+        paymentAccountDetails: paymentDetails,
         location: location,
         createdAt: DateTime.now(),
         status: P2POfferStatus.active,
       );
-      
+
       final eventId = await _marketplace.publishOffer(offer);
-      
+
       state = const AsyncValue.data(null);
       return eventId;
     } catch (e, st) {
@@ -125,11 +131,11 @@ class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
       return null;
     }
   }
-  
+
   /// Update an existing offer
   Future<bool> updateOffer(NostrP2POffer offer) async {
     state = const AsyncValue.loading();
-    
+
     try {
       final success = await _marketplace.updateOffer(offer);
       state = const AsyncValue.data(null);
@@ -139,11 +145,11 @@ class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
-  
+
   /// Delete/cancel an offer
   Future<bool> deleteOffer(String offerId) async {
     state = const AsyncValue.loading();
-    
+
     try {
       final success = await _marketplace.deleteOffer(offerId);
       state = const AsyncValue.data(null);
@@ -156,11 +162,12 @@ class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
 }
 
 /// Provider for offer management
-final nip99OfferNotifierProvider = StateNotifierProvider<Nip99OfferNotifier, AsyncValue<void>>((ref) {
-  final marketplace = ref.watch(nip99ServiceProvider);
-  final profileService = ref.watch(nostrP2PProfileProvider);
-  return Nip99OfferNotifier(marketplace, profileService);
-});
+final nip99OfferNotifierProvider =
+    StateNotifierProvider<Nip99OfferNotifier, AsyncValue<void>>((ref) {
+      final marketplace = ref.watch(nip99ServiceProvider);
+      final profileService = ref.watch(nostrP2PProfileProvider);
+      return Nip99OfferNotifier(marketplace, profileService);
+    });
 
 /// Filter providers for P2P offers
 final p2pLocationFilterProvider = StateProvider<String?>((ref) => null);
@@ -168,23 +175,26 @@ final p2pTypeFilterProvider = StateProvider<P2POfferType?>((ref) => null);
 final p2pPaymentMethodFilterProvider = StateProvider<String?>((ref) => null);
 
 /// Filtered NIP-99 offers based on current filters
-final filteredNip99OffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>((ref) async {
-  final marketplace = ref.watch(nip99ServiceProvider);
-  final location = ref.watch(p2pLocationFilterProvider);
-  final type = ref.watch(p2pTypeFilterProvider);
-  final paymentMethod = ref.watch(p2pPaymentMethodFilterProvider);
-  
-  final nostrOffers = await marketplace.fetchOffers(
-    location: location,
-    type: type,
-    paymentMethod: paymentMethod,
-    limit: 50,
-  );
-  
-  await marketplace.enrichOffersWithProfiles(nostrOffers);
-  
-  return nostrOffers.map((offer) => _convertToP2POfferModel(offer)).toList();
-});
+final filteredNip99OffersProvider =
+    FutureProvider.autoDispose<List<P2POfferModel>>((ref) async {
+      final marketplace = ref.watch(nip99ServiceProvider);
+      final location = ref.watch(p2pLocationFilterProvider);
+      final type = ref.watch(p2pTypeFilterProvider);
+      final paymentMethod = ref.watch(p2pPaymentMethodFilterProvider);
+
+      final nostrOffers = await marketplace.fetchOffers(
+        location: location,
+        type: type,
+        paymentMethod: paymentMethod,
+        limit: 50,
+      );
+
+      await marketplace.enrichOffersWithProfiles(nostrOffers);
+
+      return nostrOffers
+          .map((offer) => _convertToP2POfferModel(offer))
+          .toList();
+    });
 
 /// Helper to convert NostrP2POffer to P2POfferModel for UI compatibility
 P2POfferModel _convertToP2POfferModel(NostrP2POffer offer) {
@@ -192,9 +202,10 @@ P2POfferModel _convertToP2POfferModel(NostrP2POffer offer) {
     id: offer.id,
     name: offer.sellerName ?? offer.npub?.substring(0, 12) ?? 'Anonymous',
     pricePerBtc: offer.pricePerBtc,
-    paymentMethod: offer.paymentMethods.isNotEmpty 
-        ? offer.paymentMethods.first 
-        : 'Unknown',
+    paymentMethod:
+        offer.paymentMethods.isNotEmpty
+            ? offer.paymentMethods.first
+            : 'Unknown',
     eta: '< 15 min', // Default ETA
     ratingPercent: 100, // Default rating for new system
     trades: 0, // Will be tracked separately
@@ -214,6 +225,7 @@ P2POfferModel _convertToP2POfferModel(NostrP2POffer offer) {
     ),
     requiresKyc: false,
     paymentInstructions: offer.description,
+    paymentAccountDetails: offer.paymentAccountDetails,
     availableSats: (offer.maxAmountSats ?? 0).toDouble(),
   );
 }

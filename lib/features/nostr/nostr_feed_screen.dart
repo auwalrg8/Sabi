@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:share_plus/share_plus.dart';
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
 import '../../services/breez_spark_service.dart';
@@ -220,6 +222,9 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
         await NostrService.cachePosts(_posts);
         await NostrService.cacheAuthorMetadata(_authorMetadataCache);
 
+        // Fetch real engagement data in background
+        _fetchEngagementData(_posts);
+
         debug.success(
           'SCREEN',
           'Background refresh complete',
@@ -240,6 +245,40 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   /// Manual pull-to-refresh
   Future<void> _loadFeed() async {
     await _refreshFeedInBackground();
+  }
+
+  /// Fetch real engagement data for posts
+  Future<void> _fetchEngagementData(List<NostrFeedPost> posts) async {
+    if (posts.isEmpty) return;
+
+    try {
+      final socialService = nostr_v2.SocialInteractionService();
+      final eventIds = posts.take(20).map((p) => p.id).toList();
+
+      final engagementMap = await socialService.fetchBatchEngagement(eventIds);
+
+      if (mounted && engagementMap.isNotEmpty) {
+        setState(() {
+          for (final post in _posts) {
+            final engagement = engagementMap[post.id];
+            if (engagement != null) {
+              post.likeCount = engagement.likeCount;
+              post.replyCount = engagement.replyCount;
+              post.repostCount = engagement.repostCount;
+              post.zapAmount = engagement.zapTotalSats;
+            }
+          }
+          // Re-apply filter to update filtered posts
+          _applyFilter();
+        });
+
+        debugPrint(
+          '📊 [ENGAGEMENT] Fetched engagement data for ${engagementMap.length} posts',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ENGAGEMENT] Failed to fetch engagement: $e');
+    }
   }
 
   void _applyFilter() {
@@ -423,15 +462,234 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
     }
   }
 
-  void _handleLikePost(NostrFeedPost post) {
+  void _handleLikePost(NostrFeedPost post) async {
+    final wasLiked = _likedPosts.contains(post.id);
+
+    // Optimistic UI update
     setState(() {
-      if (_likedPosts.contains(post.id)) {
+      if (wasLiked) {
         _likedPosts.remove(post.id);
       } else {
         _likedPosts.add(post.id);
       }
     });
-    // TODO: Send like reaction to Nostr relays (NIP-25)
+
+    // Send like reaction to Nostr relays (NIP-25)
+    if (!wasLiked) {
+      try {
+        final socialService = nostr_v2.SocialInteractionService();
+        final success = await socialService.likeEvent(
+          eventId: post.id,
+          eventPubkey: post.authorPubkey,
+        );
+
+        if (!success && mounted) {
+          // Revert on failure
+          setState(() => _likedPosts.remove(post.id));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to like post'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _likedPosts.remove(post.id));
+        }
+      }
+    }
+  }
+
+  void _handleRepost(NostrFeedPost post) async {
+    // Show confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            title: Text(
+              'Repost this note?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'This will share this note to your followers.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFFA1A1B2)),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF7931A),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                ),
+                child: const Text(
+                  'Repost',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      try {
+        final socialService = nostr_v2.SocialInteractionService();
+        final success = await socialService.repostEvent(
+          eventId: post.id,
+          eventPubkey: post.authorPubkey,
+          eventContent: post.content,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success ? 'Reposted! 🔄' : 'Failed to repost'),
+              backgroundColor: success ? const Color(0xFF00FFB2) : Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _handleReply(NostrFeedPost post) {
+    // Show reply dialog
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => _ReplyModal(
+            post: post,
+            onSent: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Reply sent! 💬'),
+                  backgroundColor: Color(0xFF00FFB2),
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  void _handleShare(NostrFeedPost post) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111128),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder:
+          (context) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B6B80),
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Text(
+                    'Share',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ShareOption(
+                        icon: Icons.link,
+                        label: 'Copy Link',
+                        onTap: () {
+                          final link = nostr_v2.SocialInteractionService()
+                              .getWebLink(post.id);
+                          Clipboard.setData(ClipboardData(text: link));
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Link copied!'),
+                              backgroundColor: Color(0xFF00FFB2),
+                            ),
+                          );
+                        },
+                      ),
+                      _ShareOption(
+                        icon: Icons.content_copy,
+                        label: 'Copy Text',
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: post.content));
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Text copied!'),
+                              backgroundColor: Color(0xFF00FFB2),
+                            ),
+                          );
+                        },
+                      ),
+                      _ShareOption(
+                        icon: Icons.share,
+                        label: 'Share',
+                        onTap: () {
+                          Navigator.pop(context);
+                          final link = nostr_v2.SocialInteractionService()
+                              .getWebLink(post.id);
+                          Share.share('${post.content}\n\n$link');
+                        },
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20.h),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void _navigateToProfile(NostrFeedPost post) {
+    // Navigate to profile screen with the author's pubkey
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => _NostrProfileView(
+              pubkey: post.authorPubkey,
+              name: post.authorName,
+              avatarUrl: post.authorAvatar,
+            ),
+      ),
+    );
   }
 
   void _showCreateAccountModal() {
@@ -643,8 +901,15 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
                               onZap:
                                   (satoshis) => _handleZapPost(post, satoshis),
                               onLike: () => _handleLikePost(post),
+                              onRepost: () => _handleRepost(post),
+                              onReply: () => _handleReply(post),
+                              onShare: () => _handleShare(post),
+                              onProfileTap: () => _navigateToProfile(post),
                               isLiked: _likedPosts.contains(post.id),
                               showImages: _showImages,
+                              likeCount: post.likeCount,
+                              repostCount: post.repostCount,
+                              replyCount: post.replyCount,
                             );
                           },
                         ),
@@ -958,16 +1223,30 @@ class _NostrPostCard extends StatefulWidget {
   final int zapAmount;
   final Function(int) onZap;
   final VoidCallback onLike;
+  final VoidCallback onRepost;
+  final VoidCallback onReply;
+  final VoidCallback onShare;
+  final VoidCallback onProfileTap;
   final bool isLiked;
   final bool showImages;
+  final int likeCount;
+  final int repostCount;
+  final int replyCount;
 
   const _NostrPostCard({
     required this.post,
     required this.zapAmount,
     required this.onZap,
     required this.onLike,
+    required this.onRepost,
+    required this.onReply,
+    required this.onShare,
+    required this.onProfileTap,
     required this.isLiked,
     required this.showImages,
+    this.likeCount = 0,
+    this.repostCount = 0,
+    this.replyCount = 0,
   });
 
   @override
@@ -978,8 +1257,6 @@ class _NostrPostCardState extends State<_NostrPostCard> {
   bool _showZapSlider = false;
   double _zapValue = 21; // Default 21 sats (Primal-style)
   final Set<int> _unblurredImages = {};
-  int _replyCount = 0;
-  int _repostCount = 0;
 
   // Extract image URLs from post content
   List<String> _extractImageUrls(String content) {
@@ -1051,9 +1328,7 @@ class _NostrPostCardState extends State<_NostrPostCard> {
               children: [
                 // Avatar
                 GestureDetector(
-                  onTap: () {
-                    // TODO: Navigate to profile
-                  },
+                  onTap: widget.onProfileTap,
                   child: Container(
                     width: 40.w,
                     height: 40.h,
@@ -1167,26 +1442,25 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                   // Reply
                   _ActionButton(
                     icon: Icons.chat_bubble_outline,
-                    count: _replyCount,
+                    count: widget.replyCount,
                     color: const Color(0xFF6B6B80),
-                    onTap: () {
-                      // TODO: Open reply
-                    },
+                    onTap: widget.onReply,
                   ),
                   // Repost
                   _ActionButton(
                     icon: Icons.repeat,
-                    count: _repostCount,
+                    count: widget.repostCount,
                     color: const Color(0xFF6B6B80),
-                    onTap: () {
-                      // TODO: Repost
-                    },
+                    onTap: widget.onRepost,
                   ),
                   // Like
                   _ActionButton(
                     icon:
                         widget.isLiked ? Icons.favorite : Icons.favorite_border,
-                    count: widget.isLiked ? 1 : 0,
+                    count:
+                        widget.isLiked
+                            ? widget.likeCount + 1
+                            : widget.likeCount,
                     color:
                         widget.isLiked
                             ? const Color(0xFFE91E63)
@@ -1210,9 +1484,7 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                   ),
                   // Share/More
                   GestureDetector(
-                    onTap: () {
-                      // TODO: Share options
-                    },
+                    onTap: widget.onShare,
                     child: Icon(
                       Icons.ios_share,
                       color: const Color(0xFF6B6B80),
@@ -1442,6 +1714,16 @@ class _NostrPostCardState extends State<_NostrPostCard> {
   }
 
   Widget _buildZapSlider() {
+    // Zap presets with sats values
+    final zapPresets = [
+      {'label': '21', 'sats': 21},
+      {'label': '100', 'sats': 100},
+      {'label': '500', 'sats': 500},
+      {'label': '1K', 'sats': 1000},
+      {'label': '5K', 'sats': 5000},
+      {'label': '10K', 'sats': 10000},
+    ];
+
     return Container(
       margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
       padding: EdgeInsets.all(16.w),
@@ -1451,7 +1733,9 @@ class _NostrPostCardState extends State<_NostrPostCard> {
         border: Border.all(color: const Color(0xFFF7931A).withOpacity(0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with selected amount
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1479,9 +1763,7 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                     ),
                     SizedBox(width: 4.w),
                     Text(
-                      NostrService.formatNaira(
-                        NostrService.satsToNaira(_zapValue.toInt()),
-                      ),
+                      '${_zapValue.toInt()} sats',
                       style: TextStyle(
                         color: const Color(0xFFF7931A),
                         fontSize: 14.sp,
@@ -1493,46 +1775,102 @@ class _NostrPostCardState extends State<_NostrPostCard> {
               ),
             ],
           ),
-          SizedBox(height: 12.h),
-          // Slider from 21 to 10000 sats
-          SliderTheme(
-            data: SliderThemeData(
-              activeTrackColor: const Color(0xFFF7931A),
-              inactiveTrackColor: const Color(0xFF111128),
-              thumbColor: const Color(0xFFF7931A),
-              overlayColor: const Color(0xFFF7931A).withOpacity(0.2),
-              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10.r),
-              trackHeight: 6.h,
-            ),
-            child: Slider(
-              value: _zapValue,
-              min: 21,
-              max: 10000,
-              divisions: 100,
-              onChanged: (val) => setState(() => _zapValue = val),
+          SizedBox(height: 16.h),
+          // Preset buttons grid
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children:
+                zapPresets.map((preset) {
+                  final sats = preset['sats'] as int;
+                  final label = preset['label'] as String;
+                  final isSelected = _zapValue.toInt() == sats;
+
+                  return GestureDetector(
+                    onTap: () => setState(() => _zapValue = sats.toDouble()),
+                    child: Container(
+                      width: 60.w,
+                      padding: EdgeInsets.symmetric(vertical: 10.h),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? const Color(0xFFF7931A)
+                                : const Color(0xFF111128),
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? const Color(0xFFF7931A)
+                                  : const Color(0xFF2A2A3E),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          if (sats == 21)
+                            Icon(
+                              Icons.electric_bolt,
+                              color:
+                                  isSelected
+                                      ? Colors.white
+                                      : const Color(0xFFF7931A),
+                              size: 14.sp,
+                            ),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color:
+                                  isSelected
+                                      ? Colors.white
+                                      : const Color(0xFFA1A1B2),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'sats',
+                            style: TextStyle(
+                              color:
+                                  isSelected
+                                      ? Colors.white.withOpacity(0.8)
+                                      : const Color(0xFF6B6B80),
+                              fontSize: 10.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+          SizedBox(height: 16.h),
+          // Custom amount row
+          GestureDetector(
+            onTap: _showCustomZapInput,
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111128),
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: const Color(0xFF2A2A3E)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.edit, color: const Color(0xFFA1A1B2), size: 14.sp),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Custom Amount',
+                    style: TextStyle(
+                      color: const Color(0xFFA1A1B2),
+                      fontSize: 13.sp,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: 4.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                NostrService.formatNaira(NostrService.satsToNaira(21)),
-                style: TextStyle(
-                  color: const Color(0xFFA1A1B2),
-                  fontSize: 10.sp,
-                ),
-              ),
-              Text(
-                NostrService.formatNaira(NostrService.satsToNaira(10000)),
-                style: TextStyle(
-                  color: const Color(0xFFA1A1B2),
-                  fontSize: 10.sp,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 16.h),
+          // Action buttons
           Row(
             children: [
               Expanded(
@@ -1564,7 +1902,9 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 12.h),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7931A),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF7931A), Color(0xFFFF9500)],
+                      ),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Center(
@@ -1578,7 +1918,7 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                           ),
                           SizedBox(width: 4.w),
                           Text(
-                            'Zap!',
+                            'Zap ${_zapValue.toInt()} sats',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14.sp,
@@ -1595,6 +1935,103 @@ class _NostrPostCardState extends State<_NostrPostCard> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showCustomZapInput() {
+    final controller = TextEditingController(
+      text: _zapValue.toInt().toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.electric_bolt,
+                  color: const Color(0xFFF7931A),
+                  size: 20.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'Custom Zap',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24.sp,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: TextStyle(
+                  color: const Color(0xFF6B6B80),
+                  fontSize: 24.sp,
+                ),
+                suffix: Text(
+                  'sats',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: const Color(0xFF2A2A3E),
+                    width: 2.w,
+                  ),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: const Color(0xFFF7931A),
+                    width: 2.w,
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFFA1A1B2)),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final value = int.tryParse(controller.text);
+                  if (value != null && value > 0 && value <= 1000000) {
+                    setState(() => _zapValue = value.toDouble());
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text(
+                  'Set',
+                  style: TextStyle(
+                    color: Color(0xFFF7931A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
     );
   }
 
@@ -1726,6 +2163,432 @@ class _ActionButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Share option button for share sheet
+class _ShareOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ShareOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56.w,
+            height: 56.h,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E3F),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: const Color(0xFFF7931A), size: 24.sp),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            label,
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Reply modal for composing replies
+class _ReplyModal extends StatefulWidget {
+  final NostrFeedPost post;
+  final VoidCallback onSent;
+
+  const _ReplyModal({required this.post, required this.onSent});
+
+  @override
+  State<_ReplyModal> createState() => _ReplyModalState();
+}
+
+class _ReplyModalState extends State<_ReplyModal> {
+  final _controller = TextEditingController();
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendReply() async {
+    if (_controller.text.trim().isEmpty) return;
+
+    setState(() => _isSending = true);
+
+    try {
+      final socialService = nostr_v2.SocialInteractionService();
+      final eventId = await socialService.replyToEvent(
+        eventId: widget.post.id,
+        eventPubkey: widget.post.authorPubkey,
+        content: _controller.text.trim(),
+      );
+
+      if (eventId != null && mounted) {
+        Navigator.pop(context);
+        widget.onSent();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send reply'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C0C1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h + bottomPadding),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Reply to @${widget.post.authorName}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111128),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Text(
+              widget.post.content.length > 100
+                  ? '${widget.post.content.substring(0, 100)}...'
+                  : widget.post.content,
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          TextField(
+            controller: _controller,
+            maxLines: 4,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Write your reply...',
+              hintStyle: const TextStyle(color: Color(0xFF6B6B80)),
+              filled: true,
+              fillColor: const Color(0xFF111128),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSending ? null : _sendReply,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF7931A),
+                disabledBackgroundColor: const Color(0xFF2A2A3E),
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child:
+                  _isSending
+                      ? SizedBox(
+                        width: 20.w,
+                        height: 20.h,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
+                      : Text(
+                        'Reply',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Simple profile view for viewing Nostr profiles
+class _NostrProfileView extends StatefulWidget {
+  final String pubkey;
+  final String? name;
+  final String? avatarUrl;
+
+  const _NostrProfileView({required this.pubkey, this.name, this.avatarUrl});
+
+  @override
+  State<_NostrProfileView> createState() => _NostrProfileViewState();
+}
+
+class _NostrProfileViewState extends State<_NostrProfileView> {
+  nostr_v2.NostrProfile? _profile;
+  bool _isLoading = true;
+  List<NostrFeedPost> _posts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profileService = nostr_v2.NostrProfileService();
+      final profile = await profileService.fetchProfile(widget.pubkey);
+
+      // Fetch user's posts
+      final posts = await NostrService.fetchUserPostsDirect(
+        widget.pubkey,
+        limit: 20,
+      );
+
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _posts = posts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName =
+        _profile?.displayNameOrFallback ?? widget.name ?? 'Unknown';
+    final avatarUrl = _profile?.picture ?? widget.avatarUrl;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0C0C1A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0C0C1A),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          displayName,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
+                ),
+              )
+              : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Profile header
+                    Container(
+                      padding: EdgeInsets.all(16.w),
+                      child: Column(
+                        children: [
+                          // Avatar
+                          Container(
+                            width: 80.w,
+                            height: 80.h,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF2A2A3E),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child:
+                                avatarUrl != null
+                                    ? CachedNetworkImage(
+                                      imageUrl: avatarUrl,
+                                      fit: BoxFit.cover,
+                                      errorWidget:
+                                          (_, __, ___) => Icon(
+                                            Icons.person,
+                                            size: 40.sp,
+                                            color: const Color(0xFFA1A1B2),
+                                          ),
+                                    )
+                                    : Icon(
+                                      Icons.person,
+                                      size: 40.sp,
+                                      color: const Color(0xFFA1A1B2),
+                                    ),
+                          ),
+                          SizedBox(height: 12.h),
+                          Text(
+                            displayName,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_profile?.about != null) ...[
+                            SizedBox(height: 8.h),
+                            Text(
+                              _profile!.about!,
+                              style: TextStyle(
+                                color: const Color(0xFFA1A1B2),
+                                fontSize: 14.sp,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                          SizedBox(height: 16.h),
+                          // Stats row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _ProfileStat(
+                                label: 'Posts',
+                                value: _posts.length.toString(),
+                              ),
+                              SizedBox(width: 32.w),
+                              _ProfileStat(label: 'Followers', value: '—'),
+                              SizedBox(width: 32.w),
+                              _ProfileStat(label: 'Following', value: '—'),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Divider
+                    Container(height: 1, color: const Color(0xFF1E1E3F)),
+                    // Posts
+                    if (_posts.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(32.w),
+                        child: Text(
+                          'No posts yet',
+                          style: TextStyle(
+                            color: const Color(0xFFA1A1B2),
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      )
+                    else
+                      ...(_posts.map(
+                        (post) => Container(
+                          padding: EdgeInsets.all(16.w),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Color(0xFF1E1E3F)),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                post.content,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                              SizedBox(height: 8.h),
+                              Text(
+                                post.timeAgo,
+                                style: TextStyle(
+                                  color: const Color(0xFF6B6B80),
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )),
+                  ],
+                ),
+              ),
+    );
+  }
+}
+
+class _ProfileStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ProfileStat({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
+        ),
+      ],
     );
   }
 }

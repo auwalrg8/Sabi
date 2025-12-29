@@ -6,6 +6,8 @@ import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
 import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
+import 'package:sabi_wallet/services/nostr/feed_aggregator.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
@@ -68,6 +70,14 @@ void main() async {
     debugPrint('⚠️ NostrService error: $e');
   }
 
+  // Initialize NostrProfileService (required for P2P and profile features)
+  try {
+    await NostrProfileService().init();
+    debugPrint('✅ NostrProfileService initialized');
+  } catch (e) {
+    debugPrint('⚠️ NostrProfileService error: $e');
+  }
+
   // Initialize new high-performance Nostr services (v2)
   try {
     await nostr_v2.EventCacheService().initialize();
@@ -80,6 +90,17 @@ void main() async {
     // Connect to relays in background (non-blocking)
     nostr_v2.RelayPoolManager().init().then((_) {
       debugPrint('✅ Nostr RelayPoolManager connected');
+      
+      // Pre-fetch global feed immediately after relay connection
+      FeedAggregator().init(NostrProfileService().currentPubkey).then((_) {
+        FeedAggregator().fetchFeed(type: FeedType.global, limit: 30).then((posts) {
+          debugPrint('✅ Pre-fetched ${posts.length} global feed posts');
+        }).catchError((e) {
+          debugPrint('⚠️ Pre-fetch global feed error: $e');
+        });
+      }).catchError((e) {
+        debugPrint('⚠️ FeedAggregator init error: $e');
+      });
     }).catchError((e) {
       debugPrint('⚠️ Nostr RelayPoolManager error: $e');
     });

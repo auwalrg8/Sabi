@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
@@ -35,6 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSyncingLightning = false;
   String? _nostrNpub;
+  String? _nostrNsec;
+  bool _showNsec = false;
   int _zapCount = 0;
   int _zapTotal = 0;
   int _followersCount = 0;
@@ -66,6 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await NostrService.init();
       final npub = await NostrService.getNpub();
+      final nsec = await NostrService.getNsec();
       int zapCount = 0;
       int zapTotal = 0;
       int followers = 0;
@@ -102,6 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           _nostrNpub = npub;
+          _nostrNsec = nsec;
           _zapCount = zapCount;
           _zapTotal = zapTotal;
           _followersCount = followers;
@@ -418,6 +423,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: _nostrNpub!));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Public key copied!'),
+                          backgroundColor: AppColors.accentGreen,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: Icon(
+                      Icons.copy,
+                      color: const Color(0xFFF7931A),
+                      size: 16.sp,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  GestureDetector(
                     onTap: _editNostrKeys,
                     child: Icon(
                       Icons.edit,
@@ -429,6 +452,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             SizedBox(height: 12.h),
+
+            // Private Key (nsec) - with security warning
+            if (_nostrNsec != null && _nostrNsec!.isNotEmpty) ...[
+              GestureDetector(
+                onTap: () => setState(() => _showNsec = !_showNsec),
+                child: Row(
+                  children: [
+                    Text(
+                      'Private Key:',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11.sp,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _showNsec ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.orange,
+                      size: 16.sp,
+                    ),
+                    SizedBox(width: 4.w),
+                    Text(
+                      _showNsec ? 'Hide' : 'Show',
+                      style: TextStyle(color: Colors.orange, fontSize: 11.sp),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 4.h),
+              if (_showNsec) ...[
+                Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber, color: Colors.red, size: 16.sp),
+                      SizedBox(width: 6.w),
+                      Expanded(
+                        child: Text(
+                          'Never share your private key! Anyone with this key can control your Nostr identity.',
+                          style: TextStyle(
+                            color: Colors.red[300],
+                            fontSize: 10.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 8.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _nostrNsec!.length > 30
+                              ? '${_nostrNsec!.substring(0, 15)}...${_nostrNsec!.substring(_nostrNsec!.length - 10)}'
+                              : _nostrNsec!,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 12.sp,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: _nostrNsec!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Private key copied! Keep it safe!',
+                              ),
+                              backgroundColor: Colors.orange,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: Icon(
+                          Icons.copy,
+                          color: Colors.orange,
+                          size: 16.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 12.h),
+              ],
+            ],
 
             // Connection status
             Container(
