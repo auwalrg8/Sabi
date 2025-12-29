@@ -11,19 +11,25 @@ import 'package:sabi_wallet/features/p2p/data/models/social_profile_model.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_success_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/widgets/social_profile_widget.dart';
 import 'package:sabi_wallet/features/p2p/services/p2p_trade_service.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 
 /// P2P Trade Chat Screen with escrow timer
+/// Supports both buyer and seller flows
 class P2PTradeChatScreen extends ConsumerStatefulWidget {
   final P2POfferModel offer;
   final double tradeAmount;
   final double receiveSats;
+  final bool isSeller; // true if current user is the seller
+  final P2PTrade? existingTrade; // For seller joining existing trade
 
   const P2PTradeChatScreen({
     super.key,
     required this.offer,
     required this.tradeAmount,
     required this.receiveSats,
+    this.isSeller = false,
+    this.existingTrade,
   });
 
   @override
@@ -37,28 +43,97 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   final formatter = NumberFormat('#,###');
 
   TradeStatus _tradeStatus = TradeStatus.awaitingPayment;
-  int _escrowTimeLeft = kTradeTimerSeconds; // 4 minutes - protects against BTC price volatility
+  int _escrowTimeLeft =
+      kTradeTimerSeconds; // 4 minutes - protects against BTC price volatility
   Timer? _escrowTimer;
   final List<_ChatMessage> _messages = [];
   bool _isTyping = false;
   File? _selectedProof; // Store selected proof image
-  
+  bool _isReleasingBtc = false; // Loading state for release button
+  P2PTrade? _activeTrade; // Trade managed by P2PTradeManager
+
   // Profile sharing state
   ProfileShareRequest? _profileShareRequest;
   List<SocialProfile>? _sharedCounterpartyProfiles;
   bool _hasRequestedProfileShare = false;
 
+  bool get _isSeller => widget.isSeller;
+  bool get _isBuyer => !widget.isSeller;
+
   @override
   void initState() {
     super.initState();
+    _initializeTrade();
     _startEscrowTimer();
-    P2PLogger.info('Trade', 'Trade chat started', metadata: {
-      'offerId': widget.offer.id,
-      'tradeAmount': widget.tradeAmount,
-      'receiveSats': widget.receiveSats,
-    });
-    _addSystemMessage('Trade started. Complete payment within 4 minutes.');
-    _addSystemMessage('⚠️ 4-minute window protects against BTC price changes. Act fast!');
+    P2PLogger.info(
+      'Trade',
+      'Trade chat started',
+      metadata: {
+        'offerId': widget.offer.id,
+        'tradeAmount': widget.tradeAmount,
+        'receiveSats': widget.receiveSats,
+        'isSeller': _isSeller,
+      },
+    );
+
+    if (_isBuyer) {
+      _addSystemMessage('Trade started. Complete payment within 4 minutes.');
+      _addSystemMessage(
+        '⚠️ 4-minute window protects against BTC price changes. Act fast!',
+      );
+    } else {
+      _addSystemMessage(
+        '🔔 New trade request! Buyer wants to purchase ${formatter.format(widget.receiveSats.toInt())} sats.',
+      );
+      _addSystemMessage(
+        'Wait for buyer to send fiat payment, then confirm when received.',
+      );
+    }
+  }
+
+  Future<void> _initializeTrade() async {
+    if (widget.existingTrade != null) {
+      _activeTrade = widget.existingTrade;
+      // Sync status
+      _syncTradeStatus();
+    } else if (_isBuyer) {
+      // Create new trade as buyer
+      final trade = await P2PTradeManager().startBuyTrade(
+        offer: widget.offer,
+        fiatAmount: widget.tradeAmount,
+        satsAmount: widget.receiveSats.toInt(),
+      );
+      if (trade != null) {
+        setState(() => _activeTrade = trade);
+      }
+    }
+  }
+
+  void _syncTradeStatus() {
+    if (_activeTrade == null) return;
+
+    switch (_activeTrade!.status) {
+      case P2PTradeStatus.pendingPayment:
+        _tradeStatus = TradeStatus.awaitingPayment;
+        break;
+      case P2PTradeStatus.paymentSubmitted:
+        _tradeStatus = TradeStatus.paid;
+        break;
+      case P2PTradeStatus.releasing:
+        _tradeStatus = TradeStatus.releasing;
+        break;
+      case P2PTradeStatus.completed:
+        _tradeStatus = TradeStatus.released;
+        break;
+      case P2PTradeStatus.cancelled:
+      case P2PTradeStatus.expired:
+        _tradeStatus = TradeStatus.cancelled;
+        break;
+      case P2PTradeStatus.disputed:
+        _tradeStatus = TradeStatus.disputed;
+        break;
+    }
+    setState(() {});
   }
 
   @override
@@ -73,7 +148,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     _escrowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_escrowTimeLeft > 0) {
         setState(() => _escrowTimeLeft--);
-        
+
         // Add warning messages at specific times
         if (_escrowTimeLeft == kWarning2Min) {
           _addSystemMessage('⏰ 2 minutes remaining! Complete payment now.');
@@ -84,9 +159,11 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
         }
       } else {
         timer.cancel();
-        P2PLogger.warning('Trade', 'Trade timer expired', metadata: {
-          'offerId': widget.offer.id,
-        });
+        P2PLogger.warning(
+          'Trade',
+          'Trade timer expired',
+          metadata: {'offerId': widget.offer.id},
+        );
         _addSystemMessage('⏰ Payment window expired. Trade cancelled.');
         setState(() => _tradeStatus = TradeStatus.cancelled);
       }
@@ -101,24 +178,24 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
 
   void _addSystemMessage(String text) {
     setState(() {
-      _messages.add(_ChatMessage(
-        text: text,
-        isSystem: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        _ChatMessage(text: text, isSystem: true, timestamp: DateTime.now()),
+      );
     });
     _scrollToBottom();
   }
 
   void _addMessage(String text, {bool isMe = true, File? image}) {
     setState(() {
-      _messages.add(_ChatMessage(
-        text: text,
-        isMe: isMe,
-        isSystem: false,
-        timestamp: DateTime.now(),
-        image: image,
-      ));
+      _messages.add(
+        _ChatMessage(
+          text: text,
+          isMe: isMe,
+          isSystem: false,
+          timestamp: DateTime.now(),
+          image: image,
+        ),
+      );
     });
     _scrollToBottom();
   }
@@ -145,7 +222,10 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     // Simulate seller response
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        _addMessage('Got it! I\'ll check and confirm once received.', isMe: false);
+        _addMessage(
+          'Got it! I\'ll check and confirm once received.',
+          isMe: false,
+        );
       }
     });
   }
@@ -157,48 +237,49 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40.w,
-              height: 4.h,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A3E),
-                borderRadius: BorderRadius.circular(2.r),
-              ),
-            ),
-            SizedBox(height: 24.h),
-            Text(
-              'Upload Payment Proof',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 24.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      builder:
+          (ctx) => Padding(
+            padding: EdgeInsets.all(24.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _ImageSourceOption(
-                  icon: Icons.camera_alt,
-                  label: 'Camera',
-                  onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                Container(
+                  width: 40.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A3E),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
                 ),
-                _ImageSourceOption(
-                  icon: Icons.photo_library,
-                  label: 'Gallery',
-                  onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                SizedBox(height: 24.h),
+                Text(
+                  'Upload Payment Proof',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+                SizedBox(height: 24.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _ImageSourceOption(
+                      icon: Icons.camera_alt,
+                      label: 'Camera',
+                      onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                    ),
+                    _ImageSourceOption(
+                      icon: Icons.photo_library,
+                      label: 'Gallery',
+                      onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24.h),
               ],
             ),
-            SizedBox(height: 24.h),
-          ],
-        ),
-      ),
+          ),
     );
 
     if (source == null) return;
@@ -213,34 +294,122 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
 
     final proofFile = File(file.path);
     setState(() => _selectedProof = proofFile);
-    _addMessage('Payment proof uploaded (${_selectedProof?.path.split('/').last})', image: proofFile);
-    _addSystemMessage('Payment proof received. Waiting for seller confirmation.');
+    _addMessage(
+      'Payment proof uploaded (${_selectedProof?.path.split('/').last})',
+      image: proofFile,
+    );
+    _addSystemMessage(
+      'Payment proof received. Waiting for seller confirmation.',
+    );
+
+    // Upload proof to trade manager
+    if (_activeTrade != null) {
+      await P2PTradeManager().uploadProof(_activeTrade!.id, file.path);
+    }
   }
 
-  void _markAsPaid() {
-    P2PLogger.info('Trade', 'User marked trade as paid', metadata: {
-      'offerId': widget.offer.id,
-      'timeRemaining': _escrowTimeLeft,
-    });
-    setState(() => _tradeStatus = TradeStatus.paid);
-    _addSystemMessage('✅ You marked this order as paid. Waiting for seller to release BTC.');
+  Future<void> _markAsPaid() async {
+    P2PLogger.info(
+      'Trade',
+      'User marked trade as paid',
+      metadata: {'offerId': widget.offer.id, 'timeRemaining': _escrowTimeLeft},
+    );
 
-    // Simulate seller release after delay
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _tradeStatus == TradeStatus.paid) {
-        _releaseBtc();
+    // Update via trade manager (notifies seller)
+    if (_activeTrade != null) {
+      final success = await P2PTradeManager().markAsPaid(
+        _activeTrade!.id,
+        proofPath: _selectedProof?.path,
+      );
+
+      if (success) {
+        setState(() => _tradeStatus = TradeStatus.paid);
+        _addSystemMessage(
+          '✅ You marked this order as paid. Waiting for seller to confirm and release BTC.',
+        );
+        _addSystemMessage(
+          '💡 Seller has been notified. They will review your payment and release BTC.',
+        );
+      } else {
+        _addSystemMessage(
+          '❌ Failed to update payment status. Please try again.',
+        );
       }
-    });
+    } else {
+      // Fallback for demo mode without active trade
+      setState(() => _tradeStatus = TradeStatus.paid);
+      _addSystemMessage(
+        '✅ You marked this order as paid. Waiting for seller to release BTC.',
+      );
+    }
+
+    // NOTE: Removed auto-release! Seller must manually confirm and release
   }
 
-  void _releaseBtc() {
+  /// Seller confirms they received fiat payment and releases BTC
+  Future<void> _sellerConfirmAndRelease() async {
+    if (!_isSeller) return;
+    if (_tradeStatus != TradeStatus.paid) {
+      _addSystemMessage(
+        '⚠️ Cannot release - buyer has not marked as paid yet.',
+      );
+      return;
+    }
+
+    setState(() => _isReleasingBtc = true);
+
+    P2PLogger.info(
+      'Trade',
+      'Seller confirming and releasing BTC',
+      metadata: {'offerId': widget.offer.id, 'satsAmount': widget.receiveSats},
+    );
+
+    if (_activeTrade != null) {
+      // Confirm payment and release BTC via trade manager
+      final confirmed = await P2PTradeManager().confirmPaymentReceived(
+        _activeTrade!.id,
+      );
+      if (confirmed) {
+        final released = await P2PTradeManager().releaseBtc(_activeTrade!.id);
+        if (released) {
+          _releaseBtcSuccess();
+        } else {
+          setState(() => _isReleasingBtc = false);
+          _addSystemMessage('❌ Failed to release BTC. Please try again.');
+        }
+      } else {
+        setState(() => _isReleasingBtc = false);
+        _addSystemMessage('❌ Failed to confirm payment. Please try again.');
+      }
+    } else {
+      // Demo mode - simulate release
+      await Future.delayed(const Duration(seconds: 1));
+      _releaseBtcSuccess();
+    }
+  }
+
+  void _releaseBtcSuccess() {
     _escrowTimer?.cancel();
-    P2PLogger.info('Trade', 'BTC released successfully', metadata: {
-      'offerId': widget.offer.id,
-      'satsReceived': widget.receiveSats,
+    P2PLogger.info(
+      'Trade',
+      'BTC released successfully',
+      metadata: {
+        'offerId': widget.offer.id,
+        'satsReceived': widget.receiveSats,
+      },
+    );
+    setState(() {
+      _tradeStatus = TradeStatus.released;
+      _isReleasingBtc = false;
     });
-    setState(() => _tradeStatus = TradeStatus.released);
-    _addSystemMessage('🎉 BTC has been released to your wallet!');
+
+    if (_isSeller) {
+      _addSystemMessage(
+        '🎉 BTC released! ${formatter.format(widget.receiveSats.toInt())} sats sent to buyer.',
+      );
+    } else {
+      _addSystemMessage('🎉 BTC has been released to your wallet!');
+    }
 
     // Navigate to success screen
     Future.delayed(const Duration(seconds: 2), () {
@@ -248,11 +417,13 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => P2PSuccessScreen(
-              amount: widget.tradeAmount,
-              sats: widget.receiveSats,
-              merchantName: widget.offer.name,
-            ),
+            builder:
+                (_) => P2PSuccessScreen(
+                  amount: widget.tradeAmount,
+                  sats: widget.receiveSats,
+                  merchantName: _isSeller ? 'Buyer' : widget.offer.name,
+                  isSeller: _isSeller,
+                ),
           ),
         );
       }
@@ -260,14 +431,15 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   }
 
   void _cancelTrade() {
-    P2PLogger.info('Trade', 'User cancelled trade', metadata: {
-      'offerId': widget.offer.id,
-      'timeRemaining': _escrowTimeLeft,
-    });
+    P2PLogger.info(
+      'Trade',
+      'User cancelled trade',
+      metadata: {'offerId': widget.offer.id, 'timeRemaining': _escrowTimeLeft},
+    );
     _escrowTimer?.cancel();
     setState(() => _tradeStatus = TradeStatus.cancelled);
     _addSystemMessage('Trade has been cancelled.');
-    
+
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         Navigator.pop(context);
@@ -283,7 +455,11 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
         backgroundColor: const Color(0xFF111128),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => _showExitConfirmation(),
         ),
         title: Row(
@@ -321,10 +497,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
                   ),
                   Text(
                     _getStatusText(),
-                    style: TextStyle(
-                      color: _getStatusColor(),
-                      fontSize: 12.sp,
-                    ),
+                    style: TextStyle(color: _getStatusColor(), fontSize: 12.sp),
                   ),
                 ],
               ),
@@ -354,21 +527,25 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
             sats: widget.receiveSats,
             paymentMethod: widget.offer.paymentMethod,
           ),
-          
+
           // Incoming profile share request
           if (_profileShareRequest != null && _profileShareRequest!.isPending)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: ProfileShareRequestCard(
                 request: _profileShareRequest!,
-                onAcceptMutual: () => _respondToProfileRequest(ShareConsent.mutual),
-                onAcceptViewOnly: () => _respondToProfileRequest(ShareConsent.viewOnly),
-                onDecline: () => _respondToProfileRequest(ShareConsent.declined),
+                onAcceptMutual:
+                    () => _respondToProfileRequest(ShareConsent.mutual),
+                onAcceptViewOnly:
+                    () => _respondToProfileRequest(ShareConsent.viewOnly),
+                onDecline:
+                    () => _respondToProfileRequest(ShareConsent.declined),
               ),
             ),
-          
+
           // Shared counterparty profiles
-          if (_sharedCounterpartyProfiles != null && _sharedCounterpartyProfiles!.isNotEmpty)
+          if (_sharedCounterpartyProfiles != null &&
+              _sharedCounterpartyProfiles!.isNotEmpty)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               child: SharedProfilesView(
@@ -390,12 +567,14 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
             ),
           ),
 
-          // Action Buttons based on status
+          // Action Buttons based on status and role
           if (_tradeStatus == TradeStatus.awaitingPayment)
-            _buildAwaitingPaymentActions(),
+            _isBuyer
+                ? _buildBuyerAwaitingPaymentActions()
+                : _buildSellerAwaitingPaymentActions(),
 
           if (_tradeStatus == TradeStatus.paid)
-            _buildPaidActions(),
+            _isBuyer ? _buildBuyerPaidActions() : _buildSellerPaidActions(),
 
           // Message Input
           _buildMessageInput(),
@@ -404,7 +583,8 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     );
   }
 
-  Widget _buildAwaitingPaymentActions() {
+  /// Buyer actions when awaiting payment
+  Widget _buildBuyerAwaitingPaymentActions() {
     return Container(
       padding: EdgeInsets.all(16.w),
       color: const Color(0xFF111128),
@@ -455,7 +635,57 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     );
   }
 
-  Widget _buildPaidActions() {
+  /// Seller actions when awaiting payment from buyer
+  Widget _buildSellerAwaitingPaymentActions() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      color: const Color(0xFF111128),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 16.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7931A).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: const Color(0xFFF7931A).withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.hourglass_empty,
+              color: const Color(0xFFF7931A),
+              size: 20.sp,
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Waiting for buyer to pay',
+                    style: TextStyle(
+                      color: const Color(0xFFF7931A),
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    'Buyer will send ₦${formatter.format(widget.tradeAmount.toInt())} via ${widget.offer.paymentMethod}',
+                    style: TextStyle(
+                      color: const Color(0xFFA1A1B2),
+                      fontSize: 12.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Buyer actions after marking as paid - waiting for seller
+  Widget _buildBuyerPaidActions() {
     return Container(
       padding: EdgeInsets.all(16.w),
       color: const Color(0xFF111128),
@@ -476,7 +706,9 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
                     height: 18.h,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(const Color(0xFFF7931A)),
+                      valueColor: AlwaysStoppedAnimation(
+                        const Color(0xFFF7931A),
+                      ),
                     ),
                   ),
                   SizedBox(width: 12.w),
@@ -497,14 +729,133 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     );
   }
 
+  /// Seller actions after buyer marks as paid - confirm and release
+  Widget _buildSellerPaidActions() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      color: const Color(0xFF111128),
+      child: Column(
+        children: [
+          // Payment proof indicator
+          if (_selectedProof != null ||
+              (_activeTrade?.proofImagePaths.isNotEmpty ?? false))
+            Container(
+              margin: EdgeInsets.only(bottom: 12.h),
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00FFB2).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: const Color(0xFF00FFB2).withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: const Color(0xFF00FFB2),
+                    size: 20.sp,
+                  ),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Payment proof received',
+                    style: TextStyle(
+                      color: const Color(0xFF00FFB2),
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Warning text
+          Container(
+            margin: EdgeInsets.only(bottom: 12.h),
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF6B6B).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: const Color(0xFFFF6B6B),
+                  size: 20.sp,
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: Text(
+                    'Only release after confirming you received ₦${formatter.format(widget.tradeAmount.toInt())}',
+                    style: TextStyle(
+                      color: const Color(0xFFFF6B6B),
+                      fontSize: 12.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Release button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isReleasingBtc ? null : _sellerConfirmAndRelease,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00FFB2),
+                disabledBackgroundColor: const Color(0xFF2A2A3E),
+                padding: EdgeInsets.symmetric(vertical: 16.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child:
+                  _isReleasingBtc
+                      ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 18.w,
+                            height: 18.h,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          Text(
+                            'Releasing BTC...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      )
+                      : Text(
+                        '✓ I Received Payment - Release ${formatter.format(widget.receiveSats.toInt())} sats',
+                        style: TextStyle(
+                          color: const Color(0xFF0C0C1A),
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageInput() {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: const BoxDecoration(
         color: Color(0xFF0C0C1A),
-        border: Border(
-          top: BorderSide(color: Color(0xFF2A2A3E), width: 1),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFF2A2A3E), width: 1)),
       ),
       child: SafeArea(
         child: Row(
@@ -548,7 +899,10 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
               child: Container(
                 padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
-                  color: _isTyping ? const Color(0xFFF7931A) : const Color(0xFF2A2A3E),
+                  color:
+                      _isTyping
+                          ? const Color(0xFFF7931A)
+                          : const Color(0xFF2A2A3E),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -614,31 +968,40 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   void _showExitConfirmation() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF111128),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-        title: Text(
-          'Leave Trade?',
-          style: TextStyle(color: Colors.white, fontSize: 18.sp),
-        ),
-        content: Text(
-          'The trade is still in progress. Are you sure you want to leave?',
-          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Stay', style: TextStyle(color: const Color(0xFFA1A1B2))),
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            title: Text(
+              'Leave Trade?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'The trade is still in progress. Are you sure you want to leave?',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Stay',
+                  style: TextStyle(color: const Color(0xFFA1A1B2)),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  'Leave',
+                  style: TextStyle(color: const Color(0xFFFF6B6B)),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            child: Text('Leave', style: TextStyle(color: const Color(0xFFFF6B6B))),
-          ),
-        ],
-      ),
     );
   }
 
@@ -649,53 +1012,55 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40.w,
-              height: 4.h,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A3E),
-                borderRadius: BorderRadius.circular(2.r),
-              ),
+      builder:
+          (ctx) => Padding(
+            padding: EdgeInsets.all(24.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A3E),
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+                SizedBox(height: 24.h),
+                // Profile sharing option
+                if (SocialProfileService.hasProfilesToShare &&
+                    !_hasRequestedProfileShare)
+                  _OptionTile(
+                    icon: Icons.handshake_outlined,
+                    label: 'Request Trust Share',
+                    color: const Color(0xFFF7931A),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showProfileShareDialog();
+                    },
+                  ),
+                _OptionTile(
+                  icon: Icons.cancel,
+                  label: 'Cancel Trade',
+                  color: const Color(0xFFFF6B6B),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showCancelConfirmation();
+                  },
+                ),
+                _OptionTile(
+                  icon: Icons.help_outline,
+                  label: 'Get Help',
+                  color: const Color(0xFFF7931A),
+                  onTap: () => Navigator.pop(ctx),
+                ),
+                SizedBox(height: 16.h),
+              ],
             ),
-            SizedBox(height: 24.h),
-            // Profile sharing option
-            if (SocialProfileService.hasProfilesToShare && !_hasRequestedProfileShare)
-              _OptionTile(
-                icon: Icons.handshake_outlined,
-                label: 'Request Trust Share',
-                color: const Color(0xFFF7931A),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showProfileShareDialog();
-                },
-              ),
-            _OptionTile(
-              icon: Icons.cancel,
-              label: 'Cancel Trade',
-              color: const Color(0xFFFF6B6B),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showCancelConfirmation();
-              },
-            ),
-            _OptionTile(
-              icon: Icons.help_outline,
-              label: 'Get Help',
-              color: const Color(0xFFF7931A),
-              onTap: () => Navigator.pop(ctx),
-            ),
-            SizedBox(height: 16.h),
-          ],
-        ),
-      ),
+          ),
     );
   }
-  
+
   void _showProfileShareDialog() {
     final profiles = SocialProfileService.getProfiles();
     if (profiles.isEmpty) {
@@ -707,29 +1072,36 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       );
       return;
     }
-    
+
     showDialog(
       context: context,
-      builder: (context) => ProfileShareDialog(
-        availableProfiles: profiles,
-        counterpartyName: widget.offer.name,
-        onSubmit: (platforms) => _sendProfileShareRequest(platforms),
-      ),
+      builder:
+          (context) => ProfileShareDialog(
+            availableProfiles: profiles,
+            counterpartyName: widget.offer.name,
+            onSubmit: (platforms) => _sendProfileShareRequest(platforms),
+          ),
     );
   }
-  
+
   void _sendProfileShareRequest(List<SocialPlatform> platforms) {
     setState(() {
       _hasRequestedProfileShare = true;
     });
-    
-    P2PLogger.info('Trade', 'Sent profile share request', metadata: {
-      'offerId': widget.offer.id,
-      'platforms': platforms.map((p) => p.name).toList(),
-    });
-    
-    _addSystemMessage('📤 You sent a trust profile share request to ${widget.offer.name}');
-    
+
+    P2PLogger.info(
+      'Trade',
+      'Sent profile share request',
+      metadata: {
+        'offerId': widget.offer.id,
+        'platforms': platforms.map((p) => p.name).toList(),
+      },
+    );
+
+    _addSystemMessage(
+      '📤 You sent a trust profile share request to ${widget.offer.name}',
+    );
+
     // Simulate response (in real app, this would be via chat/messaging)
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
@@ -737,13 +1109,18 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       }
     });
   }
-  
-  void _handleProfileShareResponse({required bool accepted, required bool mutual}) {
+
+  void _handleProfileShareResponse({
+    required bool accepted,
+    required bool mutual,
+  }) {
     if (!accepted) {
-      _addSystemMessage('${widget.offer.name} declined the profile share request');
+      _addSystemMessage(
+        '${widget.offer.name} declined the profile share request',
+      );
       return;
     }
-    
+
     // Mock shared profiles from counterparty
     setState(() {
       _sharedCounterpartyProfiles = [
@@ -755,7 +1132,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
           addedAt: DateTime.now(),
         ),
         SocialProfile(
-          id: '2', 
+          id: '2',
           platform: SocialPlatform.telegram,
           handle: '@${widget.offer.name.toLowerCase().replaceAll(' ', '')}',
           isVerified: false,
@@ -763,33 +1140,39 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
         ),
       ];
     });
-    
+
     if (mutual) {
-      _addSystemMessage('🤝 Both profiles shared! You can now view each other\'s social profiles.');
+      _addSystemMessage(
+        '🤝 Both profiles shared! You can now view each other\'s social profiles.',
+      );
     } else {
-      _addSystemMessage('👁️ ${widget.offer.name} shared their profiles with you.');
+      _addSystemMessage(
+        '👁️ ${widget.offer.name} shared their profiles with you.',
+      );
     }
   }
-  
+
   void _respondToProfileRequest(ShareConsent consent) {
     if (_profileShareRequest == null) return;
-    
+
     final request = _profileShareRequest!;
-    P2PLogger.info('Trade', 'Responded to profile share request', metadata: {
-      'offerId': widget.offer.id,
-      'consent': consent.name,
-    });
-    
+    P2PLogger.info(
+      'Trade',
+      'Responded to profile share request',
+      metadata: {'offerId': widget.offer.id, 'consent': consent.name},
+    );
+
     setState(() {
       _profileShareRequest = request.copyWith(
-        status: consent == ShareConsent.declined 
-            ? ProfileShareStatus.declined 
-            : ProfileShareStatus.accepted,
+        status:
+            consent == ShareConsent.declined
+                ? ProfileShareStatus.declined
+                : ProfileShareStatus.accepted,
         response: consent,
         respondedAt: DateTime.now(),
       );
     });
-    
+
     if (consent == ShareConsent.declined) {
       _addSystemMessage('You declined the profile share request');
     } else if (consent == ShareConsent.mutual) {
@@ -806,31 +1189,40 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   void _showCancelConfirmation() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF111128),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-        title: Text(
-          'Cancel Trade?',
-          style: TextStyle(color: Colors.white, fontSize: 18.sp),
-        ),
-        content: Text(
-          'Are you sure you want to cancel this trade? BTC will be returned to escrow. This action cannot be undone.',
-          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('No', style: TextStyle(color: const Color(0xFFA1A1B2))),
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            title: Text(
+              'Cancel Trade?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'Are you sure you want to cancel this trade? BTC will be returned to escrow. This action cannot be undone.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'No',
+                  style: TextStyle(color: const Color(0xFFA1A1B2)),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _cancelTrade();
+                },
+                child: Text(
+                  'Yes, Cancel',
+                  style: TextStyle(color: const Color(0xFFFF6B6B)),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _cancelTrade();
-            },
-            child: Text('Yes, Cancel', style: TextStyle(color: const Color(0xFFFF6B6B))),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -851,7 +1243,8 @@ class _EscrowTimerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = status == TradeStatus.awaitingPayment || status == TradeStatus.paid;
+    final isActive =
+        status == TradeStatus.awaitingPayment || status == TradeStatus.paid;
     // Use more urgent colors for 4-minute timer
     Color color;
     if (progress > 0.5) {
@@ -872,29 +1265,33 @@ class _EscrowTimerBar extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.lock,
-                    color: const Color(0xFFF7931A),
-                    size: 18.sp,
-                  ),
+                  Icon(Icons.lock, color: const Color(0xFFF7931A), size: 18.sp),
                   SizedBox(width: 8.w),
                   Text(
                     isUrgent ? '⚠️ Complete Now!' : 'Escrow Active',
                     style: TextStyle(
-                      color: isUrgent ? const Color(0xFFFF6B6B) : const Color(0xFFA1A1B2),
+                      color:
+                          isUrgent
+                              ? const Color(0xFFFF6B6B)
+                              : const Color(0xFFA1A1B2),
                       fontSize: 13.sp,
-                      fontWeight: isUrgent ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight:
+                          isUrgent ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
               ),
               if (isActive)
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 6.h,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20.r),
-                    border: isUrgent ? Border.all(color: color, width: 1) : null,
+                    border:
+                        isUrgent ? Border.all(color: color, width: 1) : null,
                   ),
                   child: Row(
                     children: [
@@ -1066,7 +1463,10 @@ class _ChatBubble extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
-                color: message.isMe ? const Color(0xFFF7931A) : const Color(0xFF1A1A2E),
+                color:
+                    message.isMe
+                        ? const Color(0xFFF7931A)
+                        : const Color(0xFF1A1A2E),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(16.r),
                   topRight: Radius.circular(16.r),
@@ -1092,7 +1492,8 @@ class _ChatBubble extends StatelessWidget {
                   Text(
                     message.text,
                     style: TextStyle(
-                      color: message.isMe ? Colors.white : const Color(0xFFE0E0E0),
+                      color:
+                          message.isMe ? Colors.white : const Color(0xFFE0E0E0),
                       fontSize: 14.sp,
                     ),
                   ),
@@ -1102,10 +1503,7 @@ class _ChatBubble extends StatelessWidget {
             SizedBox(height: 4.h),
             Text(
               _formatTime(message.timestamp),
-              style: TextStyle(
-                color: const Color(0xFF6B6B80),
-                fontSize: 11.sp,
-              ),
+              style: TextStyle(color: const Color(0xFF6B6B80), fontSize: 11.sp),
             ),
           ],
         ),
@@ -1164,10 +1562,7 @@ class _ImageSourceOption extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             label,
-            style: TextStyle(
-              color: const Color(0xFFA1A1B2),
-              fontSize: 14.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
           ),
         ],
       ),

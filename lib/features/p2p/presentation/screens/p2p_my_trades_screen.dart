@@ -7,6 +7,8 @@ import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';
 
 /// P2P My Trades Screen - Active trades list
 class P2PMyTradesScreen extends ConsumerStatefulWidget {
@@ -20,14 +22,23 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final formatter = NumberFormat('#,###');
-
-  // Active trades - real trades will come from provider
-  final List<_MockTrade> _activeTrades = [];
+  final P2PTradeManager _tradeManager = P2PTradeManager();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _initializeTradeManager();
+  }
+
+  Future<void> _initializeTradeManager() async {
+    await _tradeManager.initialize();
+    setState(() {});
+
+    // Listen to trade updates
+    _tradeManager.tradeUpdates.listen((trade) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -42,6 +53,9 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
     final userOffersAsync = ref.watch(userNip99OffersProvider);
     final userOffers = userOffersAsync.asData?.value ?? [];
     final isLoading = userOffersAsync.isLoading;
+
+    // Get active trades from trade manager
+    final activeTrades = _tradeManager.activeTrades;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
@@ -88,7 +102,7 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
                 fontWeight: FontWeight.w600,
               ),
               tabs: [
-                Tab(text: 'Active (${_activeTrades.length})'),
+                Tab(text: 'Active (${activeTrades.length})'),
                 Tab(
                   text: 'My Offers (${isLoading ? '...' : userOffers.length})',
                 ),
@@ -99,13 +113,16 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildActiveTradesTab(), _buildMyOffersTab(userOffers)],
+        children: [
+          _buildActiveTradesTab(activeTrades),
+          _buildMyOffersTab(userOffers),
+        ],
       ),
     );
   }
 
-  Widget _buildActiveTradesTab() {
-    if (_activeTrades.isEmpty) {
+  Widget _buildActiveTradesTab(List<P2PTrade> activeTrades) {
+    if (activeTrades.isEmpty) {
       return _buildEmptyState(
         icon: Icons.swap_horiz,
         title: 'No active trades',
@@ -115,14 +132,50 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
-      itemCount: _activeTrades.length,
+      itemCount: activeTrades.length,
       itemBuilder: (context, index) {
-        final trade = _activeTrades[index];
+        final trade = activeTrades[index];
         return Padding(
           padding: EdgeInsets.only(bottom: 12.h),
-          child: _ActiveTradeCard(trade: trade),
+          child: _RealActiveTradeCard(
+            trade: trade,
+            onContinue: () => _navigateToTrade(trade),
+          ),
         );
       },
+    );
+  }
+
+  void _navigateToTrade(P2PTrade trade) {
+    // Create a mock offer for the trade chat screen
+    final offer = P2POfferModel(
+      id: trade.offerId,
+      name:
+          trade.isBuyer
+              ? (trade.sellerName ?? 'Seller')
+              : (trade.buyerName ?? 'Buyer'),
+      pricePerBtc: trade.pricePerBtc,
+      paymentMethod: trade.paymentMethod,
+      eta: '< 15 min',
+      ratingPercent: 100,
+      trades: 0,
+      minLimit: 0,
+      maxLimit: trade.fiatAmount.toInt() * 2,
+      paymentAccountDetails: trade.paymentDetails,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => P2PTradeChatScreen(
+              offer: offer,
+              tradeAmount: trade.fiatAmount,
+              receiveSats: trade.satsAmount.toDouble(),
+              isSeller: trade.isSeller,
+              existingTrade: trade,
+            ),
+      ),
     );
   }
 
@@ -710,6 +763,287 @@ class _RealOfferCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Real Active Trade Card - Uses P2PTrade from trade manager
+class _RealActiveTradeCard extends StatelessWidget {
+  final P2PTrade trade;
+  final VoidCallback onContinue;
+
+  const _RealActiveTradeCard({required this.trade, required this.onContinue});
+
+  @override
+  Widget build(BuildContext context) {
+    final formatter = NumberFormat('#,###');
+    final counterpartyName =
+        trade.isBuyer
+            ? (trade.sellerName ?? 'Seller')
+            : (trade.buyerName ?? 'Buyer');
+
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111128),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: _getStatusColor(trade.status).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 44.w,
+                height: 44.h,
+                decoration: BoxDecoration(
+                  color: _getAvatarColor(counterpartyName),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    counterpartyName[0].toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                trade.isBuyer
+                                    ? const Color(
+                                      0xFF00FFB2,
+                                    ).withValues(alpha: 0.2)
+                                    : const Color(
+                                      0xFFF7931A,
+                                    ).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                          child: Text(
+                            trade.isBuyer ? 'BUYING' : 'SELLING',
+                            style: TextStyle(
+                              color:
+                                  trade.isBuyer
+                                      ? const Color(0xFF00FFB2)
+                                      : const Color(0xFFF7931A),
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Text(
+                            'with $counterpartyName',
+                            style: TextStyle(
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.75,
+                              ),
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8.w,
+                          height: 8.h,
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(trade.status),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Text(
+                          _getStatusText(trade.status, trade.isSeller),
+                          style: TextStyle(
+                            color: _getStatusColor(trade.status),
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+
+          // Trade Info
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0C1A),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        trade.isBuyer ? 'You Pay' : 'You Receive',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      Text(
+                        '₦${formatter.format(trade.fiatAmount.toInt())}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.swap_horiz,
+                  color: const Color(0xFFA1A1B2),
+                  size: 20.sp,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        trade.isBuyer ? 'You Receive' : 'You Send',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(trade.satsAmount)} sats',
+                        style: TextStyle(
+                          color:
+                              trade.isBuyer
+                                  ? const Color(0xFF00FFB2)
+                                  : const Color(0xFFF7931A),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12.h),
+
+          // Action Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onContinue,
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    trade.status == P2PTradeStatus.paymentSubmitted &&
+                            trade.isSeller
+                        ? const Color(0xFF00FFB2)
+                        : const Color(0xFFF7931A),
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child: Text(
+                trade.status == P2PTradeStatus.paymentSubmitted &&
+                        trade.isSeller
+                    ? 'Review & Release BTC'
+                    : 'Continue Trade',
+                style: TextStyle(
+                  color:
+                      trade.status == P2PTradeStatus.paymentSubmitted &&
+                              trade.isSeller
+                          ? const Color(0xFF0C0C1A)
+                          : AppColors.surface,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getAvatarColor(String name) {
+    final colors = [
+      const Color(0xFFF7931A),
+      const Color(0xFF00FFB2),
+      const Color(0xFF6366F1),
+      const Color(0xFFEC4899),
+      const Color(0xFF8B5CF6),
+    ];
+    return colors[name.hashCode % colors.length];
+  }
+
+  Color _getStatusColor(P2PTradeStatus status) {
+    switch (status) {
+      case P2PTradeStatus.pendingPayment:
+        return const Color(0xFFF7931A);
+      case P2PTradeStatus.paymentSubmitted:
+        return const Color(0xFF00FFB2);
+      case P2PTradeStatus.releasing:
+        return const Color(0xFF00FFB2);
+      case P2PTradeStatus.completed:
+        return const Color(0xFF00FFB2);
+      case P2PTradeStatus.cancelled:
+      case P2PTradeStatus.expired:
+        return const Color(0xFFFF6B6B);
+      case P2PTradeStatus.disputed:
+        return const Color(0xFFFF6B6B);
+    }
+  }
+
+  String _getStatusText(P2PTradeStatus status, bool isSeller) {
+    switch (status) {
+      case P2PTradeStatus.pendingPayment:
+        return isSeller ? 'Waiting for buyer payment' : 'Awaiting your payment';
+      case P2PTradeStatus.paymentSubmitted:
+        return isSeller
+            ? '⚡ Buyer paid - Review & Release'
+            : 'Waiting for seller release';
+      case P2PTradeStatus.releasing:
+        return 'Releasing BTC...';
+      case P2PTradeStatus.completed:
+        return 'Completed';
+      case P2PTradeStatus.cancelled:
+        return 'Cancelled';
+      case P2PTradeStatus.expired:
+        return 'Expired';
+      case P2PTradeStatus.disputed:
+        return 'Under dispute';
+    }
   }
 }
 

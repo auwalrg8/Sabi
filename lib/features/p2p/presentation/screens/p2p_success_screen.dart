@@ -8,12 +8,14 @@ class P2PSuccessScreen extends StatefulWidget {
   final double amount;
   final double sats;
   final String merchantName;
+  final bool isSeller; // true if current user was the seller
 
   const P2PSuccessScreen({
     super.key,
     required this.amount,
     required this.sats,
     required this.merchantName,
+    this.isSeller = false,
   });
 
   @override
@@ -80,7 +82,7 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
   Widget build(BuildContext context) {
     // Fire confetti after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) => _fireConfetti());
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
       body: Stack(
@@ -118,7 +120,9 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                           child: Container(
                             padding: EdgeInsets.all(32.w),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00FFB2).withValues(alpha: 0.2),
+                              color: const Color(
+                                0xFF00FFB2,
+                              ).withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                             ),
                             child: Container(
@@ -155,7 +159,9 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                         ),
                         SizedBox(height: 8.h),
                         Text(
-                          'BTC has been added to your wallet',
+                          widget.isSeller
+                              ? 'You sold ${formatter.format(widget.sats.toInt())} sats'
+                              : 'BTC has been added to your wallet',
                           style: TextStyle(
                             color: const Color(0xFFA1A1B2),
                             fontSize: 16.sp,
@@ -187,7 +193,9 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                               Container(
                                 padding: EdgeInsets.all(12.w),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF7931A).withValues(alpha: 0.2),
+                                  color: const Color(
+                                    0xFFF7931A,
+                                  ).withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(12.r),
                                 ),
                                 child: Icon(
@@ -255,7 +263,9 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              Navigator.of(
+                                context,
+                              ).popUntil((route) => route.isFirst);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00FFB2),
@@ -280,7 +290,9 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                           child: TextButton(
                             onPressed: () {
                               // TODO: Navigate to wallet
-                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              Navigator.of(
+                                context,
+                              ).popUntil((route) => route.isFirst);
                             },
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -326,11 +338,7 @@ class _DetailRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const _DetailRow({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _DetailRow({required this.label, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -339,10 +347,7 @@ class _DetailRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
         Text(
           value,
