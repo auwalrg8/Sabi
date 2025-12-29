@@ -1067,6 +1067,21 @@ class NostrService {
     return follows;
   }
 
+  /// Get cached follows without fetching from relays (fast)
+  static Future<List<String>> getCachedFollows() async {
+    try {
+      final cached = await _secureStorage.read(key: _followsKey);
+      if (cached != null && cached.isNotEmpty) {
+        final follows = cached.split(',').where((s) => s.isNotEmpty).toList();
+        _debug.info('FOLLOWS_CACHE', 'Loaded cached follows', '${follows.length} accounts');
+        return follows;
+      }
+    } catch (e) {
+      _debug.warn('FOLLOWS_CACHE', 'Failed to read cached follows', e.toString());
+    }
+    return [];
+  }
+
   /// Fetch posts from followed users using DIRECT WebSocket connections
   static Future<List<NostrFeedPost>> fetchFollowsFeedDirect({
     required List<String> followPubkeys,
@@ -1419,19 +1434,6 @@ class NostrService {
       _debug.error('FOLLOWS', 'Error fetching follows', e.toString());
       return follows;
     }
-  }
-
-  /// Get cached follows (for offline access)
-  static Future<List<String>> getCachedFollows() async {
-    try {
-      final cached = await _secureStorage.read(key: _followsKey);
-      if (cached != null && cached.isNotEmpty) {
-        return cached.split(',').where((s) => s.isNotEmpty).toList();
-      }
-    } catch (e) {
-      print('⚠️ Error reading cached follows: $e');
-    }
-    return [];
   }
 
   /// Fetch feed from user's follows (kind-1 posts from follows, last 48 hours)

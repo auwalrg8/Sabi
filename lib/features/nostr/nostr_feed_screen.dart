@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'package:share_plus/share_plus.dart';
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
@@ -46,7 +45,6 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
       FeedFilter.following; // Default to following feed (Primal-style)
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  bool _showImages = false; // Default to text-only mode for low-data users
   Map<String, Map<String, String>> _authorMetadataCache = {};
   bool _followsFeedEmpty = false; // Track if follows feed returned no posts
   bool _hasCachedContent = false;
@@ -115,38 +113,37 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   }
 
   /// Refresh feed in background without blocking UI
+  /// Optimized for speed - shows posts immediately, fetches metadata later
   Future<void> _refreshFeedInBackground() async {
     if (mounted) {
       setState(() => _isRefreshing = true);
     }
 
     final debug = NostrService.debugService;
-    debug.info(
-      'SCREEN',
-      'Background refresh started',
-      'filter: $_currentFilter',
-    );
+    debug.info('SCREEN', 'Fast refresh started', 'filter: $_currentFilter');
 
     try {
-      // Initialize Nostr service (quick if already done)
+      // Quick init - skip if already done
       await NostrService.init();
-
-      // Get stored npub
       final npub = await NostrService.getNpub();
       _userNpub = npub;
 
-      // Quick relay initialization
-      await NostrService.reinitialize();
-
+      // FAST PATH: Fetch posts directly without reinitializing relays
       List<NostrFeedPost> newPosts = [];
 
       if (_currentFilter == FeedFilter.following && npub != null) {
         _userHexPubkey = NostrService.npubToHex(npub);
 
         if (_userHexPubkey != null) {
-          _userFollows = await NostrService.fetchUserFollowsDirect(
-            _userHexPubkey!,
-          );
+          // Try to get cached follows first for speed
+          _userFollows = await NostrService.getCachedFollows();
+
+          if (_userFollows.isEmpty) {
+            // No cached follows, fetch from relays (this is the slow part)
+            _userFollows = await NostrService.fetchUserFollowsDirect(
+              _userHexPubkey!,
+            );
+          }
 
           if (_userFollows.isNotEmpty) {
             newPosts = await NostrService.fetchFollowsFeedDirect(
@@ -166,51 +163,20 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
         newPosts = await NostrService.fetchGlobalFeedDirect(limit: 50);
       }
 
-      // Fetch author metadata for new posts in PARALLEL (much faster than sequential)
-      final uniqueAuthors =
-          newPosts
-              .map((p) => p.authorPubkey)
-              .toSet()
-              .where((pubkey) => !_authorMetadataCache.containsKey(pubkey))
-              .take(15)
-              .toList();
-
-      // Parallel fetch - all metadata at once instead of one-by-one
-      if (uniqueAuthors.isNotEmpty) {
-        final metadataFutures =
-            uniqueAuthors.map((pubkey) async {
-              try {
-                final metadata = await NostrService.fetchAuthorMetadataDirect(
-                  pubkey,
-                );
-                return MapEntry(pubkey, metadata);
-              } catch (e) {
-                return MapEntry(pubkey, <String, String>{});
-              }
-            }).toList();
-
-        final results = await Future.wait(metadataFutures);
-        for (final entry in results) {
-          if (entry.value.isNotEmpty) {
-            _authorMetadataCache[entry.key] = entry.value;
+      // SHOW POSTS IMMEDIATELY - don't wait for metadata
+      if (mounted && newPosts.isNotEmpty) {
+        // Apply any cached metadata we already have
+        for (final post in newPosts) {
+          final meta = _authorMetadataCache[post.authorPubkey];
+          if (meta != null) {
+            post.authorName =
+                meta['name'] ?? meta['display_name'] ?? post.authorName;
+            post.authorAvatar = meta['picture'] ?? meta['avatar'];
+            post.lightningAddress = meta['lud16'];
           }
         }
-      }
 
-      // Apply all cached metadata to posts
-      for (final post in newPosts) {
-        final meta = _authorMetadataCache[post.authorPubkey];
-        if (meta != null) {
-          post.authorName =
-              meta['name'] ?? meta['display_name'] ?? post.authorName;
-          post.authorAvatar = meta['picture'] ?? meta['avatar'];
-          post.lightningAddress = meta['lud16'];
-        }
-      }
-
-      if (mounted) {
         setState(() {
-          // Merge new posts with existing (new first, no duplicates)
           _posts = NostrService.mergePosts(newPosts, _posts);
           _applyFilter();
           _isLoading = false;
@@ -218,19 +184,17 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
           _hasCachedContent = true;
         });
 
-        // Save to cache for next time
-        await NostrService.cachePosts(_posts);
-        await NostrService.cacheAuthorMetadata(_authorMetadataCache);
+        debug.success('SCREEN', 'Posts displayed', '${_posts.length} posts');
 
-        // Fetch real engagement data in background
-        _fetchEngagementData(_posts);
-
-        debug.success(
-          'SCREEN',
-          'Background refresh complete',
-          '${_posts.length} posts',
-        );
+        // Save to cache
+        NostrService.cachePosts(_posts);
       }
+
+      // BACKGROUND: Fetch metadata for posts without avatars (non-blocking)
+      _fetchMissingMetadataInBackground(newPosts);
+
+      // BACKGROUND: Fetch engagement data (non-blocking)
+      _fetchEngagementData(_posts);
     } catch (e, stackTrace) {
       debug.error('SCREEN', 'Background refresh error', '$e\n$stackTrace');
       if (mounted) {
@@ -240,6 +204,52 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
         });
       }
     }
+  }
+
+  /// Fetch missing metadata in background without blocking the feed
+  Future<void> _fetchMissingMetadataInBackground(
+    List<NostrFeedPost> posts,
+  ) async {
+    final uniqueAuthors =
+        posts
+            .where((p) => p.authorAvatar == null)
+            .map((p) => p.authorPubkey)
+            .toSet()
+            .where((pubkey) => !_authorMetadataCache.containsKey(pubkey))
+            .take(10)
+            .toList();
+
+    if (uniqueAuthors.isEmpty) return;
+
+    for (final pubkey in uniqueAuthors) {
+      try {
+        final metadata = await NostrService.fetchAuthorMetadataDirect(pubkey);
+        if (metadata.isNotEmpty) {
+          _authorMetadataCache[pubkey] = metadata;
+
+          // Update posts with this author
+          if (mounted) {
+            setState(() {
+              for (final post in _posts) {
+                if (post.authorPubkey == pubkey) {
+                  post.authorName =
+                      metadata['name'] ??
+                      metadata['display_name'] ??
+                      post.authorName;
+                  post.authorAvatar = metadata['picture'] ?? metadata['avatar'];
+                  post.lightningAddress = metadata['lud16'];
+                }
+              }
+            });
+          }
+        }
+      } catch (e) {
+        // Ignore metadata fetch errors - not critical
+      }
+    }
+
+    // Cache updated metadata
+    NostrService.cacheAuthorMetadata(_authorMetadataCache);
   }
 
   /// Manual pull-to-refresh
@@ -736,39 +746,6 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // Show Images toggle
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Images',
-                        style: TextStyle(
-                          color:
-                              _showImages
-                                  ? const Color(0xFFF7931A)
-                                  : const Color(0xFFA1A1B2),
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      SizedBox(
-                        height: 24.h,
-                        child: Switch(
-                          value: _showImages,
-                          onChanged: (val) => setState(() => _showImages = val),
-                          activeThumbColor: const Color(0xFFF7931A),
-                          activeTrackColor: const Color(
-                            0xFFF7931A,
-                          ).withOpacity(0.3),
-                          inactiveThumbColor: const Color(0xFFA1A1B2),
-                          inactiveTrackColor: const Color(0xFF111128),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 8.w),
                   // Refresh button
                   GestureDetector(
                     onTap: _isRefreshing ? null : _loadFeed,
@@ -877,7 +854,7 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
             Expanded(
               child:
                   (_isLoading && !_hasCachedContent)
-                      ? _buildSkeletonLoader()
+                      ? _buildSimpleLoader()
                       : _userNpub == null && !_hasCachedContent
                       ? _buildNoAccountState()
                       : (_followsFeedEmpty &&
@@ -906,7 +883,7 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
                               onShare: () => _handleShare(post),
                               onProfileTap: () => _navigateToProfile(post),
                               isLiked: _likedPosts.contains(post.id),
-                              showImages: _showImages,
+                              showImages: true, // Always show images
                               likeCount: post.likeCount,
                               repostCount: post.repostCount,
                               replyCount: post.replyCount,
@@ -1083,99 +1060,21 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
     );
   }
 
-  Widget _buildSkeletonLoader() {
-    return Skeletonizer(
-      enabled: true,
-      child: ListView.builder(
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        itemCount: 5,
-        itemBuilder: (context, index) {
-          return Container(
-            margin: EdgeInsets.only(bottom: 12.h),
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(20.r),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44.w,
-                      height: 44.h,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2A2A3E),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 120.w,
-                            height: 14.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A3E),
-                              borderRadius: BorderRadius.circular(4.r),
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Container(
-                            width: 80.w,
-                            height: 12.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A3E),
-                              borderRadius: BorderRadius.circular(4.r),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 60.w,
-                      height: 24.h,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A2A3E),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-                Container(
-                  width: double.infinity,
-                  height: 16.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A3E),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Container(
-                  width: 250.w,
-                  height: 16.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A3E),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Container(
-                  width: 180.w,
-                  height: 16.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A3E),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+  Widget _buildSimpleLoader() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            color: Color(0xFFF7931A),
+            strokeWidth: 3,
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'Loading feed...',
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+          ),
+        ],
       ),
     );
   }
