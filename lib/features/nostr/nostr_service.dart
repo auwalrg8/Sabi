@@ -1073,13 +1073,170 @@ class NostrService {
       final cached = await _secureStorage.read(key: _followsKey);
       if (cached != null && cached.isNotEmpty) {
         final follows = cached.split(',').where((s) => s.isNotEmpty).toList();
-        _debug.info('FOLLOWS_CACHE', 'Loaded cached follows', '${follows.length} accounts');
+        _debug.info(
+          'FOLLOWS_CACHE',
+          'Loaded cached follows',
+          '${follows.length} accounts',
+        );
         return follows;
       }
     } catch (e) {
-      _debug.warn('FOLLOWS_CACHE', 'Failed to read cached follows', e.toString());
+      _debug.warn(
+        'FOLLOWS_CACHE',
+        'Failed to read cached follows',
+        e.toString(),
+      );
     }
     return [];
+  }
+
+  /// Fetch how many people a user follows (from their kind-3 event)
+  static Future<int> fetchFollowingCount(String pubkey) async {
+    try {
+      final follows = await fetchUserFollowsDirect(pubkey);
+      return follows.length;
+    } catch (e) {
+      _debug.warn(
+        'FOLLOWING_COUNT',
+        'Failed to fetch following count',
+        e.toString(),
+      );
+      return 0;
+    }
+  }
+
+  /// Fetch approximate follower count (people who follow this pubkey)
+  /// Note: This is approximate as we can only sample from connected relays
+  static Future<int> fetchFollowerCount(String pubkey) async {
+    try {
+      _debug.info(
+        'FOLLOWER_COUNT',
+        'Fetching follower count for',
+        pubkey.substring(0, 16),
+      );
+
+      // Query for kind-3 events that contain this pubkey in their tags
+      final filter = {
+        'kinds': [3],
+        '#p': [pubkey],
+        'limit': 500, // Sample up to 500 followers
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls:
+            _defaultRelays.take(5).toList(), // Use fewer relays for speed
+        filter: filter,
+        timeoutSeconds: 5,
+        maxEvents: 500,
+      );
+
+      // Count unique authors
+      final uniqueFollowers = <String>{};
+      for (final event in rawEvents) {
+        final author = event['pubkey'] as String?;
+        if (author != null) {
+          uniqueFollowers.add(author);
+        }
+      }
+
+      _debug.success(
+        'FOLLOWER_COUNT',
+        'Found followers',
+        '${uniqueFollowers.length}',
+      );
+      return uniqueFollowers.length;
+    } catch (e) {
+      _debug.warn(
+        'FOLLOWER_COUNT',
+        'Failed to fetch follower count',
+        e.toString(),
+      );
+      return 0;
+    }
+  }
+
+  /// Toggle follow/unfollow a user
+  static Future<bool> toggleFollow({
+    required String targetPubkey,
+    required bool currentlyFollowing,
+  }) async {
+    try {
+      _debug.info(
+        'TOGGLE_FOLLOW',
+        currentlyFollowing ? 'Unfollowing' : 'Following',
+        targetPubkey.substring(0, 16),
+      );
+
+      // Get current follows
+      final currentFollows = await getCachedFollows();
+
+      // Update the list
+      List<String> newFollows;
+      if (currentlyFollowing) {
+        newFollows = currentFollows.where((p) => p != targetPubkey).toList();
+      } else {
+        newFollows = [...currentFollows, targetPubkey];
+      }
+
+      // Get user's private key for signing
+      final nsec = await getNsec();
+      if (nsec == null) {
+        _debug.error('TOGGLE_FOLLOW', 'No private key available');
+        return false;
+      }
+
+      // Convert nsec to hex for signing
+      final privateKeyHex = _nsecToHex(nsec);
+      if (privateKeyHex == null) {
+        _debug.error('TOGGLE_FOLLOW', 'Failed to decode nsec');
+        return false;
+      }
+
+      // Get user's public key
+      final npub = await getNpub();
+      final userPubkey = npub != null ? npubToHex(npub) : null;
+      if (userPubkey == null) {
+        _debug.error('TOGGLE_FOLLOW', 'Failed to get user pubkey');
+        return false;
+      }
+
+      // Build kind-3 event with new follows
+      final tags = newFollows.map((p) => ['p', p]).toList();
+
+      // Use nostr_dart's sendEvent via _nostr instance
+      if (_nostr == null) {
+        await reinitialize();
+      }
+
+      if (_nostr != null) {
+        // Create event using Event constructor: (pubkey, kind, tags, content)
+        final event = Event(
+          userPubkey, // pubkey
+          3, // kind-3 = contact list
+          tags.cast<List<String>>(), // tags
+          '', // content is empty for kind-3
+        );
+
+        _nostr!.sendEvent(event);
+
+        // Update cache
+        await _secureStorage.write(
+          key: _followsKey,
+          value: newFollows.join(','),
+        );
+        _debug.success(
+          'TOGGLE_FOLLOW',
+          'Published new contact list',
+          '${newFollows.length} follows',
+        );
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      _debug.error('TOGGLE_FOLLOW', 'Failed to toggle follow', e.toString());
+      return false;
+    }
   }
 
   /// Fetch posts from followed users using DIRECT WebSocket connections

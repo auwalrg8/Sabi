@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
+import 'nostr_profile_screen.dart';
 import '../../services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
@@ -688,15 +689,15 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   }
 
   void _navigateToProfile(NostrFeedPost post) {
-    // Navigate to profile screen with the author's pubkey
+    // Navigate to full profile screen with the author's pubkey
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
-            (context) => _NostrProfileView(
+            (context) => NostrProfileScreen(
               pubkey: post.authorPubkey,
-              name: post.authorName,
-              avatarUrl: post.authorAvatar,
+              initialName: post.authorName,
+              initialAvatarUrl: post.authorAvatar,
             ),
       ),
     );
@@ -2257,237 +2258,6 @@ class _ReplyModalState extends State<_ReplyModal> {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Simple profile view for viewing Nostr profiles
-class _NostrProfileView extends StatefulWidget {
-  final String pubkey;
-  final String? name;
-  final String? avatarUrl;
-
-  const _NostrProfileView({required this.pubkey, this.name, this.avatarUrl});
-
-  @override
-  State<_NostrProfileView> createState() => _NostrProfileViewState();
-}
-
-class _NostrProfileViewState extends State<_NostrProfileView> {
-  nostr_v2.NostrProfile? _profile;
-  bool _isLoading = true;
-  List<NostrFeedPost> _posts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
-
-  Future<void> _loadProfile() async {
-    try {
-      final profileService = nostr_v2.NostrProfileService();
-      final profile = await profileService.fetchProfile(widget.pubkey);
-
-      // Fetch user's posts
-      final posts = await NostrService.fetchUserPostsDirect(
-        widget.pubkey,
-        limit: 20,
-      );
-
-      if (mounted) {
-        setState(() {
-          _profile = profile;
-          _posts = posts;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final displayName =
-        _profile?.displayNameOrFallback ?? widget.name ?? 'Unknown';
-    final avatarUrl = _profile?.picture ?? widget.avatarUrl;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0C0C1A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0C0C1A),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          displayName,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body:
-          _isLoading
-              ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
-                ),
-              )
-              : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Profile header
-                    Container(
-                      padding: EdgeInsets.all(16.w),
-                      child: Column(
-                        children: [
-                          // Avatar
-                          Container(
-                            width: 80.w,
-                            height: 80.h,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF2A2A3E),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child:
-                                avatarUrl != null
-                                    ? CachedNetworkImage(
-                                      imageUrl: avatarUrl,
-                                      fit: BoxFit.cover,
-                                      errorWidget:
-                                          (_, __, ___) => Icon(
-                                            Icons.person,
-                                            size: 40.sp,
-                                            color: const Color(0xFFA1A1B2),
-                                          ),
-                                    )
-                                    : Icon(
-                                      Icons.person,
-                                      size: 40.sp,
-                                      color: const Color(0xFFA1A1B2),
-                                    ),
-                          ),
-                          SizedBox(height: 12.h),
-                          Text(
-                            displayName,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (_profile?.about != null) ...[
-                            SizedBox(height: 8.h),
-                            Text(
-                              _profile!.about!,
-                              style: TextStyle(
-                                color: const Color(0xFFA1A1B2),
-                                fontSize: 14.sp,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                          SizedBox(height: 16.h),
-                          // Stats row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _ProfileStat(
-                                label: 'Posts',
-                                value: _posts.length.toString(),
-                              ),
-                              SizedBox(width: 32.w),
-                              _ProfileStat(label: 'Followers', value: '—'),
-                              SizedBox(width: 32.w),
-                              _ProfileStat(label: 'Following', value: '—'),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Divider
-                    Container(height: 1, color: const Color(0xFF1E1E3F)),
-                    // Posts
-                    if (_posts.isEmpty)
-                      Padding(
-                        padding: EdgeInsets.all(32.w),
-                        child: Text(
-                          'No posts yet',
-                          style: TextStyle(
-                            color: const Color(0xFFA1A1B2),
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      )
-                    else
-                      ...(_posts.map(
-                        (post) => Container(
-                          padding: EdgeInsets.all(16.w),
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Color(0xFF1E1E3F)),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                post.content,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                              SizedBox(height: 8.h),
-                              Text(
-                                post.timeAgo,
-                                style: TextStyle(
-                                  color: const Color(0xFF6B6B80),
-                                  fontSize: 12.sp,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )),
-                  ],
-                ),
-              ),
-    );
-  }
-}
-
-class _ProfileStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ProfileStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
-        ),
-      ],
     );
   }
 }
