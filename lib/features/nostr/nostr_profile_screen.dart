@@ -69,22 +69,44 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
     setState(() => _isLoading = true);
 
     try {
-      // Get current user to check if viewing own profile
+      // Get current user to check if viewing own profile (fast, local)
       final currentNpub = await NostrService.getNpub();
       if (currentNpub != null) {
         _currentUserPubkey = NostrService.npubToHex(currentNpub);
         _isCurrentUser = _currentUserPubkey == widget.pubkey;
       }
 
-      // Fetch profile metadata
+      // Check follow status from cache immediately (fast, local)
+      if (_currentUserPubkey != null && !_isCurrentUser) {
+        final userFollows = await NostrService.getCachedFollows();
+        _isFollowing = userFollows.contains(widget.pubkey);
+      }
+
+      // Fetch profile metadata FIRST and show UI immediately
       final profileService = nostr_v2.NostrProfileService();
       final profile = await profileService.fetchProfile(widget.pubkey);
 
-      // Fetch user's posts
-      final posts = await NostrService.fetchUserPostsDirect(
-        widget.pubkey,
-        limit: 30,
-      );
+      // Show profile immediately while other data loads
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _isLoading = false; // Show UI now!
+        });
+      }
+
+      // Fetch remaining data in parallel (non-blocking for UI)
+      final results = await Future.wait([
+        NostrService.fetchUserPostsDirect(widget.pubkey, limit: 30),
+        NostrService.fetchFollowingCount(widget.pubkey),
+        NostrService.fetchFollowerCount(widget.pubkey),
+        _fetchTotalZaps(),
+      ]);
+
+      // Process posts
+      final posts = results[0] as List<NostrFeedPost>;
+      final followingCount = results[1] as int;
+      final followerCount = results[2] as int;
+      final totalZaps = results[3] as int;
 
       // Separate posts and replies
       final mainPosts = <NostrFeedPost>[];
@@ -106,39 +128,14 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
         }
       }
 
-      // Fetch follower/following counts
-      final followingCount = await NostrService.fetchFollowingCount(
-        widget.pubkey,
-      );
-      final followerCount = await NostrService.fetchFollowerCount(
-        widget.pubkey,
-      );
-
-      // Fetch total zaps received
-      int totalZaps = 0;
-      try {
-        final zapService = nostr_v2.ZapService();
-        totalZaps = await zapService.getTotalZapsReceived(widget.pubkey);
-      } catch (e) {
-        debugPrint('Error fetching zaps: $e');
-      }
-
-      // Check if current user follows this profile
-      if (_currentUserPubkey != null && !_isCurrentUser) {
-        final userFollows = await NostrService.getCachedFollows();
-        _isFollowing = userFollows.contains(widget.pubkey);
-      }
-
       if (mounted) {
         setState(() {
-          _profile = profile;
           _posts = mainPosts;
           _replies = replies;
           _mediaPosts = mediaPosts;
           _followingCount = followingCount;
           _followerCount = followerCount;
           _totalZapsReceived = totalZaps;
-          _isLoading = false;
         });
       }
     } catch (e) {
@@ -146,6 +143,17 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  /// Fetch total zaps with error handling (returns 0 on error)
+  Future<int> _fetchTotalZaps() async {
+    try {
+      final zapService = nostr_v2.ZapService();
+      return await zapService.getTotalZapsReceived(widget.pubkey);
+    } catch (e) {
+      debugPrint('Error fetching zaps: $e');
+      return 0;
     }
   }
 
@@ -841,7 +849,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                     _buildStat(_formatCount(_followerCount), 'Followers'),
                     SizedBox(width: 24.w),
                     _buildStat(_formatCount(_followingCount), 'Following'),
-                    if (_totalZapsReceived > 0) ...[  
+                    if (_totalZapsReceived > 0) ...[
                       SizedBox(width: 24.w),
                       _buildZapStat(_formatCount(_totalZapsReceived)),
                     ],
@@ -878,11 +886,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   Widget _buildZapStat(String value) {
     return Row(
       children: [
-        Icon(
-          Icons.electric_bolt,
-          color: const Color(0xFFF7931A),
-          size: 14.sp,
-        ),
+        Icon(Icons.electric_bolt, color: const Color(0xFFF7931A), size: 14.sp),
         SizedBox(width: 2.w),
         Text(
           value,

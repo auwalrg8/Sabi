@@ -300,16 +300,37 @@ class NostrService {
   }
 
   /// Initialize Nostr with a hex private key
+  /// Non-blocking: returns immediately after creating Nostr instance,
+  /// relays connect in background
   static Future<void> _initializeNostrWithKey(String hexPrivateKey) async {
     try {
       _debug.info('RELAY', 'Initializing Nostr with private key...');
       _nostr = Nostr(privateKey: hexPrivateKey);
 
-      // Add relays
+      // Connect relays in background (non-blocking)
+      // This allows UI to proceed immediately after key save
+      _connectRelaysInBackground();
+
+      _debug.success(
+        'RELAY',
+        'Nostr initialized',
+        'Relays connecting in background...',
+      );
+    } catch (e) {
+      _debug.error('RELAY', 'Error initializing Nostr', e.toString());
+    }
+  }
+
+  /// Connect to relays in background (non-blocking)
+  static void _connectRelaysInBackground() {
+    if (_nostr == null) return;
+
+    // Use Future.delayed to defer relay connections to next event loop
+    Future.delayed(Duration.zero, () async {
       int connectedCount = 0;
       for (final relayUrl in _defaultRelays) {
         try {
-          _debug.info('RELAY', 'Connecting to $relayUrl (read-write)...');
+          _debug.info('RELAY', 'Connecting to $relayUrl...');
           await _nostr!.pool.add(
             Relay(relayUrl, access: WriteAccess.readWrite),
           );
@@ -323,12 +344,10 @@ class NostrService {
       }
       _debug.success(
         'RELAY',
-        'Read-write mode initialized',
+        'Background connection complete',
         '$connectedCount/${_defaultRelays.length} relays connected',
       );
-    } catch (e) {
-      _debug.error('RELAY', 'Error initializing Nostr', e.toString());
-    }
+    });
   }
 
   /// Generate new Nostr keys
