@@ -15,6 +15,7 @@ import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _uuid = Uuid();
@@ -552,12 +553,27 @@ class P2PTradeManager extends ChangeNotifier {
           // Use BreezSparkService.sendPayment which accepts a bolt11 string
           await BreezSparkService.sendPayment(trade.buyerLightningAddress!);
           paymentSuccess = true;
+          
+          // Send push notification for successful P2P payment
+          BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+            amountSats: trade.satsAmount,
+            recipientName: 'P2P Buyer',
+            description: 'P2P Trade #${tradeId.substring(0, 8)}',
+          );
         } catch (e) {
           P2PLogger.error(
             'TradeManager',
             'Lightning payment failed: $e',
             tradeId: tradeId,
           );
+          
+          // Send push notification for failed P2P payment
+          BreezWebhookBridgeService().sendPaymentFailedNotification(
+            amountSats: trade.satsAmount,
+            errorMessage: e.toString(),
+            recipientName: 'P2P Buyer',
+          );
+          
           // For demo purposes, continue even if payment fails
           paymentSuccess = true;
         }

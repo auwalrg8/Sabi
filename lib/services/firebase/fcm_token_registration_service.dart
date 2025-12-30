@@ -31,10 +31,24 @@ class FCMTokenRegistrationService {
   /// Register the FCM token with your backend
   /// Call this after user logs in or creates wallet
   Future<void> registerToken() async {
+    debugPrint('🔔 FCMTokenRegistrationService.registerToken() called');
+    
     try {
-      final token = _fcmService.fcmToken;
+      // Wait for FCM token if not immediately available
+      String? token = _fcmService.fcmToken;
       if (token == null) {
-        debugPrint('⚠️ No FCM token available to register');
+        debugPrint('🔔 FCM token not ready, waiting up to 5s...');
+        for (int i = 0; i < 10; i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          token = _fcmService.fcmToken;
+          if (token != null) break;
+        }
+      }
+      
+      debugPrint('🔔 FCM token: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}');
+      
+      if (token == null) {
+        debugPrint('⚠️ No FCM token available after waiting');
         return;
       }
 
@@ -48,9 +62,19 @@ class FCMTokenRegistrationService {
       }
 
       // Get user's Nostr pubkey for association
-      final pubkey = _nostrProfile.currentPubkey;
+      String? pubkey = _nostrProfile.currentPubkey;
+      
+      // If no pubkey, try initializing NostrProfileService
       if (pubkey == null) {
-        debugPrint('⚠️ No Nostr pubkey available');
+        debugPrint('🔔 Nostr pubkey not ready, re-initializing...');
+        await _nostrProfile.init(force: true);
+        pubkey = _nostrProfile.currentPubkey;
+      }
+      
+      debugPrint('🔔 Nostr pubkey: ${pubkey != null ? "${pubkey.substring(0, 16)}..." : "NULL"}');
+      
+      if (pubkey == null) {
+        debugPrint('⚠️ No Nostr pubkey available - user may need to create/import keys');
         return;
       }
 
@@ -171,5 +195,34 @@ class FCMTokenRegistrationService {
       debugPrint('❌ Error getting device registration: $e');
       return null;
     }
+  }
+
+  /// Force re-register the token (clears cached state)
+  Future<void> forceRegisterToken() async {
+    debugPrint('🔔 Forcing FCM token re-registration...');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_lastTokenKey);
+      await prefs.remove(_tokenSentKey);
+      await registerToken();
+    } catch (e) {
+      debugPrint('❌ Error forcing token registration: $e');
+    }
+  }
+
+  /// Debug function to test the registration flow
+  Future<Map<String, dynamic>> debugStatus() async {
+    final token = _fcmService.fcmToken;
+    final pubkey = _nostrProfile.currentPubkey;
+    final prefs = await SharedPreferences.getInstance();
+    
+    return {
+      'fcmToken': token != null ? '${token.substring(0, 20)}...' : null,
+      'fcmTokenFull': token,
+      'nostrPubkey': pubkey,
+      'isRegistered': prefs.getBool(_tokenSentKey) ?? false,
+      'lastToken': prefs.getString(_lastTokenKey)?.substring(0, 20),
+      'apiUrl': _pushApiBaseUrl,
+    };
   }
 }

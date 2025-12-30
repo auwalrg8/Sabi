@@ -667,7 +667,13 @@ class _OfferDetailsTab extends StatelessWidget {
           // Offer Info
           _SectionTitle(title: 'Offer Info'),
           SizedBox(height: 8.h),
-          _InfoRow(label: 'Offer ID', value: offer.id.substring(0, 16) + '...'),
+          _InfoRow(
+            label: 'Offer ID',
+            value:
+                offer.id.length >= 16
+                    ? '${offer.id.substring(0, 16)}...'
+                    : offer.id,
+          ),
           _InfoRow(label: 'Response Time', value: offer.eta),
           _InfoRow(label: 'Rating', value: '${offer.ratingPercent}%'),
         ],

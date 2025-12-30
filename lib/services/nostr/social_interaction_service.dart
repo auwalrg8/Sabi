@@ -41,6 +41,11 @@ class SocialInteractionService {
     debugPrint('❤️ Liking event: $eventId');
 
     try {
+      // Ensure relay pool is initialized
+      if (!_relayPool.isInitialized) {
+        await _relayPool.init();
+      }
+
       final nsec = await _profileService.getNsec();
       if (nsec == null) {
         throw Exception('No private key available');
@@ -92,6 +97,11 @@ class SocialInteractionService {
     if (pubkey == null) return false;
 
     try {
+      // Ensure relay pool is initialized
+      if (!_relayPool.isInitialized) {
+        await _relayPool.init();
+      }
+
       final nsec = await _profileService.getNsec();
       if (nsec == null) return false;
 
@@ -140,6 +150,11 @@ class SocialInteractionService {
     debugPrint('🔄 Reposting event: $eventId');
 
     try {
+      // Ensure relay pool is initialized
+      if (!_relayPool.isInitialized) {
+        await _relayPool.init();
+      }
+
       final nsec = await _profileService.getNsec();
       if (nsec == null) {
         throw Exception('No private key available');
@@ -206,6 +221,11 @@ class SocialInteractionService {
     debugPrint('💬 Replying to event: $eventId');
 
     try {
+      // Ensure relay pool is initialized
+      if (!_relayPool.isInitialized) {
+        await _relayPool.init();
+      }
+
       final nsec = await _profileService.getNsec();
       if (nsec == null) {
         throw Exception('No private key available');

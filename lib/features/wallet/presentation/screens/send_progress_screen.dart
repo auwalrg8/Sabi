@@ -6,6 +6,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_success_screen.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 
 class SendProgressScreen extends StatefulWidget {
   final SendTransaction transaction;
@@ -60,6 +61,14 @@ class _SendProgressScreenState extends State<SendProgressScreen>
       // Extract actual fees and amounts from SDK response
       final actualAmountSats = BreezSparkService.extractSendAmountSats(result);
       final actualFeeSats = BreezSparkService.extractSendFeeSats(result);
+      
+      // Send push notification for successful outgoing payment
+      BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+        amountSats: actualAmountSats,
+        recipientName: widget.transaction.recipient.name,
+        description: widget.transaction.memo,
+        paymentHash: widget.transaction.transactionId,
+      );
 
       debugPrint(
         '✅ Payment sent: $actualAmountSats sats, fee: $actualFeeSats sats',
@@ -68,6 +77,14 @@ class _SendProgressScreenState extends State<SendProgressScreen>
       debugPrint('❌ Payment failed: $e');
       _successTimer?.cancel();
       if (_navigatedToSuccess) return;
+      
+      // Send push notification for failed payment
+      BreezWebhookBridgeService().sendPaymentFailedNotification(
+        amountSats: widget.transaction.amountInSats.toInt(),
+        errorMessage: e.toString(),
+        recipientName: widget.transaction.recipient.name,
+      );
+      
       setState(() {
         _hasError = true;
         _errorMessage = e.toString();

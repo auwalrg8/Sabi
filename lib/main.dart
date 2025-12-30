@@ -27,6 +27,36 @@ import 'features/onboarding/presentation/screens/splash_screen.dart';
 import 'features/onboarding/presentation/screens/entry_screen.dart';
 // ...existing code...
 
+/// Register FCM token with retry logic
+/// This handles cases where the token or pubkey isn't available immediately
+Future<void> _registerFCMWithRetry({int maxRetries = 3}) async {
+  for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      debugPrint('🔔 FCM registration attempt $attempt/$maxRetries');
+      await FCMTokenRegistrationService().registerToken();
+      
+      // Check if registration succeeded
+      final status = await FCMTokenRegistrationService().debugStatus();
+      if (status['isRegistered'] == true) {
+        debugPrint('✅ FCM token registered successfully on attempt $attempt');
+        return;
+      }
+      
+      // If not registered, wait and retry
+      if (attempt < maxRetries) {
+        debugPrint('⚠️ FCM registration incomplete, retrying in 3s...');
+        await Future.delayed(const Duration(seconds: 3));
+      }
+    } catch (e) {
+      debugPrint('⚠️ FCM registration attempt $attempt failed: $e');
+      if (attempt < maxRetries) {
+        await Future.delayed(const Duration(seconds: 3));
+      }
+    }
+  }
+  debugPrint('⚠️ FCM registration failed after $maxRetries attempts');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -139,13 +169,8 @@ void main() async {
         await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
         debugPrint('🔓 Auto-recovered wallet from storage');
         
-        // Register FCM token after wallet is recovered
-        try {
-          await FCMTokenRegistrationService().registerToken();
-          debugPrint('✅ FCM token registered with backend');
-        } catch (e) {
-          debugPrint('⚠️ FCM token registration error: $e');
-        }
+        // Register FCM token after wallet is recovered (with retry)
+        _registerFCMWithRetry();
         
         // Start listening for payments to send push notifications
         try {

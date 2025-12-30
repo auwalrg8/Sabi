@@ -52,6 +52,9 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   // Zap
   bool _isZapping = false;
 
+  // Track liked posts
+  final Set<String> _likedPosts = {};
+
   @override
   void initState() {
     super.initState();
@@ -401,6 +404,207 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
     Share.share(
       'Check out $name on Nostr!\n\nnostr:$npub\n\nhttps://njump.me/$npub',
       subject: '$name on Nostr',
+    );
+  }
+
+  // ==================== POST INTERACTION HANDLERS ====================
+
+  void _handleLikePost(NostrFeedPost post) async {
+    final wasLiked = _likedPosts.contains(post.id);
+
+    // Optimistic UI update
+    setState(() {
+      if (wasLiked) {
+        _likedPosts.remove(post.id);
+      } else {
+        _likedPosts.add(post.id);
+      }
+    });
+
+    // Send like reaction to Nostr relays
+    if (!wasLiked) {
+      try {
+        final socialService = nostr_v2.SocialInteractionService();
+        final success = await socialService.likeEvent(
+          eventId: post.id,
+          eventPubkey: post.authorPubkey,
+        );
+
+        if (!success && mounted) {
+          setState(() => _likedPosts.remove(post.id));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to like post'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _likedPosts.remove(post.id));
+        }
+      }
+    }
+  }
+
+  void _handleRepostPost(NostrFeedPost post) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            title: Text(
+              'Repost this note?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'This will share this note to your followers.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFFA1A1B2)),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00FFB2),
+                ),
+                child: const Text(
+                  'Repost',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      try {
+        final socialService = nostr_v2.SocialInteractionService();
+        final success = await socialService.repostEvent(
+          eventId: post.id,
+          eventPubkey: post.authorPubkey,
+          eventContent: post.content,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success ? 'Reposted!' : 'Failed to repost'),
+              backgroundColor: success ? const Color(0xFF00FFB2) : Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _handleReplyToPost(NostrFeedPost post) {
+    // Show reply modal
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111128),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder:
+          (context) => _ReplyModal(
+            post: post,
+            onReply: (content) async {
+              final socialService = nostr_v2.SocialInteractionService();
+              final replyId = await socialService.replyToEvent(
+                eventId: post.id,
+                eventPubkey: post.authorPubkey,
+                content: content,
+              );
+              return replyId != null;
+            },
+          ),
+    );
+  }
+
+  void _handleZapPost(NostrFeedPost post, int satoshis) async {
+    if (post.lightningAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This user has no Lightning address'),
+          backgroundColor: Color(0xFFA1A1B2),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final zapService = nostr_v2.ZapService();
+      final result = await zapService.sendZap(
+        recipientPubkey: post.authorPubkey,
+        amountSats: satoshis,
+        eventId: post.id,
+        comment: 'Zap from Sabi Wallet',
+        getBalance: () async => await BreezSparkService.getBalance(),
+        payInvoice: (String bolt11) async {
+          final paymentResult = await BreezSparkService.sendPayment(
+            bolt11,
+            sats: satoshis,
+            comment: 'Zap',
+            recipientName: post.authorName,
+          );
+          return paymentResult['payment']?.id as String?;
+        },
+      );
+
+      if (result.isSuccess && mounted) {
+        Confetti.launch(
+          context,
+          options: const ConfettiOptions(
+            particleCount: 30,
+            spread: 360,
+            y: 0.5,
+          ),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚡ Zapped $satoshis sats!'),
+            backgroundColor: const Color(0xFFF7931A),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Zap failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Zap error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _handleSharePost(NostrFeedPost post) {
+    // Use hex ID for sharing - njump supports both note1 and hex IDs
+    Share.share(
+      '${post.content}\n\nhttps://njump.me/${post.id}',
+      subject: 'Note from ${post.authorName}',
     );
   }
 
@@ -940,7 +1144,15 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
       itemCount: posts.length,
       itemBuilder: (context, index) {
         final post = posts[index];
-        return _PostCard(post: post);
+        return _InteractivePostCard(
+          post: post,
+          profile: _profile,
+          onLike: () => _handleLikePost(post),
+          onRepost: () => _handleRepostPost(post),
+          onReply: () => _handleReplyToPost(post),
+          onZap: (sats) => _handleZapPost(post, sats),
+          onShare: () => _handleSharePost(post),
+        );
       },
     );
   }
@@ -1171,6 +1383,487 @@ class _PostCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Interactive post card with full functionality
+class _InteractivePostCard extends StatefulWidget {
+  final NostrFeedPost post;
+  final nostr_v2.NostrProfile? profile;
+  final VoidCallback onLike;
+  final VoidCallback onRepost;
+  final VoidCallback onReply;
+  final Function(int) onZap;
+  final VoidCallback onShare;
+
+  const _InteractivePostCard({
+    required this.post,
+    required this.profile,
+    required this.onLike,
+    required this.onRepost,
+    required this.onReply,
+    required this.onZap,
+    required this.onShare,
+  });
+
+  @override
+  State<_InteractivePostCard> createState() => _InteractivePostCardState();
+}
+
+class _InteractivePostCardState extends State<_InteractivePostCard> {
+  bool _isLiked = false;
+  bool _showZapSlider = false;
+  double _zapValue = 21;
+
+  // Extract image URLs from content
+  List<String> _extractImageUrls(String content) {
+    final urlRegex = RegExp(
+      r'https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp)(?:\?[^\s]*)?',
+      caseSensitive: false,
+    );
+    return urlRegex.allMatches(content).map((m) => m.group(0)!).toList();
+  }
+
+  String _getTextContent(String content, List<String> imageUrls) {
+    String text = content;
+    for (final url in imageUrls) {
+      text = text.replaceAll(url, '');
+    }
+    return text.trim();
+  }
+
+  void _handleLike() {
+    setState(() => _isLiked = !_isLiked);
+    widget.onLike();
+  }
+
+  void _showZapModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111128),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setModalState) => Padding(
+                  padding: EdgeInsets.all(24.w),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '⚡ Zap this post',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 24.h),
+                      Wrap(
+                        spacing: 12.w,
+                        runSpacing: 12.h,
+                        alignment: WrapAlignment.center,
+                        children:
+                            [21, 100, 500, 1000, 5000].map((amount) {
+                              final isSelected = _zapValue.toInt() == amount;
+                              return GestureDetector(
+                                onTap:
+                                    () => setModalState(
+                                      () => _zapValue = amount.toDouble(),
+                                    ),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16.w,
+                                    vertical: 12.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelected
+                                            ? const Color(0xFFF7931A)
+                                            : const Color(0xFF2A2A3E),
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
+                                  child: Text(
+                                    amount >= 1000
+                                        ? '${amount ~/ 1000}K'
+                                        : amount.toString(),
+                                    style: TextStyle(
+                                      color:
+                                          isSelected
+                                              ? Colors.white
+                                              : const Color(0xFFA1A1B2),
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                      ),
+                      SizedBox(height: 24.h),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            widget.onZap(_zapValue.toInt());
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF7931A),
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          child: Text(
+                            'Zap ${_zapValue.toInt()} sats',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
+                    ],
+                  ),
+                ),
+          ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrls = _extractImageUrls(widget.post.content);
+    final textContent = _getTextContent(widget.post.content, imageUrls);
+    final hasImages = imageUrls.isNotEmpty;
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 2.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111128),
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFF1E1E3F), width: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Post content
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 8.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (textContent.isNotEmpty)
+                  Text(
+                    textContent,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.sp,
+                      height: 1.4,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Images (if any)
+          if (hasImages)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: GestureDetector(
+                  onTap: () => _showFullImage(context, imageUrls[0]),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrls[0],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: 200.h,
+                    placeholder:
+                        (_, __) => Container(
+                          height: 200.h,
+                          color: const Color(0xFF2A2A3E),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(
+                                Color(0xFFF7931A),
+                              ),
+                            ),
+                          ),
+                        ),
+                    errorWidget:
+                        (_, __, ___) => Container(
+                          height: 100.h,
+                          color: const Color(0xFF2A2A3E),
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Color(0xFFA1A1B2),
+                          ),
+                        ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Action bar
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Reply
+                _PostActionButton(
+                  icon: Icons.chat_bubble_outline,
+                  count: widget.post.replyCount,
+                  onTap: widget.onReply,
+                ),
+                // Repost
+                _PostActionButton(
+                  icon: Icons.repeat,
+                  count: widget.post.repostCount,
+                  onTap: widget.onRepost,
+                ),
+                // Like
+                _PostActionButton(
+                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+                  count:
+                      _isLiked
+                          ? widget.post.likeCount + 1
+                          : widget.post.likeCount,
+                  color:
+                      _isLiked
+                          ? const Color(0xFFE91E63)
+                          : const Color(0xFF6B6B80),
+                  onTap: _handleLike,
+                ),
+                // Zap
+                _PostActionButton(
+                  icon: Icons.electric_bolt,
+                  count: widget.post.zapAmount,
+                  color:
+                      widget.post.zapAmount > 0
+                          ? const Color(0xFFF7931A)
+                          : const Color(0xFF6B6B80),
+                  onTap: _showZapModal,
+                ),
+                // Share
+                GestureDetector(
+                  onTap: widget.onShare,
+                  child: Icon(
+                    Icons.ios_share,
+                    color: const Color(0xFF6B6B80),
+                    size: 18.sp,
+                  ),
+                ),
+                // Time
+                Text(
+                  widget.post.timeAgo,
+                  style: TextStyle(
+                    color: const Color(0xFF6B6B80),
+                    fontSize: 12.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: InteractiveViewer(
+                child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+    );
+  }
+}
+
+/// Action button for post interactions
+class _PostActionButton extends StatelessWidget {
+  final IconData icon;
+  final int count;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _PostActionButton({
+    required this.icon,
+    required this.count,
+    required this.onTap,
+    this.color = const Color(0xFF6B6B80),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18.sp),
+          if (count > 0) ...[
+            SizedBox(width: 4.w),
+            Text(
+              count > 999
+                  ? '${(count / 1000).toStringAsFixed(1)}K'
+                  : count.toString(),
+              style: TextStyle(color: color, fontSize: 12.sp),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Reply modal for composing replies
+class _ReplyModal extends StatefulWidget {
+  final NostrFeedPost post;
+  final Future<bool> Function(String) onReply;
+
+  const _ReplyModal({required this.post, required this.onReply});
+
+  @override
+  State<_ReplyModal> createState() => _ReplyModalState();
+}
+
+class _ReplyModalState extends State<_ReplyModal> {
+  final _controller = TextEditingController();
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    if (_controller.text.trim().isEmpty) return;
+
+    setState(() => _isSending = true);
+    final success = await widget.onReply(_controller.text.trim());
+    setState(() => _isSending = false);
+
+    if (success && mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reply sent!'),
+          backgroundColor: Color(0xFF00FFB2),
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send reply'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16.w,
+        right: 16.w,
+        top: 16.h,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Reply to ${widget.post.authorName}',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18.sp,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 12.h),
+          // Original post preview
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Text(
+              widget.post.content.length > 100
+                  ? '${widget.post.content.substring(0, 100)}...'
+                  : widget.post.content,
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          TextField(
+            controller: _controller,
+            maxLines: 4,
+            autofocus: true,
+            style: TextStyle(color: Colors.white, fontSize: 15.sp),
+            decoration: InputDecoration(
+              hintText: 'Write your reply...',
+              hintStyle: TextStyle(color: const Color(0xFF6B6B80)),
+              filled: true,
+              fillColor: const Color(0xFF1A1A2E),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSending ? null : _send,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF7931A),
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child:
+                  _isSending
+                      ? SizedBox(
+                        height: 20.h,
+                        width: 20.w,
+                        child: const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : Text(
+                        'Reply',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+            ),
           ),
         ],
       ),

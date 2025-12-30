@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../services/firebase/firebase_notification_providers.dart';
 import '../../../../services/firebase/webhook_bridge_services.dart';
+import '../../../../services/firebase/fcm_token_registration_service.dart';
+import '../../../../services/firebase_notification_service.dart';
 
 /// Screen for managing push notification settings
 class NotificationSettingsScreen extends ConsumerWidget {
@@ -105,6 +108,9 @@ class NotificationSettingsScreen extends ConsumerWidget {
           _buildSectionHeader('Testing'),
           SizedBox(height: 8.h),
           _buildTestNotificationButton(context, ref),
+          
+          SizedBox(height: 16.h),
+          _buildDebugSection(context, ref),
           
           SizedBox(height: 32.h),
         ],
@@ -356,5 +362,157 @@ class NotificationSettingsScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Widget _buildDebugSection(BuildContext context, WidgetRef ref) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.symmetric(vertical: 4.h),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.r),
+        side: BorderSide(color: Colors.orange.shade200),
+      ),
+      child: ExpansionTile(
+        leading: const Icon(Icons.bug_report, color: Colors.orange),
+        title: Text(
+          'Debug Info',
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDebugButton(
+                  context,
+                  'Show FCM Token Status',
+                  Icons.token,
+                  () async {
+                    final status = await FCMTokenRegistrationService().debugStatus();
+                    // ignore: use_build_context_synchronously
+                    _showDebugDialog(context, 'FCM Token Status', status);
+                  },
+                ),
+                SizedBox(height: 8.h),
+                _buildDebugButton(
+                  context,
+                  'Force Re-register Token',
+                  Icons.refresh,
+                  () async {
+                    await FCMTokenRegistrationService().forceRegisterToken();
+                    // ignore: use_build_context_synchronously
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Token re-registered! Check logs for details.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                ),
+                SizedBox(height: 8.h),
+                _buildDebugButton(
+                  context,
+                  'Copy FCM Token',
+                  Icons.copy,
+                  () async {
+                    final token = FirebaseNotificationService().fcmToken;
+                    if (token != null) {
+                      await Clipboard.setData(ClipboardData(text: token));
+                      // ignore: use_build_context_synchronously
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('FCM Token copied to clipboard!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      // ignore: use_build_context_synchronously
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No FCM token available'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDebugButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18.sp),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.orange,
+          side: const BorderSide(color: Colors.orange),
+        ),
+      ),
+    );
+  }
+
+  void _showDebugDialog(BuildContext context, String title, Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: data.entries.map((e) {
+              String valueStr = e.value?.toString() ?? 'null';
+              // Truncate long values
+              if (valueStr.length > 50) {
+                valueStr = '${valueStr.substring(0, 50)}...';
+              }
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 4.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      e.key,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.sp,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      valueStr,
+                      style: TextStyle(fontSize: 14.sp),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

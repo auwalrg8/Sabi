@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:bip39/bip39.dart' as bip39;
 
 class SeedRecoveryScreen extends ConsumerStatefulWidget {
@@ -163,6 +165,13 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
 
       // CRITICAL: Mark onboarding complete so app never loops back
       await BreezSparkService.setOnboardingComplete();
+      
+      // Start webhook bridge for push notifications
+      BreezWebhookBridgeService().startListening();
+      debugPrint('✅ BreezWebhookBridgeService started after wallet recovery');
+      
+      // Register FCM token for push notifications
+      FCMTokenRegistrationService().registerToken();
 
       if (!mounted) return;
 

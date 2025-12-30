@@ -499,7 +499,7 @@ class _OfferChatScreenState extends State<_OfferChatScreen> {
                 SizedBox(width: 8.w),
                 Expanded(
                   child: Text(
-                    'Regarding: ${widget.offerId.substring(0, 16)}...',
+                    'Regarding: ${widget.offerId.length >= 16 ? '${widget.offerId.substring(0, 16)}...' : widget.offerId}',
                     style: TextStyle(color: Colors.orange, fontSize: 12.sp),
                   ),
                 ),

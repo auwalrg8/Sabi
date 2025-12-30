@@ -60,16 +60,16 @@ class BreezWebhookBridgeService {
 
   /// Handle incoming payment and forward to webhook
   Future<void> _onPaymentReceived(PaymentRecord payment) async {
-    // Only process incoming payments
-    if (!payment.isIncoming) {
-      debugPrint('ℹ️ Ignoring outgoing payment: ${payment.id}');
-      return;
-    }
+    debugPrint('🎯 _onPaymentReceived CALLED!');
+    debugPrint('   Payment ID: ${payment.id}');
+    debugPrint('   Amount: ${payment.amountSats} sats');
+    debugPrint('   IsIncoming: ${payment.isIncoming}');
 
-    debugPrint('⚡ Payment received: ${payment.amountSats} sats');
+    debugPrint('⚡ Processing payment: ${payment.amountSats} sats (${payment.isIncoming ? "incoming" : "outgoing"})');
 
     try {
       final pubkey = _nostrProfile.currentPubkey;
+      debugPrint('   Pubkey: ${pubkey ?? "NULL"}');
       if (pubkey == null) {
         debugPrint('⚠️ No pubkey, cannot send webhook');
         return;
@@ -98,6 +98,7 @@ class BreezWebhookBridgeService {
           'paymentHash': payment.id,
           'description': payment.description,
           'timestamp': DateTime.fromMillisecondsSinceEpoch(payment.paymentTime).toIso8601String(),
+          'isIncoming': payment.isIncoming,
         }),
       );
 
@@ -108,6 +109,99 @@ class BreezWebhookBridgeService {
       }
     } catch (e) {
       debugPrint('❌ Error sending payment webhook: $e');
+    }
+  }
+  
+  /// Send notification for successful outgoing payment
+  Future<bool> sendOutgoingPaymentNotification({
+    required int amountSats,
+    String? recipientName,
+    String? description,
+    String? paymentHash,
+  }) async {
+    try {
+      final pubkey = _nostrProfile.currentPubkey;
+      if (pubkey == null) {
+        debugPrint('⚠️ No pubkey for outgoing payment notification');
+        return false;
+      }
+      
+      // Convert sats to Naira using current rate
+      double? amountNaira;
+      try {
+        final rate = RateService.getCachedRate();
+        if (rate != null) {
+          amountNaira = (amountSats * rate) / 100000000;
+        }
+      } catch (e) {
+        debugPrint('⚠️ Could not get rate for Naira conversion');
+      }
+
+      final response = await http.post(
+        Uri.parse('$_pushApiBaseUrl/webhook/payment'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'nostrPubkey': pubkey,
+          'amountSats': amountSats,
+          'amountNaira': amountNaira?.toStringAsFixed(2),
+          'paymentHash': paymentHash,
+          'description': description ?? (recipientName != null ? 'Payment to $recipientName' : 'Outgoing payment'),
+          'timestamp': DateTime.now().toIso8601String(),
+          'isIncoming': false,
+          'recipientName': recipientName,
+        }),
+      );
+
+      debugPrint('📤 Outgoing payment notification: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('❌ Error sending outgoing payment notification: $e');
+      return false;
+    }
+  }
+  
+  /// Send notification for failed payment
+  Future<bool> sendPaymentFailedNotification({
+    required int amountSats,
+    required String errorMessage,
+    String? recipientName,
+  }) async {
+    try {
+      final pubkey = _nostrProfile.currentPubkey;
+      if (pubkey == null) {
+        debugPrint('⚠️ No pubkey for payment failure notification');
+        return false;
+      }
+      
+      // Convert sats to Naira using current rate
+      double? amountNaira;
+      try {
+        final rate = RateService.getCachedRate();
+        if (rate != null) {
+          amountNaira = (amountSats * rate) / 100000000;
+        }
+      } catch (e) {
+        debugPrint('⚠️ Could not get rate for Naira conversion');
+      }
+
+      final response = await http.post(
+        Uri.parse('$_pushApiBaseUrl/webhook/payment-failed'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'nostrPubkey': pubkey,
+          'amountSats': amountSats,
+          'amountNaira': amountNaira?.toStringAsFixed(2),
+          'errorMessage': errorMessage,
+          'recipientName': recipientName,
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      debugPrint('❌ Payment failed notification: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('❌ Error sending payment failed notification: $e');
+      return false;
     }
   }
 

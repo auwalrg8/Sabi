@@ -16,6 +16,8 @@ import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
@@ -167,6 +169,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         if (BreezSparkService.isInitialized) {
           debugPrint('✅ Spark SDK initialized successfully');
+          
+          // Start webhook bridge for push notifications
+          BreezWebhookBridgeService().startListening();
+          debugPrint('✅ BreezWebhookBridgeService started from home screen');
+          
+          // Register FCM token for push notifications
+          FCMTokenRegistrationService().registerToken();
         } else {
           throw Exception('SDK initialization returned but _sdk is still null');
         }

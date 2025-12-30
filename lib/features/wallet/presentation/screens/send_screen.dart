@@ -11,6 +11,7 @@ import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'qr_scanner_screen.dart';
@@ -423,6 +424,14 @@ class _SendScreenState extends ConsumerState<SendScreen>
         bolt11: _recipient?.identifier,
       );
       
+      // Send push notification for successful outgoing payment
+      BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+        amountSats: amountSats,
+        recipientName: _recipient?.name,
+        description: _memoController.text.isEmpty ? null : _memoController.text,
+        paymentHash: transactionId,
+      );
+      
       // Save to recent contacts after successful payment
       ContactService.addRecentContact(
         ContactInfo(
@@ -439,6 +448,12 @@ class _SendScreenState extends ConsumerState<SendScreen>
         ),
       );
     } catch (e) {
+      // Send push notification for failed payment
+      BreezWebhookBridgeService().sendPaymentFailedNotification(
+        amountSats: sats,
+        errorMessage: e.toString(),
+        recipientName: _recipient?.name,
+      );
       _showSnack('Send failed: $e');
     } finally {
       if (mounted) setState(() => _isSending = false);

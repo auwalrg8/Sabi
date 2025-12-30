@@ -6,6 +6,7 @@ import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/config/vtu_config.dart';
 import '../data/models/models.dart';
 import 'vtu_api_service.dart';
@@ -418,10 +419,25 @@ class VtuService {
 
       // Send payment via Breez SDK
       await BreezSparkService.sendPayment(invoice, sats: sats);
+      
+      // Send push notification for successful VTU payment
+      BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+        amountSats: sats,
+        recipientName: 'VTU Agent',
+        description: memo,
+      );
 
       debugPrint('✅ Agent payment successful');
     } catch (e) {
       debugPrint('❌ Agent payment failed: $e');
+      
+      // Send push notification for failed VTU payment
+      BreezWebhookBridgeService().sendPaymentFailedNotification(
+        amountSats: sats,
+        errorMessage: e.toString(),
+        recipientName: 'VTU Agent',
+      );
+      
       throw PaymentFailedException(e.toString());
     }
   }
