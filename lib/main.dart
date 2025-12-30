@@ -12,6 +12,7 @@ import 'package:sabi_wallet/services/nostr/feed_aggregator.dart';
 import 'package:sabi_wallet/services/firebase_notification_service.dart';
 import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/services/background_payment_sync_service.dart';
 import 'package:sabi_wallet/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'l10n/localization.dart';
@@ -178,6 +179,21 @@ void main() async {
           debugPrint('✅ BreezWebhookBridgeService started');
         } catch (e) {
           debugPrint('⚠️ BreezWebhookBridgeService error: $e');
+        }
+        
+        // Initialize background payment sync for offline notifications
+        try {
+          await BackgroundPaymentSyncService().initialize();
+          await BackgroundPaymentSyncService().startPeriodicSync();
+          
+          // Save nostr pubkey for background sync
+          final pubkey = NostrProfileService().currentPubkey;
+          if (pubkey != null) {
+            await BackgroundPaymentSyncService().saveNostrPubkey(pubkey);
+          }
+          debugPrint('✅ BackgroundPaymentSyncService started');
+        } catch (e) {
+          debugPrint('⚠️ BackgroundPaymentSyncService error: $e');
         }
       } catch (e) {
         debugPrint('⚠️ Failed to auto-recover wallet: $e');

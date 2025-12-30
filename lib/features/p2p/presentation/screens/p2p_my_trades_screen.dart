@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
-import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';

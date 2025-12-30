@@ -367,6 +367,52 @@ class FirebaseNotificationService {
   static Future<void> _handleBackgroundMessage(RemoteMessage message) async {
     debugPrint('🔔 [Background Handler] Processing message: ${message.messageId}');
     
+    // Check if this is a "sync" message to trigger wallet sync
+    final messageType = message.data['type'] as String?;
+    if (messageType == 'sync' || messageType == 'wake_device') {
+      debugPrint('🔄 [Background] Received sync trigger message');
+      // The app will do a proper sync when it comes to foreground
+      // For now, we can show a silent notification or just log
+      return;
+    }
+    
+    // Check if this is a payment notification from the LNURL server
+    if (messageType == 'payment_received') {
+      debugPrint('💰 [Background] Payment received notification!');
+      final localNotifications = FlutterLocalNotificationsPlugin();
+      
+      final amountSats = message.data['amountSats'] ?? '0';
+      final amountNaira = message.data['amountNaira'];
+      
+      String body = 'You received $amountSats sats';
+      if (amountNaira != null) {
+        body = 'You received $amountSats sats (₦$amountNaira)';
+      }
+      
+      await localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        '⚡ Payment Received!',
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'sabi_wallet_payments',
+            'Payments',
+            importance: Importance.max,
+            priority: Priority.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentSound: true,
+            presentBadge: true,
+            presentAlert: true,
+          ),
+        ),
+        payload: jsonEncode(message.data),
+      );
+      return;
+    }
+    
     // Background messages with notification payload are auto-displayed by FCM
     // Data-only messages need manual handling
     

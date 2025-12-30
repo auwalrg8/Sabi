@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../services/firebase/firebase_notification_providers.dart';
-import '../../../../services/firebase/webhook_bridge_services.dart';
 import '../../../../services/firebase/fcm_token_registration_service.dart';
 import '../../../../services/firebase_notification_service.dart';
 

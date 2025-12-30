@@ -6,8 +6,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'nostr_service.dart';
 import '../../services/nostr/nostr_service.dart' as nostr_v2;
+import '../../services/nostr/dm_service.dart';
 import '../../services/breez_spark_service.dart';
 
 /// Full-featured Nostr Profile Screen
@@ -45,6 +47,10 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   int _followerCount = 0;
   int _followingCount = 0;
   int _totalZapsReceived = 0;
+
+  // Social proof - Primal-style features
+  bool _followsYou = false;
+  List<Map<String, String?>> _followedByList = []; // {pubkey, name, avatar}
 
   // Tabs
   late TabController _tabController;
@@ -141,11 +147,60 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
           _totalZapsReceived = totalZaps;
         });
       }
+
+      // Fetch social proof data in background (non-blocking)
+      if (!_isCurrentUser && _currentUserPubkey != null) {
+        _fetchSocialProof();
+      }
     } catch (e) {
       debugPrint('Error loading profile: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  /// Fetch social proof: "follows you" and "followed by" data
+  Future<void> _fetchSocialProof() async {
+    try {
+      // Check if this profile follows the current user
+      final theirFollows = await NostrService.fetchUserFollowsDirect(
+        widget.pubkey,
+      );
+      final followsYou = theirFollows.contains(_currentUserPubkey);
+
+      // Get mutual follows (people the current user follows who also follow this profile)
+      final myFollows = await NostrService.getCachedFollows();
+      final profileService = nostr_v2.NostrProfileService();
+
+      final mutualFollowers = <Map<String, String?>>[];
+      int count = 0;
+      for (final pubkey in myFollows) {
+        if (count >= 5) break; // Only show 5 avatars
+
+        // Check if this person follows the profile we're viewing
+        final theirFollowList = await NostrService.fetchUserFollowsDirect(
+          pubkey,
+        );
+        if (theirFollowList.contains(widget.pubkey)) {
+          final profile = await profileService.fetchProfile(pubkey);
+          mutualFollowers.add({
+            'pubkey': pubkey,
+            'name': profile?.displayName ?? profile?.name,
+            'avatar': profile?.picture,
+          });
+          count++;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _followsYou = followsYou;
+          _followedByList = mutualFollowers;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching social proof: $e');
     }
   }
 
@@ -404,6 +459,176 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
     Share.share(
       'Check out $name on Nostr!\n\nnostr:$npub\n\nhttps://njump.me/$npub',
       subject: '$name on Nostr',
+    );
+  }
+
+  /// Open DM conversation with this user
+  void _openMessageScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => _DirectMessageScreen(
+              pubkey: widget.pubkey,
+              displayName: _profile?.displayNameOrFallback,
+              avatarUrl: _profile?.picture,
+            ),
+      ),
+    );
+  }
+
+  /// Show QR code modal with npub and lightning address
+  void _showQRModal() {
+    final npub =
+        _profile?.npub ??
+        NostrService.hexToNpub(widget.pubkey) ??
+        widget.pubkey;
+    final lightningAddress = _profile?.lightningAddress;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111128),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+      ),
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.5,
+            maxChildSize: 0.9,
+            expand: false,
+            builder:
+                (context, scrollController) => SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: EdgeInsets.all(24.w),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Handle bar
+                        Container(
+                          width: 40.w,
+                          height: 4.h,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3A3A4E),
+                            borderRadius: BorderRadius.circular(2.r),
+                          ),
+                        ),
+                        SizedBox(height: 24.h),
+
+                        // Avatar
+                        CircleAvatar(
+                          radius: 40.r,
+                          backgroundColor: const Color(0xFF2A2A3E),
+                          backgroundImage:
+                              _profile?.picture != null
+                                  ? CachedNetworkImageProvider(
+                                    _profile!.picture!,
+                                  )
+                                  : null,
+                          child:
+                              _profile?.picture == null
+                                  ? Icon(
+                                    Icons.person,
+                                    size: 40.sp,
+                                    color: Colors.white54,
+                                  )
+                                  : null,
+                        ),
+                        SizedBox(height: 12.h),
+
+                        // Name
+                        Text(
+                          _profile?.displayNameOrFallback ?? 'Unknown',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 24.h),
+
+                        // QR Code
+                        Container(
+                          padding: EdgeInsets.all(16.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16.r),
+                          ),
+                          child: QrImageView(
+                            data: 'nostr:$npub',
+                            version: QrVersions.auto,
+                            size: 200.w,
+                            backgroundColor: Colors.white,
+                            eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square,
+                              color: Colors.black,
+                            ),
+                            dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 24.h),
+
+                        // Npub section
+                        _QRInfoTile(
+                          label: 'Nostr Public Key',
+                          value: npub,
+                          icon: Icons.key,
+                          onCopy: () => _copyToClipboard(npub, 'npub'),
+                        ),
+
+                        if (lightningAddress != null) ...[
+                          SizedBox(height: 16.h),
+                          _QRInfoTile(
+                            label: 'Lightning Address',
+                            value: lightningAddress,
+                            icon: Icons.flash_on,
+                            iconColor: const Color(0xFFF7931A),
+                            onCopy:
+                                () => _copyToClipboard(
+                                  lightningAddress,
+                                  'Lightning address',
+                                ),
+                          ),
+                        ],
+
+                        SizedBox(height: 24.h),
+
+                        // Share button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _shareProfile();
+                            },
+                            icon: const Icon(Icons.share, color: Colors.white),
+                            label: Text(
+                              'Share Profile',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF7931A),
+                              padding: EdgeInsets.symmetric(vertical: 14.h),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+          ),
     );
   }
 
@@ -817,7 +1042,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar and action buttons row
+                // Avatar and action buttons row (Primal-style)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -853,14 +1078,26 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                               ),
                     ),
                     const Spacer(),
-                    // Action buttons
+                    // Primal-style action buttons row
                     if (!_isCurrentUser) ...[
+                      // QR Code button
+                      _ProfileActionButton(
+                        icon: Icons.qr_code_2,
+                        onTap: _showQRModal,
+                      ),
+                      SizedBox(width: 8.w),
                       // Zap button
-                      _ActionButton(
+                      _ProfileActionButton(
                         icon: Icons.flash_on,
-                        color: const Color(0xFFF7931A),
+                        iconColor: const Color(0xFFF7931A),
                         isLoading: _isZapping,
                         onTap: _handleZap,
+                      ),
+                      SizedBox(width: 8.w),
+                      // Message button
+                      _ProfileActionButton(
+                        icon: Icons.mail_outline,
+                        onTap: _openMessageScreen,
                       ),
                       SizedBox(width: 8.w),
                       // Follow button
@@ -868,7 +1105,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                         onTap: _toggleFollow,
                         child: Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: 20.w,
+                            horizontal: 16.w,
                             vertical: 8.h,
                           ),
                           decoration: BoxDecoration(
@@ -883,20 +1120,25 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                                     : null,
                           ),
                           child: Text(
-                            _isFollowing ? 'Following' : 'Follow',
+                            _isFollowing ? 'unfollow' : 'follow',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 14.sp,
+                              fontSize: 13.sp,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ),
                     ] else ...[
+                      // QR button for own profile
+                      _ProfileActionButton(
+                        icon: Icons.qr_code_2,
+                        onTap: _showQRModal,
+                      ),
+                      SizedBox(width: 8.w),
                       // Edit profile button for current user
                       GestureDetector(
                         onTap: () {
-                          // TODO: Navigate to edit profile
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Edit profile coming soon'),
@@ -905,7 +1147,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                         },
                         child: Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: 20.w,
+                            horizontal: 16.w,
                             vertical: 8.h,
                           ),
                           decoration: BoxDecoration(
@@ -917,7 +1159,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                             'Edit Profile',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 14.sp,
+                              fontSize: 13.sp,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -929,7 +1171,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
 
                 SizedBox(height: 12.h),
 
-                // Name and verification
+                // Name, verification, and "follows you" badge
                 Row(
                   children: [
                     Flexible(
@@ -951,18 +1193,40 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                         size: 18.sp,
                       ),
                     ],
+                    if (_followsYou && !_isCurrentUser) ...[
+                      SizedBox(width: 8.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 2.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A3E),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Text(
+                          'follows you',
+                          style: TextStyle(
+                            color: const Color(0xFFA1A1B2),
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
 
-                // NIP-05 or npub
+                // NIP-05 / Lightning address
                 GestureDetector(
                   onTap: () {
-                    final npub =
-                        _profile?.npub ?? NostrService.hexToNpub(widget.pubkey);
-                    if (npub != null) _copyToClipboard(npub, 'npub');
+                    final text = _profile?.nip05 ?? _profile?.lightningAddress;
+                    if (text != null) _copyToClipboard(text, 'Address');
                   },
                   child: Text(
-                    _profile?.nip05 ?? _profile?.shortNpub ?? '',
+                    _profile?.nip05 ??
+                        _profile?.lightningAddress ??
+                        _profile?.shortNpub ??
+                        '',
                     style: TextStyle(
                       color: const Color(0xFFA1A1B2),
                       fontSize: 14.sp,
@@ -970,95 +1234,118 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                   ),
                 ),
 
-                // About
+                // About (with overflow protection)
                 if (_profile?.about != null && _profile!.about!.isNotEmpty) ...[
-                  SizedBox(height: 8.h),
+                  SizedBox(height: 6.h),
                   Text(
                     _profile!.about!,
-                    style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                    maxLines: 3,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.sp,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+
+                // Website link
+                if (_profile?.website != null) ...[
+                  SizedBox(height: 4.h),
+                  GestureDetector(
+                    onTap: () => _openWebsite(_profile!.website!),
+                    child: Text(
+                      _profile!.website!.replaceAll(RegExp(r'https?://'), ''),
+                      style: TextStyle(
+                        color: const Color(0xFF00FFB2),
+                        fontSize: 13.sp,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
 
                 SizedBox(height: 8.h),
 
-                // Website and Lightning
+                // Stats row (Following / Followers)
                 Row(
                   children: [
-                    if (_profile?.website != null) ...[
-                      GestureDetector(
-                        onTap: () => _openWebsite(_profile!.website!),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.link,
-                              color: const Color(0xFF00FFB2),
-                              size: 14.sp,
-                            ),
-                            SizedBox(width: 4.w),
-                            Text(
-                              _profile!.website!.replaceAll(
-                                RegExp(r'https?://'),
-                                '',
-                              ),
-                              style: TextStyle(
-                                color: const Color(0xFF00FFB2),
-                                fontSize: 12.sp,
-                              ),
-                            ),
-                          ],
-                        ),
+                    Text(
+                      '${_formatCount(_followingCount)} ',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
                       ),
-                      SizedBox(width: 16.w),
-                    ],
-                    if (_profile?.lightningAddress != null)
-                      GestureDetector(
-                        onTap:
-                            () => _copyToClipboard(
-                              _profile!.lightningAddress!,
-                              'Lightning address',
-                            ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.flash_on,
-                              color: const Color(0xFFF7931A),
-                              size: 14.sp,
-                            ),
-                            SizedBox(width: 4.w),
-                            Text(
-                              _profile!.lightningAddress!,
-                              style: TextStyle(
-                                color: const Color(0xFFF7931A),
-                                fontSize: 12.sp,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
+                    ),
+                    Text(
+                      'following',
+                      style: TextStyle(
+                        color: const Color(0xFFA1A1B2),
+                        fontSize: 14.sp,
                       ),
-                  ],
-                ),
-
-                SizedBox(height: 12.h),
-
-                // Stats row
-                Row(
-                  children: [
-                    _buildStat(_posts.length.toString(), 'Posts'),
-                    SizedBox(width: 24.w),
-                    _buildStat(_formatCount(_followerCount), 'Followers'),
-                    SizedBox(width: 24.w),
-                    _buildStat(_formatCount(_followingCount), 'Following'),
+                    ),
+                    SizedBox(width: 16.w),
+                    Text(
+                      '${_formatCount(_followerCount)} ',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'followers',
+                      style: TextStyle(
+                        color: const Color(0xFFA1A1B2),
+                        fontSize: 14.sp,
+                      ),
+                    ),
                     if (_totalZapsReceived > 0) ...[
-                      SizedBox(width: 24.w),
-                      _buildZapStat(_formatCount(_totalZapsReceived)),
+                      SizedBox(width: 16.w),
+                      Icon(
+                        Icons.bolt,
+                        color: const Color(0xFFF7931A),
+                        size: 14.sp,
+                      ),
+                      SizedBox(width: 2.w),
+                      Text(
+                        '${_formatCount(_totalZapsReceived)} sats',
+                        style: TextStyle(
+                          color: const Color(0xFFF7931A),
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                    ],
+                    if (_followsYou && !_isCurrentUser) ...[
+                      SizedBox(width: 12.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 2.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7931A).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Text(
+                          'follows you',
+                          style: TextStyle(
+                            color: const Color(0xFFF7931A),
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
+
+                // Followed by section (Primal-style)
+                if (_followedByList.isNotEmpty) ...[
+                  SizedBox(height: 8.h),
+                  _buildFollowedBySection(),
+                ],
               ],
             ),
           ),
@@ -1067,43 +1354,62 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
     );
   }
 
-  Widget _buildStat(String value, String label) {
+  /// Build the "Followed by" section with avatars
+  Widget _buildFollowedBySection() {
     return Row(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 14.sp,
-            fontWeight: FontWeight.bold,
+        // Stacked avatars
+        SizedBox(
+          width: (_followedByList.length * 20.w) + 12.w,
+          height: 24.h,
+          child: Stack(
+            children:
+                _followedByList.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final follower = entry.value;
+                  return Positioned(
+                    left: index * 16.w,
+                    child: Container(
+                      width: 24.w,
+                      height: 24.h,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF0C0C1A),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 10.r,
+                        backgroundColor: const Color(0xFF2A2A3E),
+                        backgroundImage:
+                            follower['avatar'] != null
+                                ? CachedNetworkImageProvider(
+                                  follower['avatar']!,
+                                )
+                                : null,
+                        child:
+                            follower['avatar'] == null
+                                ? Icon(
+                                  Icons.person,
+                                  size: 10.sp,
+                                  color: Colors.white54,
+                                )
+                                : null,
+                      ),
+                    ),
+                  );
+                }).toList(),
           ),
         ),
         SizedBox(width: 4.w),
-        Text(
-          label,
-          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildZapStat(String value) {
-    return Row(
-      children: [
-        Icon(Icons.electric_bolt, color: const Color(0xFFF7931A), size: 14.sp),
-        SizedBox(width: 2.w),
-        Text(
-          value,
-          style: TextStyle(
-            color: const Color(0xFFF7931A),
-            fontSize: 14.sp,
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            'Followed by ${_followedByList.map((f) => f['name'] ?? 'user').take(3).join(', ')}${_followedByList.length > 3 ? '...' : ''}',
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        SizedBox(width: 4.w),
-        Text(
-          'sats',
-          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
         ),
       ],
     );
@@ -1273,47 +1579,6 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
       false;
 }
 
-/// Action button widget
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final bool isLoading;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.color,
-    this.isLoading = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        width: 40.w,
-        height: 40.h,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          shape: BoxShape.circle,
-          border: Border.all(color: color),
-        ),
-        child:
-            isLoading
-                ? Padding(
-                  padding: EdgeInsets.all(10.r),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                )
-                : Icon(icon, color: color, size: 20.sp),
-      ),
-    );
-  }
-}
-
 /// Option tile for bottom sheet
 class _OptionTile extends StatelessWidget {
   final IconData icon;
@@ -1335,57 +1600,6 @@ class _OptionTile extends StatelessWidget {
         style: TextStyle(color: Colors.white, fontSize: 16.sp),
       ),
       onTap: onTap,
-    );
-  }
-}
-
-/// Post card for profile
-class _PostCard extends StatelessWidget {
-  final NostrFeedPost post;
-
-  const _PostCard({required this.post});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF1E1E3F))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            post.content,
-            style: TextStyle(color: Colors.white, fontSize: 14.sp),
-          ),
-          SizedBox(height: 12.h),
-          // Engagement row
-          Row(
-            children: [
-              _EngagementItem(
-                icon: Icons.chat_bubble_outline,
-                count: post.replyCount,
-              ),
-              SizedBox(width: 24.w),
-              _EngagementItem(icon: Icons.repeat, count: post.repostCount),
-              SizedBox(width: 24.w),
-              _EngagementItem(
-                icon: Icons.favorite_border,
-                count: post.likeCount,
-              ),
-              const Spacer(),
-              Text(
-                post.timeAgo,
-                style: TextStyle(
-                  color: const Color(0xFF6B6B80),
-                  fontSize: 12.sp,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1416,7 +1630,6 @@ class _InteractivePostCard extends StatefulWidget {
 
 class _InteractivePostCardState extends State<_InteractivePostCard> {
   bool _isLiked = false;
-  bool _showZapSlider = false;
   double _zapValue = 21;
 
   // Extract image URLs from content
@@ -1893,5 +2106,454 @@ class _EngagementItem extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+/// Profile action button (Primal-style circular button)
+class _ProfileActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _ProfileActionButton({
+    required this.icon,
+    this.iconColor = Colors.white,
+    this.isLoading = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        width: 36.w,
+        height: 36.h,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A3E),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFF3A3A4E)),
+        ),
+        child:
+            isLoading
+                ? Padding(
+                  padding: EdgeInsets.all(8.w),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(iconColor),
+                  ),
+                )
+                : Icon(icon, color: iconColor, size: 18.sp),
+      ),
+    );
+  }
+}
+
+/// QR Info tile for the QR modal
+class _QRInfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onCopy;
+
+  const _QRInfoTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.iconColor = Colors.white,
+    required this.onCopy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor, size: 20.sp),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: const Color(0xFF6B6B80),
+                    fontSize: 12.sp,
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                Text(
+                  value.length > 30
+                      ? '${value.substring(0, 15)}...${value.substring(value.length - 10)}'
+                      : value,
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.copy, color: const Color(0xFFA1A1B2), size: 20.sp),
+            onPressed: onCopy,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Direct Message screen for messaging a user from their profile
+class _DirectMessageScreen extends StatefulWidget {
+  final String pubkey;
+  final String? displayName;
+  final String? avatarUrl;
+
+  const _DirectMessageScreen({
+    required this.pubkey,
+    this.displayName,
+    this.avatarUrl,
+  });
+
+  @override
+  State<_DirectMessageScreen> createState() => _DirectMessageScreenState();
+}
+
+class _DirectMessageScreenState extends State<_DirectMessageScreen> {
+  final DMService _dmService = DMService();
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  List<DirectMessage> _messages = [];
+  bool _isSending = false;
+  bool _isLoading = true;
+  StreamSubscription? _dmSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _dmSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await _dmService.initialize();
+      await _dmService.fetchDMHistory();
+      _loadMessages();
+    } catch (e) {
+      debugPrint('Error initializing DM: $e');
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _loadMessages() {
+    final convo = _dmService.conversations.cast<DMConversation?>().firstWhere(
+      (c) => c?.pubkey == widget.pubkey,
+      orElse: () => null,
+    );
+
+    setState(() {
+      _messages = convo?.messages ?? [];
+    });
+
+    // Listen for new messages
+    _dmSubscription = _dmService.dmStream.listen((dm) {
+      if (dm.senderPubkey == widget.pubkey ||
+          dm.recipientPubkey == widget.pubkey) {
+        _loadMessages();
+        _scrollToBottom();
+      }
+    });
+
+    // Mark as read
+    _dmService.markConversationAsRead(widget.pubkey);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _isSending = true);
+
+    final success = await _dmService.sendDM(
+      recipientPubkey: widget.pubkey,
+      message: text,
+    );
+
+    if (mounted) {
+      setState(() => _isSending = false);
+      if (success) {
+        _messageController.clear();
+        _loadMessages();
+        _scrollToBottom();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send message'),
+            backgroundColor: Color(0xFFFF6B6B),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0C0C1A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0C0C1A),
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 16.r,
+              backgroundColor: const Color(0xFF2A2A3E),
+              backgroundImage:
+                  widget.avatarUrl != null
+                      ? CachedNetworkImageProvider(widget.avatarUrl!)
+                      : null,
+              child:
+                  widget.avatarUrl == null
+                      ? Icon(Icons.person, color: Colors.white54, size: 16.sp)
+                      : null,
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Text(
+                widget.displayName ?? 'User',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFF7931A)),
+              )
+              : Column(
+                children: [
+                  // Messages list
+                  Expanded(
+                    child:
+                        _messages.isEmpty
+                            ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.chat_bubble_outline,
+                                    size: 48.sp,
+                                    color: const Color(0xFF6B6B80),
+                                  ),
+                                  SizedBox(height: 12.h),
+                                  Text(
+                                    'No messages yet',
+                                    style: TextStyle(
+                                      color: const Color(0xFFA1A1B2),
+                                      fontSize: 16.sp,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8.h),
+                                  Text(
+                                    'Send a message to start the conversation',
+                                    style: TextStyle(
+                                      color: const Color(0xFF6B6B80),
+                                      fontSize: 14.sp,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : ListView.builder(
+                              controller: _scrollController,
+                              padding: EdgeInsets.all(16.w),
+                              itemCount: _messages.length,
+                              itemBuilder: (context, index) {
+                                final message = _messages[index];
+                                return _MessageBubble(message: message);
+                              },
+                            ),
+                  ),
+                  // Input area
+                  Container(
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111128),
+                      border: Border(
+                        top: BorderSide(color: const Color(0xFF1A1A2E)),
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _messageController,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Type a message...',
+                                hintStyle: TextStyle(
+                                  color: const Color(0xFF6B6B80),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFF1A1A2E),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24.r),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16.w,
+                                  vertical: 12.h,
+                                ),
+                              ),
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          GestureDetector(
+                            onTap: _isSending ? null : _sendMessage,
+                            child: Container(
+                              width: 44.w,
+                              height: 44.h,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF7931A),
+                                shape: BoxShape.circle,
+                              ),
+                              child:
+                                  _isSending
+                                      ? Padding(
+                                        padding: EdgeInsets.all(12.w),
+                                        child: const CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                      : Icon(
+                                        Icons.send,
+                                        color: Colors.white,
+                                        size: 20.sp,
+                                      ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+    );
+  }
+}
+
+/// Message bubble widget
+class _MessageBubble extends StatelessWidget {
+  final DirectMessage message;
+
+  const _MessageBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment:
+          message.isFromMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+          bottom: 8.h,
+          left: message.isFromMe ? 48.w : 0,
+          right: message.isFromMe ? 0 : 48.w,
+        ),
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color:
+              message.isFromMe
+                  ? const Color(0xFFF7931A)
+                  : const Color(0xFF2A2A3E),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16.r),
+            topRight: Radius.circular(16.r),
+            bottomLeft: Radius.circular(message.isFromMe ? 16.r : 4.r),
+            bottomRight: Radius.circular(message.isFromMe ? 4.r : 16.r),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              message.content,
+              style: TextStyle(color: Colors.white, fontSize: 14.sp),
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              _formatTime(message.timestamp),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 10.sp,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    return '${time.day}/${time.month}';
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -13,6 +14,8 @@ import 'package:sabi_wallet/features/p2p/presentation/widgets/social_profile_wid
 import 'package:sabi_wallet/features/p2p/services/p2p_trade_service.dart';
 import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
+import 'package:sabi_wallet/services/nostr/dm_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
 
 /// P2P Trade Chat Screen with escrow timer
 /// Supports both buyer and seller flows
@@ -57,6 +60,14 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   List<SocialProfile>? _sharedCounterpartyProfiles;
   bool _hasRequestedProfileShare = false;
 
+  // Nostr DM integration
+  final DMService _dmService = DMService();
+  StreamSubscription? _dmSubscription;
+  String? _myPubkey;
+  String? _counterpartyPubkey;
+  bool _isSendingMessage = false;
+  final Set<String> _processedMessageIds = {}; // Prevent duplicates
+
   bool get _isSeller => widget.isSeller;
   bool get _isBuyer => !widget.isSeller;
 
@@ -92,6 +103,9 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
   }
 
   Future<void> _initializeTrade() async {
+    // Initialize Nostr DM service
+    await _initializeDMService();
+
     if (widget.existingTrade != null) {
       _activeTrade = widget.existingTrade;
       // Sync status
@@ -106,6 +120,152 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       if (trade != null) {
         setState(() => _activeTrade = trade);
       }
+    }
+
+    // Set counterparty pubkey for DM filtering
+    _setCounterpartyPubkey();
+
+    // Load chat history from DMs
+    await _loadChatHistory();
+  }
+
+  Future<void> _initializeDMService() async {
+    try {
+      await _dmService.initialize();
+
+      // Get my pubkey from profile service
+      final profileService = NostrProfileService();
+      _myPubkey = profileService.currentPubkey;
+
+      // Subscribe to incoming DMs
+      _dmSubscription = _dmService.dmStream.listen(_onDMReceived);
+
+      P2PLogger.info(
+        'Trade',
+        'DM service initialized for trade chat',
+        metadata: {'myPubkey': _myPubkey?.substring(0, 16)},
+      );
+    } catch (e) {
+      P2PLogger.error('Trade', 'Failed to initialize DM service: $e');
+    }
+  }
+
+  void _setCounterpartyPubkey() {
+    // Determine counterparty based on role
+    if (_isSeller) {
+      // Seller: counterparty is the buyer
+      _counterpartyPubkey = _activeTrade?.buyerPubkey;
+    } else {
+      // Buyer: counterparty is the seller (offer creator)
+      _counterpartyPubkey = _activeTrade?.offerPubkey;
+    }
+
+    P2PLogger.info(
+      'Trade',
+      'Counterparty set',
+      metadata: {
+        'role': _isSeller ? 'seller' : 'buyer',
+        'counterparty': _counterpartyPubkey?.substring(0, 16),
+      },
+    );
+  }
+
+  void _onDMReceived(DirectMessage dm) {
+    // Only process messages from our counterparty
+    if (dm.senderPubkey != _counterpartyPubkey) return;
+
+    // Prevent duplicate messages
+    if (_processedMessageIds.contains(dm.id)) return;
+    _processedMessageIds.add(dm.id);
+
+    // Check if this is a trade-related message (JSON with P2P prefix)
+    if (dm.content.startsWith('{') && dm.content.contains('"type"')) {
+      _handleTradeNotification(dm);
+    } else {
+      // Regular chat message
+      _addMessage(dm.content, isMe: false);
+    }
+  }
+
+  void _handleTradeNotification(DirectMessage dm) {
+    try {
+      final data = jsonDecode(dm.content);
+      final type = data['type'] as String?;
+
+      switch (type) {
+        case 'p2p_payment_submitted':
+          _addSystemMessage('💳 Buyer has submitted fiat payment.');
+          if (_isSeller) {
+            setState(() => _tradeStatus = TradeStatus.paid);
+          }
+          break;
+        case 'p2p_proof_uploaded':
+          _addSystemMessage('📷 Buyer has uploaded payment proof.');
+          break;
+        case 'p2p_btc_released':
+          _addSystemMessage('🎉 BTC has been released!');
+          setState(() => _tradeStatus = TradeStatus.released);
+          break;
+        case 'p2p_trade_cancelled':
+          _addSystemMessage('❌ Trade has been cancelled.');
+          setState(() => _tradeStatus = TradeStatus.cancelled);
+          break;
+        default:
+          // Show as regular message if unrecognized type
+          final message = data['message'] as String?;
+          if (message != null) {
+            _addMessage(message, isMe: false);
+          }
+      }
+    } catch (e) {
+      // Not valid JSON, treat as regular message
+      _addMessage(dm.content, isMe: false);
+    }
+  }
+
+  Future<void> _loadChatHistory() async {
+    if (_counterpartyPubkey == null) return;
+
+    try {
+      // Fetch DM history (populates conversations internally)
+      await _dmService.fetchDMHistory();
+
+      // Get conversation with counterparty
+      final conversations = _dmService.conversations;
+      final conversation =
+          conversations
+              .where((c) => c.pubkey == _counterpartyPubkey)
+              .firstOrNull;
+
+      if (conversation != null) {
+        for (final dm in conversation.messages) {
+          if (_processedMessageIds.contains(dm.id)) continue;
+          _processedMessageIds.add(dm.id);
+
+          // Skip trade notifications in history view for cleaner chat
+          if (dm.content.startsWith('{') && dm.content.contains('"type"')) {
+            continue;
+          }
+
+          final isMe = dm.isFromMe;
+          setState(() {
+            _messages.add(
+              _ChatMessage(
+                text: dm.content,
+                isMe: isMe,
+                isSystem: false,
+                timestamp: dm.timestamp,
+              ),
+            );
+          });
+        }
+
+        // Sort by timestamp
+        _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        _scrollToBottom();
+      }
+    } catch (e) {
+      P2PLogger.error('Trade', 'Failed to load chat history: $e');
     }
   }
 
@@ -141,6 +301,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _escrowTimer?.cancel();
+    _dmSubscription?.cancel();
     super.dispose();
   }
 
@@ -212,22 +373,45 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     });
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSendingMessage) return;
 
-    _addMessage(text);
+    if (_counterpartyPubkey == null) {
+      _addSystemMessage('⚠️ Cannot send message - counterparty not set.');
+      return;
+    }
+
+    setState(() => _isSendingMessage = true);
     _messageController.clear();
 
-    // Simulate seller response
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        _addMessage(
-          'Got it! I\'ll check and confirm once received.',
-          isMe: false,
+    try {
+      // Send encrypted DM via Nostr
+      final success = await _dmService.sendDM(
+        recipientPubkey: _counterpartyPubkey!,
+        message: text,
+      );
+
+      if (success) {
+        // Add to local messages
+        _addMessage(text);
+        P2PLogger.info(
+          'Trade',
+          'Message sent via Nostr DM',
+          metadata: {'to': _counterpartyPubkey?.substring(0, 16)},
         );
+      } else {
+        _addSystemMessage('⚠️ Failed to send message. Please try again.');
+        // Put text back in input
+        _messageController.text = text;
       }
-    });
+    } catch (e) {
+      P2PLogger.error('Trade', 'Error sending message: $e');
+      _addSystemMessage('⚠️ Error sending message: ${e.toString()}');
+      _messageController.text = text;
+    } finally {
+      setState(() => _isSendingMessage = false);
+    }
   }
 
   Future<void> _pickProofImage() async {

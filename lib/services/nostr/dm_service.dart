@@ -100,7 +100,16 @@ class DMService {
     if (_isSubscribed) return;
 
     final pubkey = _profileService.currentPubkey;
-    if (pubkey == null) return;
+    if (pubkey == null) {
+      debugPrint('⚠️ DMService: No pubkey available, cannot initialize');
+      return;
+    }
+
+    // Ensure relay pool is initialized
+    if (!_relayPool.isInitialized) {
+      debugPrint('📨 DMService: Initializing relay pool...');
+      await _relayPool.init();
+    }
 
     // Load cached conversations
     await _loadCachedConversations();
@@ -109,11 +118,17 @@ class DMService {
     await _subscribeToDMs(pubkey);
 
     _isSubscribed = true;
+    debugPrint('✅ DMService: Initialized and subscribed to DMs');
   }
 
   /// Subscribe to DMs sent to us
   Future<void> _subscribeToDMs(String pubkey) async {
     debugPrint('📨 DMService: Subscribing to DMs for $pubkey');
+
+    // Ensure relay pool is initialized
+    if (!_relayPool.isInitialized) {
+      await _relayPool.init();
+    }
 
     // Filter for DMs sent to us (kind 4 = encrypted DM)
     final filter = <String, dynamic>{
@@ -134,6 +149,12 @@ class DMService {
   Future<void> fetchDMHistory({int limit = 100}) async {
     final pubkey = _profileService.currentPubkey;
     if (pubkey == null) return;
+
+    // Ensure relay pool is initialized
+    if (!_relayPool.isInitialized) {
+      debugPrint('📨 DMService: Initializing relay pool for DM history...');
+      await _relayPool.init();
+    }
 
     debugPrint('📨 DMService: Fetching DM history...');
 
@@ -328,6 +349,11 @@ class DMService {
     if (myPubkey == null) return false;
 
     try {
+      // Ensure relay pool is initialized
+      if (!_relayPool.isInitialized) {
+        await _relayPool.init();
+      }
+
       // Get nsec for encryption and signing
       final nsec = await _profileService.getNsec();
       if (nsec == null) return false;

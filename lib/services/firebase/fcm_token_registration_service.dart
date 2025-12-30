@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../nostr/nostr_profile_service.dart';
 import '../firebase_notification_service.dart';
+import '../background_payment_sync_service.dart';
 
 /// Push notification API base URL
 /// Change this to your deployed Vercel URL after deployment
@@ -95,6 +96,9 @@ class FCMTokenRegistrationService {
         // Mark as sent
         await prefs.setString(_lastTokenKey, token);
         await prefs.setBool(_tokenSentKey, true);
+        
+        // Save FCM token for background sync service
+        await BackgroundPaymentSyncService().saveFcmToken(token);
         
         // Also store locally for backup
         await _storeTokenLocally(token, pubkey);
