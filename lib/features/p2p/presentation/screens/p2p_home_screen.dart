@@ -6,6 +6,8 @@ import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_offer_detail_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_seller_offer_detail_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_notification_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_create_offer_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_history_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_my_trades_screen.dart';
@@ -121,6 +123,54 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                             ),
                             Row(
                               children: [
+                                // Notification Bell
+                                Consumer(
+                                  builder: (context, ref, _) {
+                                    final unreadCountAsync = ref.watch(p2pUnreadCountProvider);
+                                    final unreadCount = unreadCountAsync.asData?.value ?? 0;
+                                    return Stack(
+                                      children: [
+                                        _IconButton(
+                                          icon: Icons.notifications_outlined,
+                                          onTap: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const P2PNotificationScreen(),
+                                            ),
+                                          ),
+                                          tooltip: 'Notifications',
+                                        ),
+                                        if (unreadCount > 0)
+                                          Positioned(
+                                            right: 0,
+                                            top: 0,
+                                            child: Container(
+                                              padding: EdgeInsets.all(4.w),
+                                              decoration: const BoxDecoration(
+                                                color: Colors.orange,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              constraints: BoxConstraints(
+                                                minWidth: 16.w,
+                                                minHeight: 16.w,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  unreadCount > 9 ? '9+' : '$unreadCount',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10.sp,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                SizedBox(width: 8.w),
                                 _IconButton(
                                   icon: Icons.help_outline,
                                   onTap:
@@ -354,40 +404,62 @@ class _BuyBtcTab extends ConsumerWidget {
               ? SliverToBoxAdapter(child: _buildEmptyState())
               : SliverPadding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final offer = filteredOffers[index];
-                    // All offers are now from NIP-99 (remote)
-                    const isRemote = true;
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: 12.h),
-                      child: _BuyOfferCard(
-                        offer: offer,
-                        isRemote: isRemote,
-                        onTap:
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (_) => P2POfferDetailScreen(offer: offer),
-                              ),
-                            ),
-                        onMerchantTap: () {
-                          if (offer.merchant != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (_) => P2PMerchantProfileScreen(
+                sliver: Consumer(
+                  builder: (context, ref, _) {
+                    // Get user's offers to check ownership
+                    final userOffersAsync = ref.watch(userNip99OffersProvider);
+                    final userOfferIds = userOffersAsync.asData?.value
+                        .map((o) => o.id)
+                        .toSet() ?? <String>{};
+
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final offer = filteredOffers[index];
+                        // Check if this is user's own offer
+                        final isOwner = userOfferIds.contains(offer.id);
+                        // All offers are now from NIP-99 (remote)
+                        const isRemote = true;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 12.h),
+                          child: _BuyOfferCard(
+                            offer: offer,
+                            isRemote: isRemote,
+                            isOwner: isOwner,
+                            onTap: () {
+                              // Route to seller screen for owner, buyer screen otherwise
+                              if (isOwner) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => P2PSellerOfferDetailScreen(offer: offer),
+                                  ),
+                                );
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => P2POfferDetailScreen(offer: offer),
+                                  ),
+                                );
+                              }
+                            },
+                            onMerchantTap: () {
+                              if (offer.merchant != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => P2PMerchantProfileScreen(
                                       merchant: offer.merchant!,
                                     ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        );
+                      }, childCount: filteredOffers.length),
                     );
-                  }, childCount: filteredOffers.length),
+                  },
                 ),
               ),
 
@@ -581,7 +653,7 @@ class _SellBtcTab extends ConsumerWidget {
                             context,
                             MaterialPageRoute(
                               builder:
-                                  (_) => P2POfferDetailScreen(offer: offer),
+                                  (_) => P2PSellerOfferDetailScreen(offer: offer),
                             ),
                           ),
                     ),
@@ -881,12 +953,14 @@ class _InfoPoint extends StatelessWidget {
 class _BuyOfferCard extends StatelessWidget {
   final P2POfferModel offer;
   final bool isRemote;
+  final bool isOwner;
   final VoidCallback onTap;
   final VoidCallback onMerchantTap;
 
   const _BuyOfferCard({
     required this.offer,
     this.isRemote = false,
+    this.isOwner = false,
     required this.onTap,
     required this.onMerchantTap,
   });
@@ -956,7 +1030,28 @@ class _BuyOfferCard extends StatelessWidget {
                               size: 16.sp,
                             ),
                           ],
-                          if (isRemote) ...[
+                          if (isOwner) ...[
+                            SizedBox(width: 6.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6.w,
+                                vertical: 2.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Text(
+                                'Your Offer',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (isRemote && !isOwner) ...[
                             SizedBox(width: 6.w),
                             Container(
                               padding: EdgeInsets.symmetric(

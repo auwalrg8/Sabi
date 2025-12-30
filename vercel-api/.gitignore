@@ -1,0 +1,18 @@
+# Vercel
+.vercel
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+.env*.local
+
+# Firebase service account (NEVER commit)
+service-account.json
+*-adminsdk-*.json
+
+# Node modules
+node_modules/
+
+# Temp files
+*.temp

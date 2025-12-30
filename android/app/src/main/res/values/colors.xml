@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0C0C1A</color>
+    <!-- Sabi Wallet brand color (Bitcoin orange) for notifications -->
+    <color name="notification_color">#F7931A</color>
 </resources>

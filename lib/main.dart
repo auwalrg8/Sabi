@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
 import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
 import 'package:sabi_wallet/services/nostr/feed_aggregator.dart';
+import 'package:sabi_wallet/services/firebase_notification_service.dart';
+import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
@@ -31,6 +36,24 @@ void main() async {
     debugPrint('✅ Hive.initFlutter() initialized globally');
   } catch (e) {
     debugPrint('⚠️ Hive.initFlutter() error: $e');
+  }
+
+  // Initialize Firebase for push notifications
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('✅ Firebase initialized');
+  } catch (e) {
+    debugPrint('⚠️ Firebase initialization error: $e');
+  }
+
+  // Initialize Firebase Cloud Messaging service
+  try {
+    await FirebaseNotificationService().init();
+    debugPrint('✅ FirebaseNotificationService initialized');
+  } catch (e) {
+    debugPrint('⚠️ FirebaseNotificationService error: $e');
   }
 
   try {
@@ -115,6 +138,22 @@ void main() async {
       try {
         await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
         debugPrint('🔓 Auto-recovered wallet from storage');
+        
+        // Register FCM token after wallet is recovered
+        try {
+          await FCMTokenRegistrationService().registerToken();
+          debugPrint('✅ FCM token registered with backend');
+        } catch (e) {
+          debugPrint('⚠️ FCM token registration error: $e');
+        }
+        
+        // Start listening for payments to send push notifications
+        try {
+          BreezWebhookBridgeService().startListening();
+          debugPrint('✅ BreezWebhookBridgeService started');
+        } catch (e) {
+          debugPrint('⚠️ BreezWebhookBridgeService error: $e');
+        }
       } catch (e) {
         debugPrint('⚠️ Failed to auto-recover wallet: $e');
       }

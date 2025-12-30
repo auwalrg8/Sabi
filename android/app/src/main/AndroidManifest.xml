@@ -25,11 +25,27 @@
     <!-- Contacts permission for importing contacts -->
     <uses-permission
         android:name="android.permission.READ_CONTACTS"/>
+    <!-- Firebase Cloud Messaging permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:label="Sabi Wallet"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true">
+        <!-- Firebase Cloud Messaging default channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sabi_wallet_default"/>
+        <!-- FCM notification icon and color -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color"/>
         <!-- Breez SDK FileProvider for scoped storage support -->
         <provider
             android:name="androidx.core.content.FileProvider"

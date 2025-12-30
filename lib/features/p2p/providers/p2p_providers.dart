@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -642,3 +643,56 @@ final tradeHistoryNotifierProvider =
 final tradeHistoryFilterProvider = StateProvider<TradeHistoryFilter>(
   (ref) => TradeHistoryFilter.all,
 );
+
+// ============================================================================
+// P2P Notification Providers
+// ============================================================================
+
+/// Provider for P2P notification service instance
+final p2pNotificationServiceProvider = Provider<P2PNotificationService>((ref) {
+  final service = P2PNotificationService();
+  service.initialize();
+  return service;
+});
+
+/// Provider for P2P notifications list
+final p2pNotificationsProvider = StreamProvider<List<P2PNotification>>((ref) {
+  final service = ref.watch(p2pNotificationServiceProvider);
+
+  // Stream controller that emits current list on each new notification
+  final controller = StreamController<List<P2PNotification>>();
+
+  // Emit initial list
+  controller.add(service.notifications);
+
+  // Listen for new notifications and emit updated list
+  final subscription = service.notificationStream.listen((_) {
+    controller.add(service.notifications);
+  });
+
+  ref.onDispose(() {
+    subscription.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
+/// Provider for unread notification count
+final p2pUnreadCountProvider = StreamProvider<int>((ref) {
+  final service = ref.watch(p2pNotificationServiceProvider);
+
+  final controller = StreamController<int>();
+  controller.add(service.unreadCount);
+
+  final subscription = service.unreadCountStream.listen((count) {
+    controller.add(count);
+  });
+
+  ref.onDispose(() {
+    subscription.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
+});

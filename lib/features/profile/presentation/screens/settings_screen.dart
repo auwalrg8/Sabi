@@ -6,6 +6,7 @@ import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
+import 'package:sabi_wallet/features/settings/presentation/screens/notification_settings_screen.dart';
 import 'package:sabi_wallet/l10n/language_provider.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
@@ -288,6 +289,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           (value) => ref
                               .read(settingsNotifierProvider.notifier)
                               .toggleNotifications(value),
+                    ),
+
+                    SizedBox(height: 12.h),
+
+                    _SettingTile(
+                      icon: Icons.notifications_active_outlined,
+                      iconColor: AppColors.primary,
+                      trailingIcon: Icons.chevron_right,
+                      title: 'Push Notification Settings',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationSettingsScreen(),
+                          ),
+                        );
+                      },
                     ),
 
                     SizedBox(height: 12.h),

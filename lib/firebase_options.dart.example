@@ -1,0 +1,43 @@
+// TEMPLATE FILE - Copy to firebase_options.dart and fill in your values
+// DO NOT commit the actual firebase_options.dart to version control
+//
+// Get these values from:
+// - Android: android/app/google-services.json
+// - iOS: ios/Runner/GoogleService-Info.plist
+
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      throw UnsupportedError('Web is not supported');
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return ios;
+      default:
+        throw UnsupportedError('Platform not supported');
+    }
+  }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'YOUR_ANDROID_API_KEY',
+    appId: '1:YOUR_PROJECT_NUMBER:android:YOUR_APP_ID',
+    messagingSenderId: 'YOUR_PROJECT_NUMBER',
+    projectId: 'your-project-id',
+    storageBucket: 'your-project-id.appspot.com',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'YOUR_IOS_API_KEY',
+    appId: '1:YOUR_PROJECT_NUMBER:ios:YOUR_APP_ID',
+    messagingSenderId: 'YOUR_PROJECT_NUMBER',
+    projectId: 'your-project-id',
+    storageBucket: 'your-project-id.appspot.com',
+    iosBundleId: 'com.sabi.app',
+  );
+}
