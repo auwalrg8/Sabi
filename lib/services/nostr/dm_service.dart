@@ -434,15 +434,21 @@ class DMService {
         tags.add(['e', relatedOfferId]);
       }
 
-      // Create and sign event using nostr_dart
-      // ignore: unused_local_variable
-      final nostrInstance = Nostr(privateKey: hexPrivKey);
+      // Create Nostr instance for signing
+      final nostr = Nostr(privateKey: hexPrivKey);
+
+      // Create event - note: Event constructor doesn't sign
       final event = Event(myPubkey, 4, tags, encrypted);
 
+      // sendEvent signs the event AND sends via nostr_dart's relays
+      // This is what actually populates event.id and event.sig
+      nostr.sendEvent(event);
+
+      // Also publish via our relay pool for better coverage
       final signedEvent = <String, dynamic>{
         'id': event.id,
         'pubkey': myPubkey,
-        'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'created_at': event.createdAt,
         'kind': 4,
         'tags': tags,
         'content': encrypted,
@@ -450,7 +456,7 @@ class DMService {
       };
 
       debugPrint(
-        '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}...',
+        '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}... sig: ${event.sig?.substring(0, 8)}...',
       );
 
       // Publish to relays
