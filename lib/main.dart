@@ -35,14 +35,14 @@ Future<void> _registerFCMWithRetry({int maxRetries = 3}) async {
     try {
       debugPrint('🔔 FCM registration attempt $attempt/$maxRetries');
       await FCMTokenRegistrationService().registerToken();
-      
+
       // Check if registration succeeded
       final status = await FCMTokenRegistrationService().debugStatus();
       if (status['isRegistered'] == true) {
         debugPrint('✅ FCM token registered successfully on attempt $attempt');
         return;
       }
-      
+
       // If not registered, wait and retry
       if (attempt < maxRetries) {
         debugPrint('⚠️ FCM registration incomplete, retrying in 3s...');
@@ -58,135 +58,130 @@ Future<void> _registerFCMWithRetry({int maxRetries = 3}) async {
   debugPrint('⚠️ FCM registration failed after $maxRetries attempts');
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+/// Initialize non-critical services in background (after UI is showing)
+Future<void> _initBackgroundServices() async {
+  debugPrint('🔄 Starting background service initialization...');
 
-  // CRITICAL: Initialize Hive ONCE at the very start, before all other services
-  try {
-    await Hive.initFlutter();
-    debugPrint('✅ Hive.initFlutter() initialized globally');
-  } catch (e) {
-    debugPrint('⚠️ Hive.initFlutter() error: $e');
-  }
+  // Run independent services in parallel
+  await Future.wait([
+    // Nostr services (non-blocking)
+    Future(() async {
+      try {
+        await NostrService.init();
+        debugPrint('✅ NostrService (legacy) initialized');
+      } catch (e) {
+        debugPrint('⚠️ NostrService error: $e');
+      }
+    }),
 
-  // Initialize Firebase for push notifications
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint('✅ Firebase initialized');
-  } catch (e) {
-    debugPrint('⚠️ Firebase initialization error: $e');
-  }
+    // Nostr Profile Service
+    Future(() async {
+      try {
+        await NostrProfileService().init();
+        debugPrint('✅ NostrProfileService initialized');
+      } catch (e) {
+        debugPrint('⚠️ NostrProfileService error: $e');
+      }
+    }),
 
-  // Initialize Firebase Cloud Messaging service
-  try {
-    await FirebaseNotificationService().init();
-    debugPrint('✅ FirebaseNotificationService initialized');
-  } catch (e) {
-    debugPrint('⚠️ FirebaseNotificationService error: $e');
-  }
+    // Event cache
+    Future(() async {
+      try {
+        await nostr_v2.EventCacheService().initialize();
+        debugPrint('✅ Nostr EventCacheService initialized');
+      } catch (e) {
+        debugPrint('⚠️ Nostr EventCacheService error: $e');
+      }
+    }),
 
-  try {
-    // CRITICAL: Initialize flutter_rust_bridge FIRST
-    await BreezSdkSparkLib.init();
-    debugPrint('✅ BreezSdkSparkLib.init() called - Bridge initialized');
-  } catch (e) {
-    debugPrint('⚠️ BreezSdkSparkLib.init() error: $e');
-  }
+    // Contact service
+    Future(() async {
+      try {
+        await ContactService.init();
+        debugPrint('✅ ContactService initialized');
+      } catch (e) {
+        debugPrint('⚠️ ContactService error: $e');
+      }
+    }),
 
-  try {
-    // Initialize services
-    await SecureStorage.init();
-    debugPrint('✅ SecureStorage initialized');
-  } catch (e) {
-    debugPrint('⚠️ SecureStorage error: $e');
-  }
+    // Profile service
+    Future(() async {
+      try {
+        await ProfileService.init();
+        debugPrint('✅ ProfileService initialized');
+      } catch (e) {
+        debugPrint('⚠️ ProfileService error: $e');
+      }
+    }),
 
-  try {
-    await AppStateService.init();
-    debugPrint('✅ AppStateService initialized');
-  } catch (e) {
-    debugPrint('⚠️ AppStateService error: $e');
-  }
+    // Notification service
+    Future(() async {
+      try {
+        await NotificationService.init();
+        debugPrint('✅ NotificationService initialized');
+      } catch (e) {
+        debugPrint('⚠️ NotificationService error: $e');
+      }
+    }),
+  ], eagerError: false);
 
-  try {
-    await BreezSparkService.initPersistence();
-    debugPrint('✅ BreezSparkService persistence initialized');
-  } catch (e) {
-    debugPrint('⚠️ BreezSparkService.initPersistence error: $e');
-  }
+  // Connect to Nostr relays (fire and forget)
+  nostr_v2.RelayPoolManager()
+      .init()
+      .then((_) {
+        debugPrint('✅ Nostr RelayPoolManager connected');
 
-  try {
-    await NostrService.init();
-    debugPrint('✅ NostrService (legacy) initialized');
-  } catch (e) {
-    debugPrint('⚠️ NostrService error: $e');
-  }
-
-  // Initialize NostrProfileService (required for P2P and profile features)
-  try {
-    await NostrProfileService().init();
-    debugPrint('✅ NostrProfileService initialized');
-  } catch (e) {
-    debugPrint('⚠️ NostrProfileService error: $e');
-  }
-
-  // Initialize new high-performance Nostr services (v2)
-  try {
-    await nostr_v2.EventCacheService().initialize();
-    debugPrint('✅ Nostr EventCacheService initialized');
-  } catch (e) {
-    debugPrint('⚠️ Nostr EventCacheService error: $e');
-  }
-
-  try {
-    // Connect to relays in background (non-blocking)
-    nostr_v2.RelayPoolManager().init().then((_) {
-      debugPrint('✅ Nostr RelayPoolManager connected');
-      
-      // Pre-fetch global feed immediately after relay connection
-      FeedAggregator().init(NostrProfileService().currentPubkey).then((_) {
-        FeedAggregator().fetchFeed(type: FeedType.global, limit: 30).then((posts) {
-          debugPrint('✅ Pre-fetched ${posts.length} global feed posts');
-        }).catchError((e) {
-          debugPrint('⚠️ Pre-fetch global feed error: $e');
-        });
-      }).catchError((e) {
-        debugPrint('⚠️ FeedAggregator init error: $e');
+        // Pre-fetch global feed after relay connection
+        FeedAggregator()
+            .init(NostrProfileService().currentPubkey)
+            .then((_) {
+              FeedAggregator()
+                  .fetchFeed(type: FeedType.global, limit: 30)
+                  .then((posts) {
+                    debugPrint(
+                      '✅ Pre-fetched ${posts.length} global feed posts',
+                    );
+                  })
+                  .catchError((e) {
+                    debugPrint('⚠️ Pre-fetch global feed error: $e');
+                  });
+            })
+            .catchError((e) {
+              debugPrint('⚠️ FeedAggregator init error: $e');
+            });
+      })
+      .catchError((e) {
+        debugPrint('⚠️ Nostr RelayPoolManager error: $e');
       });
-    }).catchError((e) {
-      debugPrint('⚠️ Nostr RelayPoolManager error: $e');
-    });
-  } catch (e) {
-    debugPrint('⚠️ Nostr RelayPoolManager init error: $e');
-  }
 
+  debugPrint('✅ Background services initialization complete');
+}
+
+/// Initialize wallet if it exists (called after splash shows)
+Future<bool> initializeWalletIfExists() async {
   try {
-    // Auto-recover wallet if exists
     final savedMnemonic = await BreezSparkService.getMnemonic();
     if (savedMnemonic != null && savedMnemonic.isNotEmpty) {
-      try {
-        await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
-        debugPrint('🔓 Auto-recovered wallet from storage');
-        
-        // Register FCM token after wallet is recovered (with retry)
-        _registerFCMWithRetry();
-        
-        // Start listening for payments to send push notifications
+      debugPrint('🔓 Auto-recovering wallet from storage...');
+      await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
+      debugPrint('✅ Wallet auto-recovered');
+
+      // Start webhook bridge for push notifications (fire and forget)
+      Future(() async {
         try {
           BreezWebhookBridgeService().startListening();
           debugPrint('✅ BreezWebhookBridgeService started');
         } catch (e) {
           debugPrint('⚠️ BreezWebhookBridgeService error: $e');
         }
-        
-        // Initialize background payment sync for offline notifications
+
+        // Register FCM token
+        _registerFCMWithRetry();
+
+        // Initialize background payment sync
         try {
           await BackgroundPaymentSyncService().initialize();
           await BackgroundPaymentSyncService().startPeriodicSync();
-          
-          // Save nostr pubkey for background sync
           final pubkey = NostrProfileService().currentPubkey;
           if (pubkey != null) {
             await BackgroundPaymentSyncService().saveNostrPubkey(pubkey);
@@ -195,43 +190,86 @@ void main() async {
         } catch (e) {
           debugPrint('⚠️ BackgroundPaymentSyncService error: $e');
         }
-      } catch (e) {
-        debugPrint('⚠️ Failed to auto-recover wallet: $e');
-      }
+      });
+
+      return true;
     }
   } catch (e) {
     debugPrint('⚠️ Wallet recovery error: $e');
   }
+  return false;
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ===== CRITICAL PATH - Minimum blocking initialization =====
+  // Only what's absolutely required before showing UI
 
   try {
-    await ContactService.init();
-    debugPrint('✅ ContactService initialized');
+    // Hive - needed for storage
+    await Hive.initFlutter();
+    debugPrint('✅ Hive initialized');
   } catch (e) {
-    debugPrint('⚠️ ContactService error: $e');
+    debugPrint('⚠️ Hive error: $e');
   }
 
-  try {
-    await NotificationService.init();
-    debugPrint('✅ NotificationService initialized');
-  } catch (e) {
-    debugPrint('⚠️ NotificationService error: $e');
-  }
+  // Run these critical services in parallel
+  await Future.wait([
+    // Firebase - needed for notifications
+    Future(() async {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        await FirebaseNotificationService().init();
+        debugPrint('✅ Firebase initialized');
+      } catch (e) {
+        debugPrint('⚠️ Firebase error: $e');
+      }
+    }),
 
-  try {
-    await ProfileService.init();
-    debugPrint('✅ ProfileService initialized');
-  } catch (e) {
-    debugPrint('⚠️ ProfileService error: $e');
-  }
+    // Rust bridge - required before any SDK calls
+    Future(() async {
+      try {
+        await BreezSdkSparkLib.init();
+        debugPrint('✅ BreezSdkSparkLib bridge initialized');
+      } catch (e) {
+        debugPrint('⚠️ BreezSdkSparkLib error: $e');
+      }
+    }),
 
+    // Secure storage - needed to check wallet state
+    Future(() async {
+      try {
+        await SecureStorage.init();
+        debugPrint('✅ SecureStorage initialized');
+      } catch (e) {
+        debugPrint('⚠️ SecureStorage error: $e');
+      }
+    }),
+
+    // App state - needed for routing
+    Future(() async {
+      try {
+        await AppStateService.init();
+        await BreezSparkService.initPersistence();
+        debugPrint('✅ AppStateService initialized');
+      } catch (e) {
+        debugPrint('⚠️ AppStateService error: $e');
+      }
+    }),
+  ], eagerError: false);
+
+  // Mark app as opened
   try {
-    // Mark app as opened
     await AppStateService.markAppOpened();
-    debugPrint('✅ App marked as opened');
   } catch (e) {
     debugPrint('⚠️ markAppOpened error: $e');
   }
 
+  // ===== START UI IMMEDIATELY =====
+  // Background services will initialize after UI is showing
   runApp(
     const ProviderScope(
       child: ScreenUtilInit(
@@ -245,6 +283,10 @@ void main() async {
       ),
     ),
   );
+
+  // ===== DEFERRED INITIALIZATION =====
+  // Start background services after UI is showing
+  _initBackgroundServices();
 }
 
 class SabiWalletApp extends ConsumerWidget {
@@ -252,14 +294,11 @@ class SabiWalletApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Check if user has created/restored a wallet using app state service
-    final hasWallet = AppStateService.hasWallet;
-
     // Watch the current locale
     final locale = ref.watch(languageProvider);
-    debugPrint('🔍 App State Check - hasWallet: $hasWallet');
     debugPrint('🌍 Current locale: ${locale.languageCode}');
 
+    // Always show SplashScreen first - it handles wallet detection and navigation
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
@@ -268,15 +307,14 @@ class SabiWalletApp extends ConsumerWidget {
       supportedLocales: Localization.supportedLocales,
       locale: locale,
 
-      home:
-          hasWallet
-              ? BiometricAuthScreen(
-                child: const HomeScreen(),
-              ) // Wallet exists → authenticate with pin/biometrics → go to home
-              : const SplashScreen(), // No wallet → show onboarding
+      // SplashScreen now handles:
+      // - Checking if wallet exists
+      // - Lazy-loading Lightning SDK
+      // - Navigating to appropriate screen
+      home: const SplashScreen(),
       routes: {
         '/home': (context) => const HomeScreen(),
-        '/splash': (context) => const EntryScreen(),
+        '/splash': (context) => const SplashScreen(),
         '/entry': (context) => const EntryScreen(),
       },
       theme: ThemeData(
