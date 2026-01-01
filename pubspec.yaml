@@ -75,6 +75,7 @@ dependencies:
   
   # Background task scheduling for offline payment detection
   workmanager: ^0.6.0
+  pointycastle: ^3.9.1
 
 dev_dependencies:
   flutter_test:

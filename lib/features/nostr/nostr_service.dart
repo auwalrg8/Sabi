@@ -3,7 +3,7 @@ import 'package:nostr_dart/nostr_dart.dart';
 import 'package:bech32/bech32.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:crypto/crypto.dart';
+import 'package:pointycastle/export.dart' as pc;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -592,12 +592,15 @@ class NostrService {
         throw Exception('Could not decode private key');
       }
 
-      // Create a shared secret by hashing both keys together
-      // This is a simplified version - production should use proper ECDH
-      final sharedSecret = sha256.convert(
-        utf8.encode(hexPrivateKey + targetHexPubkey),
+      // Compute proper ECDH shared secret for NIP-04
+      final sharedSecret = _computeECDHSharedSecret(
+        hexPrivateKey,
+        targetHexPubkey,
       );
-      final keyBytes = Uint8List.fromList(sharedSecret.bytes);
+      if (sharedSecret == null) {
+        throw Exception('Failed to compute shared secret');
+      }
+      final keyBytes = Uint8List.fromList(sharedSecret);
 
       // Generate random IV
       final random = Random.secure();
@@ -660,11 +663,16 @@ class NostrService {
       final encryptedBase64 = parts[0];
       final ivBase64 = parts[1];
 
-      // Recreate the shared secret
-      final sharedSecret = sha256.convert(
-        utf8.encode(receiverHexPrivateKey + senderHexPubkey),
+      // Compute proper ECDH shared secret
+      final sharedSecret = _computeECDHSharedSecret(
+        receiverHexPrivateKey,
+        senderHexPubkey,
       );
-      final keyBytes = Uint8List.fromList(sharedSecret.bytes);
+      if (sharedSecret == null) {
+        _debug.error('DM', 'Failed to compute shared secret');
+        return null;
+      }
+      final keyBytes = Uint8List.fromList(sharedSecret);
 
       // Decrypt
       final key = encrypt.Key(keyBytes);
@@ -679,6 +687,90 @@ class NostrService {
       _debug.error('DM', 'Error decrypting DM', e.toString());
       return null;
     }
+  }
+
+  /// Compute ECDH shared secret using secp256k1 for NIP-04
+  static List<int>? _computeECDHSharedSecret(
+    String privateKeyHex,
+    String otherPubkeyHex,
+  ) {
+    try {
+      // Parse private key
+      final privateKeyBytes = _hexToBytes(privateKeyHex);
+      if (privateKeyBytes == null) return null;
+
+      // Parse public key (add 02 prefix for compressed format if needed)
+      String pubkeyWithPrefix = otherPubkeyHex;
+      if (otherPubkeyHex.length == 64) {
+        // x-only pubkey, need to add prefix (assume even y)
+        pubkeyWithPrefix = '02$otherPubkeyHex';
+      }
+      final publicKeyBytes = _hexToBytes(pubkeyWithPrefix);
+      if (publicKeyBytes == null) return null;
+
+      // Set up secp256k1 curve
+      final domainParams = pc.ECDomainParameters('secp256k1');
+
+      // Create private key
+      final privateKeyBigInt = _bytesToBigInt(privateKeyBytes);
+      final ecPrivateKey = pc.ECPrivateKey(privateKeyBigInt, domainParams);
+
+      // Decode public key point
+      final publicKeyPoint = domainParams.curve.decodePoint(publicKeyBytes);
+      if (publicKeyPoint == null) return null;
+
+      // Perform ECDH: multiply public key by private key scalar
+      final sharedPoint = publicKeyPoint * ecPrivateKey.d;
+      if (sharedPoint == null || sharedPoint.x == null) return null;
+
+      // NIP-04 uses only the x-coordinate of the shared point
+      final sharedX = sharedPoint.x!.toBigInteger();
+      if (sharedX == null) return null;
+
+      // Convert to 32 bytes (padded if needed)
+      return _bigIntToBytes(sharedX, 32);
+    } catch (e) {
+      _debug.error('DM', 'ECDH computation error', e.toString());
+      return null;
+    }
+  }
+
+  /// Convert hex string to bytes
+  static Uint8List? _hexToBytes(String hex) {
+    try {
+      if (hex.length % 2 != 0) return null;
+      final bytes = Uint8List(hex.length ~/ 2);
+      for (int i = 0; i < hex.length; i += 2) {
+        bytes[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+      }
+      return bytes;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Convert bytes to BigInt
+  static BigInt _bytesToBigInt(Uint8List bytes) {
+    BigInt result = BigInt.zero;
+    for (int i = 0; i < bytes.length; i++) {
+      result = (result << 8) | BigInt.from(bytes[i]);
+    }
+    return result;
+  }
+
+  /// Convert BigInt to bytes with specified length
+  static List<int> _bigIntToBytes(BigInt value, int length) {
+    final bytes = <int>[];
+    var v = value;
+    while (v > BigInt.zero) {
+      bytes.insert(0, (v & BigInt.from(0xff)).toInt());
+      v = v >> 8;
+    }
+    // Pad to required length
+    while (bytes.length < length) {
+      bytes.insert(0, 0);
+    }
+    return bytes.take(length).toList();
   }
 
   /// Subscribe to encrypted DMs for our user
@@ -1999,7 +2091,7 @@ class NostrService {
   // ==================== SEARCH METHODS ====================
 
   /// Search for users by name or npub
-  /// Uses kind:0 (metadata) events
+  /// Uses kind:0 (metadata) events with local cache fallback
   static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
     _debug.info('SEARCH', 'Searching users', 'query: $query');
 
@@ -2014,6 +2106,7 @@ class NostrService {
     }
 
     final results = <Map<String, dynamic>>[];
+    final seenPubkeys = <String>{};
 
     // If direct pubkey, fetch that user's metadata
     if (directPubkey != null) {
@@ -2028,7 +2121,22 @@ class NostrService {
       return results;
     }
 
-    // Search via relay.nostr.band which supports NIP-50 search
+    // First, search locally from cached profiles (instant results)
+    try {
+      final cachedProfiles = await _searchCachedProfiles(query);
+      for (final profile in cachedProfiles) {
+        final pubkey = profile['pubkey'] as String;
+        if (!seenPubkeys.contains(pubkey)) {
+          seenPubkeys.add(pubkey);
+          results.add(profile);
+        }
+      }
+      _debug.info('SEARCH', 'Local cache results', '${results.length} found');
+    } catch (e) {
+      _debug.warn('SEARCH', 'Local cache search failed', '$e');
+    }
+
+    // Then search via NIP-50 relays for more results
     try {
       final filter = {
         'kinds': [0],
@@ -2036,16 +2144,24 @@ class NostrService {
         'limit': 20,
       };
 
+      // Use multiple NIP-50 capable relays with shorter timeout
       final rawEvents = await NostrRelayClient.fetchEvents(
-        relayUrls: ['wss://relay.nostr.band', 'wss://nostr.wine'],
+        relayUrls: [
+          'wss://relay.nostr.band',
+          'wss://search.nos.today',
+          'wss://nostr.wine',
+        ],
         filter: filter,
-        timeoutSeconds: 8,
+        timeoutSeconds: 5, // Shorter timeout for better UX
         maxEvents: 20,
       );
 
       for (final event in rawEvents) {
         try {
           final pubkey = event['pubkey'] as String;
+          if (seenPubkeys.contains(pubkey)) continue;
+          seenPubkeys.add(pubkey);
+
           final content = event['content'] as String?;
           if (content != null && content.isNotEmpty) {
             final metadata = json.decode(content) as Map<String, dynamic>;
@@ -2072,18 +2188,92 @@ class NostrService {
         '${results.length} results',
       );
     } catch (e) {
-      _debug.error('SEARCH', 'User search failed', '$e');
+      _debug.error('SEARCH', 'Remote user search failed', '$e');
+      // Return local results even if remote fails
+    }
+
+    return results;
+  }
+
+  /// Search cached profiles locally
+  static Future<List<Map<String, dynamic>>> _searchCachedProfiles(
+    String query,
+  ) async {
+    final results = <Map<String, dynamic>>[];
+    final queryLower = query.toLowerCase();
+
+    try {
+      // Get cached profiles from Hive
+      final box = await Hive.openBox('nostr_profile_cache');
+      final allKeys = box.keys.toList();
+
+      for (final key in allKeys.take(500)) {
+        // Limit for performance
+        try {
+          final data = box.get(key);
+          if (data == null) continue;
+
+          final profileMap = Map<String, dynamic>.from(data as Map);
+          final name =
+              (profileMap['name'] as String?)?.toLowerCase() ??
+              (profileMap['displayName'] as String?)?.toLowerCase() ??
+              '';
+          final displayName =
+              (profileMap['displayName'] as String?)?.toLowerCase() ??
+              (profileMap['display_name'] as String?)?.toLowerCase() ??
+              '';
+          final nip05 = (profileMap['nip05'] as String?)?.toLowerCase() ?? '';
+
+          if (name.contains(queryLower) ||
+              displayName.contains(queryLower) ||
+              nip05.contains(queryLower)) {
+            final pubkey = key.toString();
+            results.add({
+              'pubkey': pubkey,
+              'npub': hexToNpub(pubkey),
+              'name': profileMap['name'],
+              'display_name': profileMap['displayName'] ?? profileMap['name'],
+              'picture': profileMap['picture'],
+              'about': profileMap['about'],
+              'nip05': profileMap['nip05'],
+            });
+          }
+        } catch (e) {
+          // Skip malformed cache entries
+        }
+      }
+    } catch (e) {
+      _debug.warn('SEARCH', 'Error searching cached profiles', '$e');
     }
 
     return results;
   }
 
   /// Search notes/posts by content (NIP-50 full-text search)
+  /// Also searches cached posts locally for instant results
   static Future<List<NostrFeedPost>> searchNotes(String query) async {
     _debug.info('SEARCH', 'Searching notes', 'query: $query');
 
     if (query.isEmpty) return [];
 
+    final posts = <NostrFeedPost>[];
+    final seenIds = <String>{};
+
+    // First, search locally from cached posts (instant results)
+    try {
+      final cachedPosts = await _searchCachedPosts(query);
+      for (final post in cachedPosts) {
+        if (!seenIds.contains(post.id)) {
+          seenIds.add(post.id);
+          posts.add(post);
+        }
+      }
+      _debug.info('SEARCH', 'Local cache notes', '${posts.length} found');
+    } catch (e) {
+      _debug.warn('SEARCH', 'Local cache note search failed', '$e');
+    }
+
+    // Then search via NIP-50 relays for more results
     try {
       final filter = {
         'kinds': [1],
@@ -2092,16 +2282,23 @@ class NostrService {
       };
 
       final rawEvents = await NostrRelayClient.fetchEvents(
-        relayUrls: ['wss://relay.nostr.band', 'wss://nostr.wine'],
+        relayUrls: [
+          'wss://relay.nostr.band',
+          'wss://search.nos.today',
+          'wss://nostr.wine',
+        ],
         filter: filter,
-        timeoutSeconds: 10,
+        timeoutSeconds: 6, // Shorter timeout for better UX
         maxEvents: 30,
       );
 
-      final posts = <NostrFeedPost>[];
       for (final event in rawEvents) {
         try {
-          posts.add(NostrFeedPost.fromRawEvent(event));
+          final post = NostrFeedPost.fromRawEvent(event);
+          if (!seenIds.contains(post.id)) {
+            seenIds.add(post.id);
+            posts.add(post);
+          }
         } catch (e) {
           // Skip malformed events
         }
@@ -2109,11 +2306,47 @@ class NostrService {
 
       posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       _debug.success('SEARCH', 'Note search complete', '${posts.length} posts');
-      return posts;
     } catch (e) {
-      _debug.error('SEARCH', 'Note search failed', '$e');
-      return [];
+      _debug.error('SEARCH', 'Remote note search failed', '$e');
+      // Return local results even if remote fails
     }
+
+    return posts;
+  }
+
+  /// Search cached posts locally
+  static Future<List<NostrFeedPost>> _searchCachedPosts(String query) async {
+    final results = <NostrFeedPost>[];
+    final queryLower = query.toLowerCase();
+
+    try {
+      // Get cached posts from Hive
+      final box = await Hive.openBox('nostr_feed_posts');
+      final allKeys = box.keys.toList();
+
+      for (final key in allKeys.take(200)) {
+        // Limit for performance
+        try {
+          final data = box.get(key);
+          if (data == null) continue;
+
+          final postMap = Map<String, dynamic>.from(data as Map);
+          final content = (postMap['content'] as String?)?.toLowerCase() ?? '';
+          final authorName =
+              (postMap['authorName'] as String?)?.toLowerCase() ?? '';
+
+          if (content.contains(queryLower) || authorName.contains(queryLower)) {
+            results.add(NostrFeedPost.fromJson(postMap));
+          }
+        } catch (e) {
+          // Skip malformed cache entries
+        }
+      }
+    } catch (e) {
+      _debug.warn('SEARCH', 'Error searching cached posts', '$e');
+    }
+
+    return results;
   }
 
   /// Search posts by hashtag

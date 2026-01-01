@@ -22,4 +22,14 @@ class MainActivity : FlutterFragmentActivity() {
         
         super.onCreate(savedInstanceState)
     }
+    
+    /**
+     * Override onBackPressed to move app to background instead of killing it.
+     * This keeps the app running and maintains wallet connections.
+     */
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        // Move task to back (minimize) instead of finishing the activity
+        moveTaskToBack(true)
+    }
 }

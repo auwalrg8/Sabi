@@ -9,7 +9,8 @@ import 'nostr_profile_service.dart';
 /// NIP-99 Marketplace Service for P2P Offers
 /// Uses kind 30402 (Classified Listing) for interoperability
 class NIP99MarketplaceService {
-  static final NIP99MarketplaceService _instance = NIP99MarketplaceService._internal();
+  static final NIP99MarketplaceService _instance =
+      NIP99MarketplaceService._internal();
   factory NIP99MarketplaceService() => _instance;
   NIP99MarketplaceService._internal();
 
@@ -25,7 +26,15 @@ class NIP99MarketplaceService {
   Future<String?> publishOffer(NostrP2POffer offer) async {
     final pubkey = _profileService.currentPubkey;
     if (pubkey == null) {
-      throw Exception('No Nostr identity - please set up your Nostr keys first');
+      throw Exception(
+        'No Nostr identity - please set up your Nostr keys first',
+      );
+    }
+
+    // Ensure relay pool is initialized
+    if (!_relayPool.isInitialized) {
+      debugPrint('📡 Initializing relay pool for publishing offer...');
+      await _relayPool.init();
     }
 
     debugPrint('📢 Publishing P2P offer: ${offer.title}');
@@ -47,10 +56,15 @@ class NIP99MarketplaceService {
 
       // Create Nostr instance for signing and sending
       final nostr = Nostr(privateKey: hexPrivKey);
-      
+
       // Create signed event
-      final event = Event(pubkey, classifiedListingKind, tags, offer.description);
-      
+      final event = Event(
+        pubkey,
+        classifiedListingKind,
+        tags,
+        offer.description,
+      );
+
       // Send via nostr_dart (signs automatically)
       nostr.sendEvent(event);
 
@@ -69,10 +83,10 @@ class NIP99MarketplaceService {
 
       if (successCount > 0) {
         debugPrint('✅ Offer published to $successCount relays');
-        
+
         // Cache the offer
         _offersCache[offer.id] = offer;
-        
+
         return event.id;
       }
 
@@ -134,7 +148,7 @@ class NIP99MarketplaceService {
       };
 
       final successCount = await _relayPool.publish(eventJson);
-      
+
       if (successCount > 0) {
         _offersCache.remove(offerId);
         debugPrint('✅ Offer deleted');
@@ -156,6 +170,12 @@ class NIP99MarketplaceService {
     int limit = 50,
   }) async {
     debugPrint('🔍 Fetching P2P offers...');
+
+    // Ensure relay pool is initialized
+    if (!_relayPool.isInitialized) {
+      debugPrint('📡 Initializing relay pool for P2P offers...');
+      await _relayPool.init();
+    }
 
     // Build filter
     final filter = <String, dynamic>{
@@ -188,7 +208,11 @@ class NIP99MarketplaceService {
       try {
         // Check if it's a P2P offer (has 'p2p' tag)
         final hasP2pTag = event.tags.any(
-          (tag) => tag.isNotEmpty && tag[0] == 't' && tag.length > 1 && tag[1] == 'p2p',
+          (tag) =>
+              tag.isNotEmpty &&
+              tag[0] == 't' &&
+              tag.length > 1 &&
+              tag[1] == 'p2p',
         );
         if (!hasP2pTag) continue;
 
@@ -205,13 +229,15 @@ class NIP99MarketplaceService {
         seenIds.add(offer.id);
 
         // Apply filters
-        if (location != null && offer.location?.toLowerCase() != location.toLowerCase()) {
+        if (location != null &&
+            offer.location?.toLowerCase() != location.toLowerCase()) {
           continue;
         }
         if (type != null && offer.type != type) {
           continue;
         }
-        if (paymentMethod != null && !offer.paymentMethods.contains(paymentMethod)) {
+        if (paymentMethod != null &&
+            !offer.paymentMethods.contains(paymentMethod)) {
           continue;
         }
 
@@ -236,16 +262,37 @@ class NIP99MarketplaceService {
   }) {
     final controller = StreamController<NostrP2POffer>();
 
+    // Ensure relay pool is initialized before subscribing
+    _ensureInitializedAndSubscribe(controller, location, type);
+
+    return controller.stream;
+  }
+
+  Future<void> _ensureInitializedAndSubscribe(
+    StreamController<NostrP2POffer> controller,
+    String? location,
+    P2POfferType? type,
+  ) async {
+    if (!_relayPool.isInitialized) {
+      debugPrint('📡 Initializing relay pool for P2P subscription...');
+      await _relayPool.init();
+    }
+
     final filter = {
       'kinds': [classifiedListingKind],
       'since': DateTime.now().millisecondsSinceEpoch ~/ 1000,
     };
 
+    // ignore: unused_local_variable
     final subs = _relayPool.subscribe(filter, (event) {
       try {
         // Check if it's a P2P offer
         final hasP2pTag = event.tags.any(
-          (tag) => tag.isNotEmpty && tag[0] == 't' && tag.length > 1 && tag[1] == 'p2p',
+          (tag) =>
+              tag.isNotEmpty &&
+              tag[0] == 't' &&
+              tag.length > 1 &&
+              tag[1] == 'p2p',
         );
         if (!hasP2pTag) return;
 
@@ -258,7 +305,8 @@ class NIP99MarketplaceService {
         );
 
         // Apply filters
-        if (location != null && offer.location?.toLowerCase() != location.toLowerCase()) {
+        if (location != null &&
+            offer.location?.toLowerCase() != location.toLowerCase()) {
           return;
         }
         if (type != null && offer.type != type) {
@@ -275,13 +323,17 @@ class NIP99MarketplaceService {
     controller.onCancel = () {
       _relayPool.unsubscribeAll(subs);
     };
-
-    return controller.stream;
   }
 
   /// Fetch offers by a specific user
   Future<List<NostrP2POffer>> fetchUserOffers(String pubkey) async {
     debugPrint('🔍 Fetching offers by ${pubkey.substring(0, 8)}...');
+
+    // Ensure relay pool is initialized
+    if (!_relayPool.isInitialized) {
+      debugPrint('📡 Initializing relay pool for user offers...');
+      await _relayPool.init();
+    }
 
     final events = await _relayPool.fetch(
       filter: {
@@ -299,7 +351,11 @@ class NIP99MarketplaceService {
     for (final event in events) {
       try {
         final hasP2pTag = event.tags.any(
-          (tag) => tag.isNotEmpty && tag[0] == 't' && tag.length > 1 && tag[1] == 'p2p',
+          (tag) =>
+              tag.isNotEmpty &&
+              tag[0] == 't' &&
+              tag.length > 1 &&
+              tag[1] == 'p2p',
         );
         if (!hasP2pTag) continue;
 

@@ -329,6 +329,26 @@ class P2PTradeManager extends ChangeNotifier {
   List<P2PTrade> get mySellerTrades =>
       activeTrades.where((t) => t.isSeller).toList();
 
+  /// Get all trades for a specific offer
+  List<P2PTrade> getTradesForOffer(String offerId) =>
+      _trades.values.where((t) => t.offerId == offerId).toList();
+
+  /// Get active trades for a specific offer
+  List<P2PTrade> getActiveTradesForOffer(String offerId) =>
+      activeTrades.where((t) => t.offerId == offerId).toList();
+
+  /// Get completed trades count for a specific offer
+  int getCompletedTradesCountForOffer(String offerId) =>
+      _trades.values
+          .where(
+            (t) => t.offerId == offerId && t.status == P2PTradeStatus.completed,
+          )
+          .length;
+
+  /// Get total trades count for a specific offer
+  int getTotalTradesCountForOffer(String offerId) =>
+      _trades.values.where((t) => t.offerId == offerId).length;
+
   /// Initialize and load trades from storage
   Future<void> initialize() async {
     await _loadTrades();
@@ -553,7 +573,7 @@ class P2PTradeManager extends ChangeNotifier {
           // Use BreezSparkService.sendPayment which accepts a bolt11 string
           await BreezSparkService.sendPayment(trade.buyerLightningAddress!);
           paymentSuccess = true;
-          
+
           // Send push notification for successful P2P payment
           BreezWebhookBridgeService().sendOutgoingPaymentNotification(
             amountSats: trade.satsAmount,
@@ -566,14 +586,14 @@ class P2PTradeManager extends ChangeNotifier {
             'Lightning payment failed: $e',
             tradeId: tradeId,
           );
-          
+
           // Send push notification for failed P2P payment
           BreezWebhookBridgeService().sendPaymentFailedNotification(
             amountSats: trade.satsAmount,
             errorMessage: e.toString(),
             recipientName: 'P2P Buyer',
           );
-          
+
           // For demo purposes, continue even if payment fails
           paymentSuccess = true;
         }

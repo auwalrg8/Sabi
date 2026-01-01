@@ -278,7 +278,7 @@ class RelayPoolManager {
   factory RelayPoolManager() => _instance;
   RelayPoolManager._internal();
 
-  /// Primal's optimized relay list
+  /// Primal's optimized relay list + additional popular relays
   static const List<String> primalRelays = [
     'wss://nos.lol',
     'wss://relay.snort.social',
@@ -290,6 +290,12 @@ class RelayPoolManager {
     'wss://relay.nostr.bg',
     'wss://eden.nostr.land',
     'wss://relay.f7z.io',
+    // Additional relays for better DM coverage
+    'wss://purplepag.es',
+    'wss://relay.nostr.band',
+    'wss://nostr.bitcoiner.social',
+    'wss://relay.nostrati.com',
+    'wss://nostr.oxtr.dev',
   ];
 
   final Map<String, RelayConnection> _relays = {};

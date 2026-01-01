@@ -126,18 +126,24 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                                 // Notification Bell
                                 Consumer(
                                   builder: (context, ref, _) {
-                                    final unreadCountAsync = ref.watch(p2pUnreadCountProvider);
-                                    final unreadCount = unreadCountAsync.asData?.value ?? 0;
+                                    final unreadCountAsync = ref.watch(
+                                      p2pUnreadCountProvider,
+                                    );
+                                    final unreadCount =
+                                        unreadCountAsync.asData?.value ?? 0;
                                     return Stack(
                                       children: [
                                         _IconButton(
                                           icon: Icons.notifications_outlined,
-                                          onTap: () => Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => const P2PNotificationScreen(),
-                                            ),
-                                          ),
+                                          onTap:
+                                              () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (_) =>
+                                                          const P2PNotificationScreen(),
+                                                ),
+                                              ),
                                           tooltip: 'Notifications',
                                         ),
                                         if (unreadCount > 0)
@@ -156,7 +162,9 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                                               ),
                                               child: Center(
                                                 child: Text(
-                                                  unreadCount > 9 ? '9+' : '$unreadCount',
+                                                  unreadCount > 9
+                                                      ? '9+'
+                                                      : '$unreadCount',
                                                   style: TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 10.sp,
@@ -408,9 +416,11 @@ class _BuyBtcTab extends ConsumerWidget {
                   builder: (context, ref, _) {
                     // Get user's offers to check ownership
                     final userOffersAsync = ref.watch(userNip99OffersProvider);
-                    final userOfferIds = userOffersAsync.asData?.value
-                        .map((o) => o.id)
-                        .toSet() ?? <String>{};
+                    final userOfferIds =
+                        userOffersAsync.asData?.value
+                            .map((o) => o.id)
+                            .toSet() ??
+                        <String>{};
 
                     return SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
@@ -431,14 +441,19 @@ class _BuyBtcTab extends ConsumerWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => P2PSellerOfferDetailScreen(offer: offer),
+                                    builder:
+                                        (_) => P2PSellerOfferDetailScreen(
+                                          offer: offer,
+                                        ),
                                   ),
                                 );
                               } else {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => P2POfferDetailScreen(offer: offer),
+                                    builder:
+                                        (_) =>
+                                            P2POfferDetailScreen(offer: offer),
                                   ),
                                 );
                               }
@@ -448,9 +463,10 @@ class _BuyBtcTab extends ConsumerWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => P2PMerchantProfileScreen(
-                                      merchant: offer.merchant!,
-                                    ),
+                                    builder:
+                                        (_) => P2PMerchantProfileScreen(
+                                          merchant: offer.merchant!,
+                                        ),
                                   ),
                                 );
                               }
@@ -564,6 +580,27 @@ class _SellBtcTab extends ConsumerWidget {
     final userOffers = userOffersAsync.asData?.value ?? [];
     final nip99OffersAsync = ref.watch(nip99P2POffersStreamProvider);
     final nostrOffers = nip99OffersAsync.asData?.value ?? [];
+    final nip99FetchedAsync = ref.watch(nip99P2POffersProvider);
+    final nip99Fetched = nip99FetchedAsync.asData?.value ?? [];
+
+    // Combine all offers and get BUY offers (buyers looking to buy BTC)
+    final offerMap = <String, P2POfferModel>{};
+    for (final o in nip99Fetched) {
+      offerMap[o.id] = o;
+    }
+    for (final o in nostrOffers) {
+      offerMap[o.id] = o;
+    }
+    final allOffers = offerMap.values.toList();
+
+    // Get buy offers (offers from buyers who want to buy BTC) - excluding user's own
+    final userOfferIds = userOffers.map((o) => o.id).toSet();
+    final buyOffers =
+        allOffers
+            .where(
+              (o) => o.type == OfferType.buy && !userOfferIds.contains(o.id),
+            )
+            .toList();
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
@@ -580,7 +617,7 @@ class _SellBtcTab extends ConsumerWidget {
                 iconColor: const Color(0xFFF7931A),
                 title: 'Sell Bitcoin',
                 description:
-                    'Create an offer to sell your BTC. Buyers will pay you via your preferred payment method.',
+                    'Create your own offer OR respond to buyers looking to purchase BTC.',
               ),
             ),
           ),
@@ -598,16 +635,6 @@ class _SellBtcTab extends ConsumerWidget {
                       ),
                     ),
               ),
-            ),
-          ),
-
-          SliverToBoxAdapter(child: SizedBox(height: 16.h)),
-
-          // Important Info Card
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: _ImportantInfoCard(),
             ),
           ),
 
@@ -653,7 +680,8 @@ class _SellBtcTab extends ConsumerWidget {
                             context,
                             MaterialPageRoute(
                               builder:
-                                  (_) => P2PSellerOfferDetailScreen(offer: offer),
+                                  (_) =>
+                                      P2PSellerOfferDetailScreen(offer: offer),
                             ),
                           ),
                     ),
@@ -663,8 +691,101 @@ class _SellBtcTab extends ConsumerWidget {
             ),
           ],
 
+          SliverToBoxAdapter(child: SizedBox(height: 16.h)),
+
+          // Buy Requests Section - Buyers looking to buy BTC
+          if (buyOffers.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00C853).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6.r),
+                      ),
+                      child: Text(
+                        'HOT',
+                        style: TextStyle(
+                          fontSize: 10.sp,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF00C853),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Buyers Looking for BTC',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${buyOffers.length} request${buyOffers.length > 1 ? 's' : ''}',
+                      style: TextStyle(fontSize: 14.sp, color: Colors.white54),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: SizedBox(height: 8.h)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: Text(
+                  'Respond to these buyers to sell your BTC quickly',
+                  style: TextStyle(fontSize: 12.sp, color: Colors.white54),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: SizedBox(height: 12.h)),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final offer = buyOffers[index];
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: _BuyRequestCard(
+                      offer: offer,
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => P2POfferDetailScreen(offer: offer),
+                            ),
+                          ),
+                      onMerchantTap: () {
+                        if (offer.merchant != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => P2PMerchantProfileScreen(
+                                    merchant: offer.merchant!,
+                                  ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  );
+                }, childCount: buyOffers.length),
+              ),
+            ),
+          ],
+
           // Empty state for no offers
-          if (userOffers.isEmpty)
+          if (userOffers.isEmpty && buyOffers.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 24.h),
@@ -1688,6 +1809,278 @@ class _IconButton extends StatelessWidget {
       return Tooltip(message: tooltip!, child: button);
     }
     return button;
+  }
+}
+
+/// Buy Request Card - Shows buyers looking for BTC (for Sell BTC tab)
+class _BuyRequestCard extends StatelessWidget {
+  final P2POfferModel offer;
+  final VoidCallback onTap;
+  final VoidCallback onMerchantTap;
+
+  const _BuyRequestCard({
+    required this.offer,
+    required this.onTap,
+    required this.onMerchantTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16.r),
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111128),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: const Color(0xFF00C853).withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Buyer Info Row
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: onMerchantTap,
+                  child: CircleAvatar(
+                    radius: 22.r,
+                    backgroundColor: const Color(0xFF1A1A3E),
+                    backgroundImage:
+                        offer.merchant?.avatarUrl != null
+                            ? CachedNetworkImageProvider(
+                              offer.merchant!.avatarUrl!,
+                            )
+                            : null,
+                    child:
+                        offer.merchant?.avatarUrl == null
+                            ? Icon(
+                              Icons.person,
+                              color: Colors.white54,
+                              size: 22.sp,
+                            )
+                            : null,
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              offer.merchant?.name ?? offer.name,
+                              style: TextStyle(
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (offer.merchant?.isVerified == true) ...[
+                            SizedBox(width: 4.w),
+                            Icon(
+                              Icons.verified,
+                              color: const Color(0xFF4FC3F7),
+                              size: 16.sp,
+                            ),
+                          ],
+                          SizedBox(width: 6.w),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 6.w,
+                              vertical: 2.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00C853),
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                            child: Text(
+                              'BUYING',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 2.h),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.star,
+                            color: const Color(0xFFFFD700),
+                            size: 14.sp,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            '${offer.merchant?.rating.toStringAsFixed(1) ?? '5.0'}',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            '${offer.merchant?.totalTrades ?? 0} trades',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+
+            // Rate and Limits
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Wants to pay',
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: Colors.white54,
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        '₦${_formatAmount(offer.pricePerBtc.toInt())}',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF00C853),
+                        ),
+                      ),
+                      Text(
+                        'per BTC',
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Amount range',
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: Colors.white54,
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        '₦${_formatAmount(offer.minLimit)} - ₦${_formatAmount(offer.maxLimit)}',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+
+            // Payment Methods and CTA
+            Row(
+              children: [
+                // Payment Method
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 6.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet,
+                        size: 14.sp,
+                        color: Colors.white70,
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        offer.paymentMethod,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                // Sell Button
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7931A),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sell, size: 14.sp, color: Colors.white),
+                      SizedBox(width: 4.w),
+                      Text(
+                        'Sell',
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatAmount(int amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}K';
+    }
+    return amount.toString();
   }
 }
 

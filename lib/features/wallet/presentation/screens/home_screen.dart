@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
@@ -169,11 +170,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         if (BreezSparkService.isInitialized) {
           debugPrint('✅ Spark SDK initialized successfully');
-          
+
           // Start webhook bridge for push notifications
           BreezWebhookBridgeService().startListening();
           debugPrint('✅ BreezWebhookBridgeService started from home screen');
-          
+
           // Register FCM token for push notifications
           FCMTokenRegistrationService().registerToken();
         } else {
@@ -348,58 +349,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final bool showSkeleton =
         !BreezSparkService.isInitialized || balanceState.isLoading;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Skeletonizer(
-            enabled: showSkeleton, // Skeleton stays on until SDK is ready
-            enableSwitchAnimation: true,
-            containersColor: AppColors.surface,
-            justifyMultiLineText: true,
-            effect: PulseEffect(
-              duration: Duration(seconds: 1),
-              from: AppColors.background,
-              to: AppColors.borderColor.withValues(alpha: 0.3),
-              lowerBound: 0,
-              upperBound: 1.0,
+    // Minimize app instead of killing it when back button is pressed
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // Move app to background instead of killing it
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Skeletonizer(
+              enabled: showSkeleton, // Skeleton stays on until SDK is ready
+              enableSwitchAnimation: true,
+              containersColor: AppColors.surface,
+              justifyMultiLineText: true,
+              effect: PulseEffect(
+                duration: Duration(seconds: 1),
+                from: AppColors.background,
+                to: AppColors.borderColor.withValues(alpha: 0.3),
+                lowerBound: 0,
+                upperBound: 1.0,
+              ),
+              switchAnimationConfig: SwitchAnimationConfig(
+                switchOutCurve: Curves.bounceInOut,
+              ),
+              child: Stack(
+                children: [
+                  // The main content (tabs)
+                  _screens[_currentIndex],
+                ],
+              ),
             ),
-            switchAnimationConfig: SwitchAnimationConfig(
-              switchOutCurve: Curves.bounceInOut,
-            ),
-            child: Stack(
-              children: [
-                // The main content (tabs)
-                _screens[_currentIndex],
-              ],
-            ),
-          ),
-          // SDK initialization in progress - skeleton loader handles the loading state
-          // No error overlay shown - the skeleton continues until SDK is ready
-        ],
-      ),
-      // Ensure the bottom navigation matches the app dark theme and avoids
-      // system insets causing white gaps by wrapping it in a SafeArea.
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface,
-          // Use the brand primary color for the selected tab
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet),
-              label: 'Cash',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: 'P2P'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+            // SDK initialization in progress - skeleton loader handles the loading state
+            // No error overlay shown - the skeleton continues until SDK is ready
           ],
+        ),
+        // Ensure the bottom navigation matches the app dark theme and avoids
+        // system insets causing white gaps by wrapping it in a SafeArea.
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: AppColors.surface,
+            // Use the brand primary color for the selected tab
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: AppColors.textSecondary,
+            showUnselectedLabels: true,
+            elevation: 0,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.account_balance_wallet),
+                label: 'Cash',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.swap_horiz),
+                label: 'P2P',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+          ),
         ),
       ),
     );

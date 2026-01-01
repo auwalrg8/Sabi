@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_notification_service.dart';
 import '../data/p2p_offer_model.dart';
 import '../data/merchant_model.dart';
 
@@ -21,29 +24,47 @@ final nip99P2POffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>((
 ) async {
   final marketplace = ref.watch(nip99ServiceProvider);
 
+  debugPrint('🔍 NIP99 FutureProvider: Fetching P2P offers...');
+
   // Fetch offers from relays
   final nostrOffers = await marketplace.fetchOffers(limit: 100);
+  debugPrint('📦 NIP99 FutureProvider: Got ${nostrOffers.length} raw offers');
 
   // Enrich with seller profiles
   await marketplace.enrichOffersWithProfiles(nostrOffers);
 
   // Convert to P2POfferModel for compatibility with existing UI
   // Filter out expired/cancelled offers (null values)
-  return nostrOffers
-      .map((offer) => _convertToP2POfferModel(offer))
-      .whereType<P2POfferModel>()
-      .toList();
+  final converted =
+      nostrOffers
+          .map((offer) => _convertToP2POfferModel(offer))
+          .whereType<P2POfferModel>()
+          .toList();
+
+  debugPrint(
+    '✅ NIP99 FutureProvider: Returning ${converted.length} valid offers',
+  );
+  return converted;
 });
 
 /// Stream of real-time NIP-99 offers
-final nip99P2POffersStreamProvider =
-    StreamProvider.autoDispose<List<P2POfferModel>>((ref) {
-      final marketplace = ref.watch(nip99ServiceProvider);
-      final controller = StreamController<List<P2POfferModel>>();
-      final offers = <String, P2POfferModel>{};
+final nip99P2POffersStreamProvider = StreamProvider.autoDispose<
+  List<P2POfferModel>
+>((ref) {
+  final marketplace = ref.watch(nip99ServiceProvider);
+  final controller = StreamController<List<P2POfferModel>>();
+  final offers = <String, P2POfferModel>{};
 
-      // First, load existing offers
-      marketplace.fetchOffers(limit: 100).then((nostrOffers) async {
+  // Emit initial empty state immediately so UI doesn't hang
+  controller.add([]);
+
+  // First, load existing offers
+  marketplace
+      .fetchOffers(limit: 100)
+      .then((nostrOffers) async {
+        debugPrint(
+          '📦 NIP99 Provider: Fetched ${nostrOffers.length} offers from relays',
+        );
         await marketplace.enrichOffersWithProfiles(nostrOffers);
         for (final offer in nostrOffers) {
           final converted = _convertToP2POfferModel(offer);
@@ -51,28 +72,40 @@ final nip99P2POffersStreamProvider =
             offers[offer.id] = converted;
           }
         }
+        debugPrint(
+          '📦 NIP99 Provider: ${offers.length} valid offers after conversion',
+        );
         controller.add(offers.values.toList());
+      })
+      .catchError((e) {
+        debugPrint('❌ NIP99 Provider: Error fetching offers: $e');
+        controller.addError(e);
       });
 
-      // Then subscribe to real-time updates
-      final subscription = marketplace.subscribeToOffers().listen((nostrOffer) {
-        final converted = _convertToP2POfferModel(nostrOffer);
-        if (converted != null) {
-          offers[nostrOffer.id] = converted;
-        } else {
-          // Remove expired/cancelled offers from cache
-          offers.remove(nostrOffer.id);
-        }
-        controller.add(offers.values.toList());
-      });
+  // Then subscribe to real-time updates
+  final subscription = marketplace.subscribeToOffers().listen(
+    (nostrOffer) {
+      final converted = _convertToP2POfferModel(nostrOffer);
+      if (converted != null) {
+        offers[nostrOffer.id] = converted;
+      } else {
+        // Remove expired/cancelled offers from cache
+        offers.remove(nostrOffer.id);
+      }
+      controller.add(offers.values.toList());
+    },
+    onError: (e) {
+      debugPrint('❌ NIP99 Provider: Stream error: $e');
+    },
+  );
 
-      ref.onDispose(() {
-        subscription.cancel();
-        controller.close();
-      });
+  ref.onDispose(() {
+    subscription.cancel();
+    controller.close();
+  });
 
-      return controller.stream;
-    });
+  return controller.stream;
+});
 
 /// Current user's P2P offers (NIP-99)
 final userNip99OffersProvider = FutureProvider.autoDispose<List<P2POfferModel>>(
@@ -258,3 +291,82 @@ P2POfferModel? _convertToP2POfferModel(NostrP2POffer offer) {
     availableSats: (offer.maxAmountSats ?? 0).toDouble(),
   );
 }
+
+/// Provider for P2PTradeManager singleton
+final p2pTradeManagerProvider = Provider<P2PTradeManager>((ref) {
+  return P2PTradeManager();
+});
+
+// Note: p2pNotificationServiceProvider is defined in p2p_providers.dart
+
+/// Stats for a specific offer
+class OfferStats {
+  final int views;
+  final int inquiries;
+  final int totalTrades;
+  final int activeTrades;
+  final int completedTrades;
+
+  const OfferStats({
+    this.views = 0,
+    this.inquiries = 0,
+    this.totalTrades = 0,
+    this.activeTrades = 0,
+    this.completedTrades = 0,
+  });
+}
+
+/// Provider for offer stats (views, inquiries, trades)
+/// Uses p2pNotificationServiceProvider from p2p_providers.dart
+final offerStatsProvider = Provider.family<OfferStats, String>((ref, offerId) {
+  final tradeManager = ref.watch(p2pTradeManagerProvider);
+  final notificationService = P2PNotificationService();
+
+  // Get trades for this offer
+  final allTradesForOffer = tradeManager.getTradesForOffer(offerId);
+  final activeTradesForOffer = tradeManager.getActiveTradesForOffer(offerId);
+  final completedTradesForOffer = tradeManager.getCompletedTradesCountForOffer(
+    offerId,
+  );
+
+  // Get inquiries (notifications tagged with this offer)
+  final notifications = notificationService.getNotificationsForOffer(offerId);
+  final inquiryCount =
+      notifications
+          .where(
+            (n) =>
+                n.type == P2PNotificationType.inquiry ||
+                n.type == P2PNotificationType.tradeMessage,
+          )
+          .length;
+
+  // Views are not tracked yet - would require server-side analytics or NIP-09 style events
+  // For now, we show a count based on inquiries + trades as a proxy
+  final estimatedViews = (inquiryCount + allTradesForOffer.length) * 3;
+
+  return OfferStats(
+    views: estimatedViews,
+    inquiries: inquiryCount,
+    totalTrades: allTradesForOffer.length,
+    activeTrades: activeTradesForOffer.length,
+    completedTrades: completedTradesForOffer,
+  );
+});
+
+/// Provider for active trades for a specific offer
+final activeTradesForOfferProvider = Provider.family<List<P2PTrade>, String>((
+  ref,
+  offerId,
+) {
+  final tradeManager = ref.watch(p2pTradeManagerProvider);
+  return tradeManager.getActiveTradesForOffer(offerId);
+});
+
+/// Provider for all trades for a specific offer
+final allTradesForOfferProvider = Provider.family<List<P2PTrade>, String>((
+  ref,
+  offerId,
+) {
+  final tradeManager = ref.watch(p2pTradeManagerProvider);
+  return tradeManager.getTradesForOffer(offerId);
+});

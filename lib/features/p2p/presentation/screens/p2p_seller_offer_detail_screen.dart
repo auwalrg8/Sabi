@@ -7,6 +7,7 @@ import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/services/p2p_notification_service.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_offer_messages_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_edit_offer_screen.dart';
 
@@ -321,7 +322,9 @@ class _P2PSellerOfferDetailScreenState
   }
 
   Widget _buildQuickStats() {
-    // TODO: Get real stats from trade manager
+    // Get real stats from providers
+    final stats = ref.watch(offerStatsProvider(widget.offer.id));
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w),
       child: Row(
@@ -330,7 +333,7 @@ class _P2PSellerOfferDetailScreenState
             child: _StatCard(
               icon: Icons.visibility,
               label: 'Views',
-              value: '0',
+              value: '${stats.views}',
               color: Colors.blue,
             ),
           ),
@@ -339,7 +342,7 @@ class _P2PSellerOfferDetailScreenState
             child: _StatCard(
               icon: Icons.chat_bubble_outline,
               label: 'Inquiries',
-              value: '0',
+              value: '${stats.inquiries}',
               color: Colors.purple,
             ),
           ),
@@ -348,7 +351,7 @@ class _P2PSellerOfferDetailScreenState
             child: _StatCard(
               icon: Icons.handshake,
               label: 'Trades',
-              value: '0',
+              value: '${stats.totalTrades}',
               color: Colors.green,
             ),
           ),
@@ -844,31 +847,218 @@ class _ActiveTradesTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // TODO: Get trades for this offer from trade manager
-    // final trades = ref.watch(tradesForOfferProvider(offerId));
+    // Get real trades for this offer from trade manager
+    final trades = ref.watch(activeTradesForOfferProvider(offerId));
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.swap_horiz, size: 64, color: Colors.grey[700]),
-          SizedBox(height: 16.h),
-          Text(
-            'No active trades',
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w500,
+    if (trades.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.swap_horiz, size: 64, color: Colors.grey[700]),
+            SizedBox(height: 16.h),
+            Text(
+              'No active trades',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+            SizedBox(height: 8.h),
+            Text(
+              'Active trades for this offer will appear here',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13.sp),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      itemCount: trades.length,
+      itemBuilder: (context, index) {
+        final trade = trades[index];
+        return _TradeCard(trade: trade);
+      },
+    );
+  }
+}
+
+// Trade Card Widget
+class _TradeCard extends StatelessWidget {
+  final P2PTrade trade;
+
+  const _TradeCard({required this.trade});
+
+  @override
+  Widget build(BuildContext context) {
+    final formatter = NumberFormat('#,###');
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111128),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(
+          color: _getStatusColor(trade.status).withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Trade #${trade.id.substring(0, 8)}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(trade.status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Text(
+                  _getStatusText(trade.status),
+                  style: TextStyle(
+                    color: _getStatusColor(trade.status),
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Amount',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 11.sp,
+                      ),
+                    ),
+                    Text(
+                      '₦${formatter.format(trade.fiatAmount.toInt())}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sats',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 11.sp,
+                      ),
+                    ),
+                    Text(
+                      '${formatter.format(trade.satsAmount)} sats',
+                      style: TextStyle(
+                        color: const Color(0xFF00FFB2),
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 8.h),
-          Text(
-            'Active trades for this offer will appear here',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13.sp),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+              SizedBox(width: 4.w),
+              Text(
+                _formatTimeAgo(trade.createdAt),
+                style: TextStyle(color: Colors.grey[500], fontSize: 12.sp),
+              ),
+              const Spacer(),
+              Text(
+                trade.isBuyer ? 'Buying' : 'Selling',
+                style: TextStyle(
+                  color: trade.isBuyer ? Colors.green : Colors.orange,
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Color _getStatusColor(P2PTradeStatus status) {
+    switch (status) {
+      case P2PTradeStatus.pendingPayment:
+        return Colors.amber;
+      case P2PTradeStatus.paymentSubmitted:
+        return Colors.blue;
+      case P2PTradeStatus.releasing:
+        return Colors.purple;
+      case P2PTradeStatus.completed:
+        return Colors.green;
+      case P2PTradeStatus.cancelled:
+      case P2PTradeStatus.expired:
+        return Colors.red;
+      case P2PTradeStatus.disputed:
+        return Colors.orange;
+    }
+  }
+
+  String _getStatusText(P2PTradeStatus status) {
+    switch (status) {
+      case P2PTradeStatus.pendingPayment:
+        return 'Awaiting Payment';
+      case P2PTradeStatus.paymentSubmitted:
+        return 'Payment Submitted';
+      case P2PTradeStatus.releasing:
+        return 'Releasing BTC';
+      case P2PTradeStatus.completed:
+        return 'Completed';
+      case P2PTradeStatus.cancelled:
+        return 'Cancelled';
+      case P2PTradeStatus.expired:
+        return 'Expired';
+      case P2PTradeStatus.disputed:
+        return 'Disputed';
+    }
+  }
+
+  String _formatTimeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inDays > 0) {
+      return '${diff.inDays}d ago';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}h ago';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
   }
 }
 

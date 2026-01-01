@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bech32/bech32.dart';
+import 'package:nostr_dart/nostr_dart.dart';
 import 'relay_pool_manager.dart';
 import 'nostr_profile_service.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:crypto/crypto.dart';
+import 'package:pointycastle/export.dart' as pc;
 
 /// Model for a DM conversation
 class DMConversation {
@@ -145,10 +147,13 @@ class DMService {
     });
   }
 
-  /// Fetch DM history
+  /// Fetch DM history from ALL relays with generous limits
   Future<void> fetchDMHistory({int limit = 100}) async {
     final pubkey = _profileService.currentPubkey;
-    if (pubkey == null) return;
+    if (pubkey == null) {
+      debugPrint('⚠️ DMService: No pubkey, cannot fetch DMs');
+      return;
+    }
 
     // Ensure relay pool is initialized
     if (!_relayPool.isInitialized) {
@@ -156,9 +161,12 @@ class DMService {
       await _relayPool.init();
     }
 
-    debugPrint('📨 DMService: Fetching DM history...');
+    final connectedCount = _relayPool.connectedCount;
+    debugPrint(
+      '📨 DMService: Fetching DM history from $connectedCount relays...',
+    );
 
-    // Fetch DMs sent to us
+    // Fetch DMs sent to us - no time limit, get ALL historical DMs
     final receivedFilter = <String, dynamic>{
       'kinds': [4],
       '#p': [pubkey],
@@ -172,105 +180,142 @@ class DMService {
       'limit': limit,
     };
 
+    // Use longer timeout and query ALL connected relays
     final received = await _relayPool.fetch(
       filter: receivedFilter,
-      timeoutSeconds: 10,
-      maxEvents: limit,
+      timeoutSeconds: 30,
+      maxEvents: limit * 3, // Allow more events than limit
+      maxRelays: 15, // Query all relays including new ones
     );
 
     final sent = await _relayPool.fetch(
       filter: sentFilter,
-      timeoutSeconds: 10,
-      maxEvents: limit,
+      timeoutSeconds: 30,
+      maxEvents: limit * 3,
+      maxRelays: 15,
     );
 
     debugPrint(
-      '📨 DMService: Received ${received.length} incoming, ${sent.length} sent',
+      '📨 DMService: Fetched ${received.length} incoming, ${sent.length} sent DMs',
     );
+
+    int processedReceived = 0;
+    int processedSent = 0;
+    int decryptionErrors = 0;
 
     // Process received DMs
     for (final event in received) {
-      await _handleIncomingDM(event, pubkey);
+      final success = await _handleIncomingDM(event, pubkey);
+      if (success) {
+        processedReceived++;
+      } else {
+        decryptionErrors++;
+      }
     }
 
     // Process sent DMs
     for (final event in sent) {
-      await _handleSentDM(event, pubkey);
+      final success = await _handleSentDM(event, pubkey);
+      if (success) {
+        processedSent++;
+      } else {
+        decryptionErrors++;
+      }
     }
+
+    debugPrint(
+      '📨 DMService: Processed $processedReceived incoming, $processedSent sent (${decryptionErrors} decryption errors)',
+    );
+    debugPrint('📨 DMService: Total ${_conversations.length} conversations');
 
     // Cache conversations
     await _cacheConversations();
   }
 
-  /// Handle incoming DM event
-  Future<void> _handleIncomingDM(dynamic event, String myPubkey) async {
-    final senderPubkey = event.pubkey as String;
-    final content = event.content as String;
-    final id = event.id as String;
-    final createdAt = event.timestamp as int;
-    final tags =
-        (event.tags as List<dynamic>)
-            .map((t) => (t as List<dynamic>).map((e) => e.toString()).toList())
-            .toList();
+  /// Handle incoming DM event - returns true if successful
+  Future<bool> _handleIncomingDM(dynamic event, String myPubkey) async {
+    try {
+      final senderPubkey = event.pubkey as String;
+      final content = event.content as String;
+      final id = event.id as String;
+      final createdAt = event.timestamp as int;
+      final tags =
+          (event.tags as List<dynamic>)
+              .map(
+                (t) => (t as List<dynamic>).map((e) => e.toString()).toList(),
+              )
+              .toList();
 
-    // Decrypt the message
-    final decrypted = await _decryptMessage(content, senderPubkey);
-    if (decrypted == null) {
-      debugPrint('⚠️ DMService: Failed to decrypt message from $senderPubkey');
-      return;
+      // Decrypt the message
+      final decrypted = await _decryptMessage(content, senderPubkey);
+      if (decrypted == null) {
+        return false;
+      }
+
+      final dm = DirectMessage(
+        id: id,
+        senderPubkey: senderPubkey,
+        recipientPubkey: myPubkey,
+        content: decrypted,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
+        isFromMe: false,
+        tags: tags,
+      );
+
+      _addMessageToConversation(senderPubkey, dm, isIncoming: true);
+      _dmController.add(dm);
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ DMService: Error handling incoming DM: $e');
+      return false;
     }
-
-    final dm = DirectMessage(
-      id: id,
-      senderPubkey: senderPubkey,
-      recipientPubkey: myPubkey,
-      content: decrypted,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
-      isFromMe: false,
-      tags: tags,
-    );
-
-    _addMessageToConversation(senderPubkey, dm, isIncoming: true);
-    _dmController.add(dm);
   }
 
-  /// Handle sent DM event (our outgoing messages)
-  Future<void> _handleSentDM(dynamic event, String myPubkey) async {
-    final id = event.id as String;
-    final content = event.content as String;
-    final createdAt = event.timestamp as int;
-    final tags =
-        (event.tags as List<dynamic>)
-            .map((t) => (t as List<dynamic>).map((e) => e.toString()).toList())
-            .toList();
+  /// Handle sent DM event (our outgoing messages) - returns true if successful
+  Future<bool> _handleSentDM(dynamic event, String myPubkey) async {
+    try {
+      final id = event.id as String;
+      final content = event.content as String;
+      final createdAt = event.timestamp as int;
+      final tags =
+          (event.tags as List<dynamic>)
+              .map(
+                (t) => (t as List<dynamic>).map((e) => e.toString()).toList(),
+              )
+              .toList();
 
-    // Find recipient from tags
-    String? recipientPubkey;
-    for (final tag in tags) {
-      if (tag.isNotEmpty && tag[0] == 'p' && tag.length > 1) {
-        recipientPubkey = tag[1];
-        break;
+      // Find recipient from tags
+      String? recipientPubkey;
+      for (final tag in tags) {
+        if (tag.isNotEmpty && tag[0] == 'p' && tag.length > 1) {
+          recipientPubkey = tag[1];
+          break;
+        }
       }
+
+      if (recipientPubkey == null) return false;
+
+      // Decrypt the message
+      final decrypted = await _decryptMessage(content, recipientPubkey);
+      if (decrypted == null) return false;
+
+      final dm = DirectMessage(
+        id: id,
+        senderPubkey: myPubkey,
+        recipientPubkey: recipientPubkey,
+        content: decrypted,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
+        isFromMe: true,
+        isRead: true,
+        tags: tags,
+      );
+
+      _addMessageToConversation(recipientPubkey, dm, isIncoming: false);
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ DMService: Error handling sent DM: $e');
+      return false;
     }
-
-    if (recipientPubkey == null) return;
-
-    // Decrypt the message
-    final decrypted = await _decryptMessage(content, recipientPubkey);
-    if (decrypted == null) return;
-
-    final dm = DirectMessage(
-      id: id,
-      senderPubkey: myPubkey,
-      recipientPubkey: recipientPubkey,
-      content: decrypted,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
-      isFromMe: true,
-      isRead: true,
-      tags: tags,
-    );
-
-    _addMessageToConversation(recipientPubkey, dm, isIncoming: false);
   }
 
   /// Add message to conversation
@@ -346,7 +391,10 @@ class DMService {
     String? relatedOfferId,
   }) async {
     final myPubkey = _profileService.currentPubkey;
-    if (myPubkey == null) return false;
+    if (myPubkey == null) {
+      debugPrint('❌ DMService: No pubkey available');
+      return false;
+    }
 
     try {
       // Ensure relay pool is initialized
@@ -356,10 +404,16 @@ class DMService {
 
       // Get nsec for encryption and signing
       final nsec = await _profileService.getNsec();
-      if (nsec == null) return false;
+      if (nsec == null) {
+        debugPrint('❌ DMService: No nsec available');
+        return false;
+      }
 
       final hexPrivKey = _nsecToHex(nsec);
-      if (hexPrivKey == null) return false;
+      if (hexPrivKey == null) {
+        debugPrint('❌ DMService: Failed to convert nsec to hex');
+        return false;
+      }
 
       // Encrypt message
       final encrypted = await _encryptMessage(
@@ -367,7 +421,10 @@ class DMService {
         recipientPubkey,
         hexPrivKey,
       );
-      if (encrypted == null) return false;
+      if (encrypted == null) {
+        debugPrint('❌ DMService: Failed to encrypt message');
+        return false;
+      }
 
       // Build tags
       final tags = <List<String>>[
@@ -377,24 +434,33 @@ class DMService {
         tags.add(['e', relatedOfferId]);
       }
 
-      // Create event
-      final eventJson = <String, dynamic>{
+      // Create and sign event using nostr_dart
+      // ignore: unused_local_variable
+      final nostrInstance = Nostr(privateKey: hexPrivKey);
+      final event = Event(myPubkey, 4, tags, encrypted);
+
+      final signedEvent = <String, dynamic>{
+        'id': event.id,
         'pubkey': myPubkey,
         'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
         'kind': 4,
         'tags': tags,
         'content': encrypted,
+        'sig': event.sig,
       };
 
-      // Sign and publish
-      final successCount = await _relayPool.publish(eventJson);
+      debugPrint(
+        '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}...',
+      );
+
+      // Publish to relays
+      final successCount = await _relayPool.publish(signedEvent);
 
       if (successCount > 0) {
+        debugPrint('✅ DMService: DM sent to $successCount relays');
         // Add to local conversation
         final dm = DirectMessage(
-          id:
-              eventJson['id'] ??
-              DateTime.now().millisecondsSinceEpoch.toString(),
+          id: event.id,
           senderPubkey: myPubkey,
           recipientPubkey: recipientPubkey,
           content: message,
@@ -406,6 +472,7 @@ class DMService {
         return true;
       }
 
+      debugPrint('❌ DMService: Failed to publish to any relay');
       return false;
     } catch (e) {
       debugPrint('❌ DMService: Error sending DM: $e');
@@ -491,17 +558,89 @@ class DMService {
     }
   }
 
-  /// Compute ECDH shared secret
+  /// Compute ECDH shared secret using secp256k1
+  /// This implements proper NIP-04 shared secret computation
   List<int>? _computeSharedSecret(String privateKeyHex, String otherPubkeyHex) {
     try {
-      // Simplified: hash both keys together as shared secret
-      // In production, use proper ECDH (secp256k1 multiplication)
-      final combined = privateKeyHex + otherPubkeyHex;
-      final hash = sha256.convert(utf8.encode(combined)).bytes;
-      return hash;
+      // Parse private key
+      final privateKeyBytes = _hexToBytes(privateKeyHex);
+      if (privateKeyBytes == null) return null;
+
+      // Parse public key (add 02 prefix for compressed format if needed)
+      String pubkeyWithPrefix = otherPubkeyHex;
+      if (otherPubkeyHex.length == 64) {
+        // x-only pubkey, need to add prefix (assume even y)
+        pubkeyWithPrefix = '02$otherPubkeyHex';
+      }
+      final publicKeyBytes = _hexToBytes(pubkeyWithPrefix);
+      if (publicKeyBytes == null) return null;
+
+      // Set up secp256k1 curve
+      final domainParams = pc.ECDomainParameters('secp256k1');
+
+      // Create private key
+      final privateKeyBigInt = _bytesToBigInt(privateKeyBytes);
+      final ecPrivateKey = pc.ECPrivateKey(privateKeyBigInt, domainParams);
+
+      // Decode public key point
+      final publicKeyPoint = domainParams.curve.decodePoint(publicKeyBytes);
+      if (publicKeyPoint == null) return null;
+
+      // Perform ECDH: multiply public key by private key scalar
+      final sharedPoint = publicKeyPoint * ecPrivateKey.d;
+      if (sharedPoint == null || sharedPoint.x == null) return null;
+
+      // NIP-04 uses only the x-coordinate of the shared point
+      final sharedX = sharedPoint.x!.toBigInteger();
+      if (sharedX == null) return null;
+
+      // Convert to 32 bytes (padded if needed)
+      final sharedXBytes = _bigIntToBytes(sharedX, 32);
+
+      debugPrint('🔐 DMService: Computed proper ECDH shared secret');
+      return sharedXBytes;
+    } catch (e) {
+      debugPrint('❌ DMService: ECDH computation error: $e');
+      return null;
+    }
+  }
+
+  /// Convert hex string to bytes
+  Uint8List? _hexToBytes(String hex) {
+    try {
+      if (hex.length % 2 != 0) return null;
+      final bytes = Uint8List(hex.length ~/ 2);
+      for (int i = 0; i < hex.length; i += 2) {
+        bytes[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+      }
+      return bytes;
     } catch (e) {
       return null;
     }
+  }
+
+  /// Convert bytes to BigInt
+  BigInt _bytesToBigInt(Uint8List bytes) {
+    BigInt result = BigInt.zero;
+    for (int i = 0; i < bytes.length; i++) {
+      result = (result << 8) | BigInt.from(bytes[i]);
+    }
+    return result;
+  }
+
+  /// Convert BigInt to bytes with specified length
+  List<int> _bigIntToBytes(BigInt value, int length) {
+    final bytes = <int>[];
+    var v = value;
+    while (v > BigInt.zero) {
+      bytes.insert(0, (v & BigInt.from(0xff)).toInt());
+      v = v >> 8;
+    }
+    // Pad to required length
+    while (bytes.length < length) {
+      bytes.insert(0, 0);
+    }
+    return bytes.take(length).toList();
   }
 
   /// Convert nsec to hex

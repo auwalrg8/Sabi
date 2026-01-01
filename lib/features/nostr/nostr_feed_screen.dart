@@ -12,7 +12,10 @@ import 'nostr_edit_modal.dart';
 import 'nostr_profile_screen.dart';
 import 'nostr_search_screen.dart';
 import 'nostr_dm_inbox_screen.dart';
+import 'widgets/what_is_nostr_modal.dart';
+import 'widgets/nostr_onboarding_screen.dart';
 import '../../services/breez_spark_service.dart';
+import '../../services/nostr/dm_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
 // New services - to be used for enhanced features
@@ -49,6 +52,7 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   Map<String, Map<String, String>> _authorMetadataCache = {};
   bool _followsFeedEmpty = false; // Track if follows feed returned no posts
   bool _hasCachedContent = false;
+  bool _hasCheckedOnboarding = false;
 
   @override
   void initState() {
@@ -61,6 +65,45 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
     super.dispose();
   }
 
+  /// Check and show Nostr onboarding for new users
+  Future<void> _checkNostrOnboarding() async {
+    if (_hasCheckedOnboarding) return;
+    _hasCheckedOnboarding = true;
+
+    // Check if user has Nostr keys
+    final npub = await NostrService.getNpub();
+    if (npub != null) return; // User already has keys
+
+    // Check if user has seen the intro
+    final hasSeenIntro = await NostrOnboardingManager.hasSeenIntro();
+    if (hasSeenIntro) return; // Already seen, don't show again
+
+    // Show onboarding after a brief delay to let the screen load
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (mounted) {
+      // Show "What is Nostr?" modal with Get Started option
+      WhatIsNostrModal.show(
+        context,
+        showGetStartedButton: true,
+        onGetStarted: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (_) => NostrOnboardingScreen(
+                    onComplete: () {
+                      // Refresh feed after setup
+                      _refreshFeedInBackground();
+                    },
+                  ),
+            ),
+          );
+        },
+      );
+    }
+  }
+
   /// Initialize feed - load cached content immediately, then refresh in background
   Future<void> _initFeed() async {
     // Step 1: Load cached content immediately (no loading state)
@@ -68,6 +111,9 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
 
     // Step 2: Refresh in background
     _refreshFeedInBackground();
+
+    // Step 3: Check if new user needs onboarding (non-blocking)
+    _checkNostrOnboarding();
   }
 
   /// Load cached posts and metadata - shows content instantly
@@ -742,16 +788,50 @@ class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
                   // Messages button with unread badge
                   GestureDetector(
                     onTap: () => _openMessagesScreen(),
-                    child: Stack(
-                      children: [
-                        Icon(
-                          Icons.mail_outline,
-                          color: Colors.white,
-                          size: 24.sp,
-                        ),
-                        // Unread badge will be shown via StreamBuilder in actual implementation
-                        // For now just the icon
-                      ],
+                    child: StreamBuilder<int>(
+                      stream: DMService().unreadCountStream,
+                      initialData: DMService().totalUnreadCount,
+                      builder: (context, snapshot) {
+                        final unreadCount = snapshot.data ?? 0;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              Icons.mail_outline,
+                              color: Colors.white,
+                              size: 24.sp,
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: -6,
+                                top: -6,
+                                child: Container(
+                                  padding: EdgeInsets.all(4.r),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF7931A),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: BoxConstraints(
+                                    minWidth: 16.w,
+                                    minHeight: 16.h,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      unreadCount > 9
+                                          ? '9+'
+                                          : unreadCount.toString(),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   SizedBox(width: 16.w),
