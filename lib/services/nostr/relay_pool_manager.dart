@@ -272,30 +272,43 @@ class RelayConnection {
       'RelayConnection($url, status: $_status, health: ${healthScore.toStringAsFixed(1)})';
 }
 
-/// High-performance relay pool manager with Primal's relay list
+/// High-performance relay pool manager with comprehensive relay list
 class RelayPoolManager {
   static final RelayPoolManager _instance = RelayPoolManager._internal();
   factory RelayPoolManager() => _instance;
   RelayPoolManager._internal();
 
-  /// Primal's optimized relay list + additional popular relays
+  /// Comprehensive relay list (55+ relays) for maximum DM coverage
+  /// Organized by tier for intelligent connection management
+  /// Curated list of reliable, high-performance relays
+  /// Reduced from 55+ to 20 to avoid rate limiting
   static const List<String> primalRelays = [
-    'wss://nos.lol',
-    'wss://relay.snort.social',
-    'wss://nostr.wine',
-    'wss://relay.nostriches.org',
-    'wss://relay.damus.io',
-    'wss://relay.primal.net',
-    'wss://nostr.mom',
-    'wss://relay.nostr.bg',
-    'wss://eden.nostr.land',
-    'wss://relay.f7z.io',
-    // Additional relays for better DM coverage
-    'wss://purplepag.es',
-    'wss://relay.nostr.band',
-    'wss://nostr.bitcoiner.social',
-    'wss://relay.nostrati.com',
-    'wss://nostr.oxtr.dev',
+    // ========== TIER 1: Core High-Performance Relays ==========
+    'wss://relay.primal.net',    // Primal's main relay - excellent uptime
+    'wss://relay.damus.io',      // Damus relay - very popular
+    'wss://relay.snort.social',  // Snort relay - high performance
+    'wss://nos.lol',             // Fast and reliable
+    'wss://nostr.wine',          // Premium relay
+    'wss://relay.nostr.band',    // Good for discovery
+    'wss://purplepag.es',        // NIP-65 discovery relay
+    
+    // ========== TIER 2: Popular Relays ==========
+    'wss://nostr.oxtr.dev',      // Reliable community relay
+    'wss://eden.nostr.land',     // Good performance
+    'wss://nostr.bitcoiner.social', // Bitcoin-focused
+    'wss://offchain.pub',        // Reliable
+    'wss://nostr.fmt.wiz.biz',   // Long-running relay
+    
+    // ========== TIER 3: DM & Inbox Relays ==========
+    'wss://inbox.nostr.wine',    // DM-focused (requires NIP-42 for some)
+    'wss://nostr.land',          // Good for DMs
+    'wss://nostr-pub.wellorder.net', // Reliable fallback
+    
+    // ========== TIER 4: Regional Diversity ==========
+    'wss://relay.nostr.ch',      // Europe
+    'wss://nostr.swiss',         // Europe
+    'wss://relay.nostr.wirednet.jp', // Asia
+    'wss://nostr.einundzwanzig.space', // German community
   ];
 
   final Map<String, RelayConnection> _relays = {};
@@ -422,43 +435,41 @@ class RelayPoolManager {
     return successCount;
   }
 
-  /// Fetch events with a filter (one-shot query)
+  /// Fetch events with a filter (one-shot query) - AGGRESSIVE strategy
+  /// Queries all available relays for maximum message coverage
   Future<List<NostrEvent>> fetch({
     required Map<String, dynamic> filter,
     int timeoutSeconds = 8,
     int maxEvents = 50,
-    int maxRelays = 5,
+    int maxRelays = 50,
   }) async {
     final events = <String, NostrEvent>{};
     final completer = Completer<List<NostrEvent>>();
     final subscriptions = <String, String>{};
 
-    // Set up timeout
+    // Set up timeout - don't complete early, wait for all relays
     final timeoutTimer = Timer(Duration(seconds: timeoutSeconds), () {
       if (!completer.isCompleted) {
+        debugPrint('📨 Fetch timeout: collected ${events.length} events from ${subscriptions.length} relays');
         completer.complete(events.values.toList());
       }
     });
 
-    // Subscribe to top relays
+    // Subscribe to ALL connected relays (up to maxRelays)
     final relays = connectedRelays.take(maxRelays);
+    debugPrint('📨 Subscribing to ${relays.length} relays for DM fetch...');
 
     for (final relay in relays) {
       final subId = relay.subscribe(filter, (event) {
         if (!events.containsKey(event.id)) {
           events[event.id] = event;
-
-          // Complete early if we have enough events
-          if (events.length >= maxEvents && !completer.isCompleted) {
-            timeoutTimer.cancel();
-            completer.complete(events.values.toList());
-          }
+          // Don't complete early - wait for timeout to get ALL messages
         }
       });
       subscriptions[subId] = relay.url;
     }
 
-    // Wait for completion
+    // Wait for completion (timeout will trigger)
     final result = await completer.future;
 
     // Clean up subscriptions

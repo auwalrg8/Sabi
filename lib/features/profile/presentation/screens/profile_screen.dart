@@ -684,13 +684,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Profile',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 20.sp,
-                                fontWeight: FontWeight.w700,
-                              ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Icon(
+                                    Icons.arrow_back,
+                                    color: AppColors.textPrimary,
+                                    size: 24.w,
+                                  ),
+                                ),
+                                SizedBox(width: 12.w),
+                                Text(
+                                  'Profile',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                             if (hasNostr)
                               IconButton(

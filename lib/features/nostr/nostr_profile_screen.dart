@@ -2084,31 +2084,6 @@ class _ReplyModalState extends State<_ReplyModal> {
   }
 }
 
-/// Engagement item widget
-class _EngagementItem extends StatelessWidget {
-  final IconData icon;
-  final int count;
-
-  const _EngagementItem({required this.icon, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: const Color(0xFFA1A1B2), size: 16.sp),
-        if (count > 0) ...[
-          SizedBox(width: 4.w),
-          Text(
-            count.toString(),
-            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 /// Profile action button (Primal-style circular button)
 class _ProfileActionButton extends StatelessWidget {
   final IconData icon;

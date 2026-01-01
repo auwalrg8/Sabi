@@ -685,9 +685,11 @@ class _ConversationScreenState extends State<_ConversationScreen> {
   Future<void> _initializeAndLoadMessages() async {
     setState(() => _isLoading = true);
 
-    // Ensure DM service is initialized and has latest messages
+    // Ensure DM service is initialized
     await _dmService.initialize();
-    await _dmService.fetchDMHistory(limit: 200);
+    
+    // Fetch conversation history specifically for this user (includes their relays)
+    await _dmService.fetchConversationHistory(widget.pubkey, limit: 500);
 
     _loadMessages();
 

@@ -113,6 +113,9 @@ class DMService {
       await _relayPool.init();
     }
 
+    // NIP-65: Fetch user's preferred relays and add them
+    await _fetchAndAddUserRelays(pubkey);
+
     // Load cached conversations
     await _loadCachedConversations();
 
@@ -121,6 +124,54 @@ class DMService {
 
     _isSubscribed = true;
     debugPrint('✅ DMService: Initialized and subscribed to DMs');
+  }
+
+  /// NIP-65: Fetch user's relay list and add to pool
+  Future<void> _fetchAndAddUserRelays(String pubkey) async {
+    try {
+      debugPrint('📨 DMService: Fetching NIP-65 relay list for user...');
+      
+      // Filter for kind 10002 (NIP-65 relay list metadata)
+      final filter = <String, dynamic>{
+        'kinds': [10002],
+        'authors': [pubkey],
+        'limit': 1,
+      };
+
+      final events = await _relayPool.fetch(
+        filter: filter,
+        timeoutSeconds: 10,
+        maxEvents: 1,
+        maxRelays: 10,
+      );
+
+      if (events.isEmpty) {
+        debugPrint('📨 DMService: No NIP-65 relay list found for user');
+        return;
+      }
+
+      // Parse relay list from tags
+      final event = events.first;
+      final relaysToAdd = <String>[];
+      
+      for (final tag in event.tags) {
+        if (tag is List && tag.isNotEmpty && tag[0] == 'r' && tag.length >= 2) {
+          final relayUrl = tag[1].toString();
+          if (relayUrl.startsWith('wss://')) {
+            relaysToAdd.add(relayUrl);
+          }
+        }
+      }
+
+      if (relaysToAdd.isNotEmpty) {
+        debugPrint('📨 DMService: Adding ${relaysToAdd.length} user relays from NIP-65');
+        for (final relay in relaysToAdd) {
+          await _relayPool.addRelay(relay);
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ DMService: Error fetching NIP-65 relays: $e');
+    }
   }
 
   /// Subscribe to DMs sent to us
@@ -147,8 +198,9 @@ class DMService {
     });
   }
 
-  /// Fetch DM history from ALL relays with generous limits
-  Future<void> fetchDMHistory({int limit = 100}) async {
+  /// Fetch DM history from ALL relays with aggressive fetching strategy
+  /// This is the key to getting all historical messages
+  Future<void> fetchDMHistory({int limit = 500}) async {
     final pubkey = _profileService.currentPubkey;
     if (pubkey == null) {
       debugPrint('⚠️ DMService: No pubkey, cannot fetch DMs');
@@ -163,10 +215,10 @@ class DMService {
 
     final connectedCount = _relayPool.connectedCount;
     debugPrint(
-      '📨 DMService: Fetching DM history from $connectedCount relays...',
+      '📨 DMService: AGGRESSIVE FETCH from $connectedCount relays (limit: $limit)...',
     );
 
-    // Fetch DMs sent to us - no time limit, get ALL historical DMs
+    // Fetch DMs sent to us - NO time limit, get ALL historical DMs
     final receivedFilter = <String, dynamic>{
       'kinds': [4],
       '#p': [pubkey],
@@ -180,19 +232,19 @@ class DMService {
       'limit': limit,
     };
 
-    // Use longer timeout and query ALL connected relays
+    // Query all connected relays with reasonable timeout
     final received = await _relayPool.fetch(
       filter: receivedFilter,
       timeoutSeconds: 30,
-      maxEvents: limit * 3, // Allow more events than limit
-      maxRelays: 15, // Query all relays including new ones
+      maxEvents: limit * 3,
+      maxRelays: 20, // Use all our curated relays
     );
 
     final sent = await _relayPool.fetch(
       filter: sentFilter,
       timeoutSeconds: 30,
       maxEvents: limit * 3,
-      maxRelays: 15,
+      maxRelays: 20,
     );
 
     debugPrint(
@@ -232,13 +284,73 @@ class DMService {
     await _cacheConversations();
   }
 
+  /// Fetch DMs for a specific conversation partner
+  /// Also fetches their NIP-65 relays for better message discovery
+  Future<void> fetchConversationHistory(String otherPubkey, {int limit = 200}) async {
+    final myPubkey = _profileService.currentPubkey;
+    if (myPubkey == null) return;
+
+    debugPrint('📨 DMService: Fetching conversation with ${otherPubkey.substring(0, 8)}...');
+
+    // First, try to add the other user's preferred relays
+    await _fetchAndAddUserRelays(otherPubkey);
+
+    // Fetch messages FROM the other user TO us
+    final fromThem = <String, dynamic>{
+      'kinds': [4],
+      'authors': [otherPubkey],
+      '#p': [myPubkey],
+      'limit': limit,
+    };
+
+    // Fetch messages FROM us TO them
+    final fromUs = <String, dynamic>{
+      'kinds': [4],
+      'authors': [myPubkey],
+      '#p': [otherPubkey],
+      'limit': limit,
+    };
+
+    final theirMessages = await _relayPool.fetch(
+      filter: fromThem,
+      timeoutSeconds: 20,
+      maxEvents: limit * 2,
+      maxRelays: 20,
+    );
+
+    final ourMessages = await _relayPool.fetch(
+      filter: fromUs,
+      timeoutSeconds: 20,
+      maxEvents: limit * 2,
+      maxRelays: 20,
+    );
+
+    debugPrint(
+      '📨 DMService: Conversation fetch: ${theirMessages.length} from them, ${ourMessages.length} from us',
+    );
+
+    // Process all messages
+    for (final event in theirMessages) {
+      await _handleIncomingDM(event, myPubkey);
+    }
+    for (final event in ourMessages) {
+      await _handleSentDM(event, myPubkey);
+    }
+
+    await _cacheConversations();
+  }
+
   /// Handle incoming DM event - returns true if successful
   Future<bool> _handleIncomingDM(dynamic event, String myPubkey) async {
     try {
       final senderPubkey = event.pubkey as String;
       final content = event.content as String;
       final id = event.id as String;
-      final createdAt = event.timestamp as int;
+      // Handle timestamp - can be DateTime or int depending on source
+      final dynamic rawTimestamp = event.timestamp;
+      final DateTime createdAtDateTime = rawTimestamp is DateTime 
+          ? rawTimestamp 
+          : DateTime.fromMillisecondsSinceEpoch((rawTimestamp as int) * 1000);
       final tags =
           (event.tags as List<dynamic>)
               .map(
@@ -257,7 +369,7 @@ class DMService {
         senderPubkey: senderPubkey,
         recipientPubkey: myPubkey,
         content: decrypted,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
+        timestamp: createdAtDateTime,
         isFromMe: false,
         tags: tags,
       );
@@ -276,7 +388,11 @@ class DMService {
     try {
       final id = event.id as String;
       final content = event.content as String;
-      final createdAt = event.timestamp as int;
+      // Handle timestamp - can be DateTime or int depending on source
+      final dynamic rawTimestamp = event.timestamp;
+      final DateTime createdAtDateTime = rawTimestamp is DateTime 
+          ? rawTimestamp 
+          : DateTime.fromMillisecondsSinceEpoch((rawTimestamp as int) * 1000);
       final tags =
           (event.tags as List<dynamic>)
               .map(
@@ -304,7 +420,7 @@ class DMService {
         senderPubkey: myPubkey,
         recipientPubkey: recipientPubkey,
         content: decrypted,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
+        timestamp: createdAtDateTime,
         isFromMe: true,
         isRead: true,
         tags: tags,
@@ -456,7 +572,7 @@ class DMService {
       };
 
       debugPrint(
-        '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}... sig: ${event.sig?.substring(0, 8)}...',
+        '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}... sig: ${event.sig.substring(0, 8)}...',
       );
 
       // Publish to relays

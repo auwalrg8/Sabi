@@ -5,15 +5,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'dart:io';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart'
     as cash_screen;
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
+import 'package:sabi_wallet/features/more/presentation/screens/more_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
-import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
@@ -72,7 +73,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       const cash_screen.CashScreen(),
       const P2PHomeScreen(),
-      const ProfileScreen(),
+      const MoreScreen(),
     ];
     // Initialize Breez SDK first, then poll payments
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -352,10 +353,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Minimize app instead of killing it when back button is pressed
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) {
           // Move app to background instead of killing it
-          SystemNavigator.pop();
+          // This uses Android's moveTaskToBack via method channel
+          const platform = MethodChannel('com.sabi.app/background');
+          try {
+            await platform.invokeMethod('moveToBackground');
+          } catch (e) {
+            // Fallback to system navigator if method channel fails
+            SystemNavigator.pop();
+          }
         }
       },
       child: Scaffold(
@@ -412,8 +420,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 label: 'P2P',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profile',
+                icon: Icon(Icons.grid_view_rounded),
+                label: 'More',
               ),
             ],
           ),
@@ -463,17 +471,16 @@ class _HomeContentState extends State<_HomeContent> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Greeting: Hi, <username> with avatar
-                    FutureBuilder(
-                      future: ProfileService.getProfile(),
-                      builder: (context, snapshot) {
-                        final profile = snapshot.data;
+                    Builder(
+                      builder: (context) {
+                        final nostrProfile =
+                            NostrProfileService().currentProfile;
                         final username =
-                            (profile != null && profile.username.isNotEmpty)
-                                ? profile.username
-                                : 'user';
+                            nostrProfile?.displayNameOrFallback ?? 'user';
+                        final picture = nostrProfile?.picture;
                         final initial =
-                            (profile != null && profile.fullName.isNotEmpty)
-                                ? profile.initial
+                            username.isNotEmpty
+                                ? username[0].toUpperCase()
                                 : 'U';
 
                         return Row(
@@ -487,29 +494,23 @@ class _HomeContentState extends State<_HomeContent> {
                                   ),
                                 );
                               },
-                              child: Builder(
-                                builder: (_) {
-                                  final pic = profile?.profilePicturePath;
-                                  return CircleAvatar(
-                                    radius: 18.r,
-                                    backgroundColor: AppColors.primary,
-                                    backgroundImage:
-                                        (pic != null && pic.isNotEmpty)
-                                            ? FileImage(File(pic))
-                                                as ImageProvider
-                                            : null,
-                                    child:
-                                        (pic == null || pic.isEmpty)
-                                            ? Text(
-                                              initial,
-                                              style: TextStyle(
-                                                color: AppColors.surface,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            )
-                                            : null,
-                                  );
-                                },
+                              child: CircleAvatar(
+                                radius: 18.r,
+                                backgroundColor: AppColors.primary,
+                                backgroundImage:
+                                    (picture != null && picture.isNotEmpty)
+                                        ? CachedNetworkImageProvider(picture)
+                                        : null,
+                                child:
+                                    (picture == null || picture.isEmpty)
+                                        ? Text(
+                                          initial,
+                                          style: TextStyle(
+                                            color: AppColors.surface,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        )
+                                        : null,
                               ),
                             ),
                             SizedBox(width: 10.w),
