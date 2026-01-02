@@ -53,26 +53,19 @@ class _NostrDMInboxScreenState extends ConsumerState<NostrDMInboxScreen>
   }
 
   Future<void> _initialize() async {
-    setState(() => _isLoading = true);
-
+    // PHASE 1: Quick initialization - show cached data IMMEDIATELY
     try {
-      // Load user follows first
-      final userPubkey = NostrProfileService().currentPubkey;
-      if (userPubkey != null) {
-        await _feedAggregator.init(userPubkey);
-        final follows = await _feedAggregator.fetchFollows(userPubkey);
-        _userFollows = follows.toSet();
-      }
-
-      await _dmService.initialize();
-      // Fetch more messages to show old conversations
-      await _dmService.fetchDMHistory(limit: 500);
-      await _dmService.enrichWithProfiles();
-
+      await _dmService.initializeFast();
+      
+      // Show cached conversations right away
       _allConversations = _dmService.conversations;
       _filterConversations();
+      
+      if (mounted && _allConversations.isNotEmpty) {
+        setState(() => _isLoading = false);
+      }
 
-      // Listen for new DMs
+      // Listen for new DMs (works during background fetch too)
       _dmSubscription = _dmService.dmStream.listen((dm) {
         if (mounted) {
           setState(() {
@@ -82,11 +75,46 @@ class _NostrDMInboxScreenState extends ConsumerState<NostrDMInboxScreen>
         }
       });
     } catch (e) {
-      debugPrint('Error loading DMs: $e');
+      debugPrint('Error in fast init: $e');
     }
 
-    if (mounted) {
-      setState(() => _isLoading = false);
+    // PHASE 2: Background fetch - load follows and new messages without blocking UI
+    _fetchInBackground();
+  }
+
+  Future<void> _fetchInBackground() async {
+    try {
+      // Load user follows in background
+      final userPubkey = NostrProfileService().currentPubkey;
+      if (userPubkey != null) {
+        _feedAggregator.init(userPubkey).then((_) async {
+          final follows = await _feedAggregator.fetchFollows(userPubkey);
+          _userFollows = follows.toSet();
+          if (mounted) {
+            setState(() => _filterConversations());
+          }
+        });
+      }
+
+      // Fetch new messages in background with smaller initial batch
+      await _dmService.fetchDMHistory(limit: 100);
+      
+      // Update UI with new messages
+      if (mounted) {
+        setState(() {
+          _allConversations = _dmService.conversations;
+          _filterConversations();
+          _isLoading = false;
+        });
+      }
+
+      // Enrich profiles in background (non-blocking)
+      _dmService.enrichWithProfiles().then((_) {
+        if (mounted) setState(() {});
+      });
+    } catch (e) {
+      debugPrint('Error in background fetch: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

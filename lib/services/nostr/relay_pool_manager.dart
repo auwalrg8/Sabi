@@ -435,41 +435,79 @@ class RelayPoolManager {
     return successCount;
   }
 
-  /// Fetch events with a filter (one-shot query) - AGGRESSIVE strategy
-  /// Queries all available relays for maximum message coverage
+  /// Fetch events with a filter (one-shot query) - OPTIMIZED for speed
+  /// Queries relays with early completion when we have enough events
   Future<List<NostrEvent>> fetch({
     required Map<String, dynamic> filter,
     int timeoutSeconds = 8,
     int maxEvents = 50,
     int maxRelays = 50,
+    bool earlyComplete = true, // Complete early when we have enough events
   }) async {
     final events = <String, NostrEvent>{};
     final completer = Completer<List<NostrEvent>>();
     final subscriptions = <String, String>{};
+    int relaysResponded = 0;
 
-    // Set up timeout - don't complete early, wait for all relays
+    // Subscribe to connected relays (up to maxRelays)
+    final relays = connectedRelays.take(maxRelays).toList();
+    final targetRelays = relays.length;
+    
+    if (targetRelays == 0) {
+      debugPrint('⚠️ No connected relays for fetch');
+      return [];
+    }
+
+    debugPrint('📨 Fetching from $targetRelays relays...');
+
+    // Set up timeout
     final timeoutTimer = Timer(Duration(seconds: timeoutSeconds), () {
       if (!completer.isCompleted) {
-        debugPrint('📨 Fetch timeout: collected ${events.length} events from ${subscriptions.length} relays');
+        debugPrint('📨 Fetch timeout: ${events.length} events from $relaysResponded/$targetRelays relays');
         completer.complete(events.values.toList());
       }
     });
 
-    // Subscribe to ALL connected relays (up to maxRelays)
-    final relays = connectedRelays.take(maxRelays);
-    debugPrint('📨 Subscribing to ${relays.length} relays for DM fetch...');
+    // Early completion check - complete when:
+    // 1. We have enough events, OR
+    // 2. Most relays have responded
+    void checkEarlyComplete() {
+      if (completer.isCompleted || !earlyComplete) return;
+      
+      // Complete early if we have enough events
+      if (events.length >= maxEvents) {
+        debugPrint('📨 Early complete: got $maxEvents events');
+        timeoutTimer.cancel();
+        completer.complete(events.values.toList());
+        return;
+      }
+      
+      // Complete early if 60% of relays responded (don't wait for slow ones)
+      if (relaysResponded >= (targetRelays * 0.6).ceil()) {
+        debugPrint('📨 Early complete: $relaysResponded/$targetRelays relays, ${events.length} events');
+        timeoutTimer.cancel();
+        completer.complete(events.values.toList());
+      }
+    }
 
     for (final relay in relays) {
       final subId = relay.subscribe(filter, (event) {
-        if (!events.containsKey(event.id)) {
+        if (!events.containsKey(event.id) && !completer.isCompleted) {
           events[event.id] = event;
-          // Don't complete early - wait for timeout to get ALL messages
+          checkEarlyComplete();
         }
       });
       subscriptions[subId] = relay.url;
+      
+      // Track relay responses via EOSE (end of stored events)
+      // Use a small delay to count as "responded" since we can't hook EOSE directly
+      Future.delayed(const Duration(milliseconds: 500), () {
+        relaysResponded++;
+        checkEarlyComplete();
+      });
     }
 
-    // Wait for completion (timeout will trigger)
+    // Wait for completion
     final result = await completer.future;
 
     // Clean up subscriptions

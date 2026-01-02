@@ -97,6 +97,33 @@ class DMService {
     return list;
   }
 
+  /// Fast initialization - load cached data only, no network calls
+  /// Use this for instant UI display, then call fetchDMHistory() in background
+  Future<void> initializeFast() async {
+    final pubkey = _profileService.currentPubkey;
+    if (pubkey == null) {
+      debugPrint('⚠️ DMService: No pubkey available, cannot initialize');
+      return;
+    }
+
+    // Load cached conversations immediately - no network delay
+    await _loadCachedConversations();
+    debugPrint('⚡ DMService: Fast init complete - ${_conversations.length} cached conversations');
+
+    // Start relay pool init in background (non-blocking)
+    if (!_relayPool.isInitialized) {
+      _relayPool.init().then((_) {
+        if (!_isSubscribed) {
+          _subscribeToDMs(pubkey);
+          _isSubscribed = true;
+        }
+      });
+    } else if (!_isSubscribed) {
+      _subscribeToDMs(pubkey);
+      _isSubscribed = true;
+    }
+  }
+
   /// Initialize DM service and start listening
   Future<void> initialize() async {
     if (_isSubscribed) return;
@@ -200,7 +227,7 @@ class DMService {
 
   /// Fetch DM history from ALL relays with aggressive fetching strategy
   /// This is the key to getting all historical messages
-  Future<void> fetchDMHistory({int limit = 500}) async {
+  Future<void> fetchDMHistory({int limit = 100}) async {
     final pubkey = _profileService.currentPubkey;
     if (pubkey == null) {
       debugPrint('⚠️ DMService: No pubkey, cannot fetch DMs');
@@ -215,7 +242,7 @@ class DMService {
 
     final connectedCount = _relayPool.connectedCount;
     debugPrint(
-      '📨 DMService: AGGRESSIVE FETCH from $connectedCount relays (limit: $limit)...',
+      '📨 DMService: Fetching from $connectedCount relays (limit: $limit)...',
     );
 
     // Fetch DMs sent to us - NO time limit, get ALL historical DMs
@@ -232,19 +259,19 @@ class DMService {
       'limit': limit,
     };
 
-    // Query all connected relays with reasonable timeout
+    // Query relays with FAST timeout - we show cached first, so speed matters more
     final received = await _relayPool.fetch(
       filter: receivedFilter,
-      timeoutSeconds: 30,
-      maxEvents: limit * 3,
-      maxRelays: 20, // Use all our curated relays
+      timeoutSeconds: 10, // Reduced from 30s
+      maxEvents: limit,
+      maxRelays: 10, // Query fewer relays for speed
     );
 
     final sent = await _relayPool.fetch(
       filter: sentFilter,
-      timeoutSeconds: 30,
-      maxEvents: limit * 3,
-      maxRelays: 20,
+      timeoutSeconds: 10, // Reduced from 30s
+      maxEvents: limit,
+      maxRelays: 10,
     );
 
     debugPrint(
