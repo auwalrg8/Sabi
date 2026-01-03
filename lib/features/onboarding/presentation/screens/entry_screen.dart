@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 import 'seed_recovery_screen.dart';
 
@@ -25,6 +27,13 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
 
       // Mark onboarding complete
       await BreezSparkService.setOnboardingComplete();
+      
+      // Start webhook bridge for push notifications
+      BreezWebhookBridgeService().startListening();
+      debugPrint('✅ BreezWebhookBridgeService started after wallet creation');
+      
+      // Register FCM token for push notifications
+      FCMTokenRegistrationService().registerToken();
 
       if (mounted) {
         Navigator.of(context).pushReplacement(

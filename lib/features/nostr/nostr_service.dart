@@ -3,7 +3,7 @@ import 'package:nostr_dart/nostr_dart.dart';
 import 'package:bech32/bech32.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:crypto/crypto.dart';
+import 'package:pointycastle/export.dart' as pc;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -27,18 +27,24 @@ class NostrService {
   static Nostr? _nostr;
   static bool _initialized = false;
 
-  // Optimized relay list for reliable global feed and discovery
+  // Top global relays - optimized for speed and broad coverage
+  // Prioritized by reliability, speed, and global reach
   static final List<String> _defaultRelays = [
+    // Tier 1: Fastest, most reliable global relays
+    'wss://relay.damus.io', // Most popular, high traffic
     'wss://nos.lol', // Best overall - fast, broad coverage
+    'wss://relay.primal.net', // High traffic, reliable, good for discovery
+    'wss://relay.nostr.band', // Excellent for search and discovery
+    'wss://nostr.wine', // Premium, low spam, fast
+    // Tier 2: High-quality international relays
+    'wss://relay.snort.social', // Great for discovery, Snort app
     'wss://nostr.mom', // Fast, excellent for global feed
-    'wss://relay.snort.social', // Great for discovery
-    'wss://relay.f7z.io', // High uptime
-    'wss://eden.nostr.land', // Clean, active
     'wss://relay.nostr.bg', // Solid international coverage
-    'wss://relay.damus.io', // Most popular relay
-    'wss://relay.primal.net', // High traffic, reliable
-    'wss://nostr.wine', // Premium, low spam
+    'wss://eden.nostr.land', // Clean, active
+    'wss://purplepag.es', // Good for profile discovery
+    // Tier 3: Specialized/backup relays
     'wss://relay.nostriches.org', // Good for bitcoiners
+    'wss://relay.f7z.io', // High uptime backup
   ];
 
   // Key for storing cached follows
@@ -294,16 +300,37 @@ class NostrService {
   }
 
   /// Initialize Nostr with a hex private key
+  /// Non-blocking: returns immediately after creating Nostr instance,
+  /// relays connect in background
   static Future<void> _initializeNostrWithKey(String hexPrivateKey) async {
     try {
       _debug.info('RELAY', 'Initializing Nostr with private key...');
       _nostr = Nostr(privateKey: hexPrivateKey);
 
-      // Add relays
+      // Connect relays in background (non-blocking)
+      // This allows UI to proceed immediately after key save
+      _connectRelaysInBackground();
+
+      _debug.success(
+        'RELAY',
+        'Nostr initialized',
+        'Relays connecting in background...',
+      );
+    } catch (e) {
+      _debug.error('RELAY', 'Error initializing Nostr', e.toString());
+    }
+  }
+
+  /// Connect to relays in background (non-blocking)
+  static void _connectRelaysInBackground() {
+    if (_nostr == null) return;
+
+    // Use Future.delayed to defer relay connections to next event loop
+    Future.delayed(Duration.zero, () async {
       int connectedCount = 0;
       for (final relayUrl in _defaultRelays) {
         try {
-          _debug.info('RELAY', 'Connecting to $relayUrl (read-write)...');
+          _debug.info('RELAY', 'Connecting to $relayUrl...');
           await _nostr!.pool.add(
             Relay(relayUrl, access: WriteAccess.readWrite),
           );
@@ -317,12 +344,10 @@ class NostrService {
       }
       _debug.success(
         'RELAY',
-        'Read-write mode initialized',
+        'Background connection complete',
         '$connectedCount/${_defaultRelays.length} relays connected',
       );
-    } catch (e) {
-      _debug.error('RELAY', 'Error initializing Nostr', e.toString());
-    }
+    });
   }
 
   /// Generate new Nostr keys
@@ -567,12 +592,15 @@ class NostrService {
         throw Exception('Could not decode private key');
       }
 
-      // Create a shared secret by hashing both keys together
-      // This is a simplified version - production should use proper ECDH
-      final sharedSecret = sha256.convert(
-        utf8.encode(hexPrivateKey + targetHexPubkey),
+      // Compute proper ECDH shared secret for NIP-04
+      final sharedSecret = _computeECDHSharedSecret(
+        hexPrivateKey,
+        targetHexPubkey,
       );
-      final keyBytes = Uint8List.fromList(sharedSecret.bytes);
+      if (sharedSecret == null) {
+        throw Exception('Failed to compute shared secret');
+      }
+      final keyBytes = Uint8List.fromList(sharedSecret);
 
       // Generate random IV
       final random = Random.secure();
@@ -635,11 +663,16 @@ class NostrService {
       final encryptedBase64 = parts[0];
       final ivBase64 = parts[1];
 
-      // Recreate the shared secret
-      final sharedSecret = sha256.convert(
-        utf8.encode(receiverHexPrivateKey + senderHexPubkey),
+      // Compute proper ECDH shared secret
+      final sharedSecret = _computeECDHSharedSecret(
+        receiverHexPrivateKey,
+        senderHexPubkey,
       );
-      final keyBytes = Uint8List.fromList(sharedSecret.bytes);
+      if (sharedSecret == null) {
+        _debug.error('DM', 'Failed to compute shared secret');
+        return null;
+      }
+      final keyBytes = Uint8List.fromList(sharedSecret);
 
       // Decrypt
       final key = encrypt.Key(keyBytes);
@@ -654,6 +687,90 @@ class NostrService {
       _debug.error('DM', 'Error decrypting DM', e.toString());
       return null;
     }
+  }
+
+  /// Compute ECDH shared secret using secp256k1 for NIP-04
+  static List<int>? _computeECDHSharedSecret(
+    String privateKeyHex,
+    String otherPubkeyHex,
+  ) {
+    try {
+      // Parse private key
+      final privateKeyBytes = _hexToBytes(privateKeyHex);
+      if (privateKeyBytes == null) return null;
+
+      // Parse public key (add 02 prefix for compressed format if needed)
+      String pubkeyWithPrefix = otherPubkeyHex;
+      if (otherPubkeyHex.length == 64) {
+        // x-only pubkey, need to add prefix (assume even y)
+        pubkeyWithPrefix = '02$otherPubkeyHex';
+      }
+      final publicKeyBytes = _hexToBytes(pubkeyWithPrefix);
+      if (publicKeyBytes == null) return null;
+
+      // Set up secp256k1 curve
+      final domainParams = pc.ECDomainParameters('secp256k1');
+
+      // Create private key
+      final privateKeyBigInt = _bytesToBigInt(privateKeyBytes);
+      final ecPrivateKey = pc.ECPrivateKey(privateKeyBigInt, domainParams);
+
+      // Decode public key point
+      final publicKeyPoint = domainParams.curve.decodePoint(publicKeyBytes);
+      if (publicKeyPoint == null) return null;
+
+      // Perform ECDH: multiply public key by private key scalar
+      final sharedPoint = publicKeyPoint * ecPrivateKey.d;
+      if (sharedPoint == null || sharedPoint.x == null) return null;
+
+      // NIP-04 uses only the x-coordinate of the shared point
+      final sharedX = sharedPoint.x!.toBigInteger();
+      if (sharedX == null) return null;
+
+      // Convert to 32 bytes (padded if needed)
+      return _bigIntToBytes(sharedX, 32);
+    } catch (e) {
+      _debug.error('DM', 'ECDH computation error', e.toString());
+      return null;
+    }
+  }
+
+  /// Convert hex string to bytes
+  static Uint8List? _hexToBytes(String hex) {
+    try {
+      if (hex.length % 2 != 0) return null;
+      final bytes = Uint8List(hex.length ~/ 2);
+      for (int i = 0; i < hex.length; i += 2) {
+        bytes[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+      }
+      return bytes;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Convert bytes to BigInt
+  static BigInt _bytesToBigInt(Uint8List bytes) {
+    BigInt result = BigInt.zero;
+    for (int i = 0; i < bytes.length; i++) {
+      result = (result << 8) | BigInt.from(bytes[i]);
+    }
+    return result;
+  }
+
+  /// Convert BigInt to bytes with specified length
+  static List<int> _bigIntToBytes(BigInt value, int length) {
+    final bytes = <int>[];
+    var v = value;
+    while (v > BigInt.zero) {
+      bytes.insert(0, (v & BigInt.from(0xff)).toInt());
+      v = v >> 8;
+    }
+    // Pad to required length
+    while (bytes.length < length) {
+      bytes.insert(0, 0);
+    }
+    return bytes.take(length).toList();
   }
 
   /// Subscribe to encrypted DMs for our user
@@ -974,7 +1091,7 @@ class NostrService {
     final rawEvents = await NostrRelayClient.fetchEvents(
       relayUrls: _defaultRelays,
       filter: filter,
-      timeoutSeconds: 15,
+      timeoutSeconds: 8,
       maxEvents: limit,
     );
 
@@ -1061,6 +1178,178 @@ class NostrService {
     return follows;
   }
 
+  /// Get cached follows without fetching from relays (fast)
+  static Future<List<String>> getCachedFollows() async {
+    try {
+      final cached = await _secureStorage.read(key: _followsKey);
+      if (cached != null && cached.isNotEmpty) {
+        final follows = cached.split(',').where((s) => s.isNotEmpty).toList();
+        _debug.info(
+          'FOLLOWS_CACHE',
+          'Loaded cached follows',
+          '${follows.length} accounts',
+        );
+        return follows;
+      }
+    } catch (e) {
+      _debug.warn(
+        'FOLLOWS_CACHE',
+        'Failed to read cached follows',
+        e.toString(),
+      );
+    }
+    return [];
+  }
+
+  /// Fetch how many people a user follows (from their kind-3 event)
+  static Future<int> fetchFollowingCount(String pubkey) async {
+    try {
+      final follows = await fetchUserFollowsDirect(pubkey);
+      return follows.length;
+    } catch (e) {
+      _debug.warn(
+        'FOLLOWING_COUNT',
+        'Failed to fetch following count',
+        e.toString(),
+      );
+      return 0;
+    }
+  }
+
+  /// Fetch approximate follower count (people who follow this pubkey)
+  /// Note: This is approximate as we can only sample from connected relays
+  static Future<int> fetchFollowerCount(String pubkey) async {
+    try {
+      _debug.info(
+        'FOLLOWER_COUNT',
+        'Fetching follower count for',
+        pubkey.substring(0, 16),
+      );
+
+      // Query for kind-3 events that contain this pubkey in their tags
+      final filter = {
+        'kinds': [3],
+        '#p': [pubkey],
+        'limit': 500, // Sample up to 500 followers
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls:
+            _defaultRelays.take(5).toList(), // Use fewer relays for speed
+        filter: filter,
+        timeoutSeconds: 5,
+        maxEvents: 500,
+      );
+
+      // Count unique authors
+      final uniqueFollowers = <String>{};
+      for (final event in rawEvents) {
+        final author = event['pubkey'] as String?;
+        if (author != null) {
+          uniqueFollowers.add(author);
+        }
+      }
+
+      _debug.success(
+        'FOLLOWER_COUNT',
+        'Found followers',
+        '${uniqueFollowers.length}',
+      );
+      return uniqueFollowers.length;
+    } catch (e) {
+      _debug.warn(
+        'FOLLOWER_COUNT',
+        'Failed to fetch follower count',
+        e.toString(),
+      );
+      return 0;
+    }
+  }
+
+  /// Toggle follow/unfollow a user
+  static Future<bool> toggleFollow({
+    required String targetPubkey,
+    required bool currentlyFollowing,
+  }) async {
+    try {
+      _debug.info(
+        'TOGGLE_FOLLOW',
+        currentlyFollowing ? 'Unfollowing' : 'Following',
+        targetPubkey.substring(0, 16),
+      );
+
+      // Get current follows
+      final currentFollows = await getCachedFollows();
+
+      // Update the list
+      List<String> newFollows;
+      if (currentlyFollowing) {
+        newFollows = currentFollows.where((p) => p != targetPubkey).toList();
+      } else {
+        newFollows = [...currentFollows, targetPubkey];
+      }
+
+      // Get user's private key for signing
+      final nsec = await getNsec();
+      if (nsec == null) {
+        _debug.error('TOGGLE_FOLLOW', 'No private key available');
+        return false;
+      }
+
+      // Convert nsec to hex for signing
+      final privateKeyHex = _nsecToHex(nsec);
+      if (privateKeyHex == null) {
+        _debug.error('TOGGLE_FOLLOW', 'Failed to decode nsec');
+        return false;
+      }
+
+      // Get user's public key
+      final npub = await getNpub();
+      final userPubkey = npub != null ? npubToHex(npub) : null;
+      if (userPubkey == null) {
+        _debug.error('TOGGLE_FOLLOW', 'Failed to get user pubkey');
+        return false;
+      }
+
+      // Build kind-3 event with new follows
+      final tags = newFollows.map((p) => ['p', p]).toList();
+
+      // Use nostr_dart's sendEvent via _nostr instance
+      if (_nostr == null) {
+        await reinitialize();
+      }
+
+      if (_nostr != null) {
+        // Create event using Event constructor: (pubkey, kind, tags, content)
+        final event = Event(
+          userPubkey, // pubkey
+          3, // kind-3 = contact list
+          tags.cast<List<String>>(), // tags
+          '', // content is empty for kind-3
+        );
+
+        _nostr!.sendEvent(event);
+
+        // Update cache
+        await _secureStorage.write(
+          key: _followsKey,
+          value: newFollows.join(','),
+        );
+        _debug.success(
+          'TOGGLE_FOLLOW',
+          'Published new contact list',
+          '${newFollows.length} follows',
+        );
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      _debug.error('TOGGLE_FOLLOW', 'Failed to toggle follow', e.toString());
+      return false;
+    }
+  }
+
   /// Fetch posts from followed users using DIRECT WebSocket connections
   static Future<List<NostrFeedPost>> fetchFollowsFeedDirect({
     required List<String> followPubkeys,
@@ -1092,7 +1381,7 @@ class NostrService {
     final rawEvents = await NostrRelayClient.fetchEvents(
       relayUrls: _defaultRelays,
       filter: filter,
-      timeoutSeconds: 15,
+      timeoutSeconds: 8,
       maxEvents: limit,
     );
 
@@ -1122,6 +1411,57 @@ class NostrService {
     _debug.success(
       'FOLLOWS_FEED_DIRECT',
       'Follows feed fetched',
+      '${posts.length} posts',
+    );
+    return posts;
+  }
+
+  /// Fetch posts from a specific user using DIRECT WebSocket connections
+  static Future<List<NostrFeedPost>> fetchUserPostsDirect(
+    String pubkey, {
+    int limit = 20,
+  }) async {
+    _debug.info(
+      'USER_POSTS_DIRECT',
+      'Fetching posts for user',
+      pubkey.substring(0, 8),
+    );
+
+    final filter = {
+      'kinds': [1],
+      'authors': [pubkey],
+      'limit': limit,
+    };
+
+    final rawEvents = await NostrRelayClient.fetchEvents(
+      relayUrls: _defaultRelays,
+      filter: filter,
+      timeoutSeconds: 8,
+      maxEvents: limit,
+    );
+
+    _debug.info(
+      'USER_POSTS_DIRECT',
+      'Raw events received',
+      '${rawEvents.length} events',
+    );
+
+    // Convert to NostrFeedPost objects
+    final posts = <NostrFeedPost>[];
+    for (final eventData in rawEvents) {
+      try {
+        posts.add(NostrFeedPost.fromRawEvent(eventData));
+      } catch (e) {
+        _debug.warn('USER_POSTS_DIRECT', 'Failed to parse event', e.toString());
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    _debug.success(
+      'USER_POSTS_DIRECT',
+      'User posts fetched',
       '${posts.length} posts',
     );
     return posts;
@@ -1364,19 +1704,6 @@ class NostrService {
     }
   }
 
-  /// Get cached follows (for offline access)
-  static Future<List<String>> getCachedFollows() async {
-    try {
-      final cached = await _secureStorage.read(key: _followsKey);
-      if (cached != null && cached.isNotEmpty) {
-        return cached.split(',').where((s) => s.isNotEmpty).toList();
-      }
-    } catch (e) {
-      print('⚠️ Error reading cached follows: $e');
-    }
-    return [];
-  }
-
   /// Fetch feed from user's follows (kind-1 posts from follows, last 48 hours)
   static Future<List<NostrFeedPost>> fetchFollowsFeed({
     required List<String> followPubkeys,
@@ -1577,7 +1904,7 @@ class NostrService {
       final events = await NostrRelayClient.fetchEvents(
         relayUrls: _defaultRelays,
         filter: filter,
-        timeoutSeconds: 5,
+        timeoutSeconds: 3,
         maxEvents: 1,
       );
 
@@ -1615,6 +1942,15 @@ class NostrService {
         }
         if (jsonData['nip05'] != null) {
           metadata['nip05'] = jsonData['nip05'].toString();
+        }
+
+        // Extract lightning address (lud16) - CRITICAL for zaps
+        if (jsonData['lud16'] != null) {
+          metadata['lud16'] = jsonData['lud16'].toString();
+        }
+        // Fallback to lud06 (LNURL) if lud16 not present
+        if (jsonData['lud06'] != null) {
+          metadata['lud06'] = jsonData['lud06'].toString();
         }
       } catch (e) {
         print('⚠️ Error parsing metadata JSON: $e');
@@ -1751,6 +2087,407 @@ class NostrService {
 
     return merged.take(_maxCachedPosts).toList();
   }
+
+  // ==================== SEARCH METHODS ====================
+
+  /// Search for users by name or npub
+  /// Uses kind:0 (metadata) events with local cache fallback
+  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    _debug.info('SEARCH', 'Searching users', 'query: $query');
+
+    if (query.isEmpty) return [];
+
+    // Check if query is an npub or hex pubkey
+    String? directPubkey;
+    if (query.startsWith('npub1')) {
+      directPubkey = npubToHex(query);
+    } else if (RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(query)) {
+      directPubkey = query;
+    }
+
+    final results = <Map<String, dynamic>>[];
+    final seenPubkeys = <String>{};
+
+    // If direct pubkey, fetch that user's metadata
+    if (directPubkey != null) {
+      final metadata = await fetchAuthorMetadataDirect(directPubkey);
+      if (metadata.isNotEmpty) {
+        results.add({
+          'pubkey': directPubkey,
+          'npub': hexToNpub(directPubkey),
+          ...metadata,
+        });
+      }
+      return results;
+    }
+
+    // First, search locally from cached profiles (instant results)
+    try {
+      final cachedProfiles = await _searchCachedProfiles(query);
+      for (final profile in cachedProfiles) {
+        final pubkey = profile['pubkey'] as String;
+        if (!seenPubkeys.contains(pubkey)) {
+          seenPubkeys.add(pubkey);
+          results.add(profile);
+        }
+      }
+      _debug.info('SEARCH', 'Local cache results', '${results.length} found');
+    } catch (e) {
+      _debug.warn('SEARCH', 'Local cache search failed', '$e');
+    }
+
+    // Then search via NIP-50 relays for more results
+    try {
+      final filter = {
+        'kinds': [0],
+        'search': query,
+        'limit': 20,
+      };
+
+      // Use multiple NIP-50 capable relays with shorter timeout
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: [
+          'wss://relay.nostr.band',
+          'wss://search.nos.today',
+          'wss://nostr.wine',
+        ],
+        filter: filter,
+        timeoutSeconds: 5, // Shorter timeout for better UX
+        maxEvents: 20,
+      );
+
+      for (final event in rawEvents) {
+        try {
+          final pubkey = event['pubkey'] as String;
+          if (seenPubkeys.contains(pubkey)) continue;
+          seenPubkeys.add(pubkey);
+
+          final content = event['content'] as String?;
+          if (content != null && content.isNotEmpty) {
+            final metadata = json.decode(content) as Map<String, dynamic>;
+            results.add({
+              'pubkey': pubkey,
+              'npub': hexToNpub(pubkey),
+              'name': metadata['name'] ?? metadata['display_name'],
+              'display_name': metadata['display_name'] ?? metadata['name'],
+              'picture': metadata['picture'],
+              'about': metadata['about'],
+              'nip05': metadata['nip05'],
+              'lud16': metadata['lud16'],
+              'banner': metadata['banner'],
+            });
+          }
+        } catch (e) {
+          // Skip malformed events
+        }
+      }
+
+      _debug.success(
+        'SEARCH',
+        'User search complete',
+        '${results.length} results',
+      );
+    } catch (e) {
+      _debug.error('SEARCH', 'Remote user search failed', '$e');
+      // Return local results even if remote fails
+    }
+
+    return results;
+  }
+
+  /// Search cached profiles locally
+  static Future<List<Map<String, dynamic>>> _searchCachedProfiles(
+    String query,
+  ) async {
+    final results = <Map<String, dynamic>>[];
+    final queryLower = query.toLowerCase();
+
+    try {
+      // Get cached profiles from Hive
+      final box = await Hive.openBox('nostr_profile_cache');
+      final allKeys = box.keys.toList();
+
+      for (final key in allKeys.take(500)) {
+        // Limit for performance
+        try {
+          final data = box.get(key);
+          if (data == null) continue;
+
+          final profileMap = Map<String, dynamic>.from(data as Map);
+          final name =
+              (profileMap['name'] as String?)?.toLowerCase() ??
+              (profileMap['displayName'] as String?)?.toLowerCase() ??
+              '';
+          final displayName =
+              (profileMap['displayName'] as String?)?.toLowerCase() ??
+              (profileMap['display_name'] as String?)?.toLowerCase() ??
+              '';
+          final nip05 = (profileMap['nip05'] as String?)?.toLowerCase() ?? '';
+
+          if (name.contains(queryLower) ||
+              displayName.contains(queryLower) ||
+              nip05.contains(queryLower)) {
+            final pubkey = key.toString();
+            results.add({
+              'pubkey': pubkey,
+              'npub': hexToNpub(pubkey),
+              'name': profileMap['name'],
+              'display_name': profileMap['displayName'] ?? profileMap['name'],
+              'picture': profileMap['picture'],
+              'about': profileMap['about'],
+              'nip05': profileMap['nip05'],
+            });
+          }
+        } catch (e) {
+          // Skip malformed cache entries
+        }
+      }
+    } catch (e) {
+      _debug.warn('SEARCH', 'Error searching cached profiles', '$e');
+    }
+
+    return results;
+  }
+
+  /// Search notes/posts by content (NIP-50 full-text search)
+  /// Also searches cached posts locally for instant results
+  static Future<List<NostrFeedPost>> searchNotes(String query) async {
+    _debug.info('SEARCH', 'Searching notes', 'query: $query');
+
+    if (query.isEmpty) return [];
+
+    final posts = <NostrFeedPost>[];
+    final seenIds = <String>{};
+
+    // First, search locally from cached posts (instant results)
+    try {
+      final cachedPosts = await _searchCachedPosts(query);
+      for (final post in cachedPosts) {
+        if (!seenIds.contains(post.id)) {
+          seenIds.add(post.id);
+          posts.add(post);
+        }
+      }
+      _debug.info('SEARCH', 'Local cache notes', '${posts.length} found');
+    } catch (e) {
+      _debug.warn('SEARCH', 'Local cache note search failed', '$e');
+    }
+
+    // Then search via NIP-50 relays for more results
+    try {
+      final filter = {
+        'kinds': [1],
+        'search': query,
+        'limit': 30,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: [
+          'wss://relay.nostr.band',
+          'wss://search.nos.today',
+          'wss://nostr.wine',
+        ],
+        filter: filter,
+        timeoutSeconds: 6, // Shorter timeout for better UX
+        maxEvents: 30,
+      );
+
+      for (final event in rawEvents) {
+        try {
+          final post = NostrFeedPost.fromRawEvent(event);
+          if (!seenIds.contains(post.id)) {
+            seenIds.add(post.id);
+            posts.add(post);
+          }
+        } catch (e) {
+          // Skip malformed events
+        }
+      }
+
+      posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      _debug.success('SEARCH', 'Note search complete', '${posts.length} posts');
+    } catch (e) {
+      _debug.error('SEARCH', 'Remote note search failed', '$e');
+      // Return local results even if remote fails
+    }
+
+    return posts;
+  }
+
+  /// Search cached posts locally
+  static Future<List<NostrFeedPost>> _searchCachedPosts(String query) async {
+    final results = <NostrFeedPost>[];
+    final queryLower = query.toLowerCase();
+
+    try {
+      // Get cached posts from Hive
+      final box = await Hive.openBox('nostr_feed_posts');
+      final allKeys = box.keys.toList();
+
+      for (final key in allKeys.take(200)) {
+        // Limit for performance
+        try {
+          final data = box.get(key);
+          if (data == null) continue;
+
+          final postMap = Map<String, dynamic>.from(data as Map);
+          final content = (postMap['content'] as String?)?.toLowerCase() ?? '';
+          final authorName =
+              (postMap['authorName'] as String?)?.toLowerCase() ?? '';
+
+          if (content.contains(queryLower) || authorName.contains(queryLower)) {
+            results.add(NostrFeedPost.fromJson(postMap));
+          }
+        } catch (e) {
+          // Skip malformed cache entries
+        }
+      }
+    } catch (e) {
+      _debug.warn('SEARCH', 'Error searching cached posts', '$e');
+    }
+
+    return results;
+  }
+
+  /// Search posts by hashtag
+  static Future<List<NostrFeedPost>> searchHashtag(String hashtag) async {
+    // Remove # if present
+    final tag = hashtag.startsWith('#') ? hashtag.substring(1) : hashtag;
+    _debug.info('SEARCH', 'Searching hashtag', '#$tag');
+
+    if (tag.isEmpty) return [];
+
+    try {
+      final filter = {
+        'kinds': [1],
+        '#t': [tag.toLowerCase()],
+        'limit': 50,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: _defaultRelays,
+        filter: filter,
+        timeoutSeconds: 10,
+        maxEvents: 50,
+      );
+
+      final posts = <NostrFeedPost>[];
+      for (final event in rawEvents) {
+        try {
+          posts.add(NostrFeedPost.fromRawEvent(event));
+        } catch (e) {
+          // Skip malformed events
+        }
+      }
+
+      posts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      _debug.success(
+        'SEARCH',
+        'Hashtag search complete',
+        '${posts.length} posts',
+      );
+      return posts;
+    } catch (e) {
+      _debug.error('SEARCH', 'Hashtag search failed', '$e');
+      return [];
+    }
+  }
+
+  /// Lookup a specific event by ID (note1, nevent, or hex)
+  static Future<NostrFeedPost?> lookupEvent(String eventId) async {
+    _debug.info('SEARCH', 'Looking up event', eventId);
+
+    String? hexId;
+
+    // Parse event ID format
+    if (eventId.startsWith('note1')) {
+      hexId = _decodeNote1(eventId);
+    } else if (eventId.startsWith('nevent1')) {
+      hexId = _decodeNevent(eventId);
+    } else if (RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(eventId)) {
+      hexId = eventId;
+    }
+
+    if (hexId == null) {
+      _debug.warn('SEARCH', 'Invalid event ID format');
+      return null;
+    }
+
+    try {
+      final filter = {
+        'ids': [hexId],
+        'limit': 1,
+      };
+
+      final rawEvents = await NostrRelayClient.fetchEvents(
+        relayUrls: _defaultRelays,
+        filter: filter,
+        timeoutSeconds: 8,
+        maxEvents: 1,
+      );
+
+      if (rawEvents.isNotEmpty) {
+        final post = NostrFeedPost.fromRawEvent(rawEvents.first);
+        _debug.success('SEARCH', 'Event found', post.id);
+        return post;
+      }
+    } catch (e) {
+      _debug.error('SEARCH', 'Event lookup failed', '$e');
+    }
+
+    return null;
+  }
+
+  /// Decode note1 bech32 to hex
+  static String? _decodeNote1(String note1) {
+    try {
+      final codec = Bech32Codec();
+      final bech32 = codec.decode(note1);
+      final data = _convertBits(bech32.data, 5, 8, false);
+      if (data == null) return null;
+      return data.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Decode nevent bech32 to hex (simplified - just extracts event id)
+  static String? _decodeNevent(String nevent) {
+    try {
+      final codec = Bech32Codec();
+      final bech32 = codec.decode(nevent);
+      final data = _convertBits(bech32.data, 5, 8, false);
+      if (data == null) return null;
+      // nevent TLV format: type(1) + length(1) + value(32 for event id)
+      // Skip TLV header, extract 32 bytes for event id
+      if (data.length >= 34) {
+        return data
+            .sublist(2, 34)
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get trending hashtags (simplified - returns common Bitcoin/Nostr tags)
+  static Future<List<String>> getTrendingHashtags() async {
+    // For now, return curated list. In production, could query relay.nostr.band
+    return [
+      'bitcoin',
+      'nostr',
+      'zap',
+      'lightning',
+      'plebchain',
+      'grownostr',
+      'btc',
+      'satoshi',
+      'freedom',
+      'africa',
+    ];
+  }
 }
 
 /// Model for Nostr feed posts
@@ -1765,6 +2502,7 @@ class NostrFeedPost {
   int zapAmount;
   int likeCount;
   int replyCount;
+  int repostCount;
   final List<String> tags;
 
   NostrFeedPost({
@@ -1778,8 +2516,23 @@ class NostrFeedPost {
     this.zapAmount = 0,
     this.likeCount = 0,
     this.replyCount = 0,
+    this.repostCount = 0,
     this.tags = const [],
   });
+
+  /// Time ago string
+  String get timeAgo {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
+
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo';
+    return '${(diff.inDays / 365).floor()}y';
+  }
 
   factory NostrFeedPost.fromEvent(Event event) {
     // Extract author name from pubKey (first 8 chars as fallback)
@@ -1800,9 +2553,10 @@ class NostrFeedPost {
       authorName: shortPubkey,
       content: event.content,
       timestamp: DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000),
-      zapAmount: (event.createdAt % 5000) + 100, // Mock zap amount for demo
-      likeCount: event.createdAt % 50, // Mock likes for demo
+      zapAmount: 0, // Real data fetched via fetchEngagement()
+      likeCount: 0, // Real data fetched via fetchEngagement()
       replyCount: replyCount,
+      repostCount: 0, // Real data fetched via fetchEngagement()
       tags:
           event.tags
               .map(
@@ -1836,9 +2590,10 @@ class NostrFeedPost {
       authorName: shortPubkey,
       content: eventData['content'] as String? ?? '',
       timestamp: DateTime.fromMillisecondsSinceEpoch(createdAt * 1000),
-      zapAmount: (createdAt % 5000) + 100,
-      likeCount: createdAt % 50,
+      zapAmount: 0, // Real data fetched via fetchEngagement()
+      likeCount: 0, // Real data fetched via fetchEngagement()
       replyCount: replyCount,
+      repostCount: 0, // Real data fetched via fetchEngagement()
       tags:
           tags
               .map(
@@ -1865,6 +2620,7 @@ class NostrFeedPost {
       zapAmount: jsonData['zapAmount'] as int? ?? 0,
       likeCount: jsonData['likeCount'] as int? ?? 0,
       replyCount: jsonData['replyCount'] as int? ?? 0,
+      repostCount: jsonData['repostCount'] as int? ?? 0,
       tags:
           (jsonData['tags'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -1885,6 +2641,7 @@ class NostrFeedPost {
       'zapAmount': zapAmount,
       'likeCount': likeCount,
       'replyCount': replyCount,
+      'repostCount': repostCount,
       'tags': tags,
     };
   }

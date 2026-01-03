@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -7,18 +8,20 @@ import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/services/receipt_service.dart';
 import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 import 'package:sabi_wallet/l10n/app_localizations.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
 
-class PaymentDetailScreen extends StatefulWidget {
+class PaymentDetailScreen extends ConsumerStatefulWidget {
   final PaymentRecord payment;
 
   const PaymentDetailScreen({super.key, required this.payment});
 
   @override
-  State<PaymentDetailScreen> createState() => _PaymentDetailScreenState();
+  ConsumerState<PaymentDetailScreen> createState() => _PaymentDetailScreenState();
 }
 
-class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
-  double? _btcToNgnRate;
+class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
+  double? _btcToFiatRate;
+  FiatCurrency _selectedCurrency = FiatCurrency.ngn;
   final GlobalKey _receiptKey = GlobalKey();
   bool _isSharing = false;
 
@@ -29,19 +32,21 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
   }
 
   Future<void> _loadRate() async {
-    final rate = await RateService.getBtcToNgnRate();
+    _selectedCurrency = ref.read(selectedFiatCurrencyProvider);
+    final rate = await RateService.getBtcToFiatRate(_selectedCurrency);
     if (mounted) {
       setState(() {
-        _btcToNgnRate = rate;
+        _btcToFiatRate = rate;
       });
     }
   }
 
-  String _getNairaValue(int sats) {
-    if (_btcToNgnRate == null) return 'Loading...';
+  String _getFiatValue(int sats) {
+    if (_btcToFiatRate == null) return 'Loading...';
     final btc = sats / 100000000;
-    final naira = btc * _btcToNgnRate!;
-    return '₦${naira.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')}';
+    final fiat = btc * _btcToFiatRate!;
+    final decimals = _selectedCurrency == FiatCurrency.usd ? 2 : 2;
+    return '${_selectedCurrency.symbol}${fiat.toStringAsFixed(decimals).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')}';
   }
 
   Future<void> _shareAsImage() async {
@@ -61,8 +66,8 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
     try {
       final isInbound = widget.payment.isIncoming;
       final nairaAmount =
-          _btcToNgnRate != null
-              ? (widget.payment.amountSats / 100000000 * _btcToNgnRate!)
+          _btcToFiatRate != null
+              ? (widget.payment.amountSats / 100000000 * _btcToFiatRate!)
               : null;
       final data = ReceiptData(
         type: isInbound ? 'receive' : 'send',
@@ -316,14 +321,14 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                                     Icons.bolt,
                                     AppColors.textSecondary,
                                   ),
-                                  if (_btcToNgnRate != null) ...[
+                                  if (_btcToFiatRate != null) ...[
                                     Padding(
                                       padding: EdgeInsets.only(
                                         left: 40.w,
                                         top: 4.h,
                                       ),
                                       child: Text(
-                                        _getNairaValue(
+                                        _getFiatValue(
                                           widget.payment.amountSats,
                                         ),
                                         style: TextStyle(
@@ -345,7 +350,7 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                                     Icons.receipt,
                                     AppColors.textSecondary,
                                   ),
-                                  if (_btcToNgnRate != null &&
+                                  if (_btcToFiatRate != null &&
                                       widget.payment.feeSats > 0) ...[
                                     Padding(
                                       padding: EdgeInsets.only(
@@ -353,7 +358,7 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                                         top: 4.h,
                                       ),
                                       child: Text(
-                                        _getNairaValue(widget.payment.feeSats),
+                                        _getFiatValue(widget.payment.feeSats),
                                         style: TextStyle(
                                           color: AppColors.textSecondary
                                               .withValues(alpha: 0.7),

@@ -20,8 +20,12 @@ class P2POfferModel {
   final bool requiresKyc;
   final String? paymentInstructions;
   final double? availableSats;
+  final double? lockedSats; // Sats locked in active trades
   final String? responseTime;
   final double? volume;
+
+  /// Map of payment method ID to account details (e.g., "gtbank" -> "GTBank 0123456789 - John Doe")
+  final Map<String, String>? paymentAccountDetails;
 
   P2POfferModel({
     required this.id,
@@ -40,9 +44,14 @@ class P2POfferModel {
     this.requiresKyc = false,
     this.paymentInstructions,
     this.availableSats,
+    this.lockedSats,
     this.responseTime,
     this.volume,
+    this.paymentAccountDetails,
   });
+
+  /// Returns the effective available sats (total minus locked)
+  double get effectiveAvailableSats => (availableSats ?? 0) - (lockedSats ?? 0);
 
   P2POfferModel copyWith({
     String? id,
@@ -61,8 +70,10 @@ class P2POfferModel {
     bool? requiresKyc,
     String? paymentInstructions,
     double? availableSats,
+    double? lockedSats,
     String? responseTime,
     double? volume,
+    Map<String, String>? paymentAccountDetails,
   }) {
     return P2POfferModel(
       id: id ?? this.id,
@@ -81,8 +92,11 @@ class P2POfferModel {
       requiresKyc: requiresKyc ?? this.requiresKyc,
       paymentInstructions: paymentInstructions ?? this.paymentInstructions,
       availableSats: availableSats ?? this.availableSats,
+      lockedSats: lockedSats ?? this.lockedSats,
       responseTime: responseTime ?? this.responseTime,
       volume: volume ?? this.volume,
+      paymentAccountDetails:
+          paymentAccountDetails ?? this.paymentAccountDetails,
     );
   }
 
@@ -103,12 +117,28 @@ class P2POfferModel {
       'requiresKyc': requiresKyc,
       'paymentInstructions': paymentInstructions,
       'availableSats': availableSats,
+      'lockedSats': lockedSats,
       'responseTime': responseTime,
       'volume': volume,
+      'paymentAccountDetails': paymentAccountDetails,
     };
   }
 
-  factory P2POfferModel.fromJson(Map<String, dynamic> json, {MerchantModel? merchant, List<PaymentMethodModel>? acceptedMethods}) {
+  factory P2POfferModel.fromJson(
+    Map<String, dynamic> json, {
+    MerchantModel? merchant,
+    List<PaymentMethodModel>? acceptedMethods,
+  }) {
+    // Parse paymentAccountDetails from JSON
+    Map<String, String>? accountDetails;
+    if (json['paymentAccountDetails'] != null) {
+      accountDetails = Map<String, String>.from(
+        (json['paymentAccountDetails'] as Map).map(
+          (key, value) => MapEntry(key.toString(), value.toString()),
+        ),
+      );
+    }
+
     return P2POfferModel(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -126,8 +156,10 @@ class P2POfferModel {
       requiresKyc: json['requiresKyc'] as bool? ?? false,
       paymentInstructions: json['paymentInstructions'] as String?,
       availableSats: (json['availableSats'] as num?)?.toDouble(),
+      lockedSats: (json['lockedSats'] as num?)?.toDouble(),
       responseTime: json['responseTime'] as String?,
       volume: (json['volume'] as num?)?.toDouble(),
+      paymentAccountDetails: accountDetails,
     );
   }
 }

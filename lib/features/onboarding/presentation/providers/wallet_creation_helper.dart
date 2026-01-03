@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/wallet_info_provider.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 
 /// Helper to create wallet with a specific backup type and store locally
 class WalletCreationHelper {
@@ -30,6 +32,13 @@ class WalletCreationHelper {
       // CRITICAL: Mark onboarding complete so app never loops back
       await BreezSparkService.setOnboardingComplete();
       debugPrint('✅ Onboarding marked complete');
+      
+      // Start webhook bridge for push notifications
+      BreezWebhookBridgeService().startListening();
+      debugPrint('✅ BreezWebhookBridgeService started after wallet creation');
+      
+      // Register FCM token for push notifications
+      FCMTokenRegistrationService().registerToken();
 
       // Optional: Notify backend for recovery metadata (can fail silently)
       try {

@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/ln_address_service.dart';
+import 'package:sabi_wallet/services/contact_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/config/vtu_config.dart';
 import '../data/models/models.dart';
 import 'vtu_api_service.dart';
@@ -120,6 +122,10 @@ class VtuService {
           VtuOrderStatus.completed,
           token: apiResponse.transactionId,
         );
+        
+        // Step 7: Save to recent contacts
+        await _saveToRecentContacts(phone, 'Airtime Purchase');
+        
         return completedOrder!;
       } else {
         // VTU.ng failed - mark order as failed (payment already made)
@@ -199,6 +205,10 @@ class VtuService {
           VtuOrderStatus.completed,
           token: apiResponse.transactionId,
         );
+        
+        // Save to recent contacts
+        await _saveToRecentContacts(phone, 'Data Purchase');
+        
         return completedOrder!;
       } else {
         await updateOrderStatus(
@@ -314,6 +324,87 @@ class VtuService {
     }
   }
 
+  /// Process cable TV subscription purchase
+  static Future<VtuOrder> processCableTvPurchase({
+    required String smartcardNumber,
+    required String providerCode,
+    required String variationId,
+    required double amountNaira,
+    required String planName,
+    required String phone,
+  }) async {
+    final amountSats = await nairaToSats(amountNaira);
+
+    if (!await hasSufficientBalance(amountSats)) {
+      throw InsufficientBalanceException(
+        required: amountSats,
+        available: await getUserBalance(),
+      );
+    }
+
+    final order = await _createOrder(
+      serviceType: VtuServiceType.cableTv,
+      recipient: smartcardNumber,
+      amountNaira: amountNaira,
+      amountSats: amountSats,
+      cableTvProvider: providerCode,
+      cableTvPlanId: variationId,
+    );
+
+    try {
+      await _payToAgent(
+        amountSats,
+        'Cable TV: $planName to $smartcardNumber',
+      );
+      await updateOrderStatus(order.id, VtuOrderStatus.processing);
+
+      final apiResponse = await VtuApiService.buyCableTv(
+        smartcardNumber: smartcardNumber,
+        providerCode: providerCode,
+        variationId: variationId,
+        phone: formatPhoneNumber(phone),
+      );
+
+      if (apiResponse.success) {
+        final completedOrder = await updateOrderStatus(
+          order.id,
+          VtuOrderStatus.completed,
+          token: apiResponse.transactionId,
+        );
+        return completedOrder!;
+      } else {
+        await updateOrderStatus(
+          order.id,
+          VtuOrderStatus.failed,
+          errorMessage: apiResponse.message,
+        );
+        throw VtuDeliveryException(
+          apiResponse.message,
+          errorType: apiResponse.errorType,
+          isRecoverable: apiResponse.isRecoverable,
+        );
+      }
+    } catch (e) {
+      if (e is InsufficientBalanceException || e is VtuDeliveryException) {
+        rethrow;
+      }
+      if (e is PaymentFailedException) {
+        await updateOrderStatus(
+          order.id,
+          VtuOrderStatus.failed,
+          errorMessage: e.message,
+        );
+        rethrow;
+      }
+      await updateOrderStatus(
+        order.id,
+        VtuOrderStatus.failed,
+        errorMessage: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
   /// Pay to agent's Lightning address
   static Future<void> _payToAgent(int sats, String memo) async {
     try {
@@ -328,11 +419,44 @@ class VtuService {
 
       // Send payment via Breez SDK
       await BreezSparkService.sendPayment(invoice, sats: sats);
+      
+      // Send push notification for successful VTU payment
+      BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+        amountSats: sats,
+        recipientName: 'VTU Agent',
+        description: memo,
+      );
 
       debugPrint('✅ Agent payment successful');
     } catch (e) {
       debugPrint('❌ Agent payment failed: $e');
+      
+      // Send push notification for failed VTU payment
+      BreezWebhookBridgeService().sendPaymentFailedNotification(
+        amountSats: sats,
+        errorMessage: e.toString(),
+        recipientName: 'VTU Agent',
+      );
+      
       throw PaymentFailedException(e.toString());
+    }
+  }
+
+  /// Save phone number to recent contacts for quick access
+  static Future<void> _saveToRecentContacts(String phone, String label) async {
+    try {
+      final formattedPhone = formatPhoneNumber(phone);
+      await ContactService.addRecentContact(
+        ContactInfo(
+          displayName: label,
+          identifier: formattedPhone,
+          type: 'phone',
+        ),
+      );
+      debugPrint('✅ Saved to recent contacts: $formattedPhone');
+    } catch (e) {
+      // Don't fail the purchase if contact save fails
+      debugPrint('⚠️ Failed to save to recent contacts: $e');
     }
   }
 
@@ -346,6 +470,8 @@ class VtuService {
     String? dataPlanId,
     String? electricityProvider,
     String? meterType,
+    String? cableTvProvider,
+    String? cableTvPlanId,
   }) async {
     final box = await _openOrdersBox();
 
@@ -361,6 +487,8 @@ class VtuService {
       dataPlanId: dataPlanId,
       electricityProvider: electricityProvider,
       meterType: meterType,
+      cableTvProvider: cableTvProvider,
+      cableTvPlanId: cableTvPlanId,
     );
 
     await box.put(order.id, jsonEncode(order.toJson()));
@@ -512,6 +640,153 @@ class VtuService {
       return true;
     }
   }
+
+  /// Verify cable TV customer (smartcard number)
+  static Future<VtuCableTvCustomerInfo?> verifyCableTvCustomer({
+    required String smartcardNumber,
+    required String providerCode,
+  }) async {
+    return await VtuApiService.verifyCableTvCustomer(
+      smartcardNumber: smartcardNumber,
+      providerCode: providerCode,
+    );
+  }
+
+  /// Get live cable TV plans from VTU.ng
+  static Future<List<VtuCableTvPlan>> getCableTvPlans(
+    String providerCode,
+  ) async {
+    try {
+      return await VtuApiService.getCableTvPlans(providerCode);
+    } catch (e) {
+      debugPrint('⚠️ Failed to fetch cable TV plans: $e');
+      return [];
+    }
+  }
+
+  /// Validate smartcard number (typically 10-11 digits)
+  static bool isValidSmartcardNumber(String smartcard) {
+    final cleaned = smartcard.replaceAll(RegExp(r'[^\d]'), '');
+    return cleaned.length >= 10 && cleaned.length <= 11;
+  }
+
+  // ============================================================================
+  // REFUND SYSTEM
+  // ============================================================================
+
+  /// Request a refund for a failed order
+  /// Generates a Lightning invoice for the refund amount
+  /// Agent will pay this invoice to complete the refund
+  static Future<VtuOrder?> requestRefund(String orderId) async {
+    final order = await getOrder(orderId);
+    if (order == null) {
+      throw RefundException('Order not found');
+    }
+
+    // Validate order is eligible for refund
+    if (!order.canRequestRefund) {
+      if (order.status != VtuOrderStatus.failed) {
+        throw RefundException('Only failed orders can be refunded');
+      }
+      if (order.refundStatus != RefundStatus.none) {
+        throw RefundException('Refund already ${order.refundStatus.name.toLowerCase()}');
+      }
+    }
+
+    try {
+      debugPrint('💰 Requesting refund for order: $orderId');
+      debugPrint('   Amount: ${order.amountSats} sats');
+
+      // Generate Lightning invoice for the refund amount
+      final invoice = await BreezSparkService.createInvoice(
+        sats: order.amountSats,
+        memo: 'Refund: ${order.serviceName} - ${order.recipient}',
+      );
+
+      // Update order with refund info
+      final box = await _openOrdersBox();
+      final updatedOrder = order.copyWith(
+        refundStatus: RefundStatus.requested,
+        refundInvoice: invoice,
+        refundRequestedAt: DateTime.now(),
+      );
+
+      await box.put(orderId, jsonEncode(updatedOrder.toJson()));
+      debugPrint('✅ Refund requested - invoice generated');
+
+      return updatedOrder;
+    } catch (e) {
+      debugPrint('❌ Refund request failed: $e');
+      throw RefundException('Failed to generate refund invoice: $e');
+    }
+  }
+
+  /// Mark a refund as completed (called when payment is received)
+  static Future<VtuOrder?> markRefundCompleted(String orderId) async {
+    final order = await getOrder(orderId);
+    if (order == null) return null;
+
+    if (order.refundStatus != RefundStatus.requested) {
+      throw RefundException('No pending refund for this order');
+    }
+
+    final box = await _openOrdersBox();
+    final updatedOrder = order.copyWith(
+      status: VtuOrderStatus.refunded,
+      refundStatus: RefundStatus.completed,
+      refundCompletedAt: DateTime.now(),
+    );
+
+    await box.put(orderId, jsonEncode(updatedOrder.toJson()));
+    debugPrint('✅ Refund completed for order: $orderId');
+
+    return updatedOrder;
+  }
+
+  /// Get orders that have pending refunds
+  static Future<List<VtuOrder>> getOrdersWithPendingRefunds() async {
+    final allOrders = await getAllOrders();
+    return allOrders.where((o) => o.hasRefundPending).toList();
+  }
+
+  /// Cancel a refund request (before it's paid)
+  static Future<VtuOrder?> cancelRefundRequest(String orderId) async {
+    final order = await getOrder(orderId);
+    if (order == null) return null;
+
+    if (order.refundStatus != RefundStatus.requested) {
+      throw RefundException('No pending refund to cancel');
+    }
+
+    final box = await _openOrdersBox();
+    final updatedOrder = VtuOrder(
+      id: order.id,
+      serviceType: order.serviceType,
+      recipient: order.recipient,
+      amountNaira: order.amountNaira,
+      amountSats: order.amountSats,
+      status: order.status,
+      createdAt: order.createdAt,
+      completedAt: order.completedAt,
+      networkCode: order.networkCode,
+      dataPlanId: order.dataPlanId,
+      electricityProvider: order.electricityProvider,
+      meterType: order.meterType,
+      token: order.token,
+      cableTvProvider: order.cableTvProvider,
+      cableTvPlanId: order.cableTvPlanId,
+      errorMessage: order.errorMessage,
+      refundStatus: RefundStatus.none,
+      refundInvoice: null,
+      refundRequestedAt: null,
+      refundCompletedAt: null,
+    );
+
+    await box.put(orderId, jsonEncode(updatedOrder.toJson()));
+    debugPrint('🚫 Refund request cancelled for order: $orderId');
+
+    return updatedOrder;
+  }
 }
 
 /// Exception for insufficient Lightning balance
@@ -573,4 +848,13 @@ class VtuNetworkException implements Exception {
 
   @override
   String toString() => 'Network error: $message';
+}
+
+/// Exception for refund errors
+class RefundException implements Exception {
+  final String message;
+  RefundException(this.message);
+
+  @override
+  String toString() => 'Refund error: $message';
 }

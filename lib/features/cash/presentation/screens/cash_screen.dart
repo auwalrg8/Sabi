@@ -7,6 +7,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/widgets/amount_chips.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
 import 'tapnob_webview_screen.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import '../providers/cash_provider.dart';
@@ -27,6 +28,7 @@ class _CashScreenState extends ConsumerState<CashScreen>
   bool _isLoadingRates = true;
   String _amountString = '';
   final formatter = NumberFormat.decimalPattern();
+  FiatCurrency _selectedCurrency = FiatCurrency.ngn;
 
   final List<int> _quickAmounts = [5000, 10000, 50000, 100000, 500000, 1000000];
 
@@ -49,7 +51,8 @@ class _CashScreenState extends ConsumerState<CashScreen>
   Future<void> _loadLiveRates() async {
     if (mounted) setState(() => _isLoadingRates = true);
     try {
-      final btc = await RateService.getBtcToNgnRate();
+      _selectedCurrency = ref.read(selectedFiatCurrencyProvider);
+      final btc = await RateService.getBtcToFiatRate(_selectedCurrency);
       final usdt = await RateService.getUsdToNgnRate();
       if (!mounted) return;
       setState(() {
@@ -302,8 +305,8 @@ class _CashScreenState extends ConsumerState<CashScreen>
                   SizedBox(height: 4.h),
                   Text(
                     _liveBtcRate != null
-                        ? '1 BTC = ₦${formatter.format(_liveBtcRate!.toInt())}'
-                        : '1 BTC = ₦${formatter.format(cashState.btcPrice.toInt())}',
+                        ? '1 BTC = ${_selectedCurrency.symbol}${formatter.format(_liveBtcRate!.toInt())}'
+                        : '1 BTC = ${_selectedCurrency.symbol}${formatter.format(cashState.btcPrice.toInt())}',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16.sp,

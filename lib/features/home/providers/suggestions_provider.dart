@@ -6,10 +6,11 @@ import 'package:sabi_wallet/services/app_state_service.dart';
 enum SuggestionType { backup, nostr, pin, socialRecovery }
 
 /// Provider for the list of visible suggestion cards
-final suggestionsProvider = StateNotifierProvider<SuggestionsNotifier, List<SuggestionType>>((ref) {
-  final storage = ref.read(secureStorageServiceProvider);
-  return SuggestionsNotifier(storage);
-});
+final suggestionsProvider =
+    StateNotifierProvider<SuggestionsNotifier, List<SuggestionType>>((ref) {
+      final storage = ref.read(secureStorageServiceProvider);
+      return SuggestionsNotifier(storage);
+    });
 
 class SuggestionsNotifier extends StateNotifier<List<SuggestionType>> {
   static const _storageKey = 'dismissed_suggestions';
@@ -22,6 +23,13 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionType>> {
 
   Future<void> _load() async {
     if (_initialized) return;
+    await refresh();
+    _initialized = true;
+  }
+
+  /// Refresh suggestions based on current user state
+  /// Call this after completing a setup task (backup, nostr, pin) to remove the suggestion
+  Future<void> refresh() async {
     // First, compute which suggestions should be shown based on stored user state
     final backupStatus = await _storage.getBackupStatus(); // null when not set
     final npub = await _storage.getNostrPublicKey();
@@ -30,10 +38,14 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionType>> {
     final shouldShowBackup = backupStatus == null && AppStateService.hasWallet;
     final shouldShowNostr = npub == null || npub.isEmpty;
     final shouldShowPin = !hasPin && AppStateService.hasWallet;
-    
+
     // Show social recovery suggestion if user backed up with seed phrase but not social recovery
-    final hasSocialRecovery = await _storage.read(key: 'social_recovery_setup') == 'true';
-    final shouldShowSocialRecovery = backupStatus == 'seed_phrase' && !hasSocialRecovery && AppStateService.hasWallet;
+    final hasSocialRecovery =
+        await _storage.read(key: 'social_recovery_setup') == 'true';
+    final shouldShowSocialRecovery =
+        backupStatus == 'seed_phrase' &&
+        !hasSocialRecovery &&
+        AppStateService.hasWallet;
 
     final candidates = <SuggestionType>[];
     if (shouldShowBackup) candidates.add(SuggestionType.backup);
@@ -51,8 +63,16 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionType>> {
     } else {
       state = candidates;
     }
+  }
 
-    _initialized = true;
+  /// Mark a suggestion as completed (removes it based on actual completion, not just dismissal)
+  /// This is called when the user actually completes a task
+  Future<void> markCompleted(SuggestionType type) async {
+    // Remove from state immediately
+    final newState = List<SuggestionType>.from(state)..remove(type);
+    state = newState;
+    // Note: We don't add to dismissed list because the task is actually completed,
+    // so it won't show up in candidates on next refresh anyway
   }
 
   Future<void> dismiss(SuggestionType type) async {
@@ -61,7 +81,10 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionType>> {
     if (newState.isEmpty) {
       await _storage.write(key: _storageKey, value: 'all');
     } else {
-      final dismissed = SuggestionType.values.where((e) => !newState.contains(e)).map((e) => e.name).join(',');
+      final dismissed = SuggestionType.values
+          .where((e) => !newState.contains(e))
+          .map((e) => e.name)
+          .join(',');
       await _storage.write(key: _storageKey, value: dismissed);
     }
   }

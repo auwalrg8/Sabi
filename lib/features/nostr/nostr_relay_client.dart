@@ -167,6 +167,61 @@ class NostrRelayClient {
       _debug.warn('DIRECT', 'Failed to connect to $relayUrl', e.toString());
     }
   }
+
+  /// Publish an event to a relay
+  static Future<bool> publishEvent({
+    required String relayUrl,
+    required Map<String, dynamic> event,
+  }) async {
+    try {
+      _debug.info(
+        'PUBLISH',
+        'Publishing to $relayUrl',
+        'kind: ${event['kind']}',
+      );
+
+      final ws = await WebSocket.connect(relayUrl).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw TimeoutException('Connection timeout');
+        },
+      );
+
+      // Send EVENT message
+      final eventMessage = jsonEncode(['EVENT', event]);
+      ws.add(eventMessage);
+      _debug.info('PUBLISH', 'EVENT sent to $relayUrl');
+
+      // Wait briefly for OK response
+      bool success = false;
+      await for (final data in ws.timeout(const Duration(seconds: 3))) {
+        try {
+          final message = jsonDecode(data as String) as List<dynamic>;
+          final messageType = message[0] as String;
+
+          if (messageType == 'OK' && message.length >= 3) {
+            success = message[2] as bool;
+            _debug.info('PUBLISH', 'OK from $relayUrl', 'success: $success');
+            break;
+          } else if (messageType == 'NOTICE') {
+            _debug.warn(
+              'PUBLISH',
+              'NOTICE from $relayUrl',
+              message[1].toString(),
+            );
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
+      ws.close();
+      return success;
+    } catch (e) {
+      _debug.warn('PUBLISH', 'Failed to publish to $relayUrl', e.toString());
+      return false;
+    }
+  }
 }
 
 typedef VoidCallback = void Function();

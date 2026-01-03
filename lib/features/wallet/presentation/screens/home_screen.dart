@@ -1,21 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'dart:io';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart'
     as cash_screen;
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
+import 'package:sabi_wallet/features/more/presentation/screens/more_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
-import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
+import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
@@ -69,11 +73,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       const cash_screen.CashScreen(),
       const P2PHomeScreen(),
-      const ProfileScreen(),
+      const MoreScreen(),
     ];
     // Initialize Breez SDK first, then poll payments
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        // Refresh suggestions to reflect any completed tasks
+        ref.read(suggestionsProvider.notifier).refresh();
+
         await _initializeBreezSDK();
 
         // Check if SDK initialized successfully
@@ -164,6 +171,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         if (BreezSparkService.isInitialized) {
           debugPrint('✅ Spark SDK initialized successfully');
+
+          // Start webhook bridge for push notifications
+          BreezWebhookBridgeService().startListening();
+          debugPrint('✅ BreezWebhookBridgeService started from home screen');
+
+          // Register FCM token for push notifications
+          FCMTokenRegistrationService().registerToken();
         } else {
           throw Exception('SDK initialization returned but _sdk is still null');
         }
@@ -323,7 +337,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Handle app lifecycle changes if needed
+    // Refresh suggestions when app resumes to reflect completed tasks
+    if (state == AppLifecycleState.resumed) {
+      ref.read(suggestionsProvider.notifier).refresh();
+    }
   }
 
   @override
@@ -333,58 +350,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final bool showSkeleton =
         !BreezSparkService.isInitialized || balanceState.isLoading;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Skeletonizer(
-            enabled: showSkeleton, // Skeleton stays on until SDK is ready
-            enableSwitchAnimation: true,
-            containersColor: AppColors.surface,
-            justifyMultiLineText: true,
-            effect: PulseEffect(
-              duration: Duration(seconds: 1),
-              from: AppColors.background,
-              to: AppColors.borderColor.withValues(alpha: 0.3),
-              lowerBound: 0,
-              upperBound: 1.0,
+    // Minimize app instead of killing it when back button is pressed
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          // Move app to background instead of killing it
+          // This uses Android's moveTaskToBack via method channel
+          const platform = MethodChannel('com.sabi.app/background');
+          try {
+            await platform.invokeMethod('moveToBackground');
+          } catch (e) {
+            // Fallback to system navigator if method channel fails
+            SystemNavigator.pop();
+          }
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Skeletonizer(
+              enabled: showSkeleton, // Skeleton stays on until SDK is ready
+              enableSwitchAnimation: true,
+              containersColor: AppColors.surface,
+              justifyMultiLineText: true,
+              effect: PulseEffect(
+                duration: Duration(seconds: 1),
+                from: AppColors.background,
+                to: AppColors.borderColor.withValues(alpha: 0.3),
+                lowerBound: 0,
+                upperBound: 1.0,
+              ),
+              switchAnimationConfig: SwitchAnimationConfig(
+                switchOutCurve: Curves.bounceInOut,
+              ),
+              child: Stack(
+                children: [
+                  // The main content (tabs)
+                  _screens[_currentIndex],
+                ],
+              ),
             ),
-            switchAnimationConfig: SwitchAnimationConfig(
-              switchOutCurve: Curves.bounceInOut,
-            ),
-            child: Stack(
-              children: [
-                // The main content (tabs)
-                _screens[_currentIndex],
-              ],
-            ),
-          ),
-          // SDK initialization in progress - skeleton loader handles the loading state
-          // No error overlay shown - the skeleton continues until SDK is ready
-        ],
-      ),
-      // Ensure the bottom navigation matches the app dark theme and avoids
-      // system insets causing white gaps by wrapping it in a SafeArea.
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface,
-          // Use the brand primary color for the selected tab
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet),
-              label: 'Cash',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: 'P2P'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+            // SDK initialization in progress - skeleton loader handles the loading state
+            // No error overlay shown - the skeleton continues until SDK is ready
           ],
+        ),
+        // Ensure the bottom navigation matches the app dark theme and avoids
+        // system insets causing white gaps by wrapping it in a SafeArea.
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: AppColors.surface,
+            // Use the brand primary color for the selected tab
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: AppColors.textSecondary,
+            showUnselectedLabels: true,
+            elevation: 0,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.account_balance_wallet),
+                label: 'Cash',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.swap_horiz),
+                label: 'P2P',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.grid_view_rounded),
+                label: 'More',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -431,17 +471,16 @@ class _HomeContentState extends State<_HomeContent> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Greeting: Hi, <username> with avatar
-                    FutureBuilder(
-                      future: ProfileService.getProfile(),
-                      builder: (context, snapshot) {
-                        final profile = snapshot.data;
+                    Builder(
+                      builder: (context) {
+                        final nostrProfile =
+                            NostrProfileService().currentProfile;
                         final username =
-                            (profile != null && profile.username.isNotEmpty)
-                                ? profile.username
-                                : 'user';
+                            nostrProfile?.displayNameOrFallback ?? 'user';
+                        final picture = nostrProfile?.picture;
                         final initial =
-                            (profile != null && profile.fullName.isNotEmpty)
-                                ? profile.initial
+                            username.isNotEmpty
+                                ? username[0].toUpperCase()
                                 : 'U';
 
                         return Row(
@@ -455,29 +494,23 @@ class _HomeContentState extends State<_HomeContent> {
                                   ),
                                 );
                               },
-                              child: Builder(
-                                builder: (_) {
-                                  final pic = profile?.profilePicturePath;
-                                  return CircleAvatar(
-                                    radius: 18.r,
-                                    backgroundColor: AppColors.primary,
-                                    backgroundImage:
-                                        (pic != null && pic.isNotEmpty)
-                                            ? FileImage(File(pic))
-                                                as ImageProvider
-                                            : null,
-                                    child:
-                                        (pic == null || pic.isEmpty)
-                                            ? Text(
-                                              initial,
-                                              style: TextStyle(
-                                                color: AppColors.surface,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            )
-                                            : null,
-                                  );
-                                },
+                              child: CircleAvatar(
+                                radius: 18.r,
+                                backgroundColor: AppColors.primary,
+                                backgroundImage:
+                                    (picture != null && picture.isNotEmpty)
+                                        ? CachedNetworkImageProvider(picture)
+                                        : null,
+                                child:
+                                    (picture == null || picture.isEmpty)
+                                        ? Text(
+                                          initial,
+                                          style: TextStyle(
+                                            color: AppColors.surface,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        )
+                                        : null,
                               ),
                             ),
                             SizedBox(width: 10.w),
@@ -709,7 +742,7 @@ class _HomeContentState extends State<_HomeContent> {
                               () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const UtilitiesScreen(),
+                                  builder: (_) => const UtilitiesHubScreen(),
                                 ),
                               ),
                         ),
@@ -753,7 +786,15 @@ class _HomeContentState extends State<_HomeContent> {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              builder: (_) => NostrEditModal(onSaved: () {}),
+                              builder:
+                                  (_) => NostrEditModal(
+                                    onSaved: () {
+                                      // Mark nostr suggestion as completed
+                                      ref
+                                          .read(suggestionsProvider.notifier)
+                                          .markCompleted(SuggestionType.nostr);
+                                    },
+                                  ),
                             );
                             break;
                           case SuggestionType.pin:

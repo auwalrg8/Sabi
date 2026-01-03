@@ -20,10 +20,33 @@ class _BiometricAuthScreenState extends ConsumerState<BiometricAuthScreen> {
   String _errorMessage = '';
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _canUseBiometrics = false;
+  bool _isCheckingPin = true; // Show loading while checking PIN status
 
   @override
   void initState() {
     super.initState();
+    _initAuth();
+  }
+
+  /// Initialize auth - check if PIN exists first, then proceed accordingly
+  Future<void> _initAuth() async {
+    final storage = ref.read(secureStorageServiceProvider);
+    final hasPin = await storage.hasPinCode();
+
+    if (!hasPin) {
+      // No PIN set - go directly to Home
+      if (mounted) _navigateToHome();
+      return;
+    }
+
+    // PIN exists - show PIN screen
+    if (mounted) {
+      setState(() {
+        _isCheckingPin = false;
+      });
+    }
+
+    // Now check biometrics
     _checkBiometrics();
   }
 
@@ -123,6 +146,16 @@ class _BiometricAuthScreenState extends ConsumerState<BiometricAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator while checking if PIN is set
+    if (_isCheckingPin) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(

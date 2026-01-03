@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
 
-class BalanceCard extends StatefulWidget {
+class BalanceCard extends ConsumerStatefulWidget {
   final int balanceSats;
   final bool showConfetti;
   final bool isOnline;
@@ -21,12 +23,14 @@ class BalanceCard extends StatefulWidget {
   });
 
   @override
-  State<BalanceCard> createState() => _BalanceCardState();
+  ConsumerState<BalanceCard> createState() => _BalanceCardState();
 }
 
-class _BalanceCardState extends State<BalanceCard> {
-  bool _showNaira = false;
-  double? _btcToNgnRate;
+class _BalanceCardState extends ConsumerState<BalanceCard> {
+  bool _showFiat = false;
+  double? _btcToFiatRate;
+  FiatCurrency _currentCurrency = FiatCurrency.ngn;
+
   @override
   void initState() {
     super.initState();
@@ -40,10 +44,12 @@ class _BalanceCardState extends State<BalanceCard> {
   }
 
   Future<void> _loadRate() async {
-    final rate = await RateService.getBtcToNgnRate();
+    final currency = ref.read(selectedFiatCurrencyProvider);
+    final rate = await RateService.getBtcToFiatRate(currency);
     if (mounted) {
       setState(() {
-        _btcToNgnRate = rate;
+        _btcToFiatRate = rate;
+        _currentCurrency = currency;
       });
     }
   }
@@ -51,7 +57,7 @@ class _BalanceCardState extends State<BalanceCard> {
   void _toggleCurrency() {
     HapticFeedback.selectionClick();
     setState(() {
-      _showNaira = !_showNaira;
+      _showFiat = !_showFiat;
     });
   }
 
@@ -70,6 +76,15 @@ class _BalanceCardState extends State<BalanceCard> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch for currency changes
+    final selectedCurrency = ref.watch(selectedFiatCurrencyProvider);
+    
+    // Reload rate if currency changed
+    if (selectedCurrency != _currentCurrency) {
+      _currentCurrency = selectedCurrency;
+      _loadRate();
+    }
+
     return Stack(
       children: [
         GestureDetector(
@@ -124,7 +139,7 @@ class _BalanceCardState extends State<BalanceCard> {
             ],
           ),
           const SizedBox(height: 12),
-          // Balance display (sats or naira)
+          // Balance display (sats or fiat)
           if (widget.isBalanceHidden)
             const Text(
               '••••',
@@ -136,8 +151,8 @@ class _BalanceCardState extends State<BalanceCard> {
                 letterSpacing: 8,
               ),
             )
-          else if (_showNaira && _btcToNgnRate != null)
-            // Naira view
+          else if (_showFiat && _btcToFiatRate != null)
+            // Fiat view (NGN or USD based on settings)
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -147,7 +162,7 @@ class _BalanceCardState extends State<BalanceCard> {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      '₦',
+                      _currentCurrency.symbol,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -160,7 +175,7 @@ class _BalanceCardState extends State<BalanceCard> {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          _formatNaira(widget.balanceSats, _btcToNgnRate!),
+                          _formatFiat(widget.balanceSats, _btcToFiatRate!),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 40,
@@ -226,18 +241,6 @@ class _BalanceCardState extends State<BalanceCard> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                // if (_btcToNgnRate != null) ...[
-                //   const SizedBox(height: 4),
-                //   Text(
-                //     '≈ ${_formatNairaShort(widget.balanceSats, _btcToNgnRate!)}',
-                //     style: TextStyle(
-                //       color: AppColors.textSecondary.withValues(alpha: 0.8),
-                //       fontSize: 14,
-                //       fontWeight: FontWeight.w500,
-                //     ),
-                //     textAlign: TextAlign.center,
-                //   ),
-                // ],
                 const SizedBox(height: 4),
               ],
             ),
@@ -256,10 +259,12 @@ class _BalanceCardState extends State<BalanceCard> {
     );
   }
 
-  String _formatNaira(int sats, double rate) {
+  String _formatFiat(int sats, double rate) {
     final btc = sats / 100000000;
-    final naira = btc * rate;
-    return naira.toStringAsFixed(0).replaceAllMapped(
+    final fiatValue = btc * rate;
+    // Use 2 decimal places for USD, 0 for NGN
+    final decimals = _currentCurrency == FiatCurrency.usd ? 2 : 0;
+    return fiatValue.toStringAsFixed(decimals).replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]},',
     );

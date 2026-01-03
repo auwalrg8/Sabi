@@ -1,16 +1,36 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/services/nostr_service.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/data/merchant_model.dart';
 import 'package:sabi_wallet/features/p2p/data/payment_method_model.dart';
 import 'package:sabi_wallet/features/p2p/data/models/p2p_models.dart';
 
-// Exchange rates provider
+// Real-time exchange rates provider (fetches from API)
+final liveExchangeRatesProvider = FutureProvider<Map<String, double>>((
+  ref,
+) async {
+  final btcNgn = await RateService.getBtcToNgnRate();
+  final btcUsd = await RateService.getBtcToUsdRate();
+  final usdNgn = await RateService.getUsdToNgnRate();
+  return {'BTC_NGN': btcNgn, 'BTC_USD': btcUsd, 'USD_NGN': usdNgn};
+});
+
+// Legacy provider for compatibility (now returns default values, use liveExchangeRatesProvider instead)
 final exchangeRatesProvider = Provider<Map<String, double>>((ref) {
-  return {'BTC_NGN': 131448939.22, 'USD_NGN': 1614.0};
+  // Try to get live rates, fallback to defaults
+  final liveRates = ref.watch(liveExchangeRatesProvider);
+  return liveRates.maybeWhen(
+    data: (rates) => rates,
+    orElse:
+        () => {'BTC_NGN': 150000000.0, 'BTC_USD': 95000.0, 'USD_NGN': 1580.0},
+  );
 });
 
 // Payment methods provider
@@ -50,109 +70,97 @@ final paymentMethodsProvider = Provider<List<PaymentMethodModel>>((ref) {
   ];
 });
 
-// Mock merchants
+// Merchants provider - empty for real trading (no mock data)
+// Real merchant profiles will be loaded from trade counterparties
 final merchantsProvider = Provider<List<MerchantModel>>((ref) {
-  return [
-    MerchantModel(
-      id: 'merchant_1',
-      name: 'Mubarak',
-      isVerified: true,
-      isNostrVerified: true,
-      trades30d: 160,
-      completionRate: 100.0,
-      avgReleaseMinutes: 17,
-      totalVolume: 85000000,
-      positiveFeedback: 526,
-      negativeFeedback: 0,
-      joinedDate: DateTime(2023, 3, 1),
-      firstTradeDate: DateTime(2023, 3, 13),
-    ),
-    MerchantModel(
-      id: 'merchant_2',
-      name: 'Almohad',
-      isVerified: true,
-      isNostrVerified: true,
-      trades30d: 180,
-      completionRate: 100.0,
-      avgReleaseMinutes: 15,
-      totalVolume: 95000000,
-      positiveFeedback: 612,
-      negativeFeedback: 0,
-      joinedDate: DateTime(2023, 2, 15),
-      firstTradeDate: DateTime(2023, 2, 20),
-    ),
-  ];
+  return [];
 });
 
-// P2P offers provider with enhanced data
+// P2P offers provider - returns empty list (no mock data)
+// Real offers come from user-created offers via userOffersProvider
 final p2pOffersProvider = Provider<List<P2POfferModel>>((ref) {
-  final merchants = ref.watch(merchantsProvider);
-  final paymentMethods = ref.watch(paymentMethodsProvider);
-
-  return [
-    P2POfferModel(
-      id: 'offer_1',
-      name: 'Mubarak',
-      pricePerBtc: 131448939.22,
-      paymentMethod: 'GTBank',
-      eta: '5–15 min',
-      ratingPercent: 98,
-      trades: 1247,
-      minLimit: 50000,
-      maxLimit: 8000000,
-      type: OfferType.sell,
-      merchant: merchants[0],
-      acceptedMethods: [paymentMethods[0]],
-      marginPercent: 1.5,
-      requiresKyc: true,
-      paymentInstructions:
-          'Send to GTBank 0123456789 – Auwal Abubakar. Use your full name as narration.',
-      availableSats: 5000,
-      responseTime: '<3 min',
-      volume: 45000000,
-    ),
-    P2POfferModel(
-      id: 'offer_2',
-      name: 'Almohad',
-      pricePerBtc: 131448939.22,
-      paymentMethod: 'Moniepoint',
-      eta: '3–15 min',
-      ratingPercent: 99,
-      trades: 2156,
-      minLimit: 100000,
-      maxLimit: 5000000,
-      type: OfferType.sell,
-      merchant: merchants[1],
-      acceptedMethods: [paymentMethods[3]],
-      marginPercent: 1.2,
-      requiresKyc: false,
-      paymentInstructions:
-          'Send to Moniepoint account details will be shared in chat.',
-      availableSats: 8000,
-      responseTime: '<5 min',
-      volume: 52000000,
-    ),
-    P2POfferModel(
-      id: 'offer_3',
-      name: 'Mubarak',
-      pricePerBtc: 131450000.00,
-      paymentMethod: 'GTBank',
-      eta: '5–15 min',
-      ratingPercent: 98,
-      trades: 1247,
-      minLimit: 50000,
-      maxLimit: 8000000,
-      type: OfferType.sell,
-      merchant: merchants[0],
-      acceptedMethods: [paymentMethods[0]],
-      marginPercent: 1.5,
-      requiresKyc: true,
-      availableSats: 5000,
-      responseTime: '<3 min',
-      volume: 45000000,
-    ),
-  ];
+  return [];
 });
+
+// Fetch P2P offers from Nostr relays (one-shot query, refreshable)
+final fetchedNostrOffersProvider =
+    FutureProvider.autoDispose<List<P2POfferModel>>((ref) async {
+      // Ensure Nostr is initialized
+      final isReady = await NostrService.ensureInitialized();
+      if (!isReady) return [];
+
+      final rawOffers = await NostrService.fetchOffers(limit: 100);
+      final offers = <P2POfferModel>[];
+
+      for (final map in rawOffers) {
+        try {
+          final action = map['action'] as String?;
+          if (action == 'cancel') continue; // Skip cancelled offers
+
+          offers.add(P2POfferModel.fromJson(map));
+        } catch (e) {
+          // Skip malformed offers
+        }
+      }
+
+      return offers;
+    });
+
+// Nostr-published P2P offers (real-time, decentralized)
+final nostrOffersProvider = StreamProvider.autoDispose<List<P2POfferModel>>((
+  ref,
+) {
+  final controller = StreamController<List<P2POfferModel>>();
+  final offers = <String, P2POfferModel>{};
+
+  // Check if Nostr is initialized before subscribing
+  if (!NostrService.isInitialized) {
+    // Try to initialize, then start subscription
+    NostrService.ensureInitialized().then((ok) {
+      if (!ok) {
+        controller.add([]);
+        return;
+      }
+      _startSubscription(controller, offers);
+    });
+  } else {
+    _startSubscription(controller, offers);
+  }
+
+  ref.onDispose(() async {
+    await controller.close();
+  });
+
+  return controller.stream;
+});
+
+void _startSubscription(
+  StreamController<List<P2POfferModel>> controller,
+  Map<String, P2POfferModel> offers,
+) {
+  NostrService.subscribeToOffers().listen((event) {
+    try {
+      final content = event.content;
+      final map = jsonDecode(content) as Map<String, dynamic>;
+      final action = map['action'] as String?;
+      if (action == 'cancel') {
+        final id = map['id'] as String? ?? event.id;
+        offers.remove(id);
+        controller.add(offers.values.toList());
+        return;
+      }
+
+      // Update or create
+      final id = map['id'] as String? ?? event.id;
+      map['id'] = id;
+      final model = P2POfferModel.fromJson(map);
+      offers[id] = model;
+      controller.add(offers.values.toList());
+    } catch (e) {
+      // ignore malformed events
+    }
+  });
+}
 
 // User-created offers persisted locally
 class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
@@ -208,9 +216,99 @@ class UserOffersNotifier extends StateNotifier<List<P2POfferModel>> {
     await _save();
   }
 
+  Future<void> updateOffer(P2POfferModel updated) async {
+    state = state.map((o) => o.id == updated.id ? updated : o).toList();
+    await _save();
+    // Publish update to Nostr
+    try {
+      await NostrService.publishOfferUpdate(updated.toJson());
+    } catch (_) {
+      // non-fatal
+    }
+  }
+
   Future<void> removeOffer(String id) async {
     state = state.where((o) => o.id != id).toList();
     await _save();
+    // Publish cancel to Nostr so remote clients can remove the offer
+    try {
+      await NostrService.publishOfferCancel(id);
+    } catch (_) {
+      // non-fatal if Nostr not initialized
+    }
+  }
+
+  /// Lock sats when a trade starts - prevents overselling
+  /// Returns true if lock was successful, false if insufficient available sats
+  Future<bool> lockSats(String offerId, double amount) async {
+    final index = state.indexWhere((o) => o.id == offerId);
+    if (index == -1) return false;
+
+    final offer = state[index];
+    final available = offer.effectiveAvailableSats;
+
+    // Check if we have enough unlocked sats
+    if (amount > available) {
+      return false;
+    }
+
+    // Lock the sats
+    final updatedOffer = offer.copyWith(
+      lockedSats: (offer.lockedSats ?? 0) + amount,
+    );
+    state = [...state];
+    state[index] = updatedOffer;
+    await _save();
+    return true;
+  }
+
+  /// Unlock sats when a trade is cancelled - makes sats available again
+  Future<void> unlockSats(String offerId, double amount) async {
+    final index = state.indexWhere((o) => o.id == offerId);
+    if (index == -1) return;
+
+    final offer = state[index];
+    final newLockedSats = ((offer.lockedSats ?? 0) - amount).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    final updatedOffer = offer.copyWith(lockedSats: newLockedSats);
+    state = [...state];
+    state[index] = updatedOffer;
+    await _save();
+  }
+
+  /// Deduct sats permanently after a trade completes
+  /// Reduces both availableSats and lockedSats
+  Future<void> deductSats(String offerId, double amount) async {
+    final index = state.indexWhere((o) => o.id == offerId);
+    if (index == -1) return;
+
+    final offer = state[index];
+    final newAvailable = ((offer.availableSats ?? 0) - amount).clamp(
+      0.0,
+      double.infinity,
+    );
+    final newLocked = ((offer.lockedSats ?? 0) - amount).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    final updatedOffer = offer.copyWith(
+      availableSats: newAvailable,
+      lockedSats: newLocked,
+    );
+    state = [...state];
+    state[index] = updatedOffer;
+    await _save();
+
+    // Publish updated availability to Nostr
+    try {
+      await NostrService.publishOfferUpdate(updatedOffer.toJson());
+    } catch (_) {
+      // non-fatal
+    }
   }
 }
 
@@ -269,7 +367,9 @@ final p2pFilterProvider =
 final filteredP2POffersProvider = Provider<List<P2POfferModel>>((ref) {
   final seedOffers = ref.watch(p2pOffersProvider);
   final userOffers = ref.watch(userOffersProvider);
-  final offers = [...seedOffers, ...userOffers];
+  final nostrOffersAsync = ref.watch(nostrOffersProvider);
+  final nostrOffers = nostrOffersAsync.asData?.value ?? [];
+  final offers = [...seedOffers, ...userOffers, ...nostrOffers];
   final filter = ref.watch(p2pFilterProvider);
 
   var filtered =
@@ -543,3 +643,56 @@ final tradeHistoryNotifierProvider =
 final tradeHistoryFilterProvider = StateProvider<TradeHistoryFilter>(
   (ref) => TradeHistoryFilter.all,
 );
+
+// ============================================================================
+// P2P Notification Providers
+// ============================================================================
+
+/// Provider for P2P notification service instance
+final p2pNotificationServiceProvider = Provider<P2PNotificationService>((ref) {
+  final service = P2PNotificationService();
+  service.initialize();
+  return service;
+});
+
+/// Provider for P2P notifications list
+final p2pNotificationsProvider = StreamProvider<List<P2PNotification>>((ref) {
+  final service = ref.watch(p2pNotificationServiceProvider);
+
+  // Stream controller that emits current list on each new notification
+  final controller = StreamController<List<P2PNotification>>();
+
+  // Emit initial list
+  controller.add(service.notifications);
+
+  // Listen for new notifications and emit updated list
+  final subscription = service.notificationStream.listen((_) {
+    controller.add(service.notifications);
+  });
+
+  ref.onDispose(() {
+    subscription.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
+/// Provider for unread notification count
+final p2pUnreadCountProvider = StreamProvider<int>((ref) {
+  final service = ref.watch(p2pNotificationServiceProvider);
+
+  final controller = StreamController<int>();
+  controller.add(service.unreadCount);
+
+  final subscription = service.unreadCountStream.listen((count) {
+    controller.add(count);
+  });
+
+  ref.onDispose(() {
+    subscription.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
+});

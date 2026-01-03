@@ -137,6 +137,16 @@ class BreezSparkService {
   // Start payment polling to detect new payments
   static void _startPaymentPolling() {
     _paymentPollingTimer?.cancel();
+    
+    // Initialize _lastPaymentId with current latest payment to avoid
+    // triggering notification for existing payments
+    listPayments(limit: 1).then((payments) {
+      if (payments.isNotEmpty) {
+        _lastPaymentId = payments.first.id;
+        debugPrint('📋 Initial lastPaymentId set to: $_lastPaymentId');
+      }
+    });
+    
     _paymentPollingTimer = Timer.periodic(const Duration(seconds: 2), (
       _,
     ) async {
@@ -144,10 +154,19 @@ class BreezSparkService {
         final payments = await listPayments(limit: 1);
         if (payments.isNotEmpty) {
           final latestPayment = payments.first;
-          if (_lastPaymentId != latestPayment.id) {
-            debugPrint('🔔 New payment detected: ${latestPayment.id}');
+          if (_lastPaymentId != null && _lastPaymentId != latestPayment.id) {
+            debugPrint('🔔 NEW PAYMENT DETECTED!');
+            debugPrint('   Previous ID: $_lastPaymentId');
+            debugPrint('   New ID: ${latestPayment.id}');
+            debugPrint('   Amount: ${latestPayment.amountSats} sats');
+            debugPrint('   IsIncoming: ${latestPayment.isIncoming}');
             _lastPaymentId = latestPayment.id;
             _paymentStream.add(latestPayment);
+            debugPrint('📢 Payment added to stream');
+          } else if (_lastPaymentId == null) {
+            // First poll - just set the ID without triggering notification
+            _lastPaymentId = latestPayment.id;
+            debugPrint('📋 First poll - lastPaymentId set to: $_lastPaymentId');
           }
         }
       } catch (e) {

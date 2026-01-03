@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
-import 'package:sabi_wallet/config/vtu_config.dart';
 import '../../data/models/models.dart';
 import 'vtu_order_history_screen.dart';
 
@@ -65,6 +63,15 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
         return Color(network.primaryColor);
       case VtuServiceType.electricity:
         return const Color(0xFF1E88E5);
+      case VtuServiceType.cableTv:
+        if (widget.order.cableTvProvider != null) {
+          final provider = CableTvProvider.values.firstWhere(
+            (p) => p.code == widget.order.cableTvProvider,
+            orElse: () => CableTvProvider.dstv,
+          );
+          return Color(provider.primaryColor);
+        }
+        return const Color(0xFF0033A1);
     }
   }
 
@@ -76,6 +83,8 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
         return Icons.wifi;
       case VtuServiceType.electricity:
         return Icons.bolt;
+      case VtuServiceType.cableTv:
+        return Icons.tv;
     }
   }
 
@@ -132,7 +141,7 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
                           child: Column(
                             children: [
                               Text(
-                                'Order Submitted!',
+                                'Order Successful!',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24.sp,
@@ -141,7 +150,7 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
                               ),
                               SizedBox(height: 8.h),
                               Text(
-                                'Your ${widget.order.serviceType.name} will arrive shortly',
+                                'Your ${widget.order.serviceType.name} has been processed successfully',
                                 style: TextStyle(
                                   color: const Color(0xFFA1A1B2),
                                   fontSize: 14.sp,
@@ -253,104 +262,25 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
                     ),
                     SizedBox(height: 20.h),
 
-                    // Payment Reminder
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(16.w),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7931A).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(color: const Color(0xFFF7931A).withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.flash_on, color: const Color(0xFFF7931A), size: 20.sp),
-                              SizedBox(width: 8.w),
-                              Text(
-                                'Send Payment',
-                                style: TextStyle(
-                                  color: const Color(0xFFF7931A),
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10.h),
-                          Text(
-                            'Send ${widget.order.amountSats} sats to complete your order:',
-                            style: TextStyle(
-                              color: const Color(0xFFA1A1B2),
-                              fontSize: 13.sp,
-                            ),
-                          ),
-                          SizedBox(height: 8.h),
-                          GestureDetector(
-                            onTap: () async {
-                              await Clipboard.setData(
-                                ClipboardData(text: VtuConfig.lightningAddress),
-                              );
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Lightning address copied!'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0C0C1A),
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      VtuConfig.lightningAddress,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.copy,
-                                    color: const Color(0xFFF7931A),
-                                    size: 18.sp,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 16.h),
-
-                    // Notice
+                    // Success Notice
                     Container(
                       padding: EdgeInsets.all(12.w),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A2E),
+                        color: const Color(0xFF10B981).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            Icons.access_time,
-                            color: const Color(0xFFA1A1B2),
+                            Icons.check_circle,
+                            color: const Color(0xFF10B981),
                             size: 18.sp,
                           ),
                           SizedBox(width: 10.w),
                           Expanded(
                             child: Text(
-                              'Orders are usually processed within 5-15 minutes after payment confirmation.',
+                              'Payment completed. Your order has been delivered.',
                               style: TextStyle(
                                 color: const Color(0xFFA1A1B2),
                                 fontSize: 12.sp,

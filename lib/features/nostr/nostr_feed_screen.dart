@@ -1,28 +1,42 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:skeletonizer/skeletonizer.dart';
-import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
 import 'nostr_service.dart';
 import 'nostr_edit_modal.dart';
+import 'nostr_profile_screen.dart';
+import 'nostr_search_screen.dart';
+import 'nostr_dm_inbox_screen.dart';
+import 'widgets/what_is_nostr_modal.dart';
+import 'widgets/nostr_onboarding_screen.dart';
 import '../../services/breez_spark_service.dart';
+import '../../services/nostr/dm_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
+
+// New services - to be used for enhanced features
+// ignore: unused_import
+import 'providers/nostr_providers.dart';
+// ignore: unused_import
+import 'widgets/enhanced_zap_slider.dart';
 
 /// Filter types for the feed
-enum FeedFilter { newThreads, latest, trending24h }
+enum FeedFilter { global, following, trending24h }
 
 /// Nostr feed screen displaying real posts from relays
-class NostrFeedScreen extends StatefulWidget {
+/// Now uses the upgraded Nostr services with FeedAggregator
+class NostrFeedScreen extends ConsumerStatefulWidget {
   const NostrFeedScreen({super.key});
 
   @override
-  State<NostrFeedScreen> createState() => _NostrFeedScreenState();
+  ConsumerState<NostrFeedScreen> createState() => _NostrFeedScreenState();
 }
 
-class _NostrFeedScreenState extends State<NostrFeedScreen> {
+class _NostrFeedScreenState extends ConsumerState<NostrFeedScreen> {
   List<NostrFeedPost> _posts = [];
   List<NostrFeedPost> _filteredPosts = [];
   bool _isLoading =
@@ -33,13 +47,12 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   List<String> _userFollows = [];
   final Map<String, int> _zapCounts = {};
   final Set<String> _likedPosts = {}; // Track liked post IDs
-  FeedFilter _currentFilter = FeedFilter.newThreads; // Default to follows feed
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  bool _showImages = false; // Default to text-only mode for low-data users
+  FeedFilter _currentFilter =
+      FeedFilter.following; // Default to following feed (Primal-style)
   Map<String, Map<String, String>> _authorMetadataCache = {};
   bool _followsFeedEmpty = false; // Track if follows feed returned no posts
   bool _hasCachedContent = false;
+  bool _hasCheckedOnboarding = false;
 
   @override
   void initState() {
@@ -49,8 +62,46 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     super.dispose();
+  }
+
+  /// Check and show Nostr onboarding for new users
+  Future<void> _checkNostrOnboarding() async {
+    if (_hasCheckedOnboarding) return;
+    _hasCheckedOnboarding = true;
+
+    // Check if user has Nostr keys
+    final npub = await NostrService.getNpub();
+    if (npub != null) return; // User already has keys
+
+    // Check if user has seen the intro
+    final hasSeenIntro = await NostrOnboardingManager.hasSeenIntro();
+    if (hasSeenIntro) return; // Already seen, don't show again
+
+    // Show onboarding after a brief delay to let the screen load
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (mounted) {
+      // Show "What is Nostr?" modal with Get Started option
+      WhatIsNostrModal.show(
+        context,
+        showGetStartedButton: true,
+        onGetStarted: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (_) => NostrOnboardingScreen(
+                    onComplete: () {
+                      // Refresh feed after setup
+                      _refreshFeedInBackground();
+                    },
+                  ),
+            ),
+          );
+        },
+      );
+    }
   }
 
   /// Initialize feed - load cached content immediately, then refresh in background
@@ -60,6 +111,9 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
 
     // Step 2: Refresh in background
     _refreshFeedInBackground();
+
+    // Step 3: Check if new user needs onboarding (non-blocking)
+    _checkNostrOnboarding();
   }
 
   /// Load cached posts and metadata - shows content instantly
@@ -105,38 +159,37 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
   }
 
   /// Refresh feed in background without blocking UI
+  /// Optimized for speed - shows posts immediately, fetches metadata later
   Future<void> _refreshFeedInBackground() async {
     if (mounted) {
       setState(() => _isRefreshing = true);
     }
 
     final debug = NostrService.debugService;
-    debug.info(
-      'SCREEN',
-      'Background refresh started',
-      'filter: $_currentFilter',
-    );
+    debug.info('SCREEN', 'Fast refresh started', 'filter: $_currentFilter');
 
     try {
-      // Initialize Nostr service (quick if already done)
+      // Quick init - skip if already done
       await NostrService.init();
-
-      // Get stored npub
       final npub = await NostrService.getNpub();
       _userNpub = npub;
 
-      // Quick relay initialization
-      await NostrService.reinitialize();
-
+      // FAST PATH: Fetch posts directly without reinitializing relays
       List<NostrFeedPost> newPosts = [];
 
-      if (_currentFilter == FeedFilter.newThreads && npub != null) {
+      if (_currentFilter == FeedFilter.following && npub != null) {
         _userHexPubkey = NostrService.npubToHex(npub);
 
         if (_userHexPubkey != null) {
-          _userFollows = await NostrService.fetchUserFollowsDirect(
-            _userHexPubkey!,
-          );
+          // Try to get cached follows first for speed
+          _userFollows = await NostrService.getCachedFollows();
+
+          if (_userFollows.isEmpty) {
+            // No cached follows, fetch from relays (this is the slow part)
+            _userFollows = await NostrService.fetchUserFollowsDirect(
+              _userHexPubkey!,
+            );
+          }
 
           if (_userFollows.isNotEmpty) {
             newPosts = await NostrService.fetchFollowsFeedDirect(
@@ -156,36 +209,20 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         newPosts = await NostrService.fetchGlobalFeedDirect(limit: 50);
       }
 
-      // Fetch author metadata for new posts (limit to avoid slowdown)
-      final uniqueAuthors = newPosts
-          .map((p) => p.authorPubkey)
-          .toSet()
-          .take(15);
-      for (final pubkey in uniqueAuthors) {
-        if (!_authorMetadataCache.containsKey(pubkey)) {
-          final metadata = await NostrService.fetchAuthorMetadataDirect(pubkey);
-          if (metadata.isNotEmpty) {
-            _authorMetadataCache[pubkey] = metadata;
+      // SHOW POSTS IMMEDIATELY - don't wait for metadata
+      if (mounted && newPosts.isNotEmpty) {
+        // Apply any cached metadata we already have
+        for (final post in newPosts) {
+          final meta = _authorMetadataCache[post.authorPubkey];
+          if (meta != null) {
+            post.authorName =
+                meta['name'] ?? meta['display_name'] ?? post.authorName;
+            post.authorAvatar = meta['picture'] ?? meta['avatar'];
+            post.lightningAddress = meta['lud16'];
           }
         }
 
-        // Apply metadata to posts as we get it
-        final meta = _authorMetadataCache[pubkey];
-        if (meta != null) {
-          for (final post in newPosts) {
-            if (post.authorPubkey == pubkey) {
-              post.authorName =
-                  meta['name'] ?? meta['display_name'] ?? post.authorName;
-              post.authorAvatar = meta['picture'] ?? meta['avatar'];
-              post.lightningAddress = meta['lud16'];
-            }
-          }
-        }
-      }
-
-      if (mounted) {
         setState(() {
-          // Merge new posts with existing (new first, no duplicates)
           _posts = NostrService.mergePosts(newPosts, _posts);
           _applyFilter();
           _isLoading = false;
@@ -193,16 +230,17 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
           _hasCachedContent = true;
         });
 
-        // Save to cache for next time
-        await NostrService.cachePosts(_posts);
-        await NostrService.cacheAuthorMetadata(_authorMetadataCache);
+        debug.success('SCREEN', 'Posts displayed', '${_posts.length} posts');
 
-        debug.success(
-          'SCREEN',
-          'Background refresh complete',
-          '${_posts.length} posts',
-        );
+        // Save to cache
+        NostrService.cachePosts(_posts);
       }
+
+      // BACKGROUND: Fetch metadata for posts without avatars (non-blocking)
+      _fetchMissingMetadataInBackground(newPosts);
+
+      // BACKGROUND: Fetch engagement data (non-blocking)
+      _fetchEngagementData(_posts);
     } catch (e, stackTrace) {
       debug.error('SCREEN', 'Background refresh error', '$e\n$stackTrace');
       if (mounted) {
@@ -214,38 +252,102 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     }
   }
 
+  /// Fetch missing metadata in background without blocking the feed
+  Future<void> _fetchMissingMetadataInBackground(
+    List<NostrFeedPost> posts,
+  ) async {
+    final uniqueAuthors =
+        posts
+            .where((p) => p.authorAvatar == null)
+            .map((p) => p.authorPubkey)
+            .toSet()
+            .where((pubkey) => !_authorMetadataCache.containsKey(pubkey))
+            .take(10)
+            .toList();
+
+    if (uniqueAuthors.isEmpty) return;
+
+    for (final pubkey in uniqueAuthors) {
+      try {
+        final metadata = await NostrService.fetchAuthorMetadataDirect(pubkey);
+        if (metadata.isNotEmpty) {
+          _authorMetadataCache[pubkey] = metadata;
+
+          // Update posts with this author
+          if (mounted) {
+            setState(() {
+              for (final post in _posts) {
+                if (post.authorPubkey == pubkey) {
+                  post.authorName =
+                      metadata['name'] ??
+                      metadata['display_name'] ??
+                      post.authorName;
+                  post.authorAvatar = metadata['picture'] ?? metadata['avatar'];
+                  post.lightningAddress = metadata['lud16'];
+                }
+              }
+            });
+          }
+        }
+      } catch (e) {
+        // Ignore metadata fetch errors - not critical
+      }
+    }
+
+    // Cache updated metadata
+    NostrService.cacheAuthorMetadata(_authorMetadataCache);
+  }
+
   /// Manual pull-to-refresh
   Future<void> _loadFeed() async {
     await _refreshFeedInBackground();
   }
 
+  /// Fetch real engagement data for posts
+  Future<void> _fetchEngagementData(List<NostrFeedPost> posts) async {
+    if (posts.isEmpty) return;
+
+    try {
+      final socialService = nostr_v2.SocialInteractionService();
+      final eventIds = posts.take(20).map((p) => p.id).toList();
+
+      final engagementMap = await socialService.fetchBatchEngagement(eventIds);
+
+      if (mounted && engagementMap.isNotEmpty) {
+        setState(() {
+          for (final post in _posts) {
+            final engagement = engagementMap[post.id];
+            if (engagement != null) {
+              post.likeCount = engagement.likeCount;
+              post.replyCount = engagement.replyCount;
+              post.repostCount = engagement.repostCount;
+              post.zapAmount = engagement.zapTotalSats;
+            }
+          }
+          // Re-apply filter to update filtered posts
+          _applyFilter();
+        });
+
+        debugPrint(
+          '📊 [ENGAGEMENT] Fetched engagement data for ${engagementMap.length} posts',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ENGAGEMENT] Failed to fetch engagement: $e');
+    }
+  }
+
   void _applyFilter() {
     List<NostrFeedPost> filtered = List.from(_posts);
 
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      filtered =
-          filtered
-              .where(
-                (post) =>
-                    post.content.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ) ||
-                    post.authorName.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    ),
-              )
-              .toList();
-    }
-
     // Apply feed filter
     switch (_currentFilter) {
-      case FeedFilter.newThreads:
-        // Posts from follows, sorted by timestamp
+      case FeedFilter.global:
+        // Global posts, sorted by timestamp
         filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
-      case FeedFilter.latest:
-        // Global posts, sorted by timestamp
+      case FeedFilter.following:
+        // Posts from follows, sorted by timestamp
         filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         break;
       case FeedFilter.trending24h:
@@ -263,9 +365,18 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     setState(() => _filteredPosts = filtered);
   }
 
-  void _onSearchChanged(String query) {
-    setState(() => _searchQuery = query);
-    _applyFilter();
+  void _openSearchScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NostrSearchScreen()),
+    );
+  }
+
+  void _openMessagesScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NostrDMInboxScreen()),
+    );
   }
 
   void _onFilterChanged(FeedFilter filter) {
@@ -276,6 +387,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     }
   }
 
+  /// Handle zap using the new ZapService (NIP-57 compliant)
   void _handleZapPost(NostrFeedPost post, int satoshis) async {
     final lightningAddress = post.lightningAddress;
 
@@ -308,7 +420,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Sending ${satoshis} sats to ${post.authorName}...'),
+              Text('Sending $satoshis sats to ${post.authorName}...'),
             ],
           ),
           backgroundColor: const Color(0xFFF7931A),
@@ -316,95 +428,77 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
         ),
       );
 
-      // Step 1: Get LNURL-pay callback from lightning address
-      // Lightning address format: name@domain -> https://domain/.well-known/lnurlp/name
-      final parts = lightningAddress.split('@');
-      if (parts.length != 2) {
-        throw Exception('Invalid lightning address format');
-      }
-      final name = parts[0];
-      final domain = parts[1];
-      final lnurlEndpoint = 'https://$domain/.well-known/lnurlp/$name';
-
-      // Fetch LNURL-pay parameters
-      final lnurlResponse = await http.get(Uri.parse(lnurlEndpoint));
-      if (lnurlResponse.statusCode != 200) {
-        throw Exception('Failed to get LNURL-pay info');
-      }
-
-      final lnurlData = jsonDecode(lnurlResponse.body) as Map<String, dynamic>;
-      final callback = lnurlData['callback'] as String?;
-      final minSendable =
-          (lnurlData['minSendable'] as num?) ?? 1000; // millisats
-      final maxSendable =
-          (lnurlData['maxSendable'] as num?) ?? 100000000000; // millisats
-
-      if (callback == null) {
-        throw Exception('No callback URL in LNURL response');
-      }
-
-      // Convert sats to millisats
-      final amountMsat = satoshis * 1000;
-
-      // Check amount bounds
-      if (amountMsat < minSendable || amountMsat > maxSendable) {
-        throw Exception(
-          'Amount out of range (${minSendable ~/ 1000}-${maxSendable ~/ 1000} sats)',
-        );
-      }
-
-      // Step 2: Request invoice from callback
-      final separator = callback.contains('?') ? '&' : '?';
-      final invoiceUrl = '$callback${separator}amount=$amountMsat';
-      final invoiceResponse = await http.get(Uri.parse(invoiceUrl));
-
-      if (invoiceResponse.statusCode != 200) {
-        throw Exception('Failed to get invoice');
-      }
-
-      final invoiceData =
-          jsonDecode(invoiceResponse.body) as Map<String, dynamic>;
-      final invoice = invoiceData['pr'] as String?;
-
-      if (invoice == null || invoice.isEmpty) {
-        throw Exception('No invoice received');
-      }
-
-      // Step 3: Pay the invoice using Breez SDK
-      await BreezSparkService.sendPayment(
-        invoice,
-        sats: satoshis,
+      // Use the new ZapService for NIP-57 compliant zaps
+      final zapService = nostr_v2.ZapService();
+      final result = await zapService.sendZap(
+        recipientPubkey: post.authorPubkey,
+        amountSats: satoshis,
+        eventId: post.id,
         comment: 'Zap from Sabi Wallet',
-        recipientName: post.authorName,
+        getBalance: () async {
+          // Get balance from Breez SDK
+          final balance = await BreezSparkService.getBalance();
+          return balance;
+        },
+        payInvoice: (String bolt11) async {
+          // Pay invoice using Breez SDK and return payment hash
+          final paymentResult = await BreezSparkService.sendPayment(
+            bolt11,
+            sats: satoshis,
+            comment: 'Zap from Sabi Wallet',
+            recipientName: post.authorName,
+          );
+          // Extract payment hash from result
+          return paymentResult['payment']?.id as String?;
+        },
       );
 
       // Hide loading snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      // Show confetti for success
-      Confetti.launch(
-        context,
-        options: const ConfettiOptions(particleCount: 50, spread: 360, y: 0.5),
-      );
-
-      // Update local zap count
-      setState(() {
-        _zapCounts[post.id] =
-            (_zapCounts[post.id] ?? post.zapAmount) + satoshis;
-      });
-
-      final nairaAmount = NostrService.satsToNaira(satoshis);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '⚡ Zapped ${post.authorName} ${NostrService.formatNaira(nairaAmount)}!',
+      if (result.isSuccess) {
+        // Show confetti for success
+        Confetti.launch(
+          context,
+          options: const ConfettiOptions(
+            particleCount: 50,
+            spread: 360,
+            y: 0.5,
           ),
-          backgroundColor: const Color(0xFFF7931A),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
 
-      debugPrint('✅ Zap sent: $satoshis sats to ${post.authorName}');
+        // Update local zap count
+        setState(() {
+          _zapCounts[post.id] =
+              (_zapCounts[post.id] ?? post.zapAmount) + satoshis;
+        });
+
+        final nairaAmount = NostrService.satsToNaira(satoshis);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚡ Zapped ${post.authorName} ${NostrService.formatNaira(nairaAmount)}!',
+            ),
+            backgroundColor: const Color(0xFFF7931A),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        debugPrint('✅ Zap sent: $satoshis sats to ${post.authorName}');
+      } else if (result.isInsufficientBalance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message ?? 'Insufficient balance'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Zap failed: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('❌ Error sending zap: $e');
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -417,15 +511,234 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     }
   }
 
-  void _handleLikePost(NostrFeedPost post) {
+  void _handleLikePost(NostrFeedPost post) async {
+    final wasLiked = _likedPosts.contains(post.id);
+
+    // Optimistic UI update
     setState(() {
-      if (_likedPosts.contains(post.id)) {
+      if (wasLiked) {
         _likedPosts.remove(post.id);
       } else {
         _likedPosts.add(post.id);
       }
     });
-    // TODO: Send like reaction to Nostr relays (NIP-25)
+
+    // Send like reaction to Nostr relays (NIP-25)
+    if (!wasLiked) {
+      try {
+        final socialService = nostr_v2.SocialInteractionService();
+        final success = await socialService.likeEvent(
+          eventId: post.id,
+          eventPubkey: post.authorPubkey,
+        );
+
+        if (!success && mounted) {
+          // Revert on failure
+          setState(() => _likedPosts.remove(post.id));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to like post'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _likedPosts.remove(post.id));
+        }
+      }
+    }
+  }
+
+  void _handleRepost(NostrFeedPost post) async {
+    // Show confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            title: Text(
+              'Repost this note?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
+            ),
+            content: Text(
+              'This will share this note to your followers.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFFA1A1B2)),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF7931A),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                ),
+                child: const Text(
+                  'Repost',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      try {
+        final socialService = nostr_v2.SocialInteractionService();
+        final success = await socialService.repostEvent(
+          eventId: post.id,
+          eventPubkey: post.authorPubkey,
+          eventContent: post.content,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success ? 'Reposted! 🔄' : 'Failed to repost'),
+              backgroundColor: success ? const Color(0xFF00FFB2) : Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _handleReply(NostrFeedPost post) {
+    // Show reply dialog
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => _ReplyModal(
+            post: post,
+            onSent: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Reply sent! 💬'),
+                  backgroundColor: Color(0xFF00FFB2),
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  void _handleShare(NostrFeedPost post) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111128),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder:
+          (context) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B6B80),
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Text(
+                    'Share',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ShareOption(
+                        icon: Icons.link,
+                        label: 'Copy Link',
+                        onTap: () {
+                          final link = nostr_v2.SocialInteractionService()
+                              .getWebLink(post.id);
+                          Clipboard.setData(ClipboardData(text: link));
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Link copied!'),
+                              backgroundColor: Color(0xFF00FFB2),
+                            ),
+                          );
+                        },
+                      ),
+                      _ShareOption(
+                        icon: Icons.content_copy,
+                        label: 'Copy Text',
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: post.content));
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Text copied!'),
+                              backgroundColor: Color(0xFF00FFB2),
+                            ),
+                          );
+                        },
+                      ),
+                      _ShareOption(
+                        icon: Icons.share,
+                        label: 'Share',
+                        onTap: () {
+                          Navigator.pop(context);
+                          final link = nostr_v2.SocialInteractionService()
+                              .getWebLink(post.id);
+                          Share.share('${post.content}\n\n$link');
+                        },
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20.h),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void _navigateToProfile(NostrFeedPost post) {
+    // Navigate to full profile screen with the author's pubkey
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => NostrProfileScreen(
+              pubkey: post.authorPubkey,
+              initialName: post.authorName,
+              initialAvatarUrl: post.authorAvatar,
+            ),
+      ),
+    );
   }
 
   void _showCreateAccountModal() {
@@ -472,104 +785,80 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                     ),
                   ),
                   const Spacer(),
-                  // Show Images toggle
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Images',
-                        style: TextStyle(
-                          color:
-                              _showImages
-                                  ? const Color(0xFFF7931A)
-                                  : const Color(0xFFA1A1B2),
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      SizedBox(
-                        height: 24.h,
-                        child: Switch(
-                          value: _showImages,
-                          onChanged: (val) => setState(() => _showImages = val),
-                          activeThumbColor: const Color(0xFFF7931A),
-                          activeTrackColor: const Color(
-                            0xFFF7931A,
-                          ).withOpacity(0.3),
-                          inactiveThumbColor: const Color(0xFFA1A1B2),
-                          inactiveTrackColor: const Color(0xFF111128),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 8.w),
-                  // Refresh button
+                  // Messages button with unread badge
                   GestureDetector(
-                    onTap: _isRefreshing ? null : _loadFeed,
-                    child: Icon(
-                      Icons.refresh,
-                      color:
-                          _isRefreshing
-                              ? const Color(0xFFA1A1B2)
-                              : Colors.white,
-                      size: 24.sp,
+                    onTap: () => _openMessagesScreen(),
+                    child: StreamBuilder<int>(
+                      stream: DMService().unreadCountStream,
+                      initialData: DMService().totalUnreadCount,
+                      builder: (context, snapshot) {
+                        final unreadCount = snapshot.data ?? 0;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              Icons.mail_outline,
+                              color: Colors.white,
+                              size: 24.sp,
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: -6,
+                                top: -6,
+                                child: Container(
+                                  padding: EdgeInsets.all(4.r),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF7931A),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: BoxConstraints(
+                                    minWidth: 16.w,
+                                    minHeight: 16.h,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      unreadCount > 9
+                                          ? '9+'
+                                          : unreadCount.toString(),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
+                  ),
+                  SizedBox(width: 16.w),
+                  // Search button - opens search screen
+                  GestureDetector(
+                    onTap: () => _openSearchScreen(),
+                    child: Icon(Icons.search, color: Colors.white, size: 24.sp),
                   ),
                 ],
               ),
             ),
 
-            // Search bar
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111128),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                  decoration: InputDecoration(
-                    hintText: 'Search posts...',
-                    hintStyle: TextStyle(
-                      color: const Color(0xFFA1A1B2),
-                      fontSize: 14.sp,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: const Color(0xFFA1A1B2),
-                      size: 20.sp,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 12.h,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 12.h),
-
-            // Filter tabs
+            // Filter tabs - Following first (Primal-style default)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: Row(
                 children: [
                   _FilterTab(
-                    label: 'New Threads',
-                    isSelected: _currentFilter == FeedFilter.newThreads,
-                    onTap: () => _onFilterChanged(FeedFilter.newThreads),
+                    label: 'Following',
+                    isSelected: _currentFilter == FeedFilter.following,
+                    onTap: () => _onFilterChanged(FeedFilter.following),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
-                    label: 'Latest',
-                    isSelected: _currentFilter == FeedFilter.latest,
-                    onTap: () => _onFilterChanged(FeedFilter.latest),
+                    label: 'Global',
+                    isSelected: _currentFilter == FeedFilter.global,
+                    onTap: () => _onFilterChanged(FeedFilter.global),
                   ),
                   SizedBox(width: 8.w),
                   _FilterTab(
@@ -613,11 +902,11 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
             Expanded(
               child:
                   (_isLoading && !_hasCachedContent)
-                      ? _buildSkeletonLoader()
+                      ? _buildSimpleLoader()
                       : _userNpub == null && !_hasCachedContent
                       ? _buildNoAccountState()
                       : (_followsFeedEmpty &&
-                          _currentFilter == FeedFilter.newThreads &&
+                          _currentFilter == FeedFilter.following &&
                           _filteredPosts.isEmpty)
                       ? _buildFollowsEmptyState()
                       : _filteredPosts.isEmpty
@@ -637,8 +926,15 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
                               onZap:
                                   (satoshis) => _handleZapPost(post, satoshis),
                               onLike: () => _handleLikePost(post),
+                              onRepost: () => _handleRepost(post),
+                              onReply: () => _handleReply(post),
+                              onShare: () => _handleShare(post),
+                              onProfileTap: () => _navigateToProfile(post),
                               isLiked: _likedPosts.contains(post.id),
-                              showImages: _showImages,
+                              showImages: true, // Always show images
+                              likeCount: post.likeCount,
+                              repostCount: post.repostCount,
+                              replyCount: post.replyCount,
                             );
                           },
                         ),
@@ -774,7 +1070,7 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton.icon(
-                  onPressed: () => _onFilterChanged(FeedFilter.latest),
+                  onPressed: () => _onFilterChanged(FeedFilter.global),
                   icon: Icon(
                     Icons.public,
                     size: 18.sp,
@@ -812,99 +1108,21 @@ class _NostrFeedScreenState extends State<NostrFeedScreen> {
     );
   }
 
-  Widget _buildSkeletonLoader() {
-    return Skeletonizer(
-      enabled: true,
-      child: ListView.builder(
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        itemCount: 5,
-        itemBuilder: (context, index) {
-          return Container(
-            margin: EdgeInsets.only(bottom: 12.h),
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(20.r),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44.w,
-                      height: 44.h,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2A2A3E),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 120.w,
-                            height: 14.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A3E),
-                              borderRadius: BorderRadius.circular(4.r),
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Container(
-                            width: 80.w,
-                            height: 12.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A2A3E),
-                              borderRadius: BorderRadius.circular(4.r),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 60.w,
-                      height: 24.h,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A2A3E),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-                Container(
-                  width: double.infinity,
-                  height: 16.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A3E),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Container(
-                  width: 250.w,
-                  height: 16.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A3E),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Container(
-                  width: 180.w,
-                  height: 16.h,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A3E),
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+  Widget _buildSimpleLoader() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            color: Color(0xFFF7931A),
+            strokeWidth: 3,
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'Loading feed...',
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+          ),
+        ],
       ),
     );
   }
@@ -945,22 +1163,37 @@ class _FilterTab extends StatelessWidget {
   }
 }
 
-/// Nostr post card widget with Moniepoint navy style
+/// Nostr post card widget with Primal-inspired design
+/// Features: Clean layout, bottom action bar with reply/repost/like/zap
 class _NostrPostCard extends StatefulWidget {
   final NostrFeedPost post;
   final int zapAmount;
   final Function(int) onZap;
   final VoidCallback onLike;
+  final VoidCallback onRepost;
+  final VoidCallback onReply;
+  final VoidCallback onShare;
+  final VoidCallback onProfileTap;
   final bool isLiked;
   final bool showImages;
+  final int likeCount;
+  final int repostCount;
+  final int replyCount;
 
   const _NostrPostCard({
     required this.post,
     required this.zapAmount,
     required this.onZap,
     required this.onLike,
+    required this.onRepost,
+    required this.onReply,
+    required this.onShare,
+    required this.onProfileTap,
     required this.isLiked,
     required this.showImages,
+    this.likeCount = 0,
+    this.repostCount = 0,
+    this.replyCount = 0,
   });
 
   @override
@@ -969,7 +1202,7 @@ class _NostrPostCard extends StatefulWidget {
 
 class _NostrPostCardState extends State<_NostrPostCard> {
   bool _showZapSlider = false;
-  double _zapValue = 100; // Default 100 sats
+  double _zapValue = 21; // Default 21 sats (Primal-style)
   final Set<int> _unblurredImages = {};
 
   // Extract image URLs from post content
@@ -1024,270 +1257,206 @@ class _NostrPostCardState extends State<_NostrPostCard> {
     final hasImages = imageUrls.isNotEmpty && widget.showImages;
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12.h),
+      margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
         color: const Color(0xFF111128),
-        borderRadius: BorderRadius.circular(20.r),
+        border: Border(
+          bottom: BorderSide(color: const Color(0xFF1E1E3F), width: 0.5),
+        ),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.all(16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header: Avatar + Name + Time + Zap Amount
-                    Row(
-                      children: [
-                        // Avatar with image support
-                        Container(
-                          width: 44.w,
-                          height: 44.h,
-                          decoration: BoxDecoration(
-                            color: _getAvatarColor(widget.post.authorName),
-                            shape: BoxShape.circle,
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child:
-                              widget.post.authorAvatar != null
-                                  ? CachedNetworkImage(
-                                    imageUrl: widget.post.authorAvatar!,
-                                    fit: BoxFit.cover,
-                                    placeholder:
-                                        (context, url) => Center(
-                                          child: Text(
-                                            widget.post.authorName.isNotEmpty
-                                                ? widget.post.authorName[0]
-                                                    .toUpperCase()
-                                                : '?',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18.sp,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                    errorWidget:
-                                        (context, url, error) => Center(
-                                          child: Text(
-                                            widget.post.authorName.isNotEmpty
-                                                ? widget.post.authorName[0]
-                                                    .toUpperCase()
-                                                : '?',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18.sp,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                  )
-                                  : Center(
-                                    child: Text(
-                                      widget.post.authorName.isNotEmpty
-                                          ? widget.post.authorName[0]
-                                              .toUpperCase()
-                                          : '?',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18.sp,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                        ),
-                        SizedBox(width: 12.w),
-                        // Name + Time
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.post.authorName,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                _formatTime(widget.post.timestamp),
-                                style: TextStyle(
-                                  color: const Color(0xFFA1A1B2),
-                                  fontSize: 12.sp,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Zap amount display
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7931A).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.electric_bolt,
-                                color: const Color(0xFFF7931A),
-                                size: 14.sp,
-                              ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                NostrService.formatNaira(
-                                  NostrService.satsToNaira(widget.zapAmount),
-                                ),
-                                style: TextStyle(
-                                  color: const Color(0xFFF7931A),
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+          // Main content area
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 8.h),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Avatar
+                GestureDetector(
+                  onTap: widget.onProfileTap,
+                  child: Container(
+                    width: 40.w,
+                    height: 40.h,
+                    decoration: BoxDecoration(
+                      color: _getAvatarColor(widget.post.authorName),
+                      shape: BoxShape.circle,
                     ),
-                    SizedBox(height: 12.h),
-
-                    // Text Content
-                    if (textContent.isNotEmpty)
-                      Text(
-                        textContent,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.sp,
-                          height: 1.5,
-                        ),
-                      ),
-                  ],
+                    clipBehavior: Clip.antiAlias,
+                    child:
+                        widget.post.authorAvatar != null
+                            ? CachedNetworkImage(
+                              imageUrl: widget.post.authorAvatar!,
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) => _buildAvatarPlaceholder(),
+                              errorWidget:
+                                  (context, url, error) =>
+                                      _buildAvatarPlaceholder(),
+                            )
+                            : _buildAvatarPlaceholder(),
+                  ),
                 ),
-              ),
-
-              // Images section
-              if (hasImages) ...[
-                _buildImagesSection(imageUrls),
-                SizedBox(height: 8.h),
-              ],
-
-              // Action Button Row (at the bottom, not overlapping)
-              if (!_showZapSlider)
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                SizedBox(width: 12.w),
+                // Content column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Like button
-                      GestureDetector(
-                        onTap: widget.onLike,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12.w,
-                            vertical: 8.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                widget.isLiked
-                                    ? const Color(0xFFEC4899).withOpacity(0.15)
-                                    : const Color(0xFF111128),
-                            borderRadius: BorderRadius.circular(20.r),
-                            border: Border.all(
-                              color:
-                                  widget.isLiked
-                                      ? const Color(0xFFEC4899)
-                                      : const Color(
-                                        0xFFA1A1B2,
-                                      ).withOpacity(0.3),
+                      // Header: Name, handle, time
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              widget.post.authorName,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                widget.isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color:
-                                    widget.isLiked
-                                        ? const Color(0xFFEC4899)
-                                        : const Color(0xFFA1A1B2),
-                                size: 16.sp,
-                              ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                'Like',
-                                style: TextStyle(
-                                  color:
-                                      widget.isLiked
-                                          ? const Color(0xFFEC4899)
-                                          : const Color(0xFFA1A1B2),
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          SizedBox(width: 4.w),
+                          // Verified badge (if applicable)
+                          if (widget.post.authorName.toLowerCase().contains(
+                                'bitcoin',
+                              ) ||
+                              widget.zapAmount > 1000)
+                            Icon(
+                              Icons.verified,
+                              color: const Color(0xFFF7931A),
+                              size: 14.sp,
+                            ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            '· ${_formatTime(widget.post.timestamp)}',
+                            style: TextStyle(
+                              color: const Color(0xFF6B6B80),
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // NIP-05 identifier if available
+                      if (widget.post.lightningAddress != null)
+                        Padding(
+                          padding: EdgeInsets.only(top: 1.h),
+                          child: Text(
+                            widget.post.lightningAddress!,
+                            style: TextStyle(
+                              color: const Color(0xFF6B6B80),
+                              fontSize: 12.sp,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      SizedBox(width: 8.w),
-                      // Zap button
-                      GestureDetector(
-                        onTap: _showZapSliderModal,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12.w,
-                            vertical: 8.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7931A),
-                            borderRadius: BorderRadius.circular(20.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFF7931A).withOpacity(0.4),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.electric_bolt,
-                                color: Colors.white,
-                                size: 16.sp,
-                              ),
-                              SizedBox(width: 4.w),
-                              Text(
-                                'Zap',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                      SizedBox(height: 6.h),
+                      // Post content
+                      if (textContent.isNotEmpty)
+                        Text(
+                          textContent,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.sp,
+                            height: 1.4,
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
-
-              // Zap Slider (when active)
-              if (_showZapSlider) _buildZapSlider(),
-            ],
+              ],
+            ),
           ),
+
+          // Images section (if any)
+          if (hasImages) ...[
+            SizedBox(height: 8.h),
+            _buildImagesSection(imageUrls),
+          ],
+
+          // Zap slider (when active)
+          if (_showZapSlider) ...[SizedBox(height: 8.h), _buildZapSlider()],
+
+          // Action bar (Primal-style bottom icons)
+          if (!_showZapSlider)
+            Padding(
+              padding: EdgeInsets.fromLTRB(52.w, 8.h, 16.w, 12.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Reply
+                  _ActionButton(
+                    icon: Icons.chat_bubble_outline,
+                    count: widget.replyCount,
+                    color: const Color(0xFF6B6B80),
+                    onTap: widget.onReply,
+                  ),
+                  // Repost
+                  _ActionButton(
+                    icon: Icons.repeat,
+                    count: widget.repostCount,
+                    color: const Color(0xFF6B6B80),
+                    onTap: widget.onRepost,
+                  ),
+                  // Like
+                  _ActionButton(
+                    icon:
+                        widget.isLiked ? Icons.favorite : Icons.favorite_border,
+                    count:
+                        widget.isLiked
+                            ? widget.likeCount + 1
+                            : widget.likeCount,
+                    color:
+                        widget.isLiked
+                            ? const Color(0xFFE91E63)
+                            : const Color(0xFF6B6B80),
+                    activeColor: const Color(0xFFE91E63),
+                    isActive: widget.isLiked,
+                    onTap: widget.onLike,
+                  ),
+                  // Zap
+                  _ActionButton(
+                    icon: Icons.electric_bolt,
+                    count: widget.zapAmount,
+                    color:
+                        widget.zapAmount > 0
+                            ? const Color(0xFFF7931A)
+                            : const Color(0xFF6B6B80),
+                    activeColor: const Color(0xFFF7931A),
+                    isActive: widget.zapAmount > 0,
+                    showSats: true,
+                    onTap: _showZapSliderModal,
+                  ),
+                  // Share/More
+                  GestureDetector(
+                    onTap: widget.onShare,
+                    child: Icon(
+                      Icons.ios_share,
+                      color: const Color(0xFF6B6B80),
+                      size: 18.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarPlaceholder() {
+    return Center(
+      child: Text(
+        widget.post.authorName.isNotEmpty
+            ? widget.post.authorName[0].toUpperCase()
+            : '?',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -1492,6 +1661,16 @@ class _NostrPostCardState extends State<_NostrPostCard> {
   }
 
   Widget _buildZapSlider() {
+    // Zap presets with sats values
+    final zapPresets = [
+      {'label': '21', 'sats': 21},
+      {'label': '100', 'sats': 100},
+      {'label': '500', 'sats': 500},
+      {'label': '1K', 'sats': 1000},
+      {'label': '5K', 'sats': 5000},
+      {'label': '10K', 'sats': 10000},
+    ];
+
     return Container(
       margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
       padding: EdgeInsets.all(16.w),
@@ -1501,7 +1680,9 @@ class _NostrPostCardState extends State<_NostrPostCard> {
         border: Border.all(color: const Color(0xFFF7931A).withOpacity(0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with selected amount
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1529,9 +1710,7 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                     ),
                     SizedBox(width: 4.w),
                     Text(
-                      NostrService.formatNaira(
-                        NostrService.satsToNaira(_zapValue.toInt()),
-                      ),
+                      '${_zapValue.toInt()} sats',
                       style: TextStyle(
                         color: const Color(0xFFF7931A),
                         fontSize: 14.sp,
@@ -1543,46 +1722,102 @@ class _NostrPostCardState extends State<_NostrPostCard> {
               ),
             ],
           ),
-          SizedBox(height: 12.h),
-          // Slider from 21 to 10000 sats
-          SliderTheme(
-            data: SliderThemeData(
-              activeTrackColor: const Color(0xFFF7931A),
-              inactiveTrackColor: const Color(0xFF111128),
-              thumbColor: const Color(0xFFF7931A),
-              overlayColor: const Color(0xFFF7931A).withOpacity(0.2),
-              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 10.r),
-              trackHeight: 6.h,
-            ),
-            child: Slider(
-              value: _zapValue,
-              min: 21,
-              max: 10000,
-              divisions: 100,
-              onChanged: (val) => setState(() => _zapValue = val),
+          SizedBox(height: 16.h),
+          // Preset buttons grid
+          Wrap(
+            spacing: 8.w,
+            runSpacing: 8.h,
+            children:
+                zapPresets.map((preset) {
+                  final sats = preset['sats'] as int;
+                  final label = preset['label'] as String;
+                  final isSelected = _zapValue.toInt() == sats;
+
+                  return GestureDetector(
+                    onTap: () => setState(() => _zapValue = sats.toDouble()),
+                    child: Container(
+                      width: 60.w,
+                      padding: EdgeInsets.symmetric(vertical: 10.h),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? const Color(0xFFF7931A)
+                                : const Color(0xFF111128),
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? const Color(0xFFF7931A)
+                                  : const Color(0xFF2A2A3E),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          if (sats == 21)
+                            Icon(
+                              Icons.electric_bolt,
+                              color:
+                                  isSelected
+                                      ? Colors.white
+                                      : const Color(0xFFF7931A),
+                              size: 14.sp,
+                            ),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color:
+                                  isSelected
+                                      ? Colors.white
+                                      : const Color(0xFFA1A1B2),
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'sats',
+                            style: TextStyle(
+                              color:
+                                  isSelected
+                                      ? Colors.white.withOpacity(0.8)
+                                      : const Color(0xFF6B6B80),
+                              fontSize: 10.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+          SizedBox(height: 16.h),
+          // Custom amount row
+          GestureDetector(
+            onTap: _showCustomZapInput,
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111128),
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: const Color(0xFF2A2A3E)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.edit, color: const Color(0xFFA1A1B2), size: 14.sp),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Custom Amount',
+                    style: TextStyle(
+                      color: const Color(0xFFA1A1B2),
+                      fontSize: 13.sp,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: 4.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                NostrService.formatNaira(NostrService.satsToNaira(21)),
-                style: TextStyle(
-                  color: const Color(0xFFA1A1B2),
-                  fontSize: 10.sp,
-                ),
-              ),
-              Text(
-                NostrService.formatNaira(NostrService.satsToNaira(10000)),
-                style: TextStyle(
-                  color: const Color(0xFFA1A1B2),
-                  fontSize: 10.sp,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 16.h),
+          // Action buttons
           Row(
             children: [
               Expanded(
@@ -1614,7 +1849,9 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 12.h),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7931A),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF7931A), Color(0xFFFF9500)],
+                      ),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Center(
@@ -1628,7 +1865,7 @@ class _NostrPostCardState extends State<_NostrPostCard> {
                           ),
                           SizedBox(width: 4.w),
                           Text(
-                            'Zap!',
+                            'Zap ${_zapValue.toInt()} sats',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14.sp,
@@ -1645,6 +1882,103 @@ class _NostrPostCardState extends State<_NostrPostCard> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showCustomZapInput() {
+    final controller = TextEditingController(
+      text: _zapValue.toInt().toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.electric_bolt,
+                  color: const Color(0xFFF7931A),
+                  size: 20.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'Custom Zap',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24.sp,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: TextStyle(
+                  color: const Color(0xFF6B6B80),
+                  fontSize: 24.sp,
+                ),
+                suffix: Text(
+                  'sats',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: const Color(0xFF2A2A3E),
+                    width: 2.w,
+                  ),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: const Color(0xFFF7931A),
+                    width: 2.w,
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFFA1A1B2)),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final value = int.tryParse(controller.text);
+                  if (value != null && value > 0 && value <= 1000000) {
+                    setState(() => _zapValue = value.toDouble());
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text(
+                  'Set',
+                  style: TextStyle(
+                    color: Color(0xFFF7931A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
     );
   }
 
@@ -1716,6 +2050,260 @@ class _FullScreenImageView extends StatelessWidget {
                 ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Primal-style action button for post cards
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final int count;
+  final Color color;
+  final Color? activeColor;
+  final bool isActive;
+  final bool showSats;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.count,
+    required this.color,
+    this.activeColor,
+    this.isActive = false,
+    this.showSats = false,
+    required this.onTap,
+  });
+
+  String _formatCount(int n) {
+    if (n == 0) return '';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayCount = _formatCount(count);
+    final displayColor = isActive ? (activeColor ?? color) : color;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 4.w),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: displayColor, size: 18.sp),
+            if (displayCount.isNotEmpty) ...[
+              SizedBox(width: 4.w),
+              Text(
+                showSats && count > 0 ? '$displayCount sats' : displayCount,
+                style: TextStyle(
+                  color: displayColor,
+                  fontSize: 12.sp,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Share option button for share sheet
+class _ShareOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ShareOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56.w,
+            height: 56.h,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E3F),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: const Color(0xFFF7931A), size: 24.sp),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            label,
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Reply modal for composing replies
+class _ReplyModal extends StatefulWidget {
+  final NostrFeedPost post;
+  final VoidCallback onSent;
+
+  const _ReplyModal({required this.post, required this.onSent});
+
+  @override
+  State<_ReplyModal> createState() => _ReplyModalState();
+}
+
+class _ReplyModalState extends State<_ReplyModal> {
+  final _controller = TextEditingController();
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendReply() async {
+    if (_controller.text.trim().isEmpty) return;
+
+    setState(() => _isSending = true);
+
+    try {
+      final socialService = nostr_v2.SocialInteractionService();
+      final eventId = await socialService.replyToEvent(
+        eventId: widget.post.id,
+        eventPubkey: widget.post.authorPubkey,
+        content: _controller.text.trim(),
+      );
+
+      if (eventId != null && mounted) {
+        Navigator.pop(context);
+        widget.onSent();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send reply'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C0C1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h + bottomPadding),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Reply to @${widget.post.authorName}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111128),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Text(
+              widget.post.content.length > 100
+                  ? '${widget.post.content.substring(0, 100)}...'
+                  : widget.post.content,
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          TextField(
+            controller: _controller,
+            maxLines: 4,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Write your reply...',
+              hintStyle: const TextStyle(color: Color(0xFF6B6B80)),
+              filled: true,
+              fillColor: const Color(0xFF111128),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSending ? null : _sendReply,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF7931A),
+                disabledBackgroundColor: const Color(0xFF2A2A3E),
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child:
+                  _isSending
+                      ? SizedBox(
+                        width: 20.w,
+                        height: 20.h,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
+                      : Text(
+                        'Reply',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+            ),
+          ),
+        ],
       ),
     );
   }

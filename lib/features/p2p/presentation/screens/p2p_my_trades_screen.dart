@@ -3,7 +3,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/p2p/data/trade_model.dart';
+import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
+import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';
 
 /// P2P My Trades Screen - Active trades list
 class P2PMyTradesScreen extends ConsumerStatefulWidget {
@@ -17,50 +20,23 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final formatter = NumberFormat('#,###');
-
-  // Mock active trades
-  final List<_MockTrade> _activeTrades = [
-    _MockTrade(
-      id: 'trade_1',
-      merchantName: 'Mubarak',
-      amount: 150000,
-      sats: 114000,
-      status: TradeStatus.awaitingPayment,
-      paymentMethod: 'GTBank',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-      timeLeft: const Duration(minutes: 25),
-      isBuying: true,
-    ),
-    _MockTrade(
-      id: 'trade_2',
-      merchantName: 'Almohad',
-      amount: 500000,
-      sats: 380500,
-      status: TradeStatus.paid,
-      paymentMethod: 'Moniepoint',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-      timeLeft: const Duration(minutes: 15),
-      isBuying: true,
-    ),
-  ];
-
-  final List<_MockTrade> _pendingOffers = [
-    _MockTrade(
-      id: 'offer_1',
-      merchantName: 'You',
-      amount: 0,
-      sats: 500000,
-      status: TradeStatus.created,
-      paymentMethod: 'GTBank, Opay',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      isBuying: false,
-    ),
-  ];
+  final P2PTradeManager _tradeManager = P2PTradeManager();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _initializeTradeManager();
+  }
+
+  Future<void> _initializeTradeManager() async {
+    await _tradeManager.initialize();
+    setState(() {});
+
+    // Listen to trade updates
+    _tradeManager.tradeUpdates.listen((trade) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -71,6 +47,14 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Use NIP-99 user offers instead of local storage
+    final userOffersAsync = ref.watch(userNip99OffersProvider);
+    final userOffers = userOffersAsync.asData?.value ?? [];
+    final isLoading = userOffersAsync.isLoading;
+
+    // Get active trades from trade manager
+    final activeTrades = _tradeManager.activeTrades;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C1A),
       appBar: AppBar(
@@ -116,8 +100,10 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
                 fontWeight: FontWeight.w600,
               ),
               tabs: [
-                Tab(text: 'Active (${_activeTrades.length})'),
-                Tab(text: 'My Offers (${_pendingOffers.length})'),
+                Tab(text: 'Active (${activeTrades.length})'),
+                Tab(
+                  text: 'My Offers (${isLoading ? '...' : userOffers.length})',
+                ),
               ],
             ),
           ),
@@ -125,13 +111,16 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildActiveTradesTab(), _buildMyOffersTab()],
+        children: [
+          _buildActiveTradesTab(activeTrades),
+          _buildMyOffersTab(userOffers),
+        ],
       ),
     );
   }
 
-  Widget _buildActiveTradesTab() {
-    if (_activeTrades.isEmpty) {
+  Widget _buildActiveTradesTab(List<P2PTrade> activeTrades) {
+    if (activeTrades.isEmpty) {
       return _buildEmptyState(
         icon: Icons.swap_horiz,
         title: 'No active trades',
@@ -141,19 +130,55 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
-      itemCount: _activeTrades.length,
+      itemCount: activeTrades.length,
       itemBuilder: (context, index) {
-        final trade = _activeTrades[index];
+        final trade = activeTrades[index];
         return Padding(
           padding: EdgeInsets.only(bottom: 12.h),
-          child: _ActiveTradeCard(trade: trade),
+          child: _RealActiveTradeCard(
+            trade: trade,
+            onContinue: () => _navigateToTrade(trade),
+          ),
         );
       },
     );
   }
 
-  Widget _buildMyOffersTab() {
-    if (_pendingOffers.isEmpty) {
+  void _navigateToTrade(P2PTrade trade) {
+    // Create a mock offer for the trade chat screen
+    final offer = P2POfferModel(
+      id: trade.offerId,
+      name:
+          trade.isBuyer
+              ? (trade.sellerName ?? 'Seller')
+              : (trade.buyerName ?? 'Buyer'),
+      pricePerBtc: trade.pricePerBtc,
+      paymentMethod: trade.paymentMethod,
+      eta: '< 15 min',
+      ratingPercent: 100,
+      trades: 0,
+      minLimit: 0,
+      maxLimit: trade.fiatAmount.toInt() * 2,
+      paymentAccountDetails: trade.paymentDetails,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => P2PTradeChatScreen(
+              offer: offer,
+              tradeAmount: trade.fiatAmount,
+              receiveSats: trade.satsAmount.toDouble(),
+              isSeller: trade.isSeller,
+              existingTrade: trade,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildMyOffersTab(List<P2POfferModel> offers) {
+    if (offers.isEmpty) {
       return _buildEmptyState(
         icon: Icons.storefront,
         title: 'No active offers',
@@ -163,15 +188,17 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
 
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
-      itemCount: _pendingOffers.length,
+      itemCount: offers.length,
       itemBuilder: (context, index) {
-        final offer = _pendingOffers[index];
+        final offer = offers[index];
         return Padding(
           padding: EdgeInsets.only(bottom: 12.h),
-          child: _MyOfferCard(
+          child: _RealOfferCard(
             offer: offer,
-            onEdit: () {},
-            onDelete: () => _showDeleteConfirmation(offer),
+            onEdit: () {
+              // TODO: Navigate to edit screen
+            },
+            onDelete: () => _showDeleteOfferConfirmation(offer),
           ),
         );
       },
@@ -207,7 +234,7 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
     );
   }
 
-  void _showDeleteConfirmation(_MockTrade offer) {
+  void _showDeleteOfferConfirmation(P2POfferModel offer) {
     showDialog(
       context: context,
       builder:
@@ -233,11 +260,33 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
                 ),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  setState(() {
-                    _pendingOffers.removeWhere((o) => o.id == offer.id);
-                  });
+                  // Delete via NIP-99 (publishes deletion event to relays)
+                  final success = await ref
+                      .read(nip99OfferNotifierProvider.notifier)
+                      .deleteOffer(offer.id);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success ? 'Offer deleted' : 'Failed to delete offer',
+                        ),
+                        backgroundColor:
+                            success
+                                ? const Color(0xFF00FFB2)
+                                : const Color(0xFFFF6B6B),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                    // Refresh the offers list
+                    if (success) {
+                      ref.invalidate(userNip99OffersProvider);
+                    }
+                  }
                 },
                 child: Text(
                   'Delete',
@@ -250,256 +299,13 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
   }
 }
 
-/// Active Trade Card
-class _ActiveTradeCard extends StatelessWidget {
-  final _MockTrade trade;
-
-  const _ActiveTradeCard({required this.trade});
-
-  @override
-  Widget build(BuildContext context) {
-    final formatter = NumberFormat('#,###');
-
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111128),
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(
-          color: _getStatusColor(trade.status).withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 44.w,
-                height: 44.h,
-                decoration: BoxDecoration(
-                  color: _getAvatarColor(trade.merchantName),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    trade.merchantName[0].toUpperCase(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Trading with ${trade.merchantName}',
-                      style: TextStyle(
-                        color: AppColors.textPrimary.withValues(alpha: 0.75),
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 2.h),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8.w,
-                          height: 8.h,
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(trade.status),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 6.w),
-                        Text(
-                          _getStatusText(trade.status),
-                          style: TextStyle(
-                            color: _getStatusColor(trade.status),
-                            fontSize: 12.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (trade.timeLeft != null)
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 10.w,
-                    vertical: 6.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7931A).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20.r),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.timer,
-                        color: const Color(0xFFF7931A),
-                        size: 14.sp,
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(
-                        '${trade.timeLeft!.inMinutes}m',
-                        style: TextStyle(
-                          color: const Color(0xFFF7931A),
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          SizedBox(height: 16.h),
-
-          // Trade Info
-          Container(
-            padding: EdgeInsets.all(12.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0C0C1A),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'You Pay',
-                        style: TextStyle(
-                          color: const Color(0xFFA1A1B2),
-                          fontSize: 11.sp,
-                        ),
-                      ),
-                      Text(
-                        '₦${formatter.format(trade.amount.toInt())}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward,
-                  color: const Color(0xFFA1A1B2),
-                  size: 20.sp,
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'You Receive',
-                        style: TextStyle(
-                          color: const Color(0xFFA1A1B2),
-                          fontSize: 11.sp,
-                        ),
-                      ),
-                      Text(
-                        '${formatter.format(trade.sats.toInt())} sats',
-                        style: TextStyle(
-                          color: const Color(0xFF00FFB2),
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 12.h),
-
-          // Action Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                // TODO: Navigate to trade chat
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF7931A),
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-              ),
-              child: Text(
-                'Continue Trade',
-                style: TextStyle(
-                  color: AppColors.surface,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getAvatarColor(String name) {
-    final colors = [
-      const Color(0xFFF7931A),
-      const Color(0xFF00FFB2),
-      const Color(0xFF6366F1),
-      const Color(0xFFEC4899),
-      const Color(0xFF8B5CF6),
-    ];
-    return colors[name.hashCode % colors.length];
-  }
-
-  Color _getStatusColor(TradeStatus status) {
-    switch (status) {
-      case TradeStatus.awaitingPayment:
-        return const Color(0xFFF7931A);
-      case TradeStatus.paid:
-        return const Color(0xFF00FFB2);
-      case TradeStatus.disputed:
-        return const Color(0xFFFF6B6B);
-      default:
-        return const Color(0xFFA1A1B2);
-    }
-  }
-
-  String _getStatusText(TradeStatus status) {
-    switch (status) {
-      case TradeStatus.awaitingPayment:
-        return 'Awaiting your payment';
-      case TradeStatus.paid:
-        return 'Waiting for release';
-      case TradeStatus.disputed:
-        return 'Under dispute';
-      default:
-        return 'In progress';
-    }
-  }
-}
-
-/// My Offer Card
-class _MyOfferCard extends StatelessWidget {
-  final _MockTrade offer;
+/// Real Offer Card - Uses P2POfferModel from provider
+class _RealOfferCard extends StatelessWidget {
+  final P2POfferModel offer;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _MyOfferCard({
+  const _RealOfferCard({
     required this.offer,
     required this.onEdit,
     required this.onDelete,
@@ -508,6 +314,10 @@ class _MyOfferCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat('#,###');
+    final isSellOffer = offer.type == OfferType.sell;
+    final availableSats = offer.availableSats ?? 0;
+    final lockedSats = offer.lockedSats ?? 0;
+    final effectiveAvailable = offer.effectiveAvailableSats;
 
     return Container(
       padding: EdgeInsets.all(16.w),
@@ -523,19 +333,19 @@ class _MyOfferCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: (offer.isBuying
-                          ? const Color(0xFF00FFB2)
-                          : const Color(0xFFFF6B6B))
+                  color: (isSellOffer
+                          ? const Color(0xFFFF6B6B)
+                          : const Color(0xFF00FFB2))
                       .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Text(
-                  offer.isBuying ? 'BUY OFFER' : 'SELL OFFER',
+                  isSellOffer ? 'SELL OFFER' : 'BUY OFFER',
                   style: TextStyle(
                     color:
-                        offer.isBuying
-                            ? const Color(0xFF00FFB2)
-                            : const Color(0xFFFF6B6B),
+                        isSellOffer
+                            ? const Color(0xFFFF6B6B)
+                            : const Color(0xFF00FFB2),
                     fontSize: 11.sp,
                     fontWeight: FontWeight.bold,
                   ),
@@ -564,6 +374,84 @@ class _MyOfferCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: 16.h),
+          // Sats available and locked info
+          if (isSellOffer && availableSats > 0) ...[
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0C0C1A),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Available',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(effectiveAvailable.toInt())} sats',
+                        style: TextStyle(
+                          color: const Color(0xFF00FFB2),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (lockedSats > 0)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Locked in trades',
+                          style: TextStyle(
+                            color: const Color(0xFFA1A1B2),
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                        Text(
+                          '${formatter.format(lockedSats.toInt())} sats',
+                          style: TextStyle(
+                            color: const Color(0xFFF7931A),
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Total',
+                          style: TextStyle(
+                            color: const Color(0xFFA1A1B2),
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                        Text(
+                          '${formatter.format(availableSats.toInt())} sats',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(height: 12.h),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -571,18 +459,18 @@ class _MyOfferCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Available',
+                    'Limits',
                     style: TextStyle(
                       color: const Color(0xFFA1A1B2),
                       fontSize: 11.sp,
                     ),
                   ),
                   Text(
-                    '${formatter.format(offer.sats.toInt())} sats',
+                    '₦${formatter.format(offer.minLimit)} - ₦${formatter.format(offer.maxLimit)}',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -591,17 +479,35 @@ class _MyOfferCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'Payment Methods',
+                    'Margin',
                     style: TextStyle(
                       color: const Color(0xFFA1A1B2),
                       fontSize: 11.sp,
                     ),
                   ),
                   Text(
-                    offer.paymentMethod,
-                    style: TextStyle(color: Colors.white, fontSize: 13.sp),
+                    '+${offer.marginPercent?.toStringAsFixed(1) ?? '0'}%',
+                    style: TextStyle(
+                      color: const Color(0xFF00FFB2),
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Icon(Icons.payment, size: 14.sp, color: const Color(0xFFA1A1B2)),
+              SizedBox(width: 6.w),
+              Expanded(
+                child: Text(
+                  offer.paymentMethod,
+                  style: TextStyle(color: Colors.white, fontSize: 12.sp),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -645,27 +551,283 @@ class _MyOfferCard extends StatelessWidget {
   }
 }
 
-/// Mock Trade Model
-class _MockTrade {
-  final String id;
-  final String merchantName;
-  final double amount;
-  final double sats;
-  final TradeStatus status;
-  final String paymentMethod;
-  final DateTime createdAt;
-  final Duration? timeLeft;
-  final bool isBuying;
+/// Real Active Trade Card - Uses P2PTrade from trade manager
+class _RealActiveTradeCard extends StatelessWidget {
+  final P2PTrade trade;
+  final VoidCallback onContinue;
 
-  _MockTrade({
-    required this.id,
-    required this.merchantName,
-    required this.amount,
-    required this.sats,
-    required this.status,
-    required this.paymentMethod,
-    required this.createdAt,
-    this.timeLeft,
-    required this.isBuying,
-  });
+  const _RealActiveTradeCard({required this.trade, required this.onContinue});
+
+  @override
+  Widget build(BuildContext context) {
+    final formatter = NumberFormat('#,###');
+    final counterpartyName =
+        trade.isBuyer
+            ? (trade.sellerName ?? 'Seller')
+            : (trade.buyerName ?? 'Buyer');
+
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111128),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: _getStatusColor(trade.status).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 44.w,
+                height: 44.h,
+                decoration: BoxDecoration(
+                  color: _getAvatarColor(counterpartyName),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    counterpartyName[0].toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                trade.isBuyer
+                                    ? const Color(
+                                      0xFF00FFB2,
+                                    ).withValues(alpha: 0.2)
+                                    : const Color(
+                                      0xFFF7931A,
+                                    ).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                          child: Text(
+                            trade.isBuyer ? 'BUYING' : 'SELLING',
+                            style: TextStyle(
+                              color:
+                                  trade.isBuyer
+                                      ? const Color(0xFF00FFB2)
+                                      : const Color(0xFFF7931A),
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Text(
+                            'with $counterpartyName',
+                            style: TextStyle(
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.75,
+                              ),
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8.w,
+                          height: 8.h,
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(trade.status),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Text(
+                          _getStatusText(trade.status, trade.isSeller),
+                          style: TextStyle(
+                            color: _getStatusColor(trade.status),
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+
+          // Trade Info
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0C1A),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        trade.isBuyer ? 'You Pay' : 'You Receive',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      Text(
+                        '₦${formatter.format(trade.fiatAmount.toInt())}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.swap_horiz,
+                  color: const Color(0xFFA1A1B2),
+                  size: 20.sp,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        trade.isBuyer ? 'You Receive' : 'You Send',
+                        style: TextStyle(
+                          color: const Color(0xFFA1A1B2),
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                      Text(
+                        '${formatter.format(trade.satsAmount)} sats',
+                        style: TextStyle(
+                          color:
+                              trade.isBuyer
+                                  ? const Color(0xFF00FFB2)
+                                  : const Color(0xFFF7931A),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 12.h),
+
+          // Action Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onContinue,
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    trade.status == P2PTradeStatus.paymentSubmitted &&
+                            trade.isSeller
+                        ? const Color(0xFF00FFB2)
+                        : const Color(0xFFF7931A),
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child: Text(
+                trade.status == P2PTradeStatus.paymentSubmitted &&
+                        trade.isSeller
+                    ? 'Review & Release BTC'
+                    : 'Continue Trade',
+                style: TextStyle(
+                  color:
+                      trade.status == P2PTradeStatus.paymentSubmitted &&
+                              trade.isSeller
+                          ? const Color(0xFF0C0C1A)
+                          : AppColors.surface,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getAvatarColor(String name) {
+    final colors = [
+      const Color(0xFFF7931A),
+      const Color(0xFF00FFB2),
+      const Color(0xFF6366F1),
+      const Color(0xFFEC4899),
+      const Color(0xFF8B5CF6),
+    ];
+    return colors[name.hashCode % colors.length];
+  }
+
+  Color _getStatusColor(P2PTradeStatus status) {
+    switch (status) {
+      case P2PTradeStatus.pendingPayment:
+        return const Color(0xFFF7931A);
+      case P2PTradeStatus.paymentSubmitted:
+        return const Color(0xFF00FFB2);
+      case P2PTradeStatus.releasing:
+        return const Color(0xFF00FFB2);
+      case P2PTradeStatus.completed:
+        return const Color(0xFF00FFB2);
+      case P2PTradeStatus.cancelled:
+      case P2PTradeStatus.expired:
+        return const Color(0xFFFF6B6B);
+      case P2PTradeStatus.disputed:
+        return const Color(0xFFFF6B6B);
+    }
+  }
+
+  String _getStatusText(P2PTradeStatus status, bool isSeller) {
+    switch (status) {
+      case P2PTradeStatus.pendingPayment:
+        return isSeller ? 'Waiting for buyer payment' : 'Awaiting your payment';
+      case P2PTradeStatus.paymentSubmitted:
+        return isSeller
+            ? '⚡ Buyer paid - Review & Release'
+            : 'Waiting for seller release';
+      case P2PTradeStatus.releasing:
+        return 'Releasing BTC...';
+      case P2PTradeStatus.completed:
+        return 'Completed';
+      case P2PTradeStatus.cancelled:
+        return 'Cancelled';
+      case P2PTradeStatus.expired:
+        return 'Expired';
+      case P2PTradeStatus.disputed:
+        return 'Under dispute';
+    }
+  }
 }

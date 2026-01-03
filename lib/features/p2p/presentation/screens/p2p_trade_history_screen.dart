@@ -20,59 +20,8 @@ class _P2PTradeHistoryScreenState extends ConsumerState<P2PTradeHistoryScreen> {
 
   final List<String> _filters = ['All', 'Completed', 'Cancelled', 'Disputed'];
 
-  // Mock trade history
-  final List<_HistoryTrade> _trades = [
-    _HistoryTrade(
-      id: 'trade_1',
-      merchantName: 'Mubarak',
-      amount: 250000,
-      sats: 190500,
-      status: TradeStatus.released,
-      paymentMethod: 'GTBank',
-      completedAt: DateTime.now().subtract(const Duration(days: 1)),
-      isBuying: true,
-    ),
-    _HistoryTrade(
-      id: 'trade_2',
-      merchantName: 'Almohad',
-      amount: 500000,
-      sats: 380500,
-      status: TradeStatus.released,
-      paymentMethod: 'Moniepoint',
-      completedAt: DateTime.now().subtract(const Duration(days: 2)),
-      isBuying: true,
-    ),
-    _HistoryTrade(
-      id: 'trade_3',
-      merchantName: 'ChiefBTC',
-      amount: 100000,
-      sats: 76200,
-      status: TradeStatus.cancelled,
-      paymentMethod: 'Opay',
-      completedAt: DateTime.now().subtract(const Duration(days: 3)),
-      isBuying: false,
-    ),
-    _HistoryTrade(
-      id: 'trade_4',
-      merchantName: 'SatoshiNG',
-      amount: 1000000,
-      sats: 762000,
-      status: TradeStatus.released,
-      paymentMethod: 'Kuda',
-      completedAt: DateTime.now().subtract(const Duration(days: 5)),
-      isBuying: true,
-    ),
-    _HistoryTrade(
-      id: 'trade_5',
-      merchantName: 'LagosBTC',
-      amount: 350000,
-      sats: 266700,
-      status: TradeStatus.disputed,
-      paymentMethod: 'GTBank',
-      completedAt: DateTime.now().subtract(const Duration(days: 7)),
-      isBuying: true,
-    ),
-  ];
+  // Trade history - real trades will come from provider
+  final List<_HistoryTrade> _trades = [];
 
   List<_HistoryTrade> get _filteredTrades {
     if (_selectedFilter == 'All') return _trades;

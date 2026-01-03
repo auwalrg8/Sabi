@@ -15,8 +15,22 @@ ios/Runner/GeneratedPluginRegistrant.*
 .local/
 .env
 *.local
+*.local.json
 lib/config/breez_api_key.local.dart
 lib/config/vtu_config.local.dart
+config/firebase-service-account.local.json
+
+# Firebase config files (contain API keys - use .example templates)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+firebase/functions/.env
+firebase/functions/service-account.json
+
+# Vercel environment
+vercel/.env
+vercel/.env.local
+vercel/.vercel
 
 # Android
 android/app/debug
