@@ -207,7 +207,7 @@ class FirebaseNotificationService {
 
   /// Initialize local notifications plugin
   Future<void> _initLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('ic_notification');
     
     const iosSettings = DarwinInitializationSettings(
       requestSoundPermission: true,
@@ -551,7 +551,7 @@ class FirebaseNotificationService {
           channelName,
           importance: _getImportanceForType(type),
           priority: _getPriorityForType(type),
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_notification',
           color: const Color(0xFFF7931A),
           enableVibration: true,
           playSound: true,

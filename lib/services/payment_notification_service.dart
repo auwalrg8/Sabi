@@ -1,8 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:sabi_wallet/services/notification_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/notification_service.dart';
 
 /// Service for managing local push notifications (OS-level)
 class LocalNotificationService {
@@ -17,7 +18,7 @@ class LocalNotificationService {
 
       // Android initialization
       const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('ic_notification');
 
       // iOS initialization
       const DarwinInitializationSettings iosSettings =
