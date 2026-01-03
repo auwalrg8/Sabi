@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+
 import '../../data/models/models.dart';
 import '../../services/vtu_service.dart';
 import '../widgets/amount_selector.dart';
@@ -23,6 +24,11 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
   double? _selectedAmount;
   String? _meterError;
   bool _useCustomAmount = false;
+  
+  // Verification State
+  bool _isVerifying = false;
+  String? _verifiedName;
+  String? _verifiedAddress;
 
   @override
   void dispose() {
@@ -34,12 +40,20 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
   void _onProviderSelected(ElectricityProvider provider) {
     setState(() {
       _selectedProvider = provider;
+      // Reset verification when provider changes
+      _verifiedName = null;
+      _verifiedAddress = null;
+      _meterError = null;
     });
   }
 
   void _onMeterTypeSelected(MeterType type) {
     setState(() {
       _selectedMeterType = type;
+      // Reset verification when meter type changes
+      _verifiedName = null;
+      _verifiedAddress = null;
+      _meterError = null;
     });
   }
 
@@ -63,11 +77,66 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
   }
 
   bool get _isFormValid {
-    final meter = _meterController.text.trim();
-    return _selectedProvider != null &&
-        VtuService.isValidMeterNumber(meter) &&
+    // Basic validation
+    final hasValidInputs =
+        _selectedProvider != null &&
+        VtuService.isValidMeterNumber(_meterController.text.trim()) &&
         _selectedAmount != null &&
         _selectedAmount! >= 1000;
+        
+    // MUST have verified name to proceed
+    return hasValidInputs && _verifiedName != null;
+  }
+
+  Future<void> _verifyMeter() async {
+    final meter = _meterController.text.trim();
+
+    // reset previous state
+    setState(() {
+      _meterError = null;
+      _verifiedName = null;
+      _verifiedAddress = null;
+    });
+
+    // Quick validation before API call
+    if (_selectedProvider == null) {
+      setState(() => _meterError = 'Select a provider first');
+      return;
+    }
+
+    if (!VtuService.isValidMeterNumber(meter)) {
+      setState(() => _meterError = 'Invalid meter number format');
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+
+    try {
+      final info = await VtuService.verifyMeter(
+        meterNumber: meter,
+        discoCode: _selectedProvider!.code,
+        meterType: _selectedMeterType.name,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          if (info != null && info.isValid) {
+            _verifiedName = info.customerName;
+            _verifiedAddress = info.address;
+          } else {
+            _meterError = 'Meter not found or invalid';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _meterError = 'Verification failed: Network error';
+        });
+      }
+    }
   }
 
   void _proceedToConfirm() {
@@ -225,12 +294,78 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                       controller: _meterController,
                       selectedProvider: _selectedProvider,
                       errorText: _meterError,
+                      isVerifying: _isVerifying,
+                      onVerifyPressed: _verifyMeter,
                       onChanged: (value) {
                         setState(() {
+                          // Clear verification when typing
                           _meterError = null;
+                          _verifiedName = null;
+                          _verifiedAddress = null;
                         });
                       },
                     ),
+                    
+                    // Validation Result
+                    if (_verifiedName != null) ...[
+                      SizedBox(height: 12.h),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E88E5).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8.r),
+                          border: Border.all(
+                            color: const Color(0xFF1E88E5).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: const Color(0xFF1E88E5),
+                                  size: 16.sp,
+                                ),
+                                SizedBox(width: 6.w),
+                                Text(
+                                  'Verified Customer',
+                                  style: TextStyle(
+                                    color: const Color(0xFF1E88E5),
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 6.h),
+                            Text(
+                              _verifiedName!,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (_verifiedAddress != null &&
+                                _verifiedAddress!.isNotEmpty) ...[
+                              SizedBox(height: 2.h),
+                              Text(
+                                _verifiedAddress!,
+                                style: TextStyle(
+                                  color: const Color(0xFFA1A1B2),
+                                  fontSize: 13.sp,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                     SizedBox(height: 24.h),
 
                     // Amount Selection
@@ -388,6 +523,8 @@ class _MeterInputField extends StatelessWidget {
   final TextEditingController controller;
   final ElectricityProvider? selectedProvider;
   final String? errorText;
+  final bool isVerifying;
+  final VoidCallback? onVerifyPressed;
   final ValueChanged<String>? onChanged;
 
   const _MeterInputField({
@@ -395,6 +532,8 @@ class _MeterInputField extends StatelessWidget {
     this.selectedProvider,
     this.errorText,
     this.onChanged,
+    this.isVerifying = false,
+    this.onVerifyPressed,
   });
 
   @override
@@ -460,6 +599,35 @@ class _MeterInputField extends StatelessWidget {
                   onChanged: onChanged,
                 ),
               ),
+              
+              // Verify Button suffix
+              if (onVerifyPressed != null)
+                GestureDetector(
+                  onTap: isVerifying ? null : onVerifyPressed,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    color: Colors.transparent, // Hit test area
+                    child: Center(
+                      child:
+                          isVerifying
+                              ? SizedBox(
+                                width: 20.w,
+                                height: 20.w,
+                                child: const CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : Text(
+                                'Verify',
+                                style: TextStyle(
+                                  color: const Color(0xFF1E88E5),
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

@@ -1,13 +1,15 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:uuid/uuid.dart';
-import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/config/vtu_config.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
-import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'package:sabi_wallet/services/contact_service.dart';
 import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
-import 'package:sabi_wallet/config/vtu_config.dart';
+import 'package:sabi_wallet/services/ln_address_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:uuid/uuid.dart';
+
 import '../data/models/models.dart';
 import 'vtu_api_service.dart';
 
@@ -72,7 +74,28 @@ class VtuService {
     }
   }
 
-  /// Process VTU purchase - auto pay from balance + call VTU.ng API
+  /// Validate transaction requirements (User balance & Agent liquidity)
+  static Future<void> validateTransaction(double amountNaira) async {
+    final amountSats = await nairaToSats(amountNaira);
+    
+    // 1. Check User Balance
+    if (!await hasSufficientBalance(amountSats)) {
+      throw InsufficientBalanceException(
+        required: amountSats,
+        available: await getUserBalance(),
+      );
+    }
+
+    // 2. Check Agent Liquidity (Optional but recommended)
+    // We check if the VTU wallet has enough funds to fulfill the order
+    if (!await hasVtuLiquidity(amountNaira)) {
+      throw const VtuServiceException(
+        'Service temporarily unavailable (Low Liquidity). Please try again later.',
+      );
+    }
+  }
+
+  /// Process VTU purchase - Deliver First, Then Pay (Escrow-like)
   /// Returns the completed order or throws on failure
   static Future<VtuOrder> processAirtimePurchase({
     required String phone,
@@ -81,13 +104,8 @@ class VtuService {
   }) async {
     final amountSats = await nairaToSats(amountNaira);
 
-    // Step 1: Check balance
-    if (!await hasSufficientBalance(amountSats)) {
-      throw InsufficientBalanceException(
-        required: amountSats,
-        available: await getUserBalance(),
-      );
-    }
+    // Step 1: Deep Validation
+    await validateTransaction(amountNaira);
 
     // Step 2: Create pending order
     final order = await _createOrder(
@@ -99,16 +117,11 @@ class VtuService {
     );
 
     try {
-      // Step 3: Deduct from user balance (pay to agent Lightning address)
-      await _payToAgent(
-        amountSats,
-        'Airtime: ₦${amountNaira.toInt()} to $phone',
-      );
-
-      // Step 4: Mark as processing
+      // Step 3: Mark as processing
       await updateOrderStatus(order.id, VtuOrderStatus.processing);
 
-      // Step 5: Call VTU.ng API to deliver airtime
+      // Step 4: Call VTU.ng API to deliver airtime (OPTIMISTIC DELIVERY)
+      debugPrint('🚀 Delivery First: Attempting API call for ${order.id}');
       final apiResponse = await VtuApiService.buyAirtime(
         phone: formatPhoneNumber(phone),
         networkCode: networkCode,
@@ -116,20 +129,48 @@ class VtuService {
       );
 
       if (apiResponse.success) {
-        // Step 6: Mark as completed
-        final completedOrder = await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.completed,
-          token: apiResponse.transactionId,
-        );
-        
-        // Step 7: Save to recent contacts
-        await _saveToRecentContacts(phone, 'Airtime Purchase');
-        
-        return completedOrder!;
+        debugPrint('✅ Delivery Successful. Charging user...');
+
+        // Step 5: Charge User (Payment Settlement)
+        try {
+          await _payToAgent(
+            amountSats,
+            'Airtime: ₦${amountNaira.toInt()} to $phone',
+          );
+          
+          // Step 6: Mark as completed
+          final completedOrder = await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.completed,
+            token: apiResponse.transactionId,
+          );
+          
+          // Save to recent contacts
+          await _saveToRecentContacts(phone, 'Airtime Purchase');
+
+          return completedOrder!;
+          
+        } catch (paymentError) {
+          // CRITICAL: Service delivered but payment failed
+          // Mark as payment_failed for manual resolution
+          debugPrint(
+            '‼️ CRITICAL: Service delivered but payment failed: $paymentError',
+          );
+
+          await updateOrderStatus(
+            order.id,
+            VtuOrderStatus
+                .failed, // Using failed for now, ideally 'payment_failed'
+            errorMessage:
+                'Payment failed but service delivered. Contact support.',
+          );
+
+          throw PaymentFailedException(
+            'Service delivered but payment failed. Please contact support immediately.',
+          );
+        }
       } else {
-        // VTU.ng failed - mark order as failed (payment already made)
-        // Agent will need to manually resolve
+        // VTU.ng failed - No charge to user
         await updateOrderStatus(
           order.id,
           VtuOrderStatus.failed,
@@ -142,24 +183,19 @@ class VtuService {
         );
       }
     } catch (e) {
-      if (e is InsufficientBalanceException || e is VtuDeliveryException) {
+      if (e is InsufficientBalanceException ||
+          e is VtuDeliveryException ||
+          e is PaymentFailedException) {
         rethrow;
       }
-      if (e is PaymentFailedException) {
-        await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.failed,
-          errorMessage: e.message,
-        );
-        rethrow;
-      }
+      
       // Other errors - mark order as failed
       await updateOrderStatus(
         order.id,
         VtuOrderStatus.failed,
         errorMessage: e.toString(),
       );
-      rethrow;
+      throw VtuServiceException(e.toString());
     }
   }
 
@@ -173,12 +209,8 @@ class VtuService {
   }) async {
     final amountSats = await nairaToSats(amountNaira);
 
-    if (!await hasSufficientBalance(amountSats)) {
-      throw InsufficientBalanceException(
-        required: amountSats,
-        available: await getUserBalance(),
-      );
-    }
+    // Step 1: Deep Validation
+    await validateTransaction(amountNaira);
 
     final order = await _createOrder(
       serviceType: VtuServiceType.data,
@@ -190,9 +222,9 @@ class VtuService {
     );
 
     try {
-      await _payToAgent(amountSats, 'Data: $planName to $phone');
       await updateOrderStatus(order.id, VtuOrderStatus.processing);
-
+      
+      debugPrint('🚀 Delivery First: Attempting Data API call for ${order.id}');
       final apiResponse = await VtuApiService.buyData(
         phone: formatPhoneNumber(phone),
         networkCode: networkCode,
@@ -200,16 +232,30 @@ class VtuService {
       );
 
       if (apiResponse.success) {
-        final completedOrder = await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.completed,
-          token: apiResponse.transactionId,
-        );
-        
-        // Save to recent contacts
-        await _saveToRecentContacts(phone, 'Data Purchase');
-        
-        return completedOrder!;
+        debugPrint('✅ Delivery Successful. Charging user...');
+
+        try {
+          await _payToAgent(amountSats, 'Data: $planName to $phone');
+          
+          final completedOrder = await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.completed,
+            token: apiResponse.transactionId,
+          );
+          
+          await _saveToRecentContacts(phone, 'Data Purchase');
+          return completedOrder!;
+          
+        } catch (paymentError) {
+          await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.failed,
+            errorMessage: 'Payment failed but service delivered.',
+          );
+          throw PaymentFailedException(
+            'Service delivered but payment failed. Please contact support immediately.',
+          );
+        }
       } else {
         await updateOrderStatus(
           order.id,
@@ -223,15 +269,9 @@ class VtuService {
         );
       }
     } catch (e) {
-      if (e is InsufficientBalanceException || e is VtuDeliveryException) {
-        rethrow;
-      }
-      if (e is PaymentFailedException) {
-        await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.failed,
-          errorMessage: e.message,
-        );
+      if (e is InsufficientBalanceException ||
+          e is VtuDeliveryException ||
+          e is PaymentFailedException) {
         rethrow;
       }
       await updateOrderStatus(
@@ -239,7 +279,7 @@ class VtuService {
         VtuOrderStatus.failed,
         errorMessage: e.toString(),
       );
-      rethrow;
+      throw VtuServiceException(e.toString());
     }
   }
 
@@ -253,12 +293,8 @@ class VtuService {
   }) async {
     final amountSats = await nairaToSats(amountNaira);
 
-    if (!await hasSufficientBalance(amountSats)) {
-      throw InsufficientBalanceException(
-        required: amountSats,
-        available: await getUserBalance(),
-      );
-    }
+    // Step 1: Deep Validation
+    await validateTransaction(amountNaira);
 
     final order = await _createOrder(
       serviceType: VtuServiceType.electricity,
@@ -270,12 +306,11 @@ class VtuService {
     );
 
     try {
-      await _payToAgent(
-        amountSats,
-        'Electricity: ₦${amountNaira.toInt()} to $meterNumber',
-      );
       await updateOrderStatus(order.id, VtuOrderStatus.processing);
-
+      
+      debugPrint(
+        '🚀 Delivery First: Attempting Electricity API call for ${order.id}',
+      );
       final apiResponse = await VtuApiService.buyElectricity(
         meterNumber: meterNumber,
         discoCode: discoCode,
@@ -285,12 +320,31 @@ class VtuService {
       );
 
       if (apiResponse.success) {
-        final completedOrder = await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.completed,
-          token: apiResponse.token ?? apiResponse.transactionId,
-        );
-        return completedOrder!;
+        debugPrint('✅ Delivery Successful. Charging user...');
+
+        try {
+          await _payToAgent(
+            amountSats,
+            'Electricity: ₦${amountNaira.toInt()} to $meterNumber',
+          );
+          
+          final completedOrder = await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.completed,
+            token: apiResponse.token ?? apiResponse.transactionId,
+          );
+          return completedOrder!;
+          
+        } catch (paymentError) {
+          await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.failed,
+            errorMessage: 'Payment failed but token generated.',
+          );
+          throw PaymentFailedException(
+            'Token generated but payment failed. Please check order history for token.',
+          );
+        }
       } else {
         await updateOrderStatus(
           order.id,
@@ -304,15 +358,9 @@ class VtuService {
         );
       }
     } catch (e) {
-      if (e is InsufficientBalanceException || e is VtuDeliveryException) {
-        rethrow;
-      }
-      if (e is PaymentFailedException) {
-        await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.failed,
-          errorMessage: e.message,
-        );
+      if (e is InsufficientBalanceException ||
+          e is VtuDeliveryException ||
+          e is PaymentFailedException) {
         rethrow;
       }
       await updateOrderStatus(
@@ -320,7 +368,7 @@ class VtuService {
         VtuOrderStatus.failed,
         errorMessage: e.toString(),
       );
-      rethrow;
+      throw VtuServiceException(e.toString());
     }
   }
 
@@ -335,12 +383,8 @@ class VtuService {
   }) async {
     final amountSats = await nairaToSats(amountNaira);
 
-    if (!await hasSufficientBalance(amountSats)) {
-      throw InsufficientBalanceException(
-        required: amountSats,
-        available: await getUserBalance(),
-      );
-    }
+    // Step 1: Deep Validation
+    await validateTransaction(amountNaira);
 
     final order = await _createOrder(
       serviceType: VtuServiceType.cableTv,
@@ -352,12 +396,11 @@ class VtuService {
     );
 
     try {
-      await _payToAgent(
-        amountSats,
-        'Cable TV: $planName to $smartcardNumber',
-      );
       await updateOrderStatus(order.id, VtuOrderStatus.processing);
 
+      debugPrint(
+        '🚀 Delivery First: Attempting Cable TV API call for ${order.id}',
+      );
       final apiResponse = await VtuApiService.buyCableTv(
         smartcardNumber: smartcardNumber,
         providerCode: providerCode,
@@ -366,12 +409,31 @@ class VtuService {
       );
 
       if (apiResponse.success) {
-        final completedOrder = await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.completed,
-          token: apiResponse.transactionId,
-        );
-        return completedOrder!;
+        debugPrint('✅ Delivery Successful. Charging user...');
+
+        try {
+          await _payToAgent(
+            amountSats,
+            'Cable TV: $planName to $smartcardNumber',
+          );
+          
+          final completedOrder = await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.completed,
+            token: apiResponse.transactionId,
+          );
+          return completedOrder!;
+          
+        } catch (paymentError) {
+          await updateOrderStatus(
+            order.id,
+            VtuOrderStatus.failed,
+            errorMessage: 'Payment failed but subscription active.',
+          );
+          throw PaymentFailedException(
+            'Subscription activated but payment failed. Contact support.',
+          );
+        }
       } else {
         await updateOrderStatus(
           order.id,
@@ -385,15 +447,9 @@ class VtuService {
         );
       }
     } catch (e) {
-      if (e is InsufficientBalanceException || e is VtuDeliveryException) {
-        rethrow;
-      }
-      if (e is PaymentFailedException) {
-        await updateOrderStatus(
-          order.id,
-          VtuOrderStatus.failed,
-          errorMessage: e.message,
-        );
+      if (e is InsufficientBalanceException ||
+          e is VtuDeliveryException ||
+          e is PaymentFailedException) {
         rethrow;
       }
       await updateOrderStatus(
@@ -401,7 +457,7 @@ class VtuService {
         VtuOrderStatus.failed,
         errorMessage: e.toString(),
       );
-      rethrow;
+      throw VtuServiceException(e.toString());
     }
   }
 
@@ -857,4 +913,12 @@ class RefundException implements Exception {
 
   @override
   String toString() => 'Refund error: $message';
+}
+
+/// Exception for general VTU service errors
+class VtuServiceException implements Exception {
+  final String message;
+  const VtuServiceException(this.message);
+  @override
+  String toString() => message;
 }
