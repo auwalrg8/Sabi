@@ -246,9 +246,20 @@ class NostrProfileService {
     String? lud16,
     String? website,
   }) async {
-    if (_hexPrivateKey == null || _hexPublicKey == null) {
-      throw Exception('No private key available - cannot update profile');
+    // Ensure service is initialized before updating
+    if (!_initialized || _hexPrivateKey == null) {
+      debugPrint('⚠️ NostrProfileService not initialized, initializing now...');
+      await init(force: true);
     }
+
+    if (_hexPrivateKey == null || _hexPublicKey == null) {
+      debugPrint('❌ NostrProfileService: No private key available after init');
+      debugPrint('❌ _hexPrivateKey is null: ${_hexPrivateKey == null}');
+      debugPrint('❌ _hexPublicKey is null: ${_hexPublicKey == null}');
+      throw Exception('No private key available - cannot update profile. Please set up Nostr keys first.');
+    }
+    
+    debugPrint('📝 Updating profile for ${_hexPublicKey!.substring(0, 8)}...');
 
     // Get current profile or create new one
     final current = _currentProfile ?? NostrProfile(

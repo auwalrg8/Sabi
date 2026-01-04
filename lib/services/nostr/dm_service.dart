@@ -533,17 +533,22 @@ class DMService {
     required String message,
     String? relatedOfferId,
   }) async {
+    debugPrint('📤 DMService.sendDM() called - recipient: ${recipientPubkey.substring(0, 8)}...');
+    
     final myPubkey = _profileService.currentPubkey;
     if (myPubkey == null) {
       debugPrint('❌ DMService: No pubkey available');
       return false;
     }
+    debugPrint('📤 DMService: My pubkey: ${myPubkey.substring(0, 8)}...');
 
     try {
       // Ensure relay pool is initialized
       if (!_relayPool.isInitialized) {
+        debugPrint('📤 DMService: Initializing relay pool...');
         await _relayPool.init();
       }
+      debugPrint('📤 DMService: Relay pool ready, ${_relayPool.connectedCount} connected');
 
       // Get nsec for encryption and signing
       final nsec = await _profileService.getNsec();
@@ -551,14 +556,17 @@ class DMService {
         debugPrint('❌ DMService: No nsec available');
         return false;
       }
+      debugPrint('📤 DMService: Got nsec');
 
       final hexPrivKey = _nsecToHex(nsec);
       if (hexPrivKey == null) {
         debugPrint('❌ DMService: Failed to convert nsec to hex');
         return false;
       }
+      debugPrint('📤 DMService: Converted nsec to hex');
 
       // Encrypt message
+      debugPrint('📤 DMService: Encrypting message...');
       final encrypted = await _encryptMessage(
         message,
         recipientPubkey,
@@ -568,6 +576,7 @@ class DMService {
         debugPrint('❌ DMService: Failed to encrypt message');
         return false;
       }
+      debugPrint('📤 DMService: Message encrypted successfully');
 
       // Build tags
       final tags = <List<String>>[
@@ -577,17 +586,25 @@ class DMService {
         tags.add(['e', relatedOfferId]);
       }
 
-      // Create Nostr instance for signing
+      // Create Nostr instance for signing - this sets the global private key
+      // The Event class uses this when computing id and signature
+      // ignore: unused_local_variable
       final nostr = Nostr(privateKey: hexPrivKey);
 
-      // Create event - note: Event constructor doesn't sign
+      // Create event - Event constructor uses the Nostr singleton's private key
+      // to compute the id (hash) and signature
+      debugPrint('📤 DMService: Creating signed event...');
       final event = Event(myPubkey, 4, tags, encrypted);
 
-      // sendEvent signs the event AND sends via nostr_dart's relays
-      // This is what actually populates event.id and event.sig
-      nostr.sendEvent(event);
+      // Verify event was signed properly
+      if (event.id.isEmpty || event.sig.isEmpty) {
+        debugPrint('❌ DMService: Event signing failed - empty id or sig');
+        debugPrint('❌ event.id: "${event.id}", event.sig: "${event.sig}"');
+        return false;
+      }
+      debugPrint('📤 DMService: Event signed - id: ${event.id.substring(0, 8)}...');
 
-      // Also publish via our relay pool for better coverage
+      // Build signed event for publishing via our relay pool
       final signedEvent = <String, dynamic>{
         'id': event.id,
         'pubkey': myPubkey,
@@ -601,6 +618,21 @@ class DMService {
       debugPrint(
         '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}... sig: ${event.sig.substring(0, 8)}...',
       );
+
+      // Check relay connection before publish
+      if (_relayPool.connectedCount == 0) {
+        debugPrint('⚠️ DMService: No connected relays, attempting to reconnect...');
+        await _relayPool.init();
+        // Give relays a moment to connect
+        await Future.delayed(const Duration(seconds: 2));
+        
+        if (_relayPool.connectedCount == 0) {
+          debugPrint('❌ DMService: Still no connected relays after reconnect');
+          return false;
+        }
+      }
+      
+      debugPrint('📨 DMService: ${_relayPool.connectedCount} relays available for sending');
 
       // Publish to relays
       final successCount = await _relayPool.publish(signedEvent);
@@ -621,10 +653,11 @@ class DMService {
         return true;
       }
 
-      debugPrint('❌ DMService: Failed to publish to any relay');
+      debugPrint('❌ DMService: Failed to publish to any relay (0/$successCount relays)');
       return false;
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint('❌ DMService: Error sending DM: $e');
+      debugPrint('❌ Stack trace: $stack');
       return false;
     }
   }

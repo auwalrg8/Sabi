@@ -155,9 +155,28 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     if (_isSeller) {
       // Seller: counterparty is the buyer
       _counterpartyPubkey = _activeTrade?.buyerPubkey;
+
+      // If no active trade yet, we can't DM until buyer initiates
+      if (_counterpartyPubkey == null || _counterpartyPubkey!.isEmpty) {
+        P2PLogger.warning(
+          'Trade',
+          'Seller waiting for buyer to initiate trade',
+        );
+      }
     } else {
       // Buyer: counterparty is the seller (offer creator)
+      // First try from active trade, then fall back to offer merchant
       _counterpartyPubkey = _activeTrade?.offerPubkey;
+
+      // Fallback to offer's merchant ID (which is the seller's pubkey)
+      if (_counterpartyPubkey == null || _counterpartyPubkey!.isEmpty) {
+        _counterpartyPubkey = widget.offer.merchant?.id;
+        P2PLogger.info(
+          'Trade',
+          'Using offer merchant as counterparty',
+          metadata: {'merchantId': _counterpartyPubkey?.substring(0, 16)},
+        );
+      }
     }
 
     P2PLogger.info(
@@ -166,19 +185,38 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       metadata: {
         'role': _isSeller ? 'seller' : 'buyer',
         'counterparty': _counterpartyPubkey?.substring(0, 16),
+        'hasTrade': _activeTrade != null,
       },
     );
   }
 
   void _onDMReceived(DirectMessage dm) {
-    // Only process messages from our counterparty
-    if (dm.senderPubkey != _counterpartyPubkey) return;
+    // For sellers without a set counterparty, accept trade-related messages
+    // and learn the buyer's pubkey from the first message
+    if (_isSeller &&
+        (_counterpartyPubkey == null || _counterpartyPubkey!.isEmpty)) {
+      // Check if this might be a trade notification for our offer
+      if (dm.content.startsWith('{') && dm.content.contains('"tradeId"')) {
+        P2PLogger.info(
+          'Trade',
+          'Seller received trade message, setting counterparty',
+          metadata: {'senderPubkey': dm.senderPubkey.substring(0, 16)},
+        );
+        _counterpartyPubkey = dm.senderPubkey;
+      } else {
+        // Skip non-trade messages when counterparty not set
+        return;
+      }
+    } else if (dm.senderPubkey != _counterpartyPubkey) {
+      // Only process messages from our counterparty
+      return;
+    }
 
     // Prevent duplicate messages
     if (_processedMessageIds.contains(dm.id)) return;
     _processedMessageIds.add(dm.id);
 
-    // Check if this is a trade-related message (JSON with P2P prefix)
+    // Check if this is a trade-related message (JSON with type field)
     if (dm.content.startsWith('{') && dm.content.contains('"type"')) {
       _handleTradeNotification(dm);
     } else {
@@ -191,21 +229,47 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     try {
       final data = jsonDecode(dm.content);
       final type = data['type'] as String?;
+      final tradeId = data['tradeId'] as String?;
+      final notificationData = data['data'] as Map<String, dynamic>?;
 
       switch (type) {
+        case 'tradeStarted':
+          // Seller receiving trade start notification from buyer
+          if (_isSeller && tradeId != null) {
+            _handleIncomingTradeStart(
+              tradeId: tradeId,
+              buyerPubkey: dm.senderPubkey,
+              data: notificationData,
+            );
+          }
+          _addSystemMessage('🔔 Trade started! Waiting for buyer payment.');
+          break;
+        case 'paymentSubmitted':
         case 'p2p_payment_submitted':
           _addSystemMessage('💳 Buyer has submitted fiat payment.');
           if (_isSeller) {
             setState(() => _tradeStatus = TradeStatus.paid);
+            // Refresh trade status
+            if (tradeId != null) {
+              _refreshTradeStatus(tradeId);
+            }
           }
           break;
+        case 'proofUploaded':
         case 'p2p_proof_uploaded':
           _addSystemMessage('📷 Buyer has uploaded payment proof.');
           break;
+        case 'paymentConfirmed':
+        case 'p2p_payment_confirmed':
+          _addSystemMessage('✅ Seller confirmed payment received.');
+          setState(() => _tradeStatus = TradeStatus.releasing);
+          break;
+        case 'btcReleased':
         case 'p2p_btc_released':
           _addSystemMessage('🎉 BTC has been released!');
           setState(() => _tradeStatus = TradeStatus.released);
           break;
+        case 'tradeCancelled':
         case 'p2p_trade_cancelled':
           _addSystemMessage('❌ Trade has been cancelled.');
           setState(() => _tradeStatus = TradeStatus.cancelled);
@@ -220,6 +284,45 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
     } catch (e) {
       // Not valid JSON, treat as regular message
       _addMessage(dm.content, isMe: false);
+    }
+  }
+
+  /// Handle incoming trade start for sellers
+  Future<void> _handleIncomingTradeStart({
+    required String tradeId,
+    required String buyerPubkey,
+    Map<String, dynamic>? data,
+  }) async {
+    if (_activeTrade != null) return; // Already have a trade
+
+    final trade = await P2PTradeManager().handleIncomingTrade(
+      tradeId: tradeId,
+      offerId: widget.offer.id,
+      buyerPubkey: buyerPubkey,
+      fiatAmount: data?['fiatAmount']?.toDouble() ?? widget.tradeAmount,
+      satsAmount: data?['satsAmount'] ?? widget.receiveSats.toInt(),
+      paymentMethod: data?['paymentMethod'] ?? widget.offer.paymentMethod,
+    );
+
+    if (trade != null) {
+      setState(() {
+        _activeTrade = trade;
+        _counterpartyPubkey = buyerPubkey;
+      });
+      P2PLogger.info(
+        'Trade',
+        'Seller created trade from incoming notification',
+        tradeId: tradeId,
+      );
+    }
+  }
+
+  /// Refresh trade status from trade manager
+  void _refreshTradeStatus(String tradeId) {
+    final trade = P2PTradeManager().getTrade(tradeId);
+    if (trade != null) {
+      setState(() => _activeTrade = trade);
+      _syncTradeStatus();
     }
   }
 

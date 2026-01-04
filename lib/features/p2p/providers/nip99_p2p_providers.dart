@@ -153,9 +153,13 @@ class Nip99OfferNotifier extends StateNotifier<AsyncValue<void>> {
         throw Exception('No Nostr identity - please set up your keys first');
       }
 
+      // Generate unique ID for NIP-99 'd' tag (replaceable event identifier)
+      final uniqueId =
+          'p2p_${DateTime.now().millisecondsSinceEpoch}_${pubkey.substring(0, 8)}';
+
       final offer = NostrP2POffer(
-        id: '', // Will be generated
-        eventId: '',
+        id: uniqueId,
+        eventId: '', // Will be set after publishing
         pubkey: pubkey,
         type: type,
         title: title,

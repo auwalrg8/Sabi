@@ -10,6 +10,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'nostr_debug_service.dart';
 import 'nostr_relay_client.dart';
+import 'package:sabi_wallet/services/nostr/relay_pool_manager.dart';
 
 // Global debug service instance
 final _debug = NostrDebugService();
@@ -22,6 +23,9 @@ final _debug = NostrDebugService();
 class NostrService {
   static const _npubKey = 'nostr_npub';
   static const _nsecKey = 'nostr_nsec';
+  // Store hex keys for compatibility with NostrProfileService
+  static const _hexPrivKey = 'nostr_hex_privkey';
+  static const _hexPubKey = 'nostr_hex_pubkey';
 
   static late final FlutterSecureStorage _secureStorage;
   static Nostr? _nostr;
@@ -381,6 +385,10 @@ class NostrService {
       await _secureStorage.write(key: _nsecKey, value: nsec);
       await _secureStorage.write(key: _npubKey, value: npub);
 
+      // Also store hex keys for NostrProfileService compatibility
+      await _secureStorage.write(key: _hexPrivKey, value: hexPrivateKey);
+      await _secureStorage.write(key: _hexPubKey, value: hexPublicKey);
+
       // Initialize Nostr with hex private key
       await _initializeNostrWithKey(hexPrivateKey);
 
@@ -457,6 +465,10 @@ class NostrService {
       // Initialize Nostr - need to convert nsec to hex for nostr_dart
       final hexPrivateKey = _nsecToHex(nsec);
       if (hexPrivateKey != null) {
+        final hexPublicKey = getPublicKey(hexPrivateKey);
+        // Also store hex keys for NostrProfileService compatibility
+        await _secureStorage.write(key: _hexPrivKey, value: hexPrivateKey);
+        await _secureStorage.write(key: _hexPubKey, value: hexPublicKey);
         await _initializeNostrWithKey(hexPrivateKey);
       }
 
@@ -621,9 +633,12 @@ class NostrService {
       final encryptedContent =
           '${encrypted.base64}?iv=${base64Encode(ivBytes)}';
 
+      // Get our pubkey - derive from private key
+      final myHexPubkey = getPublicKey(hexPrivateKey);
+
       // Create DM event (kind 4)
       final event = Event(
-        '', // pubkey will be set by the Nostr instance
+        myHexPubkey,
         4, // NIP-04 encrypted DM kind
         [
           ['p', targetHexPubkey],
@@ -631,8 +646,30 @@ class NostrService {
         encryptedContent,
       );
 
-      // Publish to all relays
-      _nostr!.sendEvent(event);
+      // Sign event manually using nostr_dart signer
+      final signer = Nostr(privateKey: hexPrivateKey);
+      signer.sendEvent(event); // This signs and sends via websocket
+
+      // Also publish via relay pool for more reliable delivery
+      final relayPool = RelayPoolManager();
+      if (!relayPool.isInitialized) {
+        await relayPool.init();
+      }
+
+      final eventJson = {
+        'id': event.id,
+        'pubkey': myHexPubkey,
+        'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'kind': 4,
+        'tags': [
+          ['p', targetHexPubkey],
+        ],
+        'content': encryptedContent,
+        'sig': event.sig,
+      };
+
+      final successCount = await relayPool.publish(eventJson);
+      _debug.info('DM', 'Published to relay pool', '$successCount relays');
 
       _debug.success(
         'DM',

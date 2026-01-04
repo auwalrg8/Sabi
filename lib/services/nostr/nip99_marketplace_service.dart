@@ -327,7 +327,9 @@ class NIP99MarketplaceService {
 
   /// Fetch offers by a specific user
   Future<List<NostrP2POffer>> fetchUserOffers(String pubkey) async {
-    debugPrint('🔍 Fetching offers by ${pubkey.substring(0, 8)}...');
+    debugPrint(
+      '🔍 Fetching user offers for pubkey: ${pubkey.substring(0, 8)}...',
+    );
 
     // Ensure relay pool is initialized
     if (!_relayPool.isInitialized) {
@@ -335,21 +337,36 @@ class NIP99MarketplaceService {
       await _relayPool.init();
     }
 
+    debugPrint('📡 Connected relays: ${_relayPool.connectedRelays.length}');
+
     final events = await _relayPool.fetch(
       filter: {
         'kinds': [classifiedListingKind],
         'authors': [pubkey],
         'limit': 50,
       },
-      timeoutSeconds: 8,
+      timeoutSeconds: 10,
       maxEvents: 50,
+      earlyComplete: false, // Wait for all relays to respond
     );
+
+    debugPrint('📨 Received ${events.length} events from relays');
 
     final offers = <NostrP2POffer>[];
     final seenIds = <String>{};
+    final seenEventIds = <String>{}; // Track by event ID as backup
 
     for (final event in events) {
       try {
+        // Skip if we've seen this exact event
+        if (seenEventIds.contains(event.id)) {
+          debugPrint(
+            '⏭️ Skipping duplicate event: ${event.id.substring(0, 8)}',
+          );
+          continue;
+        }
+        seenEventIds.add(event.id);
+
         final hasP2pTag = event.tags.any(
           (tag) =>
               tag.isNotEmpty &&
@@ -357,7 +374,10 @@ class NIP99MarketplaceService {
               tag.length > 1 &&
               tag[1] == 'p2p',
         );
-        if (!hasP2pTag) continue;
+        if (!hasP2pTag) {
+          debugPrint('⏭️ Skipping non-P2P event: ${event.id.substring(0, 8)}');
+          continue;
+        }
 
         final offer = NostrP2POffer.fromNip99Event(
           eventId: event.id,
@@ -367,15 +387,27 @@ class NIP99MarketplaceService {
           createdAt: event.timestamp,
         );
 
-        if (seenIds.contains(offer.id)) continue;
-        seenIds.add(offer.id);
+        debugPrint(
+          '📦 Parsed offer: id=${offer.id}, title=${offer.title}, eventId=${event.id.substring(0, 8)}',
+        );
+
+        // Deduplicate by offer 'd' tag ID
+        // For legacy offers with empty 'd' tag, use eventId instead
+        final dedupeKey = offer.id.isNotEmpty ? offer.id : event.id;
+        if (seenIds.contains(dedupeKey)) {
+          debugPrint('⏭️ Skipping duplicate offer by ID: $dedupeKey');
+          continue;
+        }
+        seenIds.add(dedupeKey);
 
         offers.add(offer);
+        debugPrint('✅ Added offer: ${offer.title} (${offer.id})');
       } catch (e) {
-        // Skip malformed
+        debugPrint('❌ Error parsing offer event: $e');
       }
     }
 
+    debugPrint('📊 Total unique offers found: ${offers.length}');
     offers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return offers;
   }

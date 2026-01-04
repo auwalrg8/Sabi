@@ -436,6 +436,73 @@ class P2PTradeManager extends ChangeNotifier {
     }
   }
 
+  /// Create or get trade as seller when receiving incoming trade notification
+  /// Called when seller receives a tradeStarted DM from buyer
+  Future<P2PTrade?> handleIncomingTrade({
+    required String tradeId,
+    required String offerId,
+    required String buyerPubkey,
+    required double fiatAmount,
+    required int satsAmount,
+    required String paymentMethod,
+    String? buyerInvoice,
+    String? buyerName,
+  }) async {
+    // Check if trade already exists
+    if (_trades.containsKey(tradeId)) {
+      P2PLogger.info('TradeManager', 'Trade already exists', tradeId: tradeId);
+      return _trades[tradeId];
+    }
+
+    try {
+      // Get current user's pubkey (seller)
+      final npub = await NostrService.getNpub();
+      final myPubkey = npub != null ? NostrService.npubToHex(npub) : null;
+      if (myPubkey == null) {
+        throw Exception('No Nostr identity');
+      }
+
+      final trade = P2PTrade(
+        id: tradeId,
+        offerId: offerId,
+        offerPubkey: myPubkey, // Seller is me
+        buyerPubkey: buyerPubkey,
+        buyerLightningAddress: buyerInvoice,
+        myRole: TradeRole.seller,
+        fiatAmount: fiatAmount,
+        fiatCurrency: 'NGN',
+        satsAmount: satsAmount,
+        pricePerBtc: 0, // Will be calculated from offer
+        paymentMethod: paymentMethod,
+        status: P2PTradeStatus.pendingPayment,
+        buyerName: buyerName,
+      );
+
+      _trades[tradeId] = trade;
+      _startTradeTimer(tradeId);
+      await _saveTrades();
+      _tradeUpdates.add(trade);
+      notifyListeners();
+
+      P2PLogger.info(
+        'TradeManager',
+        'Seller trade created from incoming notification',
+        tradeId: tradeId,
+      );
+      return trade;
+    } catch (e, stack) {
+      P2PLogger.error(
+        'TradeManager',
+        'Failed to create seller trade: $e',
+        stackTrace: stack,
+      );
+      return null;
+    }
+  }
+
+  /// Get a trade by ID
+  P2PTrade? getTrade(String tradeId) => _trades[tradeId];
+
   /// Mark trade as paid (buyer side)
   Future<bool> markAsPaid(
     String tradeId, {
@@ -700,9 +767,6 @@ class P2PTradeManager extends ChangeNotifier {
     P2PLogger.info('TradeManager', 'Trade disputed', tradeId: tradeId);
     return true;
   }
-
-  /// Get trade by ID
-  P2PTrade? getTrade(String tradeId) => _trades[tradeId];
 
   /// Get remaining time for a trade in seconds
   int getTradeTimeRemaining(String tradeId) {
