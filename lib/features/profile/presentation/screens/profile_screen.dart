@@ -34,10 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Stats
   int _zapCount = 0;
-  int _zapTotal = 0;
-  // ignore: unused_field
-  int _followersCount = 0;
-  int _followingCount = 0;
   int _relaysConnected = 0;
 
   // Lightning address claiming
@@ -57,69 +53,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
+    // Fast path: Load cached data first, then refresh from network
     try {
       await NostrService.init();
       final npub = await NostrService.getNpub();
       final nsec = await NostrService.getNsec();
 
-      nostr_v2.NostrProfile? profile;
-      int zapCount = 0;
-      int zapTotal = 0;
-      int followers = 0;
-      int following = 0;
-      int relays = 0;
-
-      if (npub != null) {
-        try {
-          final profileService = nostr_v2.NostrProfileService();
-          final relayPool = nostr_v2.RelayPoolManager();
-          final feedAggregator = nostr_v2.FeedAggregator();
-
-          relays = relayPool.connectedCount;
-          following = feedAggregator.followsCount;
-          profile = profileService.currentProfile;
-
-          // If no cached profile, fetch from relays
-          if (profile == null) {
-            final hexPubkey = nostr_v2.NostrProfileService.npubToHex(npub);
-            if (hexPubkey != null) {
-              profile = await profileService.fetchProfile(hexPubkey);
-            }
-          }
-
-          final zapService = nostr_v2.ZapService();
-          final recentZaps = zapService.recentZapsReceived;
-          zapCount = recentZaps.length;
-          zapTotal = recentZaps.fold(0, (sum, zap) => sum + zap.amountSats);
-
-          // Pre-fill username from existing profile
-          if (profile?.name != null && _usernameController.text.isEmpty) {
-            _usernameController.text = profile!.name!.toLowerCase().replaceAll(
-              ' ',
-              '',
-            );
-          }
-        } catch (e) {
-          debugPrint('⚠️ Could not load profile: $e');
-        }
-      }
-
+      // Immediately set keys and show cached profile
       if (mounted) {
         setState(() {
           _nostrNpub = npub;
           _nostrNsec = nsec;
-          _nostrProfile = profile;
-          _zapCount = zapCount;
-          _zapTotal = zapTotal;
-          _followersCount = followers;
-          _followingCount = following;
-          _relaysConnected = relays;
-          _isLoading = false;
         });
+      }
+
+      nostr_v2.NostrProfile? profile;
+      int relays = 0;
+
+      if (npub != null) {
+        final profileService = nostr_v2.NostrProfileService();
+        final relayPool = nostr_v2.RelayPoolManager();
+
+        // Try cached profile first (instant)
+        profile = profileService.currentProfile;
+        relays = relayPool.connectedCount;
+
+        // Show cached immediately if available
+        if (profile != null && mounted) {
+          setState(() {
+            _nostrProfile = profile;
+            _relaysConnected = relays;
+            _isLoading = false;
+          });
+
+          // Pre-fill username
+          if (profile.name != null && _usernameController.text.isEmpty) {
+            _usernameController.text = profile.name!.toLowerCase().replaceAll(
+              ' ',
+              '',
+            );
+          }
+        }
+
+        // Fetch fresh profile in background
+        _refreshProfileFromNetwork(npub, profileService, relayPool);
+      } else {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
       debugPrint('❌ Error loading profile: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _refreshProfileFromNetwork(
+    String npub,
+    nostr_v2.NostrProfileService profileService,
+    nostr_v2.RelayPoolManager relayPool,
+  ) async {
+    try {
+      final hexPubkey = nostr_v2.NostrProfileService.npubToHex(npub);
+      if (hexPubkey == null) return;
+
+      // Fetch fresh profile from relays
+      final freshProfile = await profileService.fetchProfile(hexPubkey);
+
+      // Get zap stats
+      final zapService = nostr_v2.ZapService();
+      final recentZaps = zapService.recentZapsReceived;
+      final zapCount = recentZaps.length;
+
+      if (mounted && freshProfile != null) {
+        setState(() {
+          _nostrProfile = freshProfile;
+          _zapCount = zapCount;
+          _relaysConnected = relayPool.connectedCount;
+          _isLoading = false;
+        });
+
+        // Pre-fill username
+        if (freshProfile.name != null && _usernameController.text.isEmpty) {
+          _usernameController.text = freshProfile.name!
+              .toLowerCase()
+              .replaceAll(' ', '');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Background profile refresh failed: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -591,6 +615,268 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _showEditLightningAddressModal(String currentAddress) async {
+    // Extract username from address
+    final currentUsername = currentAddress.split('@').first;
+    final usernameController = TextEditingController(text: currentUsername);
+    String? errorText;
+    bool isUpdating = false;
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setModalState) => Container(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24.r),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(20.w),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Handle
+                        Center(
+                          child: Container(
+                            width: 40.w,
+                            height: 4.h,
+                            decoration: BoxDecoration(
+                              color: AppColors.borderColor,
+                              borderRadius: BorderRadius.circular(2.r),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 20.h),
+
+                        // Title
+                        Text(
+                          'Edit Lightning Address',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          'Update your Lightning address on Nostr profile',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13.sp,
+                          ),
+                        ),
+                        SizedBox(height: 20.h),
+
+                        // Username input
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(
+                              color:
+                                  errorText != null
+                                      ? Colors.red
+                                      : AppColors.borderColor,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: usernameController,
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14.sp,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'username',
+                              hintStyle: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 14.sp,
+                              ),
+                              suffixText: '@$lightningAddressDomain',
+                              suffixStyle: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12.sp,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w,
+                                vertical: 14.h,
+                              ),
+                            ),
+                            onChanged: (_) {
+                              if (errorText != null) {
+                                setModalState(() => errorText = null);
+                              }
+                            },
+                          ),
+                        ),
+                        if (errorText != null) ...[
+                          SizedBox(height: 8.h),
+                          Text(
+                            errorText!,
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 12.sp,
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: 20.h),
+
+                        // Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: AppColors.borderColor,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
+                                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                                ),
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed:
+                                    isUpdating
+                                        ? null
+                                        : () async {
+                                          final newUsername =
+                                              usernameController.text
+                                                  .trim()
+                                                  .toLowerCase();
+
+                                          // Validate
+                                          if (newUsername.isEmpty) {
+                                            setModalState(
+                                              () =>
+                                                  errorText =
+                                                      'Username cannot be empty',
+                                            );
+                                            return;
+                                          }
+                                          if (newUsername.length < 3) {
+                                            setModalState(
+                                              () =>
+                                                  errorText =
+                                                      'At least 3 characters required',
+                                            );
+                                            return;
+                                          }
+                                          if (!RegExp(
+                                            r'^[a-z0-9_]+$',
+                                          ).hasMatch(newUsername)) {
+                                            setModalState(
+                                              () =>
+                                                  errorText =
+                                                      'Only letters, numbers, underscore',
+                                            );
+                                            return;
+                                          }
+
+                                          setModalState(
+                                            () => isUpdating = true,
+                                          );
+
+                                          try {
+                                            final profileService =
+                                                nostr_v2.NostrProfileService();
+                                            final newAddress =
+                                                formatLightningAddress(
+                                                  newUsername,
+                                                );
+
+                                            final success = await profileService
+                                                .updateProfile(
+                                                  lud16: newAddress,
+                                                );
+
+                                            if (success && context.mounted) {
+                                              Navigator.pop(context, true);
+                                            } else if (context.mounted) {
+                                              setModalState(() {
+                                                errorText = 'Failed to update';
+                                                isUpdating = false;
+                                              });
+                                            }
+                                          } catch (e) {
+                                            setModalState(() {
+                                              errorText = 'Error: $e';
+                                              isUpdating = false;
+                                            });
+                                          }
+                                        },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF7931A),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
+                                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                                ),
+                                child:
+                                    isUpdating
+                                        ? SizedBox(
+                                          width: 20.w,
+                                          height: 20.w,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                        : Text(
+                                          'Save',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16.h),
+                      ],
+                    ),
+                  ),
+                ),
+          ),
+    );
+
+    if (result == true) {
+      await _loadProfile();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lightning address updated!'),
+            backgroundColor: AppColors.accentGreen,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showNostrOnboarding() async {
     final result = await Navigator.push<bool>(
       context,
@@ -649,6 +935,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final username = _nostrProfile?.name;
     final bio = _nostrProfile?.about;
     final picture = _nostrProfile?.picture;
+    final banner = _nostrProfile?.banner;
     final lightningAddress = _nostrProfile?.lud16;
 
     return Scaffold(
@@ -666,47 +953,103 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // Header with gradient background
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [const Color(0xFF1A1A2E), AppColors.background],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                // Header with banner image or gradient background
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Banner image or gradient
+                    Container(
+                      width: double.infinity,
+                      height: 140.h,
+                      decoration: BoxDecoration(
+                        gradient:
+                            banner == null
+                                ? LinearGradient(
+                                  colors: [
+                                    const Color(0xFF1A1A2E),
+                                    AppColors.background,
+                                  ],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                )
+                                : null,
+                        image:
+                            banner != null
+                                ? DecorationImage(
+                                  image: NetworkImage(banner),
+                                  fit: BoxFit.cover,
+                                )
+                                : null,
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              AppColors.background.withValues(alpha: 0.8),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      // Top bar
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => Navigator.pop(context),
+                    // Top bar (positioned over banner)
+                    Positioned(
+                      top: 10.h,
+                      left: 20.w,
+                      right: 20.w,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  padding: EdgeInsets.all(8.w),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.background.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
                                   child: Icon(
                                     Icons.arrow_back,
                                     color: AppColors.textPrimary,
-                                    size: 24.w,
+                                    size: 20.w,
                                   ),
                                 ),
-                                SizedBox(width: 12.w),
-                                Text(
-                                  'Profile',
-                                  style: TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 20.sp,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              ),
+                              SizedBox(width: 12.w),
+                              Text(
+                                'Profile',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 20.sp,
+                                  fontWeight: FontWeight.w700,
+                                  shadows:
+                                      banner != null
+                                          ? [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 4,
+                                            ),
+                                          ]
+                                          : null,
                                 ),
-                              ],
-                            ),
-                            if (hasNostr)
-                              IconButton(
+                              ),
+                            ],
+                          ),
+                          if (hasNostr)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.background.withValues(
+                                  alpha: 0.7,
+                                ),
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                              child: IconButton(
                                 onPressed: _showEditProfileModal,
                                 icon: Icon(
                                   Icons.edit,
@@ -714,10 +1057,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 22.sp,
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
+                    ),
+                  ],
+                ),
 
+                // Profile content (overlaps banner slightly)
+                Transform.translate(
+                  offset: Offset(0, -30.h),
+                  child: Column(
+                    children: [
                       SizedBox(height: 20.h),
 
                       // Avatar
@@ -782,41 +1133,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
 
-                      // Bio
+                      // Bio - show full text
                       if (bio != null && bio.isNotEmpty) ...[
                         SizedBox(height: 12.h),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 40.w),
+                          padding: EdgeInsets.symmetric(horizontal: 24.w),
                           child: Text(
                             bio,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 14.sp,
+                              height: 1.4,
                             ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
 
                       SizedBox(height: 20.h),
 
-                      // Stats Row
+                      // Stats Row - Only Zaps and Relays
                       if (hasNostr)
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 30.w),
+                          padding: EdgeInsets.symmetric(horizontal: 40.w),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _buildStatItem(
-                                'Following',
-                                _followingCount.toString(),
-                              ),
-                              _buildStatDivider(),
                               _buildStatItem('Zaps', _zapCount.toString()),
-                              _buildStatDivider(),
-                              _buildStatItem('Sats', _formatSats(_zapTotal)),
                               _buildStatDivider(),
                               _buildStatItem(
                                 'Relays',
@@ -831,62 +1174,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                // Content
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  child: Column(
-                    children: [
-                      // Nostr Identity Section
-                      if (!hasNostr) ...[
-                        _buildSetupNostrCard(),
-                        SizedBox(height: 16.h),
-                      ] else ...[
-                        _buildNostrIdentityCard(),
-                        SizedBox(height: 16.h),
+                // Content (adjust for the transform)
+                Transform.translate(
+                  offset: Offset(0, -30.h),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: Column(
+                      children: [
+                        // Nostr Identity Section
+                        if (!hasNostr) ...[
+                          _buildSetupNostrCard(),
+                          SizedBox(height: 16.h),
+                        ] else ...[
+                          _buildNostrIdentityCard(),
+                          SizedBox(height: 16.h),
 
-                        // Lightning Address Section
-                        _buildLightningAddressCard(lightningAddress),
-                        SizedBox(height: 16.h),
+                          // Lightning Address Section
+                          _buildLightningAddressCard(lightningAddress),
+                          SizedBox(height: 16.h),
+                        ],
+
+                        // Menu Items
+                        _MenuItemTile(
+                          icon: Icons.settings_outlined,
+                          iconColor: AppColors.primary,
+                          title: 'Settings',
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen(),
+                                ),
+                              ),
+                        ),
+                        SizedBox(height: 12.h),
+
+                        _MenuItemTile(
+                          icon: Icons.shield_outlined,
+                          iconColor: AppColors.accentYellow,
+                          title: 'Backup & Recovery',
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const BackupRecoveryScreen(),
+                                ),
+                              ),
+                        ),
+                        SizedBox(height: 12.h),
+
+                        _MenuItemTile(
+                          icon: Icons.swap_horiz,
+                          iconColor: Colors.orange,
+                          title: 'Switch Wallet',
+                          onTap: _switchWallet,
+                        ),
+
+                        SizedBox(height: 30.h),
                       ],
-
-                      // Menu Items
-                      _MenuItemTile(
-                        icon: Icons.settings_outlined,
-                        iconColor: AppColors.primary,
-                        title: 'Settings',
-                        onTap:
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SettingsScreen(),
-                              ),
-                            ),
-                      ),
-                      SizedBox(height: 12.h),
-
-                      _MenuItemTile(
-                        icon: Icons.shield_outlined,
-                        iconColor: AppColors.accentYellow,
-                        title: 'Backup & Recovery',
-                        onTap:
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const BackupRecoveryScreen(),
-                              ),
-                            ),
-                      ),
-                      SizedBox(height: 12.h),
-
-                      _MenuItemTile(
-                        icon: Icons.swap_horiz,
-                        iconColor: Colors.orange,
-                        title: 'Switch Wallet',
-                        onTap: _switchWallet,
-                      ),
-
-                      SizedBox(height: 30.h),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -1327,6 +1673,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       size: 18.sp,
                     ),
                   ),
+                  SizedBox(width: 12.w),
+                  GestureDetector(
+                    onTap: () => _showEditLightningAddressModal(currentAddress),
+                    child: Icon(
+                      Icons.edit,
+                      color: const Color(0xFFF7931A),
+                      size: 18.sp,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1435,15 +1790,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
-  }
-
-  String _formatSats(int sats) {
-    if (sats >= 1000000) {
-      return '${(sats / 1000000).toStringAsFixed(1)}M';
-    } else if (sats >= 1000) {
-      return '${(sats / 1000).toStringAsFixed(1)}k';
-    }
-    return sats.toString();
   }
 }
 
