@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
 
 /// Agent / POS Mode screen for accepting payments
 class AgentScreen extends StatefulWidget {
@@ -15,7 +17,10 @@ class _AgentScreenState extends State<AgentScreen> {
   final TextEditingController _amountController = TextEditingController();
   String? _generatedQRData;
   bool _isQRGenerated = false;
+  bool _isCreatingInvoice = false;
   String _formattedAmount = '0';
+  int _satsAmount = 0;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -30,6 +35,7 @@ class _AgentScreenState extends State<AgentScreen> {
     if (digits.isEmpty) {
       setState(() {
         _formattedAmount = '0';
+        _satsAmount = 0;
       });
       return;
     }
@@ -41,6 +47,24 @@ class _AgentScreenState extends State<AgentScreen> {
     setState(() {
       _formattedAmount = formatted;
     });
+
+    // Convert to sats in background
+    _updateSatsAmount(amount.toDouble());
+  }
+
+  Future<void> _updateSatsAmount(double nairaAmount) async {
+    try {
+      final btcNgnRate = await RateService.getBtcToNgnRate();
+      final btc = nairaAmount / btcNgnRate;
+      final sats = (btc * 100000000).round();
+      if (mounted) {
+        setState(() {
+          _satsAmount = sats;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to convert to sats: $e');
+    }
   }
 
   String _formatNumber(int number) {
@@ -60,7 +84,7 @@ class _AgentScreenState extends State<AgentScreen> {
     return result;
   }
 
-  void _generateQRCode() {
+  Future<void> _generateQRCode() async {
     String digits = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty || digits == '0') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,16 +100,74 @@ class _AgentScreenState extends State<AgentScreen> {
       return;
     }
 
-    int amount = int.parse(digits);
-
-    // Generate Lightning invoice / payment request data
-    // In production, this would be a real Lightning invoice
-    String paymentData = 'lightning:lnbc${amount}n1p0example';
-
     setState(() {
-      _generatedQRData = paymentData;
-      _isQRGenerated = true;
+      _isCreatingInvoice = true;
+      _errorMessage = null;
     });
+
+    try {
+      int nairaAmount = int.parse(digits);
+
+      // Convert Naira to Sats using current rate
+      final btcNgnRate = await RateService.getBtcToNgnRate();
+      final btc = nairaAmount / btcNgnRate;
+      final sats = (btc * 100000000).round();
+
+      if (sats < 1) {
+        throw Exception('Amount too small. Minimum is 1 sat.');
+      }
+
+      // Create real Lightning invoice via Breez SDK
+      final bolt11 = await BreezSparkService.createInvoice(
+        sats: sats,
+        memo: 'Payment of ₦${_formatNumber(nairaAmount)} ($sats sats)',
+      );
+
+      setState(() {
+        _generatedQRData = bolt11;
+        _isQRGenerated = true;
+        _satsAmount = sats;
+        _isCreatingInvoice = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 20.sp),
+                SizedBox(width: 8.w),
+                const Text('Invoice created successfully'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Invoice creation failed: $e');
+      setState(() {
+        _isCreatingInvoice = false;
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create invoice: ${_errorMessage}'),
+            backgroundColor: Colors.red.shade400,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _printReceipt() {
@@ -113,6 +195,8 @@ class _AgentScreenState extends State<AgentScreen> {
       _generatedQRData = null;
       _amountController.clear();
       _formattedAmount = '0';
+      _satsAmount = 0;
+      _errorMessage = null;
     });
   }
 
@@ -226,15 +310,43 @@ class _AgentScreenState extends State<AgentScreen> {
                         ],
                       ),
                     ),
+                    // Sats equivalent display
+                    if (_satsAmount > 0 && !_isQRGenerated) ...[
+                      SizedBox(height: 8.h),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12.w,
+                          vertical: 6.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7931A).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Text(
+                          '≈ ${_formatNumber(_satsAmount)} sats',
+                          style: TextStyle(
+                            color: const Color(0xFFF7931A),
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                     SizedBox(height: 20.h),
                     // Generate QR Code button
                     GestureDetector(
-                      onTap: _isQRGenerated ? _resetQR : _generateQRCode,
+                      onTap:
+                          _isCreatingInvoice
+                              ? null
+                              : (_isQRGenerated ? _resetQR : _generateQRCode),
                       child: Container(
                         width: double.infinity,
                         padding: EdgeInsets.symmetric(vertical: 16.h),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF7931A),
+                          color:
+                              _isCreatingInvoice
+                                  ? const Color(0xFFF7931A).withOpacity(0.5)
+                                  : const Color(0xFFF7931A),
                           borderRadius: BorderRadius.circular(16.r),
                           boxShadow: [
                             BoxShadow(
@@ -245,14 +357,40 @@ class _AgentScreenState extends State<AgentScreen> {
                           ],
                         ),
                         child: Center(
-                          child: Text(
-                            _isQRGenerated ? 'New Payment' : 'Generate QR Code',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child:
+                              _isCreatingInvoice
+                                  ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20.w,
+                                        height: 20.h,
+                                        child: const CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                      SizedBox(width: 12.w),
+                                      Text(
+                                        'Creating Invoice...',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                  : Text(
+                                    _isQRGenerated
+                                        ? 'New Payment'
+                                        : 'Generate Invoice',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                         ),
                       ),
                     ),
@@ -327,12 +465,84 @@ class _AgentScreenState extends State<AgentScreen> {
                           color: const Color(0xFFF7931A).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12.r),
                         ),
-                        child: Text(
-                          '₦$_formattedAmount',
-                          style: TextStyle(
-                            color: const Color(0xFFF7931A),
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.bold,
+                        child: Column(
+                          children: [
+                            Text(
+                              '₦$_formattedAmount',
+                              style: TextStyle(
+                                color: const Color(0xFFF7931A),
+                                fontSize: 24.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              '${_formatNumber(_satsAmount)} sats',
+                              style: TextStyle(
+                                color: const Color(0xFFA1A1B2),
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      // Copy invoice button
+                      GestureDetector(
+                        onTap: () {
+                          if (_generatedQRData != null) {
+                            Clipboard.setData(
+                              ClipboardData(text: _generatedQRData!),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.copy,
+                                      color: Colors.white,
+                                      size: 20.sp,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    const Text('Invoice copied to clipboard'),
+                                  ],
+                                ),
+                                backgroundColor: const Color(0xFFF7931A),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.w,
+                            vertical: 8.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0C0C1A),
+                            borderRadius: BorderRadius.circular(8.r),
+                            border: Border.all(color: const Color(0xFF2A2A3E)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.copy_rounded,
+                                color: const Color(0xFFA1A1B2),
+                                size: 16.sp,
+                              ),
+                              SizedBox(width: 6.w),
+                              Text(
+                                'Copy Invoice',
+                                style: TextStyle(
+                                  color: const Color(0xFFA1A1B2),
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
