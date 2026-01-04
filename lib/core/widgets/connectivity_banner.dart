@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -65,7 +66,7 @@ class _State extends ConsumerState<ConnectivityBanner>
 
           switch (status) {
             case BackendStatus.unavailable:
-              _show('Unable to reach server', Colors.orange, Icons.cloud_off);
+              // _show('Unable to reach server', Colors.orange, Icons.cloud_off);
               break;
             case BackendStatus.timeout:
               _show('Server timeout', Colors.orange, Icons.access_time);

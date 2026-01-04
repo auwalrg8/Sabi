@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+
 import '../../data/models/models.dart';
 import '../../services/vtu_service.dart';
 import '../providers/vtu_providers.dart';
@@ -123,7 +124,11 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
     });
 
     try {
+      // Pre-validation: Check Liquidty & Balance again
+      await VtuService.validateTransaction(widget.amountNaira);
+
       VtuOrder completedOrder;
+
 
       switch (widget.serviceType) {
         case VtuServiceType.airtime:
@@ -210,6 +215,12 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
         _errorMessage = e.message;
       });
       _showNetworkErrorDialog(e.message);
+    } on VtuServiceException catch (e) {
+      setState(() {
+        _isProcessing = false;
+        _errorMessage = e.message;
+      });
+      _showServiceUnavailableDialog(e.message);
     } catch (e) {
       setState(() {
         _isProcessing = false;
