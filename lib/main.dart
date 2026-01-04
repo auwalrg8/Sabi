@@ -35,14 +35,14 @@ Future<void> _registerFCMWithRetry({int maxRetries = 3}) async {
     try {
       debugPrint('🔔 FCM registration attempt $attempt/$maxRetries');
       await FCMTokenRegistrationService().registerToken();
-      
+
       // Check if registration succeeded
       final status = await FCMTokenRegistrationService().debugStatus();
       if (status['isRegistered'] == true) {
         debugPrint('✅ FCM token registered successfully on attempt $attempt');
         return;
       }
-      
+
       // If not registered, wait and retry
       if (attempt < maxRetries) {
         debugPrint('⚠️ FCM registration incomplete, retrying in 3s...');
@@ -103,6 +103,14 @@ void main() async {
     debugPrint('⚠️ SecureStorage error: $e');
   }
 
+  // Load quick cache for instant profile display on home screen
+  try {
+    await NostrProfileService.loadQuickCache();
+    debugPrint('✅ NostrProfileService quick cache loaded');
+  } catch (e) {
+    debugPrint('⚠️ NostrProfileService quick cache error: $e');
+  }
+
   try {
     await AppStateService.init();
     debugPrint('✅ AppStateService initialized');
@@ -142,22 +150,33 @@ void main() async {
 
   try {
     // Connect to relays in background (non-blocking)
-    nostr_v2.RelayPoolManager().init().then((_) {
-      debugPrint('✅ Nostr RelayPoolManager connected');
-      
-      // Pre-fetch global feed immediately after relay connection
-      FeedAggregator().init(NostrProfileService().currentPubkey).then((_) {
-        FeedAggregator().fetchFeed(type: FeedType.global, limit: 30).then((posts) {
-          debugPrint('✅ Pre-fetched ${posts.length} global feed posts');
-        }).catchError((e) {
-          debugPrint('⚠️ Pre-fetch global feed error: $e');
+    nostr_v2.RelayPoolManager()
+        .init()
+        .then((_) {
+          debugPrint('✅ Nostr RelayPoolManager connected');
+
+          // Pre-fetch global feed immediately after relay connection
+          FeedAggregator()
+              .init(NostrProfileService().currentPubkey)
+              .then((_) {
+                FeedAggregator()
+                    .fetchFeed(type: FeedType.global, limit: 30)
+                    .then((posts) {
+                      debugPrint(
+                        '✅ Pre-fetched ${posts.length} global feed posts',
+                      );
+                    })
+                    .catchError((e) {
+                      debugPrint('⚠️ Pre-fetch global feed error: $e');
+                    });
+              })
+              .catchError((e) {
+                debugPrint('⚠️ FeedAggregator init error: $e');
+              });
+        })
+        .catchError((e) {
+          debugPrint('⚠️ Nostr RelayPoolManager error: $e');
         });
-      }).catchError((e) {
-        debugPrint('⚠️ FeedAggregator init error: $e');
-      });
-    }).catchError((e) {
-      debugPrint('⚠️ Nostr RelayPoolManager error: $e');
-    });
   } catch (e) {
     debugPrint('⚠️ Nostr RelayPoolManager init error: $e');
   }
@@ -169,10 +188,10 @@ void main() async {
       try {
         await BreezSparkService.initializeSparkSDK(mnemonic: savedMnemonic);
         debugPrint('🔓 Auto-recovered wallet from storage');
-        
+
         // Register FCM token after wallet is recovered (with retry)
         _registerFCMWithRetry();
-        
+
         // Start listening for payments to send push notifications
         try {
           BreezWebhookBridgeService().startListening();
@@ -180,12 +199,12 @@ void main() async {
         } catch (e) {
           debugPrint('⚠️ BreezWebhookBridgeService error: $e');
         }
-        
+
         // Initialize background payment sync for offline notifications
         try {
           await BackgroundPaymentSyncService().initialize();
           await BackgroundPaymentSyncService().startPeriodicSync();
-          
+
           // Save nostr pubkey for background sync
           final pubkey = NostrProfileService().currentPubkey;
           if (pubkey != null) {

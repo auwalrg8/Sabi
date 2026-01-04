@@ -415,21 +415,60 @@ class NIP99MarketplaceService {
   /// Enrich offers with seller profile data
   Future<void> enrichOffersWithProfiles(List<NostrP2POffer> offers) async {
     final pubkeys = offers.map((o) => o.pubkey).toSet().toList();
+    debugPrint(
+      '🔄 Enriching ${offers.length} offers from ${pubkeys.length} unique sellers',
+    );
 
     for (final pubkey in pubkeys) {
       try {
         final profile = await _profileService.fetchProfile(pubkey);
-        if (profile != null) {
-          for (final offer in offers.where((o) => o.pubkey == pubkey)) {
-            offer.sellerName = profile.displayNameOrFallback;
+        for (final offer in offers.where((o) => o.pubkey == pubkey)) {
+          if (profile != null) {
+            // Use profile name if available
+            final profileName = profile.displayNameOrFallback;
+            // Only use profile name if it's not just a truncated npub
+            if (!profileName.endsWith('...') && profileName.isNotEmpty) {
+              offer.sellerName = profileName;
+              debugPrint(
+                '✅ Enriched offer ${offer.id.substring(0, 8)} with profile: $profileName',
+              );
+            } else if (offer.sellerName == null ||
+                offer.sellerName == 'Anonymous') {
+              // Fallback: use npub if available
+              offer.sellerName =
+                  offer.npub != null && offer.npub!.length > 12
+                      ? '${offer.npub!.substring(0, 12)}...'
+                      : 'Anonymous';
+            }
             offer.sellerAvatar = profile.picture;
-            // Note: npub is set in fromNip99Event or from profile.npub
+          } else if (offer.sellerName == null ||
+              offer.sellerName == 'Anonymous') {
+            // No profile found, use npub as fallback
+            offer.sellerName =
+                offer.npub != null && offer.npub!.length > 12
+                    ? '${offer.npub!.substring(0, 12)}...'
+                    : 'Anonymous';
+            debugPrint(
+              '⚠️ No profile for ${pubkey.substring(0, 8)}, using npub',
+            );
           }
         }
       } catch (e) {
-        // Skip if profile fetch fails
+        // On error, set fallback name for all offers from this pubkey
+        debugPrint(
+          '❌ Error fetching profile for ${pubkey.substring(0, 8)}: $e',
+        );
+        for (final offer in offers.where((o) => o.pubkey == pubkey)) {
+          if (offer.sellerName == null || offer.sellerName == 'Anonymous') {
+            offer.sellerName =
+                offer.npub != null && offer.npub!.length > 12
+                    ? '${offer.npub!.substring(0, 12)}...'
+                    : 'Nostr User';
+          }
+        }
       }
     }
+    debugPrint('✅ Profile enrichment complete');
   }
 
   /// Get cached offer by ID

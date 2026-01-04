@@ -157,60 +157,47 @@ class _CashScreenState extends ConsumerState<CashScreen>
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+    return Padding(
+      padding: EdgeInsets.all(16.w),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Back button (optional, since this is a tab)
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).maybePop();
-            },
-            child: Container(
-              width: 40.w,
-              height: 40.h,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(Icons.arrow_back, color: Colors.white, size: 20.sp),
+          Text(
+            'Cash',
+            style: TextStyle(
+              fontSize: 24.sp,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-          SizedBox(width: 16.w),
-          // Title
-          Expanded(
-            child: Text(
-              'Cash',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              // History button
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CashHistoryScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 40.w,
+                  height: 40.h,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    Icons.history_rounded,
+                    color: AppColors.primary,
+                    size: 20.sp,
+                  ),
+                ),
               ),
-            ),
-          ),
-          // History button
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CashHistoryScreen()),
-              );
-            },
-            child: Container(
-              width: 40.w,
-              height: 40.h,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(
-                Icons.history_rounded,
-                color: AppColors.primary,
-                size: 20.sp,
-              ),
-            ),
+            ],
           ),
         ],
       ),
@@ -354,12 +341,11 @@ class _CashScreenState extends ConsumerState<CashScreen>
 
   Widget _buildTabSelector(CashState cashState, CashNotifier cashNotifier) {
     return Container(
-      height: 52.h,
-      padding: EdgeInsets.all(4.r),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14.r),
+        color: const Color(0xFF111128),
+        borderRadius: BorderRadius.circular(16.r),
       ),
+      padding: EdgeInsets.all(4.w),
       child: Row(
         children: [
           // Buy Bitcoin tab
@@ -375,56 +361,23 @@ class _CashScreenState extends ConsumerState<CashScreen>
                 decoration: BoxDecoration(
                   color:
                       cashState.isBuying
-                          ? AppColors.accentGreen
+                          ? const Color(0xFF00C853)
                           : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                  boxShadow:
-                      cashState.isBuying
-                          ? [
-                            BoxShadow(
-                              color: AppColors.accentGreen.withValues(
-                                alpha: 0.35,
-                              ),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : null,
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_circle_rounded,
-                        color:
-                            cashState.isBuying
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                        size: 18.sp,
-                      ),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'Buy Bitcoin',
-                        style: TextStyle(
-                          color:
-                              cashState.isBuying
-                                  ? Colors.white
-                                  : AppColors.textSecondary,
-                          fontSize: 14.sp,
-                          fontWeight:
-                              cashState.isBuying
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Buy Bitcoin',
+                    style: TextStyle(
+                      color: cashState.isBuying ? Colors.white : Colors.white54,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          SizedBox(width: 4.w),
           // Spend Bitcoin tab
           Expanded(
             child: GestureDetector(
@@ -438,48 +391,19 @@ class _CashScreenState extends ConsumerState<CashScreen>
                 decoration: BoxDecoration(
                   color:
                       !cashState.isBuying
-                          ? AppColors.primary
+                          ? const Color(0xFFF7931A)
                           : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                  boxShadow:
-                      !cashState.isBuying
-                          ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : null,
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.shopping_bag_rounded,
-                        color:
-                            !cashState.isBuying
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                        size: 18.sp,
-                      ),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'Spend Bitcoin',
-                        style: TextStyle(
-                          color:
-                              !cashState.isBuying
-                                  ? Colors.white
-                                  : AppColors.textSecondary,
-                          fontSize: 14.sp,
-                          fontWeight:
-                              !cashState.isBuying
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Spend Bitcoin',
+                    style: TextStyle(
+                      color:
+                          !cashState.isBuying ? Colors.white : Colors.white54,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

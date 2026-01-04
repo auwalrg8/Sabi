@@ -999,7 +999,9 @@ class _BuyOfferCard extends StatelessWidget {
                   onTap: onMerchantTap,
                   child: CircleAvatar(
                     radius: 22.r,
-                    backgroundColor: const Color(0xFF1A1A3E),
+                    backgroundColor: _getAvatarColor(
+                      offer.merchant?.name ?? offer.name,
+                    ),
                     backgroundImage:
                         offer.merchant?.avatarUrl != null
                             ? CachedNetworkImageProvider(
@@ -1008,10 +1010,13 @@ class _BuyOfferCard extends StatelessWidget {
                             : null,
                     child:
                         offer.merchant?.avatarUrl == null
-                            ? Icon(
-                              Icons.person,
-                              color: Colors.white54,
-                              size: 22.sp,
+                            ? Text(
+                              _getInitials(offer.merchant?.name ?? offer.name),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
                             )
                             : null,
                   ),
@@ -1254,6 +1259,29 @@ class _BuyOfferCard extends StatelessWidget {
       return '${(number / 1000).toStringAsFixed(0)}K';
     }
     return number.toStringAsFixed(0);
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name[0].toUpperCase();
+  }
+
+  Color _getAvatarColor(String name) {
+    final colors = [
+      const Color(0xFF9C27B0), // Purple
+      const Color(0xFF2196F3), // Blue
+      const Color(0xFF00BCD4), // Cyan
+      const Color(0xFF4CAF50), // Green
+      const Color(0xFFFF9800), // Orange
+      const Color(0xFFE91E63), // Pink
+      const Color(0xFF673AB7), // Deep Purple
+      const Color(0xFF009688), // Teal
+    ];
+    return colors[name.hashCode.abs() % colors.length];
   }
 }
 

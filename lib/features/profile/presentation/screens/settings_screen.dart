@@ -251,21 +251,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     SizedBox(height: 32.h),
 
                     _SectionHeader(
-                      title: AppLocalizations.of(context)!.security,
-                    ),
-                    SizedBox(height: 12.h),
-
-                    _SettingValueTile(
-                      icon: Icons.account_balance_wallet_outlined,
-                      iconColor: AppColors.accentRed,
-                      title: 'Transaction Limits',
-                      value: settings.transactionLimit,
-                      onTap: () => _showTransactionLimitPicker(context, ref),
-                    ),
-
-                    SizedBox(height: 32.h),
-
-                    _SectionHeader(
                       title: AppLocalizations.of(context)!.preferences,
                     ),
                     SizedBox(height: 12.h),
@@ -306,16 +291,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         );
                       },
-                    ),
-
-                    SizedBox(height: 12.h),
-
-                    _SettingValueTile(
-                      icon: Icons.speed_outlined,
-                      iconColor: AppColors.accentGreen,
-                      title: 'Network Fees',
-                      value: settings.networkFee,
-                      onTap: () => _showNetworkFeePicker(context, ref),
                     ),
                   ],
                 ),
@@ -411,7 +386,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                     trailing:
-                        ref.watch(settingsNotifierProvider).currency == currency['code']
+                        ref.watch(settingsNotifierProvider).currency ==
+                                currency['code']
                             ? Icon(
                               Icons.check_circle,
                               color: AppColors.primary,
@@ -431,67 +407,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 SizedBox(height: 12.h),
-              ],
-            ),
-          ),
-    );
-  }
-
-  void _showTransactionLimitPicker(BuildContext context, WidgetRef ref) {
-    final limits = ['₦10,000', '₦50,000', '₦100,000', '₦500,000', 'No Limit'];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder:
-          (_) => Padding(
-            padding: EdgeInsets.symmetric(vertical: 20.h),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20.w,
-                    vertical: 10.h,
-                  ),
-                  child: Text(
-                    'Transaction Limit',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Divider(height: 1, color: AppColors.borderColor),
-                ...limits.map(
-                  (limit) => ListTile(
-                    title: Text(
-                      limit,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16.sp,
-                      ),
-                    ),
-                    trailing:
-                        ref.watch(settingsNotifierProvider).transactionLimit ==
-                                limit
-                            ? Icon(
-                              Icons.check,
-                              color: AppColors.primary,
-                              size: 22.sp,
-                            )
-                            : null,
-                    onTap: () {
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .setTransactionLimit(limit);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
               ],
             ),
           ),
@@ -549,80 +464,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           .read(settingsNotifierProvider.notifier)
                           .setLanguage(language);
                       ref.read(languageProvider.notifier).setLanguage(language);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-
-  void _showNetworkFeePicker(BuildContext context, WidgetRef ref) {
-    final fees = [
-      {'label': 'Economy', 'subtitle': 'Lower fee, slower confirmation'},
-      {'label': 'Standard', 'subtitle': 'Balanced fee and speed'},
-      {'label': 'Priority', 'subtitle': 'Higher fee, faster confirmation'},
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder:
-          (_) => Padding(
-            padding: EdgeInsets.symmetric(vertical: 20.h),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20.w,
-                    vertical: 10.h,
-                  ),
-                  child: Text(
-                    'Network Fees',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Divider(height: 1, color: AppColors.borderColor),
-                ...fees.map(
-                  (fee) => ListTile(
-                    title: Text(
-                      fee['label']!,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      fee['subtitle']!,
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14.sp,
-                      ),
-                    ),
-                    trailing:
-                        ref.watch(settingsNotifierProvider).networkFee ==
-                                fee['label']
-                            ? Icon(
-                              Icons.check,
-                              color: AppColors.primary,
-                              size: 22.sp,
-                            )
-                            : null,
-                    onTap: () {
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .setNetworkFee(fee['label']!);
                       Navigator.pop(context);
                     },
                   ),

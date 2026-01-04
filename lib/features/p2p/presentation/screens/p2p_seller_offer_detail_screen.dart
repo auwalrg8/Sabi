@@ -199,6 +199,7 @@ class _P2PSellerOfferDetailScreenState
                 _OfferDetailsTab(offer: widget.offer, formatter: formatter),
                 _MessagesTab(
                   offerId: widget.offer.id,
+                  offerTitle: widget.offer.name,
                   notifications: offerNotifications,
                   onViewAll: _navigateToMessages,
                 ),
@@ -327,6 +328,7 @@ class _P2PSellerOfferDetailScreenState
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w),
+      padding: EdgeInsets.only(bottom: 16.h),
       child: Row(
         children: [
           Expanded(
@@ -337,7 +339,7 @@ class _P2PSellerOfferDetailScreenState
               color: Colors.blue,
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           Expanded(
             child: _StatCard(
               icon: Icons.chat_bubble_outline,
@@ -346,7 +348,7 @@ class _P2PSellerOfferDetailScreenState
               color: Colors.purple,
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(width: 12.w),
           Expanded(
             child: _StatCard(
               icon: Icons.handshake,
@@ -506,23 +508,33 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 12.w),
       decoration: BoxDecoration(
         color: const Color(0xFF111128),
         borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 20.sp),
-          SizedBox(height: 6.h),
+          Container(
+            padding: EdgeInsets.all(8.r),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18.sp),
+          ),
+          SizedBox(height: 8.h),
           Text(
             value,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18.sp,
+              fontSize: 20.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
+          SizedBox(height: 2.h),
           Text(
             label,
             style: TextStyle(color: Colors.grey[500], fontSize: 11.sp),
@@ -688,11 +700,13 @@ class _OfferDetailsTab extends StatelessWidget {
 // Messages Tab
 class _MessagesTab extends StatelessWidget {
   final String offerId;
+  final String offerTitle;
   final List<P2PNotification> notifications;
   final VoidCallback onViewAll;
 
   const _MessagesTab({
     required this.offerId,
+    required this.offerTitle,
     required this.notifications,
     required this.onViewAll,
   });
@@ -713,7 +727,18 @@ class _MessagesTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[700]),
+            Container(
+              padding: EdgeInsets.all(24.r),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111128),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline,
+                size: 48.sp,
+                color: Colors.grey[600],
+              ),
+            ),
             SizedBox(height: 16.h),
             Text(
               'No messages yet',
@@ -724,9 +749,13 @@ class _MessagesTab extends StatelessWidget {
               ),
             ),
             SizedBox(height: 8.h),
-            Text(
-              'Inquiries about your offer will appear here',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13.sp),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 40.w),
+              child: Text(
+                'When buyers inquire about your offer, their messages will appear here',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13.sp),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
@@ -735,13 +764,43 @@ class _MessagesTab extends StatelessWidget {
 
     return Column(
       children: [
+        // Quick reply hint
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+          padding: EdgeInsets.all(12.w),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.touch_app, color: Colors.orange, size: 18.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  'Tap a message to reply to the buyer',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: ListView.builder(
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             itemCount: inquiries.length > 5 ? 5 : inquiries.length,
             itemBuilder: (context, index) {
               final notification = inquiries[index];
-              return _MessagePreviewTile(notification: notification);
+              return _MessagePreviewTile(
+                notification: notification,
+                offerId: offerId,
+                offerTitle: offerTitle,
+              );
             },
           ),
         ),
@@ -764,63 +823,147 @@ class _MessagesTab extends StatelessWidget {
 // Message Preview Tile
 class _MessagePreviewTile extends StatelessWidget {
   final P2PNotification notification;
+  final String offerId;
+  final String offerTitle;
 
-  const _MessagePreviewTile({required this.notification});
+  const _MessagePreviewTile({
+    required this.notification,
+    required this.offerId,
+    required this.offerTitle,
+  });
+
+  void _openConversation(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => P2POfferMessagesScreen(
+              offerId: offerId,
+              offerTitle: offerTitle,
+            ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 8.h),
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color:
-            notification.isRead
-                ? const Color(0xFF111128).withOpacity(0.5)
-                : const Color(0xFF111128),
-        borderRadius: BorderRadius.circular(12.r),
-        border:
-            notification.isRead
-                ? null
-                : Border.all(color: Colors.orange.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.grey[800],
-            child: Text(
-              notification.senderName?.substring(0, 1).toUpperCase() ?? '?',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () => _openConversation(context),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8.h),
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color:
+              notification.isRead
+                  ? const Color(0xFF111128).withOpacity(0.5)
+                  : const Color(0xFF111128),
+          borderRadius: BorderRadius.circular(12.r),
+          border:
+              notification.isRead
+                  ? null
+                  : Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            // Avatar with unread indicator
+            Stack(
               children: [
-                Text(
-                  notification.senderName ?? 'Unknown',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
+                CircleAvatar(
+                  radius: 22.r,
+                  backgroundColor: Colors.grey[800],
+                  backgroundImage:
+                      notification.senderAvatar != null
+                          ? NetworkImage(notification.senderAvatar!)
+                          : null,
+                  child:
+                      notification.senderAvatar == null
+                          ? Text(
+                            notification.senderName
+                                    ?.substring(0, 1)
+                                    .toUpperCase() ??
+                                '?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                          : null,
+                ),
+                if (!notification.isRead)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 10.r,
+                      height: 10.r,
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF0C0C1A),
+                          width: 2,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  notification.body,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12.sp),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ],
             ),
-          ),
-          Text(
-            _formatTimeAgo(notification.timestamp),
-            style: TextStyle(color: Colors.grey[600], fontSize: 11.sp),
-          ),
-        ],
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notification.senderName ?? 'Unknown',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14.sp,
+                            fontWeight:
+                                notification.isRead
+                                    ? FontWeight.w500
+                                    : FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        _formatTimeAgo(notification.timestamp),
+                        style: TextStyle(
+                          color:
+                              notification.isRead
+                                  ? Colors.grey[600]
+                                  : Colors.orange,
+                          fontSize: 11.sp,
+                          fontWeight:
+                              notification.isRead
+                                  ? FontWeight.normal
+                                  : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    notification.body,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13.sp),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 8.w),
+            Icon(
+              Icons.reply,
+              color: Colors.orange.withOpacity(0.6),
+              size: 20.sp,
+            ),
+          ],
+        ),
       ),
     );
   }

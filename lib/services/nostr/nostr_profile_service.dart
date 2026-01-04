@@ -22,8 +22,21 @@ class NostrProfileService {
   static const _nsecKey = 'nostr_nsec';
   static const _hexPubKey = 'nostr_hex_pubkey';
   static const _hexPrivKey = 'nostr_hex_privkey';
+  // Quick-cache keys for instant home screen display
+  static const _quickCacheNameKey = 'nostr_quick_name';
+  static const _quickCachePictureKey = 'nostr_quick_picture';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  // Static cached values for instant access (loaded on app start)
+  static String? _cachedDisplayName;
+  static String? _cachedPicture;
+
+  /// Get cached display name instantly (no async)
+  static String? get cachedDisplayName => _cachedDisplayName;
+
+  /// Get cached picture URL instantly (no async)
+  static String? get cachedPicture => _cachedPicture;
   final RelayPoolManager _relayPool = RelayPoolManager();
   final EventCacheService _cache = EventCacheService();
 
@@ -37,6 +50,47 @@ class NostrProfileService {
   NostrProfile? get currentProfile => _currentProfile;
   String? get currentPubkey => _hexPublicKey;
   String? get currentNpub => _currentProfile?.npub;
+
+  /// Load quick cache synchronously at app startup for instant display
+  /// Call this early in main() before any UI builds
+  static Future<void> loadQuickCache() async {
+    try {
+      const storage = FlutterSecureStorage();
+      _cachedDisplayName = await storage.read(key: _quickCacheNameKey);
+      _cachedPicture = await storage.read(key: _quickCachePictureKey);
+      debugPrint(
+        '⚡ Quick cache loaded: name=${_cachedDisplayName ?? "null"}, pic=${_cachedPicture != null}',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Failed to load quick cache: $e');
+    }
+  }
+
+  /// Update quick cache when profile changes
+  Future<void> _updateQuickCache(NostrProfile profile) async {
+    try {
+      final name = profile.displayNameOrFallback;
+      final picture = profile.picture;
+
+      // Only update if changed
+      if (name != _cachedDisplayName || picture != _cachedPicture) {
+        _cachedDisplayName = name;
+        _cachedPicture = picture;
+        await _secureStorage.write(key: _quickCacheNameKey, value: name);
+        if (picture != null) {
+          await _secureStorage.write(
+            key: _quickCachePictureKey,
+            value: picture,
+          );
+        } else {
+          await _secureStorage.delete(key: _quickCachePictureKey);
+        }
+        debugPrint('⚡ Quick cache updated: $name');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to update quick cache: $e');
+    }
+  }
 
   /// Initialize the profile service
   /// Set [force] to true to re-check keys even if already initialized
@@ -52,7 +106,7 @@ class NostrProfileService {
       if (_hexPrivateKey == null) {
         final legacyNsec = await _secureStorage.read(key: _nsecKey);
         final legacyNpub = await _secureStorage.read(key: _npubKey);
-        
+
         if (legacyNsec != null && legacyNsec.startsWith('nsec1')) {
           debugPrint('🔄 Found legacy nsec, converting to hex...');
           _hexPrivateKey = _nsecToHex(legacyNsec);
@@ -77,10 +131,15 @@ class NostrProfileService {
       // If we have hex keys, try to load/fetch profile
       if (_hexPublicKey != null) {
         debugPrint('🔑 Loaded pubkey: ${_hexPublicKey!.substring(0, 8)}...');
-        
+
         // Try cache first
         _currentProfile = await _cache.getCachedProfile(_hexPublicKey!);
-        
+
+        // Update quick cache for instant display on next app start
+        if (_currentProfile != null) {
+          await _updateQuickCache(_currentProfile!);
+        }
+
         // Fetch fresh in background
         if (_currentProfile != null) {
           _fetchProfileInBackground(_hexPublicKey!);
@@ -120,10 +179,7 @@ class NostrProfileService {
     await _secureStorage.write(key: _npubKey, value: npub);
 
     // Create initial profile
-    _currentProfile = NostrProfile(
-      pubkey: _hexPublicKey!,
-      npub: npub,
-    );
+    _currentProfile = NostrProfile(pubkey: _hexPublicKey!, npub: npub);
 
     debugPrint('✅ Generated new Nostr keys');
     return {'npub': npub, 'nsec': nsec};
@@ -148,7 +204,7 @@ class NostrProfileService {
 
       // Fetch profile
       _currentProfile = await fetchProfile(_hexPublicKey!);
-      
+
       debugPrint('✅ Imported nsec');
     } else if (npub != null && npub.startsWith('npub1')) {
       // Import public key only (read-only mode)
@@ -165,7 +221,7 @@ class NostrProfileService {
 
       // Fetch profile
       _currentProfile = await fetchProfile(_hexPublicKey!);
-      
+
       debugPrint('✅ Imported npub (read-only mode)');
     } else {
       throw Exception('Please provide a valid nsec or npub');
@@ -178,9 +234,13 @@ class NostrProfileService {
     await _secureStorage.delete(key: _hexPubKey);
     await _secureStorage.delete(key: _nsecKey);
     await _secureStorage.delete(key: _npubKey);
+    await _secureStorage.delete(key: _quickCacheNameKey);
+    await _secureStorage.delete(key: _quickCachePictureKey);
     _hexPrivateKey = null;
     _hexPublicKey = null;
     _currentProfile = null;
+    _cachedDisplayName = null;
+    _cachedPicture = null;
     debugPrint('✅ Nostr keys cleared');
   }
 
@@ -216,6 +276,11 @@ class NostrProfileService {
 
       // Cache
       await _cache.cacheProfile(profile);
+
+      // Update quick cache if this is current user's profile
+      if (pubkey == _hexPublicKey) {
+        await _updateQuickCache(profile);
+      }
 
       debugPrint('👤 Profile fetched: ${profile.displayNameOrFallback}');
       return profile;
@@ -256,16 +321,20 @@ class NostrProfileService {
       debugPrint('❌ NostrProfileService: No private key available after init');
       debugPrint('❌ _hexPrivateKey is null: ${_hexPrivateKey == null}');
       debugPrint('❌ _hexPublicKey is null: ${_hexPublicKey == null}');
-      throw Exception('No private key available - cannot update profile. Please set up Nostr keys first.');
+      throw Exception(
+        'No private key available - cannot update profile. Please set up Nostr keys first.',
+      );
     }
-    
+
     debugPrint('📝 Updating profile for ${_hexPublicKey!.substring(0, 8)}...');
 
     // Get current profile or create new one
-    final current = _currentProfile ?? NostrProfile(
-      pubkey: _hexPublicKey!,
-      npub: hexToNpub(_hexPublicKey!) ?? '',
-    );
+    final current =
+        _currentProfile ??
+        NostrProfile(
+          pubkey: _hexPublicKey!,
+          npub: hexToNpub(_hexPublicKey!) ?? '',
+        );
 
     // Create updated profile
     final updated = current.copyWith(
@@ -282,11 +351,7 @@ class NostrProfileService {
     final content = jsonEncode(updated.toEventContent());
 
     // Create and sign event
-    final event = _createSignedEvent(
-      kind: 0,
-      content: content,
-      tags: [],
-    );
+    final event = _createSignedEvent(kind: 0, content: content, tags: []);
 
     if (event == null) {
       throw Exception('Failed to sign event');
@@ -298,7 +363,9 @@ class NostrProfileService {
     if (successCount > 0) {
       _currentProfile = updated;
       await _cache.cacheProfile(updated);
-      debugPrint('✅ Profile updated successfully (published to $successCount relays)');
+      debugPrint(
+        '✅ Profile updated successfully (published to $successCount relays)',
+      );
       return true;
     }
 
@@ -316,10 +383,9 @@ class NostrProfileService {
       final request = http.MultipartRequest('POST', uri);
 
       // Add the file
-      request.files.add(await http.MultipartFile.fromPath(
-        'file',
-        imageFile.path,
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath('file', imageFile.path),
+      );
 
       // Send request
       final streamedResponse = await request.send().timeout(
@@ -330,7 +396,7 @@ class NostrProfileService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
-        
+
         // nostr.build response format
         if (json['status'] == 'success' && json['data'] != null) {
           final data = json['data'] as List<dynamic>;
@@ -361,11 +427,9 @@ class NostrProfileService {
       final request = http.MultipartRequest('POST', uri);
 
       // Add the file
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: filename,
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: filename),
+      );
 
       // Send request
       final streamedResponse = await request.send().timeout(
@@ -376,7 +440,7 @@ class NostrProfileService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
-        
+
         if (json['status'] == 'success' && json['data'] != null) {
           final data = json['data'] as List<dynamic>;
           if (data.isNotEmpty) {
@@ -407,7 +471,7 @@ class NostrProfileService {
 
     try {
       final createdAt = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      
+
       // Build event for signing
       final eventData = [
         0, // Reserved for signature
@@ -427,9 +491,11 @@ class NostrProfileService {
       // ignore: unused_local_variable
       final nostrInstance = Nostr(privateKey: _hexPrivateKey!);
       final event = Event(_hexPublicKey!, kind, tags, content);
-      
-      debugPrint('✅ Event signed with pubkey: ${_hexPublicKey!.substring(0, 8)}...');
-      
+
+      debugPrint(
+        '✅ Event signed with pubkey: ${_hexPublicKey!.substring(0, 8)}...',
+      );
+
       return {
         'id': event.id,
         'pubkey': _hexPublicKey!,
@@ -449,11 +515,11 @@ class NostrProfileService {
   Future<bool> follow(String pubkey) async {
     // Get current follows
     final follows = await _cache.getCachedFollows(_hexPublicKey ?? '');
-    
+
     if (follows.contains(pubkey)) {
       return true; // Already following
     }
-    
+
     final newFollows = [...follows, pubkey];
     return await _publishFollowList(newFollows);
   }
@@ -461,11 +527,11 @@ class NostrProfileService {
   /// Unfollow a user
   Future<bool> unfollow(String pubkey) async {
     final follows = await _cache.getCachedFollows(_hexPublicKey ?? '');
-    
+
     if (!follows.contains(pubkey)) {
       return true; // Not following anyway
     }
-    
+
     final newFollows = follows.where((p) => p != pubkey).toList();
     return await _publishFollowList(newFollows);
   }
@@ -478,16 +544,12 @@ class NostrProfileService {
 
     final tags = follows.map((p) => ['p', p]).toList();
 
-    final event = _createSignedEvent(
-      kind: 3,
-      content: '',
-      tags: tags,
-    );
+    final event = _createSignedEvent(kind: 3, content: '', tags: tags);
 
     if (event == null) return false;
 
     final successCount = await _relayPool.publish(event);
-    
+
     if (successCount > 0) {
       await _cache.cacheFollows(_hexPublicKey!, follows);
       debugPrint('✅ Follow list updated ($successCount relays)');
@@ -570,7 +632,12 @@ class NostrProfileService {
   }
 
   /// Convert bits between different bases (for bech32)
-  static List<int>? _convertBits(List<int> data, int fromBits, int toBits, bool pad) {
+  static List<int>? _convertBits(
+    List<int> data,
+    int fromBits,
+    int toBits,
+    bool pad,
+  ) {
     var acc = 0;
     var bits = 0;
     final result = <int>[];

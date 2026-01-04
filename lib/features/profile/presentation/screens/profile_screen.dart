@@ -53,13 +53,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    // Fast path: Load cached data first, then refresh from network
+    // Fast path: Use quick cache for instant display, then load full profile
     try {
       await NostrService.init();
       final npub = await NostrService.getNpub();
       final nsec = await NostrService.getNsec();
 
-      // Immediately set keys and show cached profile
+      // Immediately set keys and show quick cached data
       if (mounted) {
         setState(() {
           _nostrNpub = npub;
@@ -74,25 +74,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final profileService = nostr_v2.NostrProfileService();
         final relayPool = nostr_v2.RelayPoolManager();
 
-        // Try cached profile first (instant)
+        // Use quick cache for instant display (name + picture)
+        final quickName = nostr_v2.NostrProfileService.cachedDisplayName;
+        // quickPicture is used via NostrProfileService.cachedPicture in build()
+
+        // Try full cached profile
         profile = profileService.currentProfile;
         relays = relayPool.connectedCount;
 
-        // Show cached immediately if available
-        if (profile != null && mounted) {
-          setState(() {
-            _nostrProfile = profile;
-            _relaysConnected = relays;
-            _isLoading = false;
-          });
-
-          // Pre-fill username
-          if (profile.name != null && _usernameController.text.isEmpty) {
-            _usernameController.text = profile.name!.toLowerCase().replaceAll(
-              ' ',
-              '',
-            );
+        // Show UI immediately with whatever data we have
+        if (mounted) {
+          if (profile != null) {
+            setState(() {
+              _nostrProfile = profile;
+              _relaysConnected = relays;
+              _isLoading = false;
+            });
+          } else if (quickName != null) {
+            // Create a minimal profile from quick cache for instant display
+            setState(() {
+              _isLoading = false;
+            });
           }
+        }
+
+        // Pre-fill username from profile or quick cache
+        final userName = profile?.name ?? quickName;
+        if (userName != null && _usernameController.text.isEmpty) {
+          _usernameController.text = userName.toLowerCase().replaceAll(' ', '');
         }
 
         // Fetch fresh profile in background
@@ -890,51 +899,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _switchWallet() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: AppColors.surface,
-            title: Text(
-              'Switch Wallet?',
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 18.sp),
-            ),
-            content: Text(
-              'This will take you back to the wallet selection screen. Your wallet data will remain secure.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14.sp),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel', style: TextStyle(fontSize: 14.sp)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(
-                  'Switch',
-                  style: TextStyle(color: Colors.red, fontSize: 14.sp),
-                ),
-              ),
-            ],
-          ),
-    );
-
-    if (confirmed == true && mounted) {
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil('/splash', (route) => false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final hasNostr = _nostrNpub != null && _nostrNpub!.isNotEmpty;
+    // Use quick cache as fallback for instant display
     final displayName =
-        _nostrProfile?.displayName ?? _nostrProfile?.name ?? 'Anonymous';
+        _nostrProfile?.displayName ??
+        _nostrProfile?.name ??
+        nostr_v2.NostrProfileService.cachedDisplayName ??
+        'Anonymous';
     final username = _nostrProfile?.name;
     final bio = _nostrProfile?.about;
-    final picture = _nostrProfile?.picture;
+    final picture =
+        _nostrProfile?.picture ?? nostr_v2.NostrProfileService.cachedPicture;
     final banner = _nostrProfile?.banner;
     final lightningAddress = _nostrProfile?.lud16;
 
@@ -1220,14 +1197,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   builder: (_) => const BackupRecoveryScreen(),
                                 ),
                               ),
-                        ),
-                        SizedBox(height: 12.h),
-
-                        _MenuItemTile(
-                          icon: Icons.swap_horiz,
-                          iconColor: Colors.orange,
-                          title: 'Switch Wallet',
-                          onTap: _switchWallet,
                         ),
 
                         SizedBox(height: 30.h),

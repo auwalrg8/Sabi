@@ -108,7 +108,9 @@ class DMService {
 
     // Load cached conversations immediately - no network delay
     await _loadCachedConversations();
-    debugPrint('⚡ DMService: Fast init complete - ${_conversations.length} cached conversations');
+    debugPrint(
+      '⚡ DMService: Fast init complete - ${_conversations.length} cached conversations',
+    );
 
     // Start relay pool init in background (non-blocking)
     if (!_relayPool.isInitialized) {
@@ -157,7 +159,7 @@ class DMService {
   Future<void> _fetchAndAddUserRelays(String pubkey) async {
     try {
       debugPrint('📨 DMService: Fetching NIP-65 relay list for user...');
-      
+
       // Filter for kind 10002 (NIP-65 relay list metadata)
       final filter = <String, dynamic>{
         'kinds': [10002],
@@ -180,7 +182,7 @@ class DMService {
       // Parse relay list from tags
       final event = events.first;
       final relaysToAdd = <String>[];
-      
+
       for (final tag in event.tags) {
         if (tag is List && tag.isNotEmpty && tag[0] == 'r' && tag.length >= 2) {
           final relayUrl = tag[1].toString();
@@ -191,7 +193,9 @@ class DMService {
       }
 
       if (relaysToAdd.isNotEmpty) {
-        debugPrint('📨 DMService: Adding ${relaysToAdd.length} user relays from NIP-65');
+        debugPrint(
+          '📨 DMService: Adding ${relaysToAdd.length} user relays from NIP-65',
+        );
         for (final relay in relaysToAdd) {
           await _relayPool.addRelay(relay);
         }
@@ -313,11 +317,16 @@ class DMService {
 
   /// Fetch DMs for a specific conversation partner
   /// Also fetches their NIP-65 relays for better message discovery
-  Future<void> fetchConversationHistory(String otherPubkey, {int limit = 200}) async {
+  Future<void> fetchConversationHistory(
+    String otherPubkey, {
+    int limit = 200,
+  }) async {
     final myPubkey = _profileService.currentPubkey;
     if (myPubkey == null) return;
 
-    debugPrint('📨 DMService: Fetching conversation with ${otherPubkey.substring(0, 8)}...');
+    debugPrint(
+      '📨 DMService: Fetching conversation with ${otherPubkey.substring(0, 8)}...',
+    );
 
     // First, try to add the other user's preferred relays
     await _fetchAndAddUserRelays(otherPubkey);
@@ -375,9 +384,12 @@ class DMService {
       final id = event.id as String;
       // Handle timestamp - can be DateTime or int depending on source
       final dynamic rawTimestamp = event.timestamp;
-      final DateTime createdAtDateTime = rawTimestamp is DateTime 
-          ? rawTimestamp 
-          : DateTime.fromMillisecondsSinceEpoch((rawTimestamp as int) * 1000);
+      final DateTime createdAtDateTime =
+          rawTimestamp is DateTime
+              ? rawTimestamp
+              : DateTime.fromMillisecondsSinceEpoch(
+                (rawTimestamp as int) * 1000,
+              );
       final tags =
           (event.tags as List<dynamic>)
               .map(
@@ -417,9 +429,12 @@ class DMService {
       final content = event.content as String;
       // Handle timestamp - can be DateTime or int depending on source
       final dynamic rawTimestamp = event.timestamp;
-      final DateTime createdAtDateTime = rawTimestamp is DateTime 
-          ? rawTimestamp 
-          : DateTime.fromMillisecondsSinceEpoch((rawTimestamp as int) * 1000);
+      final DateTime createdAtDateTime =
+          rawTimestamp is DateTime
+              ? rawTimestamp
+              : DateTime.fromMillisecondsSinceEpoch(
+                (rawTimestamp as int) * 1000,
+              );
       final tags =
           (event.tags as List<dynamic>)
               .map(
@@ -533,8 +548,10 @@ class DMService {
     required String message,
     String? relatedOfferId,
   }) async {
-    debugPrint('📤 DMService.sendDM() called - recipient: ${recipientPubkey.substring(0, 8)}...');
-    
+    debugPrint(
+      '📤 DMService.sendDM() called - recipient: ${recipientPubkey.substring(0, 8)}...',
+    );
+
     final myPubkey = _profileService.currentPubkey;
     if (myPubkey == null) {
       debugPrint('❌ DMService: No pubkey available');
@@ -548,7 +565,9 @@ class DMService {
         debugPrint('📤 DMService: Initializing relay pool...');
         await _relayPool.init();
       }
-      debugPrint('📤 DMService: Relay pool ready, ${_relayPool.connectedCount} connected');
+      debugPrint(
+        '📤 DMService: Relay pool ready, ${_relayPool.connectedCount} connected',
+      );
 
       // Get nsec for encryption and signing
       final nsec = await _profileService.getNsec();
@@ -587,14 +606,13 @@ class DMService {
       }
 
       // Create Nostr instance for signing - this sets the global private key
-      // The Event class uses this when computing id and signature
-      // ignore: unused_local_variable
       final nostr = Nostr(privateKey: hexPrivKey);
 
-      // Create event - Event constructor uses the Nostr singleton's private key
-      // to compute the id (hash) and signature
-      debugPrint('📤 DMService: Creating signed event...');
+      // Create event and trigger signing by calling sendEvent
+      // The nostr_dart library only computes the signature when sendEvent is called
+      debugPrint('📤 DMService: Creating and signing event...');
       final event = Event(myPubkey, 4, tags, encrypted);
+      nostr.sendEvent(event); // This triggers the actual signing
 
       // Verify event was signed properly
       if (event.id.isEmpty || event.sig.isEmpty) {
@@ -602,7 +620,9 @@ class DMService {
         debugPrint('❌ event.id: "${event.id}", event.sig: "${event.sig}"');
         return false;
       }
-      debugPrint('📤 DMService: Event signed - id: ${event.id.substring(0, 8)}...');
+      debugPrint(
+        '📤 DMService: Event signed - id: ${event.id.substring(0, 8)}...',
+      );
 
       // Build signed event for publishing via our relay pool
       final signedEvent = <String, dynamic>{
@@ -619,23 +639,40 @@ class DMService {
         '📤 DMService: Publishing signed DM event ${event.id.substring(0, 8)}... sig: ${event.sig.substring(0, 8)}...',
       );
 
-      // Check relay connection before publish
-      if (_relayPool.connectedCount == 0) {
-        debugPrint('⚠️ DMService: No connected relays, attempting to reconnect...');
-        await _relayPool.init();
-        // Give relays a moment to connect
-        await Future.delayed(const Duration(seconds: 2));
-        
-        if (_relayPool.connectedCount == 0) {
-          debugPrint('❌ DMService: Still no connected relays after reconnect');
-          return false;
-        }
-      }
-      
-      debugPrint('📨 DMService: ${_relayPool.connectedCount} relays available for sending');
+      // Check relay connection and retry up to 3 times
+      int retryCount = 0;
+      const maxRetries = 3;
 
-      // Publish to relays
-      final successCount = await _relayPool.publish(signedEvent);
+      while (_relayPool.connectedCount == 0 && retryCount < maxRetries) {
+        debugPrint(
+          '⚠️ DMService: No connected relays, attempt ${retryCount + 1}/$maxRetries...',
+        );
+        await _relayPool.init();
+        // Give relays time to connect
+        await Future.delayed(Duration(seconds: 1 + retryCount));
+        retryCount++;
+      }
+
+      if (_relayPool.connectedCount == 0) {
+        debugPrint(
+          '❌ DMService: No connected relays after $maxRetries attempts',
+        );
+        return false;
+      }
+
+      debugPrint(
+        '📨 DMService: ${_relayPool.connectedCount} relays available for sending',
+      );
+
+      // Publish to relays with retry on failure
+      int successCount = await _relayPool.publish(signedEvent);
+
+      // Retry once if initial publish failed
+      if (successCount == 0) {
+        debugPrint('⚠️ DMService: Initial publish failed, retrying...');
+        await Future.delayed(const Duration(milliseconds: 500));
+        successCount = await _relayPool.publish(signedEvent);
+      }
 
       if (successCount > 0) {
         debugPrint('✅ DMService: DM sent to $successCount relays');
@@ -650,10 +687,12 @@ class DMService {
           isRead: true,
         );
         _addMessageToConversation(recipientPubkey, dm, isIncoming: false);
+        // Persist conversation update
+        await _cacheConversations();
         return true;
       }
 
-      debugPrint('❌ DMService: Failed to publish to any relay (0/$successCount relays)');
+      debugPrint('❌ DMService: Failed to publish to any relay after retries');
       return false;
     } catch (e, stack) {
       debugPrint('❌ DMService: Error sending DM: $e');
@@ -662,13 +701,16 @@ class DMService {
     }
   }
 
-  /// Mark conversation as read
-  void markConversationAsRead(String pubkey) {
+  /// Mark conversation as read and persist to storage
+  Future<void> markConversationAsRead(String pubkey) async {
     final convo = _conversations[pubkey];
-    if (convo != null) {
+    if (convo != null && convo.unreadCount > 0) {
       _totalUnread -= convo.unreadCount;
       convo.unreadCount = 0;
       _unreadController.add(_totalUnread);
+      // Persist the change to storage
+      await _cacheConversations();
+      debugPrint('✅ DMService: Marked conversation as read and persisted');
     }
   }
 

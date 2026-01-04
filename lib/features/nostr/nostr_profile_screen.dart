@@ -65,6 +65,12 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // If we have initial data, show UI immediately
+    if (widget.initialName != null || widget.initialAvatarUrl != null) {
+      _isLoading = false;
+    }
+
     _loadProfile();
   }
 
@@ -75,7 +81,12 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
+    // Only show loading if we don't have any initial data
+    if (_profile == null &&
+        widget.initialName == null &&
+        widget.initialAvatarUrl == null) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       // Get current user to check if viewing own profile (fast, local)
@@ -89,21 +100,41 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
       if (_currentUserPubkey != null && !_isCurrentUser) {
         final userFollows = await NostrService.getCachedFollows();
         _isFollowing = userFollows.contains(widget.pubkey);
+        if (mounted) setState(() {}); // Update follow button
       }
 
-      // Fetch profile metadata FIRST and show UI immediately
       final profileService = nostr_v2.NostrProfileService();
-      final profile = await profileService.fetchProfile(widget.pubkey);
 
-      // Show profile immediately while other data loads
-      if (mounted) {
-        setState(() {
-          _profile = profile;
-          _isLoading = false; // Show UI now!
-        });
+      // Fetch profile (has internal caching - returns cached first, then fresh)
+      // Use unawaited fetch to not block the UI
+      profileService.fetchProfile(widget.pubkey).then((profile) {
+        if (mounted && profile != null) {
+          setState(() {
+            _profile = profile;
+            _isLoading = false;
+          });
+        }
+      });
+
+      // Show UI now if we had initial data (don't wait for profile fetch)
+      if (_isLoading &&
+          (widget.initialName != null || widget.initialAvatarUrl != null)) {
+        if (mounted) setState(() => _isLoading = false);
       }
 
-      // Fetch remaining data in parallel (non-blocking for UI)
+      // Fetch remaining data in background (non-blocking for UI)
+      _loadSecondaryData();
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// Load posts, stats, and social proof in background
+  Future<void> _loadSecondaryData() async {
+    try {
       final results = await Future.wait([
         NostrService.fetchUserPostsDirect(widget.pubkey, limit: 30),
         NostrService.fetchFollowingCount(widget.pubkey),
@@ -1036,10 +1067,10 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
           top: 100.h,
           left: 0,
           right: 0,
-          bottom: 0,
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Avatar and action buttons row (Primal-style)
@@ -1358,20 +1389,20 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
   Widget _buildFollowedBySection() {
     return Row(
       children: [
-        // Stacked avatars
+        // Stacked avatars - larger size for better visibility
         SizedBox(
-          width: (_followedByList.length * 20.w) + 12.w,
-          height: 24.h,
+          width: (_followedByList.length * 24.w) + 16.w,
+          height: 36.h,
           child: Stack(
             children:
                 _followedByList.asMap().entries.map((entry) {
                   final index = entry.key;
                   final follower = entry.value;
                   return Positioned(
-                    left: index * 16.w,
+                    left: index * 20.w,
                     child: Container(
-                      width: 24.w,
-                      height: 24.h,
+                      width: 36.w,
+                      height: 36.h,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -1380,7 +1411,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                         ),
                       ),
                       child: CircleAvatar(
-                        radius: 10.r,
+                        radius: 16.r,
                         backgroundColor: const Color(0xFF2A2A3E),
                         backgroundImage:
                             follower['avatar'] != null
@@ -1392,7 +1423,7 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                             follower['avatar'] == null
                                 ? Icon(
                                   Icons.person,
-                                  size: 10.sp,
+                                  size: 14.sp,
                                   color: Colors.white54,
                                 )
                                 : null,
@@ -1402,11 +1433,15 @@ class _NostrProfileScreenState extends ConsumerState<NostrProfileScreen>
                 }).toList(),
           ),
         ),
-        SizedBox(width: 4.w),
+        SizedBox(width: 8.w),
         Expanded(
           child: Text(
             'Followed by ${_followedByList.map((f) => f['name'] ?? 'user').take(3).join(', ')}${_followedByList.length > 3 ? '...' : ''}',
-            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
+            style: TextStyle(
+              color: const Color(0xFFA1A1B2),
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w500,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

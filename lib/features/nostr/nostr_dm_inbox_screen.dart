@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../services/nostr/dm_service.dart';
 import '../../services/nostr/feed_aggregator.dart';
 import '../../services/nostr/nostr_profile_service.dart';
+import '../p2p/presentation/widgets/p2p_offer_preview_widget.dart';
 import 'nostr_profile_screen.dart';
 
 /// Provider for DM service
@@ -56,11 +57,11 @@ class _NostrDMInboxScreenState extends ConsumerState<NostrDMInboxScreen>
     // PHASE 1: Quick initialization - show cached data IMMEDIATELY
     try {
       await _dmService.initializeFast();
-      
+
       // Show cached conversations right away
       _allConversations = _dmService.conversations;
       _filterConversations();
-      
+
       if (mounted && _allConversations.isNotEmpty) {
         setState(() => _isLoading = false);
       }
@@ -98,7 +99,7 @@ class _NostrDMInboxScreenState extends ConsumerState<NostrDMInboxScreen>
 
       // Fetch new messages in background with smaller initial batch
       await _dmService.fetchDMHistory(limit: 100);
-      
+
       // Update UI with new messages
       if (mounted) {
         setState(() {
@@ -140,21 +141,23 @@ class _NostrDMInboxScreenState extends ConsumerState<NostrDMInboxScreen>
     }
   }
 
-  void _markAllAsRead() {
+  Future<void> _markAllAsRead() async {
     for (final convo in _allConversations) {
-      _dmService.markConversationAsRead(convo.pubkey);
+      await _dmService.markConversationAsRead(convo.pubkey);
     }
-    setState(() {
-      _allConversations = _dmService.conversations;
-      _filterConversations();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('All messages marked as read'),
-        backgroundColor: const Color(0xFF2A2A3E),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (mounted) {
+      setState(() {
+        _allConversations = _dmService.conversations;
+        _filterConversations();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('All messages marked as read'),
+          backgroundColor: const Color(0xFF2A2A3E),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   int get _followsUnreadCount =>
@@ -715,7 +718,7 @@ class _ConversationScreenState extends State<_ConversationScreen> {
 
     // Ensure DM service is initialized
     await _dmService.initialize();
-    
+
     // Fetch conversation history specifically for this user (includes their relays)
     await _dmService.fetchConversationHistory(widget.pubkey, limit: 500);
 
@@ -1165,6 +1168,9 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if message contains P2P offer reference
+    final hasP2PReference = containsP2POfferReference(message.content);
+
     return Padding(
       padding: EdgeInsets.only(bottom: showTime ? 8.h : 3.h),
       child: Column(
@@ -1180,32 +1186,10 @@ class _MessageBubble extends StatelessWidget {
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.75,
               ),
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-              decoration: BoxDecoration(
-                gradient:
-                    message.isFromMe
-                        ? const LinearGradient(
-                          colors: [Color(0xFFF7931A), Color(0xFFE8A838)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                        : null,
-                color: message.isFromMe ? null : const Color(0xFF1F1F35),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(18.r),
-                  topRight: Radius.circular(18.r),
-                  bottomLeft: Radius.circular(message.isFromMe ? 18.r : 4.r),
-                  bottomRight: Radius.circular(message.isFromMe ? 4.r : 18.r),
-                ),
-              ),
-              child: Text(
-                message.content,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15.sp,
-                  height: 1.3,
-                ),
-              ),
+              child:
+                  hasP2PReference
+                      ? _buildMessageWithP2PPreview(context)
+                      : _buildRegularMessage(context),
             ),
           ),
           if (showTime)
@@ -1225,6 +1209,94 @@ class _MessageBubble extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRegularMessage(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        gradient:
+            message.isFromMe
+                ? const LinearGradient(
+                  colors: [Color(0xFFF7931A), Color(0xFFE8A838)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+                : null,
+        color: message.isFromMe ? null : const Color(0xFF1F1F35),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(18.r),
+          topRight: Radius.circular(18.r),
+          bottomLeft: Radius.circular(message.isFromMe ? 18.r : 4.r),
+          bottomRight: Radius.circular(message.isFromMe ? 4.r : 18.r),
+        ),
+      ),
+      child: Text(
+        message.content,
+        style: TextStyle(color: Colors.white, fontSize: 15.sp, height: 1.3),
+      ),
+    );
+  }
+
+  Widget _buildMessageWithP2PPreview(BuildContext context) {
+    // Extract the naddr references
+    final naddrRefs = extractNaddrReferences(message.content);
+
+    // Get the text parts (before and after the reference)
+    String textContent = message.content;
+    for (final ref in naddrRefs) {
+      textContent = textContent.replaceAll(ref, '');
+    }
+    textContent = textContent.trim();
+
+    return Column(
+      crossAxisAlignment:
+          message.isFromMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        // Show text content if any
+        if (textContent.isNotEmpty)
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+            margin: EdgeInsets.only(bottom: 6.h),
+            decoration: BoxDecoration(
+              gradient:
+                  message.isFromMe
+                      ? const LinearGradient(
+                        colors: [Color(0xFFF7931A), Color(0xFFE8A838)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                      : null,
+              color: message.isFromMe ? null : const Color(0xFF1F1F35),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(18.r),
+                topRight: Radius.circular(18.r),
+                bottomLeft: Radius.circular(18.r),
+                bottomRight: Radius.circular(18.r),
+              ),
+            ),
+            child: Text(
+              textContent,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15.sp,
+                height: 1.3,
+              ),
+            ),
+          ),
+        // Show P2P offer previews
+        ...naddrRefs.map(
+          (ref) => P2POfferPreviewWidget(
+            naddrReference: ref,
+            compact: true,
+            onTap: () {
+              // Navigate to offer detail
+              // This will be handled by the widget
+            },
+          ),
+        ),
+      ],
     );
   }
 }

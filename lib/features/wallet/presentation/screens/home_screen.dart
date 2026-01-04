@@ -475,9 +475,14 @@ class _HomeContentState extends State<_HomeContent> {
                       builder: (context) {
                         final nostrProfile =
                             NostrProfileService().currentProfile;
+                        // Use quick cache for instant display, fall back to profile
                         final username =
-                            nostrProfile?.displayNameOrFallback ?? 'user';
-                        final picture = nostrProfile?.picture;
+                            nostrProfile?.displayNameOrFallback ??
+                            NostrProfileService.cachedDisplayName ??
+                            'user';
+                        final picture =
+                            nostrProfile?.picture ??
+                            NostrProfileService.cachedPicture;
                         final initial =
                             username.isNotEmpty
                                 ? username[0].toUpperCase()
