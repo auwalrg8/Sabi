@@ -49,3 +49,9 @@ ios/Flutter/Flutter.podspec
 .vscode/settings.json
 
 .config/
+
+# Android signing keys (NEVER commit these)
+android/key.properties
+android/app/keystore/
+*.jks
+*.keystore

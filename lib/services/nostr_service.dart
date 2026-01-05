@@ -8,17 +8,45 @@ class NostrService {
   // Custom kind for P2P offers
   static const int p2pOfferKind = 38383;
   static const _boxName = 'nostr_keys';
-  static late Box _box;
+  static Box? _box;
   static Nostr? _nostr;
   static bool _initialized = false;
 
   /// Check if Nostr is properly initialized with keys and relays
   static bool get isInitialized => _initialized && _nostr != null;
 
+  /// Check if box is open and valid
+  static bool get _isBoxValid => _box != null && _box!.isOpen;
+
   static Future<void> init() async {
-    await Hive.initFlutter();
-    _box = await Hive.openBox(_boxName);
+    // Skip if already initialized with valid resources
+    if (_initialized && _isBoxValid && _nostr != null) {
+      debugPrint('NostrService (v2): Already initialized with valid resources');
+      return;
+    }
+    
+    // Hive.initFlutter() is called once in main.dart, no need to call again
+    // Just open the box (Hive handles reopening gracefully)
+    try {
+      _box = await Hive.openBox(_boxName);
+    } catch (e) {
+      debugPrint('NostrService (v2): Box open error: $e');
+      // Box might already be open, try to get it
+      if (Hive.isBoxOpen(_boxName)) {
+        _box = Hive.box(_boxName);
+      } else {
+        rethrow;
+      }
+    }
     await _initNostr();
+  }
+
+  /// Force re-initialization (for app resume scenarios)
+  static Future<void> reinitialize() async {
+    debugPrint('NostrService (v2): Force reinitializing...');
+    _initialized = false;
+    _nostr = null;
+    await init();
   }
 
   /// Ensure Nostr is initialized before use. Call this before any Nostr operations.
@@ -34,7 +62,11 @@ class NostrService {
   }
 
   static Future<void> _initNostr() async {
-    final nsec = _box.get('nsec');
+    if (!_isBoxValid) {
+      debugPrint('NostrService (v2): Box not valid, cannot init Nostr');
+      return;
+    }
+    final nsec = _box!.get('nsec');
     if (nsec != null) {
       _nostr = Nostr(privateKey: nsec);
       // Add relays
@@ -42,21 +74,27 @@ class NostrService {
         try {
           await _nostr!.pool.add(Relay(relay, access: WriteAccess.readWrite));
         } catch (e) {
-          debugPrint('NostrService: Failed to add relay $relay: $e');
+          debugPrint('NostrService (v2): Failed to add relay $relay: $e');
         }
       }
       _initialized = true;
       debugPrint(
-        'NostrService: Initialized with ${_defaultRelays.length} relays',
+        'NostrService (v2): Initialized with ${_defaultRelays.length} relays',
       );
+    } else {
+      debugPrint('NostrService (v2): No nsec found, skipping Nostr init');
+      _initialized = true; // Mark as initialized even without keys
     }
   }
 
   static Future<void> generateKeys() async {
+    if (!_isBoxValid) {
+      throw Exception('NostrService not initialized');
+    }
     final nsec = generatePrivateKey();
     final npub = getPublicKey(nsec);
-    await _box.put('nsec', nsec);
-    await _box.put('npub', npub);
+    await _box!.put('nsec', nsec);
+    await _box!.put('npub', npub);
     await _initNostr();
   }
 
@@ -64,13 +102,16 @@ class NostrService {
     required String nsec,
     required String npub,
   }) async {
-    await _box.put('nsec', nsec);
-    await _box.put('npub', npub);
+    if (!_isBoxValid) {
+      throw Exception('NostrService not initialized');
+    }
+    await _box!.put('nsec', nsec);
+    await _box!.put('npub', npub);
     await _initNostr();
   }
 
-  static String? get npub => _box.get('npub');
-  static String? get nsec => _box.get('nsec');
+  static String? get npub => _isBoxValid ? _box!.get('npub') : null;
+  static String? get nsec => _isBoxValid ? _box!.get('nsec') : null;
 
   static List<String> get _defaultRelays => [
     'wss://relay.damus.io',

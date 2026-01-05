@@ -87,13 +87,22 @@ void main() async {
     debugPrint('⚠️ FirebaseNotificationService error: $e');
   }
 
+  // CRITICAL: Initialize flutter_rust_bridge FIRST
+  // This MUST succeed for wallet functionality to work
+  bool rustBridgeInitialized = false;
   try {
-    // CRITICAL: Initialize flutter_rust_bridge FIRST
     await BreezSdkSparkLib.init();
+    rustBridgeInitialized = true;
     debugPrint('✅ BreezSdkSparkLib.init() called - Bridge initialized');
-  } catch (e) {
-    debugPrint('⚠️ BreezSdkSparkLib.init() error: $e');
+  } catch (e, stackTrace) {
+    debugPrint('❌ CRITICAL: BreezSdkSparkLib.init() FAILED: $e');
+    debugPrint('Stack trace: $stackTrace');
+    // Store the failure state so we can show proper error to user
+    // Don't swallow this error - it means wallet won't work!
   }
+  
+  // Store the initialization state globally
+  BreezSparkService.rustBridgeInitialized = rustBridgeInitialized;
 
   try {
     // Initialize services

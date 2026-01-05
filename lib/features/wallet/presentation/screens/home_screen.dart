@@ -337,9 +337,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Refresh suggestions when app resumes to reflect completed tasks
     if (state == AppLifecycleState.resumed) {
+      debugPrint('🔄 App resumed - refreshing services...');
+      // Refresh suggestions to reflect completed tasks
       ref.read(suggestionsProvider.notifier).refresh();
+      
+      // Refresh wallet/balance data on resume
+      _refreshOnResume();
+    }
+  }
+
+  /// Refresh critical services when app resumes from background
+  Future<void> _refreshOnResume() async {
+    try {
+      // Re-check SDK state and refresh balance
+      if (BreezSparkService.isInitialized) {
+        await BreezSparkService.getBalance();
+        ref.read(balanceNotifierProvider.notifier).refresh();
+        ref.read(walletInfoProvider.notifier).refresh();
+        ref.read(recentTransactionsProvider.notifier).refresh();
+        debugPrint('✅ App resume refresh complete');
+      } else {
+        debugPrint('⚠️ SDK not initialized on resume, attempting re-init...');
+        await _initializeBreezSDK();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error refreshing on resume: $e');
     }
   }
 

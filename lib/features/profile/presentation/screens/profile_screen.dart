@@ -74,6 +74,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final profileService = nostr_v2.NostrProfileService();
         final relayPool = nostr_v2.RelayPoolManager();
 
+        // Force reinit to pick up any newly created/imported keys
+        await profileService.init(force: true);
+
         // Use quick cache for instant display (name + picture)
         final quickName = nostr_v2.NostrProfileService.cachedDisplayName;
         // quickPicture is used via NostrProfileService.cachedPicture in build()

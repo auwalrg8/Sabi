@@ -127,7 +127,7 @@ class _NostrOnboardingScreenState extends State<NostrOnboardingScreen>
           ),
         );
         widget.onComplete?.call();
-        Navigator.pop(context);
+        Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
       setState(() {
@@ -233,9 +233,9 @@ class _NostrOnboardingScreenState extends State<NostrOnboardingScreen>
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close dialog
                   widget.onComplete?.call();
-                  Navigator.pop(context);
+                  Navigator.pop(context, true); // Return true to indicate success
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF9945FF),

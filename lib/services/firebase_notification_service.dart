@@ -11,6 +11,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../firebase_options.dart';
 
+/// Global instance for background isolate use
+/// This ensures the same instance is used after initialization
+final FlutterLocalNotificationsPlugin _backgroundLocalNotifications = FlutterLocalNotificationsPlugin();
+bool _backgroundNotificationsInitialized = false;
+
 /// Top-level function to handle background messages (MUST be top-level)
 /// This runs in a separate isolate when app is terminated/background
 @pragma('vm:entry-point')
@@ -18,11 +23,107 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Need to initialize Firebase again for background isolate
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   
+  // Initialize local notifications for the background isolate
+  await _initBackgroundNotifications();
+  
   debugPrint('🔔 [Background] FCM message received: ${message.messageId}');
   debugPrint('🔔 [Background] Data: ${message.data}');
   
-  // Handle the background message
-  await FirebaseNotificationService._handleBackgroundMessage(message);
+  // Handle the background message directly here to ensure proper initialization
+  await _handleBackgroundMessageInternal(message);
+}
+
+/// Initialize local notifications for background isolate
+/// This must be called before showing any notifications in the background handler
+@pragma('vm:entry-point')
+Future<void> _initBackgroundNotifications() async {
+  if (_backgroundNotificationsInitialized) return;
+  
+  const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('ic_notification');
+  const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
+  
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidSettings,
+    iOS: iosSettings,
+  );
+  
+  await _backgroundLocalNotifications.initialize(initSettings);
+  _backgroundNotificationsInitialized = true;
+}
+
+/// Handle background message - top level function for isolate
+@pragma('vm:entry-point')
+Future<void> _handleBackgroundMessageInternal(RemoteMessage message) async {
+  debugPrint('🔔 [Background Handler] Processing message: ${message.messageId}');
+  
+  // Check if this is a "sync" message to trigger wallet sync
+  final messageType = message.data['type'] as String?;
+  if (messageType == 'sync' || messageType == 'wake_device') {
+    debugPrint('🔄 [Background] Received sync trigger message');
+    return;
+  }
+  
+  // Check if this is a payment notification from the LNURL server
+  if (messageType == 'payment_received') {
+    debugPrint('💰 [Background] Payment received notification!');
+    
+    final amountSats = message.data['amountSats'] ?? '0';
+    final amountNaira = message.data['amountNaira'];
+    
+    String body = 'You received $amountSats sats';
+    if (amountNaira != null) {
+      body = 'You received $amountSats sats (₦$amountNaira)';
+    }
+    
+    await _backgroundLocalNotifications.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      '⚡ Payment Received!',
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'sabi_wallet_payments',
+          'Payments',
+          importance: Importance.max,
+          priority: Priority.max,
+          playSound: true,
+          enableVibration: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentSound: true,
+          presentBadge: true,
+          presentAlert: true,
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
+    return;
+  }
+  
+  // Handle other data-only messages
+  if (message.notification == null && message.data.isNotEmpty) {
+    final type = FirebaseNotificationService._getNotificationType(message.data['type'] as String?);
+    final channelId = FirebaseNotificationService._getChannelForType(type);
+    
+    await _backgroundLocalNotifications.show(
+      message.hashCode,
+      message.data['title'] ?? 'Sabi Wallet',
+      message.data['body'] ?? 'You have a new notification',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          channelId,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentSound: true,
+          presentBadge: true,
+          presentAlert: true,
+        ),
+      ),
+      payload: jsonEncode(message.data),
+    );
+  }
 }
 
 /// Notification channel definitions for Android
@@ -361,88 +462,6 @@ class FirebaseNotificationService {
 
     // Show local notification (since FCM doesn't auto-show in foreground)
     await _showLocalNotification(message);
-  }
-
-  /// Handle background message (static method for isolate)
-  static Future<void> _handleBackgroundMessage(RemoteMessage message) async {
-    debugPrint('🔔 [Background Handler] Processing message: ${message.messageId}');
-    
-    // Check if this is a "sync" message to trigger wallet sync
-    final messageType = message.data['type'] as String?;
-    if (messageType == 'sync' || messageType == 'wake_device') {
-      debugPrint('🔄 [Background] Received sync trigger message');
-      // The app will do a proper sync when it comes to foreground
-      // For now, we can show a silent notification or just log
-      return;
-    }
-    
-    // Check if this is a payment notification from the LNURL server
-    if (messageType == 'payment_received') {
-      debugPrint('💰 [Background] Payment received notification!');
-      final localNotifications = FlutterLocalNotificationsPlugin();
-      
-      final amountSats = message.data['amountSats'] ?? '0';
-      final amountNaira = message.data['amountNaira'];
-      
-      String body = 'You received $amountSats sats';
-      if (amountNaira != null) {
-        body = 'You received $amountSats sats (₦$amountNaira)';
-      }
-      
-      await localNotifications.show(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        '⚡ Payment Received!',
-        body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'sabi_wallet_payments',
-            'Payments',
-            importance: Importance.max,
-            priority: Priority.max,
-            playSound: true,
-            enableVibration: true,
-          ),
-          iOS: DarwinNotificationDetails(
-            presentSound: true,
-            presentBadge: true,
-            presentAlert: true,
-          ),
-        ),
-        payload: jsonEncode(message.data),
-      );
-      return;
-    }
-    
-    // Background messages with notification payload are auto-displayed by FCM
-    // Data-only messages need manual handling
-    
-    if (message.notification == null && message.data.isNotEmpty) {
-      // Data-only message - show local notification
-      final localNotifications = FlutterLocalNotificationsPlugin();
-      
-      final type = _getNotificationType(message.data['type'] as String?);
-      final channelId = _getChannelForType(type);
-      
-      await localNotifications.show(
-        message.hashCode,
-        message.data['title'] ?? 'Sabi Wallet',
-        message.data['body'] ?? 'You have a new notification',
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            channelId,
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentSound: true,
-            presentBadge: true,
-            presentAlert: true,
-          ),
-        ),
-        payload: jsonEncode(message.data),
-      );
-    }
   }
 
   /// Handle notification tap (app in background)

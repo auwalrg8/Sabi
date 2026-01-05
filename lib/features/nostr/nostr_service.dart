@@ -11,6 +11,7 @@ import 'dart:typed_data';
 import 'nostr_debug_service.dart';
 import 'nostr_relay_client.dart';
 import 'package:sabi_wallet/services/nostr/relay_pool_manager.dart';
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart' as profile_v2;
 
 // Global debug service instance
 final _debug = NostrDebugService();
@@ -27,7 +28,7 @@ class NostrService {
   static const _hexPrivKey = 'nostr_hex_privkey';
   static const _hexPubKey = 'nostr_hex_pubkey';
 
-  static late final FlutterSecureStorage _secureStorage;
+  static FlutterSecureStorage? _secureStorage;
   static Nostr? _nostr;
   static bool _initialized = false;
 
@@ -67,9 +68,16 @@ class NostrService {
   static Map<String, dynamic> getConnectionSummary() =>
       _debug.getConnectionSummary();
 
+  /// Get secure storage, initializing if needed
+  static FlutterSecureStorage get _storage {
+    _secureStorage ??= const FlutterSecureStorage();
+    return _secureStorage!;
+  }
+
   /// Initialize the Nostr service (non-blocking, defers relay connections)
   static Future<void> init() async {
-    if (_initialized) {
+    // Allow re-init if secure storage wasn't set up properly
+    if (_initialized && _secureStorage != null) {
       _debug.info('INIT', 'NostrService already initialized');
       return;
     }
@@ -87,13 +95,21 @@ class NostrService {
     _debug.updateInitStatus(initialized: true);
   }
 
+  /// Force re-initialization (for app resume scenarios)
+  static Future<void> forceReinit() async {
+    _debug.info('INIT', 'Force re-initializing NostrService...');
+    _initialized = false;
+    _nostr = null;
+    await init();
+  }
+
   /// Migrate keys from old Hive storage to SecureStorage
   static Future<void> _migrateFromHive() async {
     try {
       _debug.info('MIGRATE', 'Checking for Hive keys to migrate...');
 
       // Check if we already have keys in SecureStorage
-      final existingNpub = await _secureStorage.read(key: _npubKey);
+      final existingNpub = await _storage.read(key: _npubKey);
       if (existingNpub != null && existingNpub.isNotEmpty) {
         _debug.info(
           'MIGRATE',
@@ -115,11 +131,11 @@ class NostrService {
       );
 
       if (oldNpub != null && oldNpub.isNotEmpty) {
-        await _secureStorage.write(key: _npubKey, value: oldNpub);
+        await _storage.write(key: _npubKey, value: oldNpub);
         _debug.success('MIGRATE', 'Migrated npub from Hive to SecureStorage');
       }
       if (oldNsec != null && oldNsec.isNotEmpty) {
-        await _secureStorage.write(key: _nsecKey, value: oldNsec);
+        await _storage.write(key: _nsecKey, value: oldNsec);
         _debug.success('MIGRATE', 'Migrated nsec from Hive to SecureStorage');
       }
     } catch (e) {
@@ -233,7 +249,7 @@ class NostrService {
   static Future<void> _loadKeysAndInitializeNostr() async {
     try {
       _debug.info('KEYS', 'Loading keys from SecureStorage...');
-      final nsec = await _secureStorage.read(key: _nsecKey);
+      final nsec = await _storage.read(key: _nsecKey);
 
       if (nsec != null && nsec.isNotEmpty) {
         _debug.success(
@@ -382,15 +398,20 @@ class NostrService {
       }
 
       // Store bech32 encoded keys securely
-      await _secureStorage.write(key: _nsecKey, value: nsec);
-      await _secureStorage.write(key: _npubKey, value: npub);
+      await _storage.write(key: _nsecKey, value: nsec);
+      await _storage.write(key: _npubKey, value: npub);
 
       // Also store hex keys for NostrProfileService compatibility
-      await _secureStorage.write(key: _hexPrivKey, value: hexPrivateKey);
-      await _secureStorage.write(key: _hexPubKey, value: hexPublicKey);
+      await _storage.write(key: _hexPrivKey, value: hexPrivateKey);
+      await _storage.write(key: _hexPubKey, value: hexPublicKey);
 
       // Initialize Nostr with hex private key
       await _initializeNostrWithKey(hexPrivateKey);
+
+      // CRITICAL: Re-initialize NostrProfileService to pick up new keys
+      // This ensures the v2 service has the new identity
+      await profile_v2.NostrProfileService().init(force: true);
+      print('✅ NostrProfileService reinitialized with new keys');
 
       print('✅ Generated new Nostr keys');
       return {'npub': npub, 'nsec': nsec};
@@ -436,7 +457,7 @@ class NostrService {
           throw Exception('Invalid npub format');
         }
         // Store only npub for read-only mode
-        await _secureStorage.write(key: _npubKey, value: npub);
+        await _storage.write(key: _npubKey, value: npub);
         print('✅ Imported Nostr npub (read-only mode)');
         return;
       }
@@ -459,17 +480,21 @@ class NostrService {
       }
 
       // Store securely
-      await _secureStorage.write(key: _nsecKey, value: nsec);
-      await _secureStorage.write(key: _npubKey, value: npub);
+      await _storage.write(key: _nsecKey, value: nsec);
+      await _storage.write(key: _npubKey, value: npub);
 
       // Initialize Nostr - need to convert nsec to hex for nostr_dart
       final hexPrivateKey = _nsecToHex(nsec);
       if (hexPrivateKey != null) {
         final hexPublicKey = getPublicKey(hexPrivateKey);
         // Also store hex keys for NostrProfileService compatibility
-        await _secureStorage.write(key: _hexPrivKey, value: hexPrivateKey);
-        await _secureStorage.write(key: _hexPubKey, value: hexPublicKey);
+        await _storage.write(key: _hexPrivKey, value: hexPrivateKey);
+        await _storage.write(key: _hexPubKey, value: hexPublicKey);
         await _initializeNostrWithKey(hexPrivateKey);
+
+        // CRITICAL: Re-initialize NostrProfileService to pick up imported keys
+        await profile_v2.NostrProfileService().init(force: true);
+        print('✅ NostrProfileService reinitialized with imported keys');
       }
 
       print('✅ Imported Nostr keys');
@@ -487,7 +512,7 @@ class NostrService {
         _secureStorage = const FlutterSecureStorage();
         _initialized = true;
       }
-      final npub = await _secureStorage.read(key: _npubKey);
+      final npub = await _storage.read(key: _npubKey);
       _debug.info(
         'KEYS',
         'getNpub() called',
@@ -509,7 +534,7 @@ class NostrService {
         _secureStorage = const FlutterSecureStorage();
         _initialized = true;
       }
-      final nsec = await _secureStorage.read(key: _nsecKey);
+      final nsec = await _storage.read(key: _nsecKey);
       _debug.info(
         'KEYS',
         'getNsec() called',
@@ -1044,8 +1069,8 @@ class NostrService {
   /// Clear all Nostr data
   static Future<void> clearKeys() async {
     try {
-      await _secureStorage.delete(key: _nsecKey);
-      await _secureStorage.delete(key: _npubKey);
+      await _storage.delete(key: _nsecKey);
+      await _storage.delete(key: _npubKey);
       _nostr = null;
       print('✅ Nostr keys cleared');
     } catch (e) {
@@ -1205,7 +1230,7 @@ class NostrService {
     // Cache the follows
     if (follows.isNotEmpty) {
       try {
-        await _secureStorage.write(key: _followsKey, value: follows.join(','));
+        await _storage.write(key: _followsKey, value: follows.join(','));
         _debug.info('FOLLOWS_DIRECT', 'Follows cached');
       } catch (e) {
         _debug.warn('FOLLOWS_DIRECT', 'Failed to cache follows', e.toString());
@@ -1218,7 +1243,7 @@ class NostrService {
   /// Get cached follows without fetching from relays (fast)
   static Future<List<String>> getCachedFollows() async {
     try {
-      final cached = await _secureStorage.read(key: _followsKey);
+      final cached = await _storage.read(key: _followsKey);
       if (cached != null && cached.isNotEmpty) {
         final follows = cached.split(',').where((s) => s.isNotEmpty).toList();
         _debug.info(
@@ -1368,7 +1393,7 @@ class NostrService {
         _nostr!.sendEvent(event);
 
         // Update cache
-        await _secureStorage.write(
+        await _storage.write(
           key: _followsKey,
           value: newFollows.join(','),
         );
@@ -1639,7 +1664,7 @@ class NostrService {
       );
 
       // First check cache
-      final cached = await _secureStorage.read(key: _followsKey);
+      final cached = await _storage.read(key: _followsKey);
       if (cached != null && cached.isNotEmpty) {
         // Return cached follows, but still fetch fresh in background
         follows.addAll(cached.split(',').where((s) => s.isNotEmpty));
@@ -1713,7 +1738,7 @@ class NostrService {
 
           // Cache the follows
           if (freshFollows.isNotEmpty) {
-            await _secureStorage.write(
+            await _storage.write(
               key: _followsKey,
               value: freshFollows.join(','),
             );

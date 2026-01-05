@@ -92,10 +92,19 @@ class NostrProfileService {
     }
   }
 
+  /// Reset initialization state (for app lifecycle handling)
+  void resetInitState() {
+    _initialized = false;
+    debugPrint('🔄 NostrProfileService: Init state reset for app resume');
+  }
+
   /// Initialize the profile service
   /// Set [force] to true to re-check keys even if already initialized
   Future<void> init({bool force = false}) async {
-    if (_initialized && !force) return;
+    if (_initialized && !force) {
+      debugPrint('ℹ️ NostrProfileService: Already initialized, skipping');
+      return;
+    }
 
     try {
       // Load keys from secure storage
@@ -146,6 +155,21 @@ class NostrProfileService {
         } else {
           // No cache, fetch now
           _currentProfile = await fetchProfile(_hexPublicKey!);
+
+          // CRITICAL: For newly generated keys, no profile exists on relays yet.
+          // Create a basic local profile so the UI doesn't show empty/broken state.
+          if (_currentProfile == null) {
+            final npub = hexToNpub(_hexPublicKey!);
+            if (npub != null) {
+              debugPrint('📝 Creating local profile for new identity');
+              _currentProfile = NostrProfile(
+                pubkey: _hexPublicKey!,
+                npub: npub,
+              );
+              // Cache it so it persists across app restarts
+              await _cache.cacheProfile(_currentProfile!);
+            }
+          }
         }
       }
 

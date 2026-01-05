@@ -3,12 +3,14 @@
 // https://sdk-doc-spark.breez.technology/
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:encrypt/encrypt.dart' as encrypt_pkg;
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -82,6 +84,10 @@ class BreezSparkService {
   
   // DEBUG: Flag to allow app to work without SDK for development
   static bool _useMockSDK = false;
+  
+  // CRITICAL: Track if the Rust bridge was successfully initialized
+  // This is set from main.dart during app startup
+  static bool rustBridgeInitialized = false;
 
   static void _emitPendingPayments() {
     if (_pendingPaymentsController.isClosed) return;
@@ -185,6 +191,10 @@ class BreezSparkService {
     _paymentPollingTimer?.cancel();
   }
 
+  // Key for storing Hive encryption key in secure storage
+  static const _hiveEncryptionKeyName = 'breez_spark_hive_encryption_key';
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+
   // ============================================================================
   // STEP 1: Initialize Hive persistence
   // ============================================================================
@@ -199,8 +209,37 @@ class BreezSparkService {
     debugPrint('✅ Breez Spark persistence initialized');
   }
 
+  /// Get the Hive encryption key, generating and persisting it if needed.
+  /// CRITICAL: The key must be stored in secure storage to persist across app restarts.
+  /// Without this, the mnemonic stored in Hive would be unreadable after app restart.
   static Future<List<int>> _getEncryptionKey() async {
-    return encrypt_pkg.Key.fromLength(32).bytes;
+    try {
+      // Try to read existing key from secure storage
+      final existingKey = await _secureStorage.read(key: _hiveEncryptionKeyName);
+      if (existingKey != null && existingKey.isNotEmpty) {
+        // Decode the stored key (stored as base64)
+        final bytes = base64Decode(existingKey);
+        if (bytes.length == 32) {
+          debugPrint('🔑 Using existing Hive encryption key from secure storage');
+          return bytes;
+        }
+      }
+      
+      // No existing key found - generate a new one
+      debugPrint('🔑 Generating new Hive encryption key...');
+      final newKey = encrypt_pkg.Key.fromLength(32).bytes;
+      
+      // Store the key in secure storage for future use
+      final keyBase64 = base64Encode(newKey);
+      await _secureStorage.write(key: _hiveEncryptionKeyName, value: keyBase64);
+      debugPrint('✅ Hive encryption key saved to secure storage');
+      
+      return newKey;
+    } catch (e) {
+      debugPrint('❌ Error getting encryption key: $e');
+      // Fallback to generating a new key (will cause data loss if previous data exists)
+      return encrypt_pkg.Key.fromLength(32).bytes;
+    }
   }
 
   // ============================================================================
@@ -211,6 +250,18 @@ class BreezSparkService {
     bool isRestore = false,
   }) async {
     try {
+      // CRITICAL: Check if Rust bridge was initialized successfully
+      if (!rustBridgeInitialized) {
+        throw StateError(
+          'Error creating wallet: Rust bridge not initialized. '
+          'The native library failed to load. This is usually caused by:\n'
+          '1. Missing native library in the build\n'
+          '2. Architecture mismatch (e.g., x86 vs ARM)\n'
+          '3. Build configuration issues\n\n'
+          'Please try reinstalling the app or contact support.'
+        );
+      }
+      
       if (isInitialized && !isRestore) {
         debugPrint('✅ Spark SDK already initialized');
         return;
