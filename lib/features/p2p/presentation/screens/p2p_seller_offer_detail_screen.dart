@@ -27,11 +27,41 @@ class _P2PSellerOfferDetailScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final formatter = NumberFormat('#,###');
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Refresh offer data on load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshOfferData();
+    });
+  }
+
+  /// Refresh offer data from Nostr relays
+  Future<void> _refreshOfferData() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      // Invalidate the provider to force a refresh
+      ref.invalidate(userNip99OffersProvider);
+      // Wait for the new data
+      await ref.read(userNip99OffersProvider.future);
+    } catch (e) {
+      debugPrint('Error refreshing offer: $e');
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  /// Get the current offer (either from provider or fallback to widget.offer)
+  P2POfferModel get _currentOffer {
+    final userOffersAsync = ref.watch(userNip99OffersProvider);
+    final offers = userOffersAsync.asData?.value ?? [];
+    // Find our offer by ID
+    final liveOffer = offers.where((o) => o.id == widget.offer.id).firstOrNull;
+    return liveOffer ?? widget.offer;
   }
 
   @override
@@ -42,10 +72,13 @@ class _P2PSellerOfferDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Watch for live offer updates
+    final offer = _currentOffer;
+
     // Get notification count for this offer
     final notificationService = ref.watch(p2pNotificationServiceProvider);
     final offerNotifications = notificationService.getNotificationsForOffer(
-      widget.offer.id,
+      offer.id,
     );
     final unreadCount = offerNotifications.where((n) => !n.isRead).length;
 
@@ -153,66 +186,87 @@ class _P2PSellerOfferDetailScreenState
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Offer Summary Card
-          _buildOfferSummaryCard(),
-
-          // Quick Stats
-          _buildQuickStats(),
-
-          // Tabs
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 16.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111128),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(10.r),
+      body: RefreshIndicator(
+        onRefresh: _refreshOfferData,
+        color: Colors.orange,
+        backgroundColor: const Color(0xFF1A1A2E),
+        child: Column(
+          children: [
+            // Loading indicator
+            if (_isRefreshing)
+              LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                minHeight: 2,
               ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey,
-              labelStyle: TextStyle(
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
-              ),
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: 'Details'),
-                Tab(text: 'Messages'),
-                Tab(text: 'Trades'),
-              ],
-            ),
-          ),
-          SizedBox(height: 16.h),
 
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _OfferDetailsTab(offer: widget.offer, formatter: formatter),
-                _MessagesTab(
-                  offerId: widget.offer.id,
-                  offerTitle: widget.offer.name,
-                  notifications: offerNotifications,
-                  onViewAll: _navigateToMessages,
+            // Offer Summary Card
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    _buildOfferSummaryCard(offer),
+                    _buildQuickStats(offer),
+
+                    // Tabs
+                    Container(
+                      margin: EdgeInsets.symmetric(horizontal: 16.w),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111128),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicator: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.grey,
+                        labelStyle: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        dividerColor: Colors.transparent,
+                        tabs: const [
+                          Tab(text: 'Details'),
+                          Tab(text: 'Messages'),
+                          Tab(text: 'Trades'),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+
+                    // Tab Content
+                    SizedBox(
+                      height: 400.h, // Fixed height for tab content
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _OfferDetailsTab(offer: offer, formatter: formatter),
+                          _MessagesTab(
+                            offerId: offer.id,
+                            offerTitle: offer.name,
+                            notifications: offerNotifications,
+                            onViewAll: _navigateToMessages,
+                          ),
+                          _ActiveTradesTab(offerId: offer.id),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                _ActiveTradesTab(offerId: widget.offer.id),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildOfferSummaryCard() {
+  Widget _buildOfferSummaryCard(P2POfferModel offer) {
     return Container(
       margin: EdgeInsets.all(16.w),
       padding: EdgeInsets.all(16.w),
@@ -266,12 +320,10 @@ class _P2PSellerOfferDetailScreenState
               ),
               const Spacer(),
               Text(
-                widget.offer.type == OfferType.buy
-                    ? 'Buying BTC'
-                    : 'Selling BTC',
+                offer.type == OfferType.buy ? 'Buying BTC' : 'Selling BTC',
                 style: TextStyle(
                   color:
-                      widget.offer.type == OfferType.buy
+                      offer.type == OfferType.buy
                           ? Colors.green
                           : Colors.orange,
                   fontSize: 14.sp,
@@ -284,7 +336,7 @@ class _P2PSellerOfferDetailScreenState
 
           // Price
           Text(
-            '₦${formatter.format(widget.offer.pricePerBtc.toInt())}',
+            '₦${formatter.format(offer.pricePerBtc.toInt())}',
             style: TextStyle(
               color: const Color(0xFF00FFB2),
               fontSize: 28.sp,
@@ -304,15 +356,14 @@ class _P2PSellerOfferDetailScreenState
                 child: _SummaryItem(
                   label: 'Limits',
                   value:
-                      '₦${_formatShort(widget.offer.minLimit)} - ₦${_formatShort(widget.offer.maxLimit)}',
+                      '₦${_formatShort(offer.minLimit)} - ₦${_formatShort(offer.maxLimit)}',
                 ),
               ),
               Container(width: 1, height: 40, color: Colors.grey[800]),
               Expanded(
                 child: _SummaryItem(
                   label: 'Available',
-                  value:
-                      '${formatter.format(widget.offer.availableSats ?? 0)} sats',
+                  value: '${formatter.format(offer.availableSats ?? 0)} sats',
                 ),
               ),
             ],
@@ -322,9 +373,9 @@ class _P2PSellerOfferDetailScreenState
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildQuickStats(P2POfferModel offer) {
     // Get real stats from providers
-    final stats = ref.watch(offerStatsProvider(widget.offer.id));
+    final stats = ref.watch(offerStatsProvider(offer.id));
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w),
@@ -372,26 +423,26 @@ class _P2PSellerOfferDetailScreenState
   }
 
   void _navigateToMessages() {
+    final offer = _currentOffer;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
             (_) => P2POfferMessagesScreen(
-              offerId: widget.offer.id,
-              offerTitle: widget.offer.name,
+              offerId: offer.id,
+              offerTitle: offer.name,
             ),
       ),
     );
   }
 
   Future<void> _handleMenuAction(String action) async {
+    final offer = _currentOffer;
     switch (action) {
       case 'edit':
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => P2PEditOfferScreen(offer: widget.offer),
-          ),
+          MaterialPageRoute(builder: (_) => P2PEditOfferScreen(offer: offer)),
         );
         break;
 
@@ -438,7 +489,7 @@ class _P2PSellerOfferDetailScreenState
         if (confirm == true) {
           final success = await ref
               .read(nip99OfferNotifierProvider.notifier)
-              .deleteOffer(widget.offer.id);
+              .deleteOffer(offer.id);
 
           if (mounted) {
             if (success) {

@@ -322,9 +322,14 @@ class OfferStats {
 
 /// Provider for offer stats (views, inquiries, trades)
 /// Uses p2pNotificationServiceProvider from p2p_providers.dart
+/// View tracking uses NIP99MarketplaceService
 final offerStatsProvider = Provider.family<OfferStats, String>((ref, offerId) {
   final tradeManager = ref.watch(p2pTradeManagerProvider);
   final notificationService = P2PNotificationService();
+  final marketplace = ref.watch(nip99ServiceProvider);
+
+  // Get view count from marketplace service (now with view tracking)
+  final viewCount = marketplace.getOfferViewCount(offerId);
 
   // Get trades for this offer
   final allTradesForOffer = tradeManager.getTradesForOffer(offerId);
@@ -344,12 +349,8 @@ final offerStatsProvider = Provider.family<OfferStats, String>((ref, offerId) {
           )
           .length;
 
-  // Views are not tracked yet - would require server-side analytics or NIP-09 style events
-  // For now, we show a count based on inquiries + trades as a proxy
-  final estimatedViews = (inquiryCount + allTradesForOffer.length) * 3;
-
   return OfferStats(
-    views: estimatedViews,
+    views: viewCount,
     inquiries: inquiryCount,
     totalTrades: allTradesForOffer.length,
     activeTrades: activeTradesForOffer.length,

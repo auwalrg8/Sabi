@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
 
 /// P2P Success Screen - Trade completion celebration
 class P2PSuccessScreen extends StatefulWidget {
@@ -289,10 +290,13 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                           width: double.infinity,
                           child: TextButton(
                             onPressed: () {
-                              // TODO: Navigate to wallet
-                              Navigator.of(
-                                context,
-                              ).popUntil((route) => route.isFirst);
+                              // Navigate to wallet (home screen)
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (_) => const HomeScreen(),
+                                ),
+                                (route) => false,
+                              );
                             },
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.symmetric(vertical: 16.h),

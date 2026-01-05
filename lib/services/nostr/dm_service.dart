@@ -184,7 +184,7 @@ class DMService {
       final relaysToAdd = <String>[];
 
       for (final tag in event.tags) {
-        if (tag is List && tag.isNotEmpty && tag[0] == 'r' && tag.length >= 2) {
+        if (tag.isNotEmpty && tag[0] == 'r' && tag.length >= 2) {
           final relayUrl = tag[1].toString();
           if (relayUrl.startsWith('wss://')) {
             relaysToAdd.add(relayUrl);

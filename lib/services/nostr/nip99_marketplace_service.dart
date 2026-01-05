@@ -477,6 +477,85 @@ class NIP99MarketplaceService {
   /// Clear offers cache
   void clearCache() => _offersCache.clear();
 
+  // ==================== View Tracking ====================
+
+  /// Kind 7 is typically used for reactions, we'll use a custom approach
+  /// Views are tracked locally and can be synced via kind 10007 (custom app data)
+  static const int _viewTrackingKind = 10007; // Custom app data
+
+  /// Local view counts cache (offerId -> view count)
+  final Map<String, int> _viewCounts = {};
+
+  /// Track a view for an offer (records locally and optionally publishes)
+  Future<void> trackOfferView(String offerId) async {
+    // Increment local view count
+    _viewCounts[offerId] = (_viewCounts[offerId] ?? 0) + 1;
+
+    // Optionally publish view event to relay (can be disabled for privacy)
+    // This uses a custom kind that stores app-specific data
+    // For now, we just track locally - enable this for analytics:
+    // await _publishViewEvent(offerId);
+
+    debugPrint(
+      '📊 View tracked for offer $offerId (total: ${_viewCounts[offerId]})',
+    );
+  }
+
+  /// Get view count for an offer
+  int getOfferViewCount(String offerId) => _viewCounts[offerId] ?? 0;
+
+  /// Fetch view counts from relays for a set of offer IDs
+  Future<Map<String, int>> fetchViewCounts(List<String> offerIds) async {
+    final counts = <String, int>{};
+
+    if (!_relayPool.isInitialized) {
+      await _relayPool.init();
+    }
+
+    try {
+      // Query for view events (kind 10007 with 'view' tag)
+      final events = await _relayPool.fetch(
+        filter: {
+          'kinds': [_viewTrackingKind],
+          '#t': ['p2p_view'],
+          '#d': offerIds,
+          'limit': 1000,
+        },
+        timeoutSeconds: 5,
+        maxEvents: 1000,
+      );
+
+      // Count unique pubkeys per offer
+      final viewersByOffer = <String, Set<String>>{};
+      for (final event in events) {
+        final dTag = event.tags.firstWhere(
+          (t) => t.isNotEmpty && t[0] == 'd',
+          orElse: () => [],
+        );
+        if (dTag.length > 1) {
+          final offerId = dTag[1];
+          viewersByOffer.putIfAbsent(offerId, () => {});
+          viewersByOffer[offerId]!.add(event.pubkey);
+        }
+      }
+
+      for (final entry in viewersByOffer.entries) {
+        counts[entry.key] = entry.value.length;
+        _viewCounts[entry.key] = entry.value.length; // Update cache
+      }
+
+      debugPrint('📊 Fetched view counts for ${counts.length} offers');
+    } catch (e) {
+      debugPrint('❌ Error fetching view counts: $e');
+    }
+
+    return counts;
+  }
+
+  // Note: View event publishing is disabled for privacy.
+  // Views are tracked locally only. To enable relay analytics,
+  // implement a signed event publisher with proper key management.
+
   // ==================== Utilities ====================
 
   /// Convert nsec to hex private key

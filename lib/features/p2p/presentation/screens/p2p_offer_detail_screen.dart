@@ -10,6 +10,7 @@ import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_merchant_profile_screen.dart';
 import 'package:sabi_wallet/services/nostr/models/nostr_offer.dart';
+import 'package:sabi_wallet/services/nostr/nip99_marketplace_service.dart';
 
 /// P2P Offer Detail Screen - Binance/NoOnes inspired
 class P2POfferDetailScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,23 @@ class _P2POfferDetailScreenState extends ConsumerState<P2POfferDetailScreen> {
     // Set default to min limit
     _amount = widget.offer.minLimit.toDouble();
     _amountController.text = formatter.format(widget.offer.minLimit);
+
+    // Track this view for analytics
+    _trackOfferView();
+  }
+
+  /// Track this offer view for analytics
+  void _trackOfferView() {
+    // Don't track views of own offers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userOffersAsync = ref.read(userNip99OffersProvider);
+      final userOffers = userOffersAsync.asData?.value ?? [];
+      final isOwner = userOffers.any((o) => o.id == widget.offer.id);
+
+      if (!isOwner) {
+        NIP99MarketplaceService().trackOfferView(widget.offer.id);
+      }
+    });
   }
 
   @override

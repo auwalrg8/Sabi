@@ -19,13 +19,21 @@ class SocialRecoverySuccessScreen extends StatefulWidget {
 
 class _SocialRecoverySuccessScreenState
     extends State<SocialRecoverySuccessScreen> {
+  bool _confettiFired = false;
+
   @override
   void initState() {
     super.initState();
-    _showConfetti();
+    // Schedule confetti after the widget tree is fully built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showConfetti();
+    });
   }
 
   void _showConfetti() {
+    if (_confettiFired || !mounted) return;
+    _confettiFired = true;
+    
     Confetti.launch(
       context,
       options: const ConfettiOptions(
@@ -177,7 +185,8 @@ class _SocialRecoverySuccessScreenState
                 height: 56.h,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context)
+                    // Use root navigator to avoid history assertion error
+                    Navigator.of(context, rootNavigator: true)
                         .pushNamedAndRemoveUntil('/home', (route) => false);
                   },
                   style: ElevatedButton.styleFrom(

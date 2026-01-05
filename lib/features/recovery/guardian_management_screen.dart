@@ -69,7 +69,9 @@ class _GuardianManagementScreenState
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Updated health status for ${updated.length} guardians'),
+            content: Text(
+              'Updated health status for ${updated.length} guardians',
+            ),
             backgroundColor: AppColors.accentGreen,
           ),
         );
@@ -102,20 +104,21 @@ class _GuardianManagementScreenState
     final selected = await Navigator.push<List<ContactWithStatus>>(
       context,
       MaterialPageRoute(
-        builder: (_) => ContactPickerScreen(
-          maxSelection: 1,
-          onContactsSelected: (_) {},
-        ),
+        builder:
+            (_) => ContactPickerScreen(
+              maxSelection: 1,
+              onContactsSelected: (_) {},
+            ),
       ),
     );
 
     if (selected != null && selected.isNotEmpty) {
       final contact = selected.first;
-      
+
       // Get master seed
       final storage = ref.read(secureStorageServiceProvider);
       final masterSeed = await storage.getWalletSeed();
-      
+
       if (masterSeed == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -159,19 +162,20 @@ class _GuardianManagementScreenState
     final selected = await Navigator.push<List<ContactWithStatus>>(
       context,
       MaterialPageRoute(
-        builder: (_) => ContactPickerScreen(
-          maxSelection: 1,
-          onContactsSelected: (_) {},
-        ),
+        builder:
+            (_) => ContactPickerScreen(
+              maxSelection: 1,
+              onContactsSelected: (_) {},
+            ),
       ),
     );
 
     if (selected != null && selected.isNotEmpty) {
       final contact = selected.first;
-      
+
       final storage = ref.read(secureStorageServiceProvider);
       final masterSeed = await storage.getWalletSeed();
-      
+
       if (masterSeed == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -203,7 +207,9 @@ class _GuardianManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Replaced ${oldGuardian.name} with ${contact.name}'),
+              content: Text(
+                'Replaced ${oldGuardian.name} with ${contact.name}',
+              ),
               backgroundColor: AppColors.accentGreen,
             ),
           );
@@ -234,28 +240,32 @@ class _GuardianManagementScreenState
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          'Remove Guardian',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: Text(
-          'Are you sure you want to remove ${guardian.name} as a guardian? '
-          'They will no longer be able to help you recover your wallet.',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: Text(
+              'Remove Guardian',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
+            content: Text(
+              'Are you sure you want to remove ${guardian.name} as a guardian? '
+              'They will no longer be able to help you recover your wallet.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -281,56 +291,254 @@ class _GuardianManagementScreenState
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(20.w),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40.w,
-                height: 4.h,
-                decoration: BoxDecoration(
-                  color: AppColors.textSecondary.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(2.r),
-                ),
+      builder:
+          (context) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(20.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Text(
+                    guardian.name,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  _buildHealthBadge(guardian.healthStatus),
+                  SizedBox(height: 24.h),
+                  _buildOptionTile(
+                    icon: Icons.send,
+                    label: 'Re-send Share',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _resendShare(guardian);
+                    },
+                  ),
+                  _buildOptionTile(
+                    icon: Icons.swap_horiz,
+                    label: 'Replace Guardian',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _replaceGuardian(guardian);
+                    },
+                  ),
+                  if (_guardians.length > 3)
+                    _buildOptionTile(
+                      icon: Icons.person_remove,
+                      label: 'Remove Guardian',
+                      color: Colors.red,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _removeGuardian(guardian);
+                      },
+                    ),
+                  SizedBox(height: 16.h),
+                ],
               ),
-              SizedBox(height: 20.h),
-              Text(
-                guardian.name,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+          ),
+    );
+  }
+
+  Future<void> _resendShare(RecoveryContact guardian) async {
+    // Show confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: Text(
+              'Re-send Recovery Share',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
+            content: Text(
+              'This will send the recovery share to ${guardian.name} again via Nostr DM. Continue?',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
               ),
-              SizedBox(height: 8.h),
-              _buildHealthBadge(guardian.healthStatus),
-              SizedBox(height: 24.h),
-              _buildOptionTile(
-                icon: Icons.swap_horiz,
-                label: 'Replace Guardian',
-                onTap: () {
-                  Navigator.pop(context);
-                  _replaceGuardian(guardian);
-                },
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Send', style: TextStyle(color: AppColors.primary)),
               ),
-              if (_guardians.length > 3)
-                _buildOptionTile(
-                  icon: Icons.person_remove,
-                  label: 'Remove Guardian',
-                  color: Colors.red,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _removeGuardian(guardian);
-                  },
-                ),
-              SizedBox(height: 16.h),
             ],
           ),
-        ),
-      ),
     );
+
+    if (confirm != true) return;
+
+    try {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20.w,
+                  height: 20.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Text('Sending share to ${guardian.name}...'),
+              ],
+            ),
+            duration: const Duration(seconds: 10),
+            backgroundColor: AppColors.surface,
+          ),
+        );
+      }
+
+      await SocialRecoveryService.resendShareToGuardian(guardian);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Share sent to ${guardian.name} ✓'),
+            backgroundColor: AppColors.accentGreen,
+          ),
+        );
+      }
+      _loadGuardians();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send share: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _revokeAllShares() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: Row(
+              children: [
+                Icon(Icons.warning, color: Colors.red),
+                SizedBox(width: 8.w),
+                Text(
+                  'Revoke All Shares',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
+              ],
+            ),
+            content: Text(
+              'This will:\n\n'
+              '• Generate new recovery shares\n'
+              '• Invalidate all existing shares\n'
+              '• Require re-sending to all guardians\n\n'
+              'Your current guardians will keep their positions but receive new shares. Continue?',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Revoke & Regenerate',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final storage = ref.read(secureStorageServiceProvider);
+      final masterSeed = await storage.getWalletSeed();
+
+      if (masterSeed == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not access wallet seed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20.w,
+                  height: 20.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                const Text('Regenerating shares...'),
+              ],
+            ),
+            duration: const Duration(seconds: 30),
+            backgroundColor: AppColors.surface,
+          ),
+        );
+      }
+
+      await SocialRecoveryService.revokeAndRegenerateShares(
+        masterSeed: masterSeed,
+        existingGuardians: _guardians,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('New shares generated and sent to all guardians ✓'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      _loadGuardians();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to regenerate shares: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildOptionTile({
@@ -349,9 +557,7 @@ class _GuardianManagementScreenState
         ),
       ),
       onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
     );
   }
 
@@ -429,44 +635,74 @@ class _GuardianManagementScreenState
         actions: [
           if (!_isLoading && _guardians.isNotEmpty)
             IconButton(
-              icon: _isPinging
-                  ? SizedBox(
-                      width: 20.w,
-                      height: 20.w,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : Icon(Icons.refresh, color: AppColors.primary),
+              icon:
+                  _isPinging
+                      ? SizedBox(
+                        width: 20.w,
+                        height: 20.w,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                      : Icon(Icons.refresh, color: AppColors.primary),
               onPressed: _isPinging ? null : _pingGuardians,
               tooltip: 'Check health status',
+            ),
+          if (!_isLoading && _guardians.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
+              color: AppColors.surface,
+              onSelected: (value) {
+                if (value == 'revoke') {
+                  _revokeAllShares();
+                }
+              },
+              itemBuilder:
+                  (context) => [
+                    PopupMenuItem(
+                      value: 'revoke',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.lock_reset,
+                            color: Colors.orange,
+                            size: 20.sp,
+                          ),
+                          SizedBox(width: 12.w),
+                          Text(
+                            'Revoke & Regenerate',
+                            style: TextStyle(color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
             ),
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: _guardians.length < 5 && !_isLoading
-          ? FloatingActionButton.extended(
-              onPressed: _addGuardian,
-              backgroundColor: AppColors.primary,
-              icon: const Icon(Icons.person_add, color: Colors.white),
-              label: Text(
-                'Add Guardian',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+      floatingActionButton:
+          _guardians.length < 5 && !_isLoading
+              ? FloatingActionButton.extended(
+                onPressed: _addGuardian,
+                backgroundColor: AppColors.primary,
+                icon: const Icon(Icons.person_add, color: Colors.white),
+                label: Text(
+                  'Add Guardian',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            )
-          : null,
+              )
+              : null,
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     if (_error != null) {
@@ -602,16 +838,18 @@ class _GuardianManagementScreenState
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: overallHealthy
-            ? AppColors.accentGreen.withOpacity(0.1)
-            : overallWarning
+        color:
+            overallHealthy
+                ? AppColors.accentGreen.withOpacity(0.1)
+                : overallWarning
                 ? Colors.orange.withOpacity(0.1)
                 : Colors.red.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: overallHealthy
-              ? AppColors.accentGreen.withOpacity(0.3)
-              : overallWarning
+          color:
+              overallHealthy
+                  ? AppColors.accentGreen.withOpacity(0.3)
+                  : overallWarning
                   ? Colors.orange.withOpacity(0.3)
                   : Colors.red.withOpacity(0.3),
         ),
@@ -625,11 +863,12 @@ class _GuardianManagementScreenState
                 overallHealthy
                     ? Icons.shield
                     : overallWarning
-                        ? Icons.shield_outlined
-                        : Icons.warning,
-                color: overallHealthy
-                    ? AppColors.accentGreen
-                    : overallWarning
+                    ? Icons.shield_outlined
+                    : Icons.warning,
+                color:
+                    overallHealthy
+                        ? AppColors.accentGreen
+                        : overallWarning
                         ? Colors.orange
                         : Colors.red,
                 size: 24.sp,
@@ -639,8 +878,8 @@ class _GuardianManagementScreenState
                 overallHealthy
                     ? 'Recovery Protected'
                     : overallWarning
-                        ? 'Recovery at Risk'
-                        : 'Recovery Compromised',
+                    ? 'Recovery at Risk'
+                    : 'Recovery Compromised',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 16.sp,
@@ -654,8 +893,8 @@ class _GuardianManagementScreenState
             overallHealthy
                 ? 'At least 3 guardians are healthy and can help you recover.'
                 : overallWarning
-                    ? 'Some guardians may be unreachable. Consider replacing inactive ones.'
-                    : 'Less than 3 guardians are reachable. Add or replace guardians immediately.',
+                ? 'Some guardians may be unreachable. Consider replacing inactive ones.'
+                : 'Less than 3 guardians are reachable. Add or replace guardians immediately.',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 13.sp,
@@ -690,10 +929,7 @@ class _GuardianManagementScreenState
           Container(
             width: 8.w,
             height: 8.w,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           SizedBox(width: 6.w),
           Text(
@@ -725,9 +961,7 @@ class _GuardianManagementScreenState
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: healthColor.withOpacity(0.3),
-          ),
+          border: Border.all(color: healthColor.withOpacity(0.3)),
         ),
         child: Row(
           children: [
@@ -763,10 +997,7 @@ class _GuardianManagementScreenState
                     decoration: BoxDecoration(
                       color: healthColor,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.surface,
-                        width: 2,
-                      ),
+                      border: Border.all(color: AppColors.surface, width: 2),
                     ),
                   ),
                 ),
@@ -836,11 +1067,7 @@ class _GuardianManagementScreenState
                 size: 20.sp,
               )
             else
-              Icon(
-                Icons.pending,
-                color: Colors.orange,
-                size: 20.sp,
-              ),
+              Icon(Icons.pending, color: Colors.orange, size: 20.sp),
             SizedBox(width: 8.w),
             Icon(
               Icons.chevron_right,

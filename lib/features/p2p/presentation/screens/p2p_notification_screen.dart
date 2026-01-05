@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/features/p2p/services/p2p_notification_service.dart';
 import 'package:sabi_wallet/features/p2p/providers/p2p_providers.dart';
+import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
+import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_offer_messages_screen.dart';
 
 /// P2P Notification Screen - Displays all P2P-related notifications
 class P2PNotificationScreen extends ConsumerWidget {
@@ -46,24 +50,27 @@ class P2PNotificationScreen extends ConsumerWidget {
               final notification = notifications[index];
               return _NotificationTile(
                 notification: notification,
-                onTap: () => _handleNotificationTap(
-                  context,
-                  notification,
-                  notificationService,
-                ),
+                onTap:
+                    () => _handleNotificationTap(
+                      context,
+                      notification,
+                      notificationService,
+                    ),
               );
             },
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Colors.orange),
-        ),
-        error: (e, _) => Center(
-          child: Text(
-            'Error loading notifications',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-        ),
+        loading:
+            () => const Center(
+              child: CircularProgressIndicator(color: Colors.orange),
+            ),
+        error:
+            (e, _) => Center(
+              child: Text(
+                'Error loading notifications',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
       ),
     );
   }
@@ -115,20 +122,58 @@ class P2PNotificationScreen extends ConsumerWidget {
     // Navigate based on notification type
     if (notification.tradeId != null) {
       // Navigate to trade chat
-      // TODO: Navigate to trade chat screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Open trade: ${notification.tradeId}'),
-          backgroundColor: Colors.grey[850],
-        ),
-      );
+      final tradeManager = P2PTradeManager();
+      final trade = tradeManager.getTrade(notification.tradeId!);
+
+      if (trade != null) {
+        // Build offer from trade data
+        final offer = P2POfferModel(
+          id: trade.offerId,
+          name:
+              trade.isBuyer
+                  ? (trade.sellerName ?? 'Seller')
+                  : (trade.buyerName ?? 'Buyer'),
+          pricePerBtc: trade.pricePerBtc,
+          paymentMethod: trade.paymentMethod,
+          eta: '< 15 min',
+          ratingPercent: 100,
+          trades: 0,
+          minLimit: 0,
+          maxLimit: trade.fiatAmount.toInt() * 2,
+          paymentAccountDetails: trade.paymentDetails,
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => P2PTradeChatScreen(
+                  offer: offer,
+                  tradeAmount: trade.fiatAmount,
+                  receiveSats: trade.satsAmount.toDouble(),
+                  isSeller: trade.isSeller,
+                  existingTrade: trade,
+                ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Trade not found'),
+            backgroundColor: Colors.red[700],
+          ),
+        );
+      }
     } else if (notification.offerId != null) {
-      // Navigate to offer details or messages
-      // TODO: Navigate to offer messages screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Open offer: ${notification.offerId}'),
-          backgroundColor: Colors.grey[850],
+      // Navigate to offer messages screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => P2POfferMessagesScreen(
+                offerId: notification.offerId!,
+                offerTitle: notification.title,
+              ),
         ),
       );
     }
@@ -140,23 +185,22 @@ class _NotificationTile extends StatelessWidget {
   final P2PNotification notification;
   final VoidCallback onTap;
 
-  const _NotificationTile({
-    required this.notification,
-    required this.onTap,
-  });
+  const _NotificationTile({required this.notification, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: notification.isRead
-            ? Colors.grey[900]?.withOpacity(0.5)
-            : Colors.grey[900],
+        color:
+            notification.isRead
+                ? Colors.grey[900]?.withOpacity(0.5)
+                : Colors.grey[900],
         borderRadius: BorderRadius.circular(12),
-        border: notification.isRead
-            ? null
-            : Border.all(color: Colors.orange.withOpacity(0.3)),
+        border:
+            notification.isRead
+                ? null
+                : Border.all(color: Colors.orange.withOpacity(0.3)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -185,9 +229,10 @@ class _NotificationTile extends StatelessWidget {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
-                                fontWeight: notification.isRead
-                                    ? FontWeight.w500
-                                    : FontWeight.bold,
+                                fontWeight:
+                                    notification.isRead
+                                        ? FontWeight.w500
+                                        : FontWeight.bold,
                               ),
                             ),
                           ),
@@ -205,10 +250,7 @@ class _NotificationTile extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         notification.body,
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 13,
-                        ),
+                        style: TextStyle(color: Colors.grey[400], fontSize: 13),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -242,11 +284,7 @@ class _NotificationTile extends StatelessWidget {
                 ),
 
                 // Chevron
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[600],
-                  size: 20,
-                ),
+                Icon(Icons.chevron_right, color: Colors.grey[600], size: 20),
               ],
             ),
           ),
@@ -275,10 +313,7 @@ class _NotificationTile extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: Center(
-        child: Text(
-          notification.icon,
-          style: const TextStyle(fontSize: 20),
-        ),
+        child: Text(notification.icon, style: const TextStyle(fontSize: 20)),
       ),
     );
   }

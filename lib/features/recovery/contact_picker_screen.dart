@@ -65,13 +65,16 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
     with SingleTickerProviderStateMixin {
   final List<ContactWithStatus> _selectedContacts = [];
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _npubInputController = TextEditingController();
 
   List<ContactWithStatus> _nostrFollows = [];
   List<ContactWithStatus> _deviceContacts = [];
   List<ContactWithStatus> _allContacts = [];
   List<ContactWithStatus> _filteredContacts = [];
+  List<ContactWithStatus> _searchResults = [];
 
   bool _isLoading = true;
+  bool _isSearching = false;
 
   late TabController _tabController;
 
@@ -86,6 +89,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
   @override
   void dispose() {
     _searchController.dispose();
+    _npubInputController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -366,18 +370,486 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
     }
 
     if (query.isEmpty) {
-      setState(() => _filteredContacts = sourceList);
-    } else {
       setState(() {
-        _filteredContacts =
-            sourceList.where((contact) {
-              return contact.name.toLowerCase().contains(query) ||
-                  (contact.phoneNumber?.toLowerCase().contains(query) ??
-                      false) ||
-                  (contact.npub?.toLowerCase().contains(query) ?? false);
-            }).toList();
+        _filteredContacts = sourceList;
+        _searchResults = [];
+        _isSearching = false;
+      });
+    } else {
+      // First filter local contacts
+      final localResults =
+          sourceList.where((contact) {
+            return contact.name.toLowerCase().contains(query) ||
+                (contact.phoneNumber?.toLowerCase().contains(query) ?? false) ||
+                (contact.npub?.toLowerCase().contains(query) ?? false);
+          }).toList();
+
+      setState(() {
+        _filteredContacts = localResults;
+      });
+
+      // If on Nostr tab or All tab, also search Nostr network
+      if (_tabController.index == 0 || _tabController.index == 1) {
+        _searchNostrUsers(query);
+      }
+    }
+  }
+
+  /// Search Nostr network for users by name, npub, or NIP-05
+  Future<void> _searchNostrUsers(String query) async {
+    if (query.length < 2) return; // Require at least 2 characters
+
+    // Debounce search
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (_searchController.text.toLowerCase() != query) return;
+
+    setState(() => _isSearching = true);
+
+    try {
+      final results = await NostrService.searchUsers(query);
+
+      if (!mounted) return;
+      if (_searchController.text.toLowerCase() != query) return;
+
+      // Convert results to ContactWithStatus
+      final contacts =
+          results.map((result) {
+            return ContactWithStatus(
+              name:
+                  result['name'] ??
+                  result['display_name'] ??
+                  result['displayName'] ??
+                  'Nostr User',
+              npub: result['npub'],
+              hexPubkey: result['pubkey'],
+              isOnNostr: true,
+              avatarUrl: result['picture'],
+              source: 'nostr_search',
+            );
+          }).toList();
+
+      // Filter out already-added contacts
+      final newContacts =
+          contacts.where((c) {
+            return !_filteredContacts.any((existing) => existing.id == c.id);
+          }).toList();
+
+      setState(() {
+        _searchResults = newContacts;
+        _isSearching = false;
+      });
+    } catch (e) {
+      print('Error searching Nostr users: $e');
+      if (!mounted) return;
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
       });
     }
+  }
+
+  /// Show dialog to manually enter npub or NIP-05 address
+  Future<void> _showAddByNpubDialog() async {
+    _npubInputController.clear();
+    bool isLoading = false;
+    String? error;
+    ContactWithStatus? previewContact;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24.r,
+                right: 24.r,
+                top: 24.r,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24.r,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Add Guardian by Nostr ID',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Enter an npub address or NIP-05 identifier (e.g., user@domain.com)',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: const Color(0xFFA1A1B2),
+                      fontFamily: 'Google Sans',
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+
+                  // Input field
+                  TextField(
+                    controller: _npubInputController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'npub1... or user@domain.com',
+                      hintStyle: const TextStyle(color: Color(0xFFA1A1B2)),
+                      prefixIcon: const Icon(
+                        Icons.person_search,
+                        color: Color(0xFFA1A1B2),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF111128),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      errorText: error,
+                      errorStyle: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setSheetState(() {
+                        error = null;
+                        previewContact = null;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 16.h),
+
+                  // Preview section
+                  if (previewContact != null) ...[
+                    Container(
+                      padding: EdgeInsets.all(12.r),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111128),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: const Color(0xFF00FFB2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48.r,
+                            height: 48.r,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF8B5CF6),
+                              shape: BoxShape.circle,
+                            ),
+                            child:
+                                previewContact!.avatarUrl != null
+                                    ? ClipOval(
+                                      child: CachedNetworkImage(
+                                        imageUrl: previewContact!.avatarUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 48.r,
+                                        height: 48.r,
+                                        placeholder:
+                                            (_, __) => Center(
+                                              child: Text(
+                                                previewContact!.name.isNotEmpty
+                                                    ? previewContact!.name[0]
+                                                        .toUpperCase()
+                                                    : 'N',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 18.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                        errorWidget:
+                                            (_, __, ___) => Center(
+                                              child: Text(
+                                                previewContact!.name.isNotEmpty
+                                                    ? previewContact!.name[0]
+                                                        .toUpperCase()
+                                                    : 'N',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 18.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                      ),
+                                    )
+                                    : Center(
+                                      child: Text(
+                                        previewContact!.name.isNotEmpty
+                                            ? previewContact!.name[0]
+                                                .toUpperCase()
+                                            : 'N',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  previewContact!.name,
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                    fontFamily: 'Google Sans',
+                                  ),
+                                ),
+                                SizedBox(height: 2.h),
+                                Text(
+                                  previewContact!.shortNpub,
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: const Color(0xFFA1A1B2),
+                                    fontFamily: 'Google Sans',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.check_circle,
+                            color: const Color(0xFF00FFB2),
+                            size: 24.r,
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+                  ],
+
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 14.h),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF111128),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFFA1A1B2),
+                                  fontFamily: 'Google Sans',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        flex: 2,
+                        child: GestureDetector(
+                          onTap:
+                              isLoading
+                                  ? null
+                                  : () async {
+                                    final input =
+                                        _npubInputController.text.trim();
+                                    if (input.isEmpty) {
+                                      setSheetState(() {
+                                        error =
+                                            'Please enter an npub or NIP-05';
+                                      });
+                                      return;
+                                    }
+
+                                    // If we have a preview, add the contact
+                                    if (previewContact != null) {
+                                      _addManualContact(previewContact!);
+                                      Navigator.pop(context);
+                                      return;
+                                    }
+
+                                    // Otherwise, look up the user
+                                    setSheetState(() {
+                                      isLoading = true;
+                                      error = null;
+                                    });
+
+                                    try {
+                                      final contact = await _lookupNostrUser(
+                                        input,
+                                      );
+                                      if (contact != null) {
+                                        setSheetState(() {
+                                          previewContact = contact;
+                                          isLoading = false;
+                                        });
+                                      } else {
+                                        setSheetState(() {
+                                          error = 'User not found';
+                                          isLoading = false;
+                                        });
+                                      }
+                                    } catch (e) {
+                                      setSheetState(() {
+                                        error = 'Failed to lookup user';
+                                        isLoading = false;
+                                      });
+                                    }
+                                  },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 14.h),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7931A),
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Center(
+                              child:
+                                  isLoading
+                                      ? SizedBox(
+                                        width: 20.r,
+                                        height: 20.r,
+                                        child: const CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Color(0xFF0C0C1A),
+                                        ),
+                                      )
+                                      : Text(
+                                        previewContact != null
+                                            ? 'Add Guardian'
+                                            : 'Look Up',
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF0C0C1A),
+                                          fontFamily: 'Google Sans',
+                                        ),
+                                      ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Lookup a Nostr user by npub or NIP-05
+  Future<ContactWithStatus?> _lookupNostrUser(String input) async {
+    try {
+      // Check if it's an npub
+      if (input.startsWith('npub1')) {
+        final hexPubkey = NostrService.npubToHex(input);
+        if (hexPubkey != null) {
+          final metadata = await NostrService.fetchAuthorMetadataDirect(
+            hexPubkey,
+          );
+          return ContactWithStatus(
+            name:
+                metadata['name'] ??
+                metadata['display_name'] ??
+                metadata['displayName'] ??
+                'Nostr User',
+            npub: input,
+            hexPubkey: hexPubkey,
+            isOnNostr: true,
+            avatarUrl: metadata['picture'],
+            source: 'manual_npub',
+          );
+        }
+      }
+
+      // Otherwise, search (handles NIP-05 and names)
+      final results = await NostrService.searchUsers(input);
+      if (results.isNotEmpty) {
+        final first = results.first;
+        return ContactWithStatus(
+          name:
+              first['name'] ??
+              first['display_name'] ??
+              first['displayName'] ??
+              'Nostr User',
+          npub: first['npub'],
+          hexPubkey: first['pubkey'],
+          isOnNostr: true,
+          avatarUrl: first['picture'],
+          source: 'manual_search',
+        );
+      }
+
+      return null;
+    } catch (e) {
+      print('Error looking up Nostr user: $e');
+      return null;
+    }
+  }
+
+  /// Add a manually entered contact
+  void _addManualContact(ContactWithStatus contact) {
+    // Check if already exists
+    final exists =
+        _allContacts.any((c) => c.id == contact.id) ||
+        _selectedContacts.any((c) => c.id == contact.id);
+
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This guardian is already added'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Check if max selection reached
+    if (_selectedContacts.length >= widget.maxSelection) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Maximum ${widget.maxSelection} guardians allowed'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _nostrFollows.add(contact);
+      _selectedContacts.add(contact);
+      _mergeContacts();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added ${contact.name} as guardian ✓'),
+        backgroundColor: const Color(0xFF00FFB2),
+      ),
+    );
   }
 
   void _toggleContactSelection(ContactWithStatus contact) {
@@ -647,24 +1119,64 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
             ),
           ),
 
-          // Search Bar
+          // Search Bar with Add Npub button
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.r),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search contacts...',
-                hintStyle: const TextStyle(color: Color(0xFFA1A1B2)),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFFA1A1B2)),
-                filled: true,
-                fillColor: const Color(0xFF111128),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                  borderSide: BorderSide.none,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, npub, or NIP-05...',
+                      hintStyle: const TextStyle(color: Color(0xFFA1A1B2)),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFFA1A1B2),
+                      ),
+                      suffixIcon:
+                          _isSearching
+                              ? Padding(
+                                padding: EdgeInsets.all(12.r),
+                                child: SizedBox(
+                                  width: 20.r,
+                                  height: 20.r,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFFF7931A),
+                                  ),
+                                ),
+                              )
+                              : null,
+                      filled: true,
+                      fillColor: const Color(0xFF111128),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                  ),
                 ),
-                contentPadding: EdgeInsets.symmetric(vertical: 12.h),
-              ),
+                SizedBox(width: 8.w),
+                // Add by npub button
+                GestureDetector(
+                  onTap: _showAddByNpubDialog,
+                  child: Container(
+                    padding: EdgeInsets.all(12.r),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Icon(
+                      Icons.person_add,
+                      color: Colors.white,
+                      size: 24.r,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: 8.h),
@@ -710,16 +1222,65 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
                         color: Color(0xFFF7931A),
                       ),
                     )
-                    : _filteredContacts.isEmpty
+                    : (_filteredContacts.isEmpty && _searchResults.isEmpty)
                     ? _buildEmptyState()
                     : Stack(
                       children: [
                         ListView.builder(
                           padding: EdgeInsets.all(16.r),
-                          itemCount: _filteredContacts.length,
+                          itemCount:
+                              _filteredContacts.length +
+                              (_searchResults.isNotEmpty ? 1 : 0) +
+                              _searchResults.length,
                           itemBuilder: (context, index) {
-                            final contact = _filteredContacts[index];
-                            return _buildContactTile(contact);
+                            // Existing contacts
+                            if (index < _filteredContacts.length) {
+                              final contact = _filteredContacts[index];
+                              return _buildContactTile(contact);
+                            }
+
+                            // Search results header
+                            if (index == _filteredContacts.length &&
+                                _searchResults.isNotEmpty) {
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  top: 16.h,
+                                  bottom: 8.h,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.search,
+                                      size: 16.r,
+                                      color: const Color(0xFF8B5CF6),
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      'Search Results',
+                                      style: TextStyle(
+                                        fontSize: 12.sp,
+                                        color: const Color(0xFF8B5CF6),
+                                        fontWeight: FontWeight.w600,
+                                        fontFamily: 'Google Sans',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            // Search result contacts
+                            final searchIndex =
+                                index -
+                                _filteredContacts.length -
+                                (_searchResults.isNotEmpty ? 1 : 0);
+                            if (searchIndex >= 0 &&
+                                searchIndex < _searchResults.length) {
+                              final contact = _searchResults[searchIndex];
+                              return _buildContactTile(contact);
+                            }
+
+                            return const SizedBox.shrink();
                           },
                         ),
                         // Add contact button for Phone tab

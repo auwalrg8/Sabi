@@ -7,6 +7,7 @@ import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/providers/nip99_p2p_providers.dart';
 import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_chat_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_edit_offer_screen.dart';
 
 /// P2P My Trades Screen - Active trades list
 class P2PMyTradesScreen extends ConsumerStatefulWidget {
@@ -196,7 +197,12 @@ class _P2PMyTradesScreenState extends ConsumerState<P2PMyTradesScreen>
           child: _RealOfferCard(
             offer: offer,
             onEdit: () {
-              // TODO: Navigate to edit screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => P2PEditOfferScreen(offer: offer),
+                ),
+              );
             },
             onDelete: () => _showDeleteOfferConfirmation(offer),
           ),
