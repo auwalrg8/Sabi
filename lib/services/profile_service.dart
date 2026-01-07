@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'dart:math';
 
 import '../core/constants/lightning_address.dart';
+import 'lightning_address_manager.dart';
 
+/// Represents a registered Lightning Address from Breez SDK.
 class StoredLightningAddress {
   final String address;
   final String username;
@@ -41,25 +42,38 @@ class StoredLightningAddress {
       lnurl: lnurl,
     );
   }
+  
+  @override
+  String toString() => 'StoredLightningAddress($address)';
 }
 
+/// User profile model for local storage.
 class UserProfile {
   final String fullName;
   final String username;
   final String? profilePicturePath;
   final StoredLightningAddress? lightningAddress;
 
-  UserProfile({
+  const UserProfile({
     required this.fullName,
     required this.username,
     this.profilePicturePath,
     this.lightningAddress,
   });
 
+  /// Get first letter of name for avatar display.
   String get initial => fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
+  
+  /// Get formatted lightning address (fallback to generated one).
   String get lightningUsername => formatLightningAddress(username);
+  
+  /// Get the actual registered lightning address, or fallback.
   String get sabiUsername => lightningAddress?.address ?? lightningUsername;
+  
+  /// Check if user has a registered lightning address.
   bool get hasLightningAddress => lightningAddress != null;
+  
+  /// Get description for lightning address.
   String get lightningAddressDescription =>
       lightningAddress?.description ?? 'Receive sats directly via $lightningUsername';
 
@@ -71,8 +85,8 @@ class UserProfile {
   };
 
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
-    fullName: map['fullName'] as String,
-    username: map['username'] as String,
+    fullName: map['fullName'] as String? ?? 'Sabi User',
+    username: map['username'] as String? ?? 'sabiuser',
     profilePicturePath: map['profilePicturePath'] as String?,
     lightningAddress: StoredLightningAddress.fromMap(
       map['lightningAddress'] as Map?,
@@ -84,79 +98,81 @@ class UserProfile {
     String? username,
     String? profilePicturePath,
     StoredLightningAddress? lightningAddress,
+    bool clearLightningAddress = false,
   }) {
     return UserProfile(
       fullName: fullName ?? this.fullName,
       username: username ?? this.username,
       profilePicturePath: profilePicturePath ?? this.profilePicturePath,
-      lightningAddress: lightningAddress ?? this.lightningAddress,
+      lightningAddress: clearLightningAddress ? null : (lightningAddress ?? this.lightningAddress),
     );
   }
+  
+  @override
+  String toString() => 'UserProfile($fullName, $username)';
 }
 
+/// Service for managing user profile in local storage.
 class ProfileService {
   static const _profileBox = 'user_profile';
   static const _profileKey = 'current_user';
-  static late Box _box;
+  static Box? _box;
+  
+  /// Check if service is initialized.
+  static bool get isInitialized => _box != null && _box!.isOpen;
 
+  /// Initialize the profile service.
   static Future<void> init() async {
+    if (isInitialized) return;
+    
     try {
       _box = await Hive.openBox(_profileBox);
-      debugPrint('✅ Profile service initialized');
+      debugPrint('✅ ProfileService initialized');
 
       // Generate random profile for new users
-      if (!_box.containsKey(_profileKey)) {
+      if (!_box!.containsKey(_profileKey)) {
         final randomProfile = _generateRandomProfile();
         await saveProfile(randomProfile);
-        debugPrint('✅ Generated random profile for new user');
+        debugPrint('✅ Generated random profile for new user: ${randomProfile.username}');
       }
     } catch (e) {
-      debugPrint('❌ Profile service init error: $e');
+      debugPrint('❌ ProfileService init error: $e');
+      rethrow;
     }
   }
 
-  /// Generate a random profile for new users
+  /// Generate a random profile using LightningAddressManager.
   static UserProfile _generateRandomProfile() {
-    final random = Random();
-    final adjectives = [
-      'Happy',
-      'Lucky',
-      'Swift',
-      'Bold',
-      'Wise',
-      'Brave',
-      'Cool',
-      'Smart',
-      'Quick',
-      'Bright',
-    ];
-    final nouns = [
-      'Lion',
-      'Eagle',
-      'Tiger',
-      'Falcon',
-      'Wolf',
-      'Panda',
-      'Phoenix',
-      'Dragon',
-      'Bear',
-      'Hawk',
-    ];
-    final numbers = random.nextInt(9999);
-
-    final adjective = adjectives[random.nextInt(adjectives.length)];
-    final noun = nouns[random.nextInt(nouns.length)];
+    final username = LightningAddressManager.generateRandomUsername();
+    // Convert username to display name (capitalize first letters)
+    final displayName = username
+        .replaceAll(RegExp(r'\d+$'), '') // Remove trailing numbers
+        .replaceAllMapped(
+          RegExp(r'([a-z])([A-Z])'),
+          (m) => '${m[1]} ${m[2]}',
+        )
+        .split(RegExp(r'(?=[A-Z])'))
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .join(' ')
+        .trim();
+    
+    // Fallback display name
+    final finalDisplayName = displayName.isNotEmpty ? displayName : 'Sabi User';
 
     return UserProfile(
-      fullName: '$adjective $noun',
-      username: '${adjective.toLowerCase()}${noun.toLowerCase()}$numbers',
+      fullName: finalDisplayName,
+      username: username,
     );
   }
 
-  /// Get current user profile
+  /// Get current user profile.
   static Future<UserProfile> getProfile() async {
+    if (!isInitialized) {
+      await init();
+    }
+    
     try {
-      final data = _box.get(_profileKey);
+      final data = _box!.get(_profileKey);
       if (data != null) {
         return UserProfile.fromMap(Map<String, dynamic>.from(data));
       }
@@ -168,68 +184,55 @@ class ProfileService {
     }
   }
 
-  /// Save user profile
+  /// Save user profile.
   static Future<void> saveProfile(UserProfile profile) async {
+    if (!isInitialized) {
+      await init();
+    }
+    
     try {
-      await _box.put(_profileKey, profile.toMap());
+      await _box!.put(_profileKey, profile.toMap());
       debugPrint('✅ Profile saved: ${profile.fullName}');
     } catch (e) {
       debugPrint('❌ Save profile error: $e');
+      rethrow;
     }
   }
 
-  /// Update profile picture path
+  /// Update profile picture path.
   static Future<void> updateProfilePicture(String path) async {
-    try {
-      final currentProfile = await getProfile();
-      final updatedProfile = currentProfile.copyWith(profilePicturePath: path);
-      await saveProfile(updatedProfile);
-      debugPrint('✅ Profile picture updated');
-    } catch (e) {
-      debugPrint('❌ Update profile picture error: $e');
-    }
+    final currentProfile = await getProfile();
+    final updatedProfile = currentProfile.copyWith(profilePicturePath: path);
+    await saveProfile(updatedProfile);
   }
 
-  /// Update profile name and username
+  /// Update profile name and username.
   static Future<void> updateProfile({
     required String fullName,
     required String username,
   }) async {
-    try {
-      final currentProfile = await getProfile();
-      final updatedProfile = currentProfile.copyWith(
-        fullName: fullName,
-        username: username,
-        lightningAddress: currentProfile.lightningAddress,
-      );
-      await saveProfile(updatedProfile);
-      debugPrint('✅ Profile updated');
-    } catch (e) {
-      debugPrint('❌ Update profile error: $e');
-    }
+    final currentProfile = await getProfile();
+    final updatedProfile = currentProfile.copyWith(
+      fullName: fullName,
+      username: username,
+    );
+    await saveProfile(updatedProfile);
   }
 
+  /// Update lightning address.
   static Future<void> updateLightningAddress(
     StoredLightningAddress? lightningAddress,
   ) async {
-    try {
-      final currentProfile = await getProfile();
-      final updatedProfile = currentProfile.copyWith(
-        lightningAddress: lightningAddress,
-      );
-      await saveProfile(updatedProfile);
-      debugPrint('✅ Lightning address updated');
-    } catch (e) {
-      debugPrint('❌ Update lightning address error: $e');
-    }
+    final currentProfile = await getProfile();
+    final updatedProfile = lightningAddress == null
+        ? currentProfile.copyWith(clearLightningAddress: true)
+        : currentProfile.copyWith(lightningAddress: lightningAddress);
+    await saveProfile(updatedProfile);
+    debugPrint('✅ Lightning address updated: ${lightningAddress?.address ?? "cleared"}');
   }
 
-  /// Check if username is available (for future use)
-  static Future<bool> isUsernameAvailable(String username) async {
-    // For now, just check if it's not empty and valid format
-    if (username.isEmpty) return false;
-    if (username.length < 3) return false;
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) return false;
-    return true;
+  /// Validate username format.
+  static String? validateUsername(String username) {
+    return LightningAddressManager.validateUsername(username);
   }
 }

@@ -1,17 +1,17 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/core/constants/lightning_address.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
 import 'package:sabi_wallet/features/nostr/nostr_service.dart';
 import 'package:sabi_wallet/features/nostr/nostr_edit_modal.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 import 'package:sabi_wallet/features/nostr/widgets/nostr_onboarding_screen.dart';
+import 'package:sabi_wallet/features/wallet/presentation/widgets/edit_lightning_address_modal.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,7 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Loading states
   bool _isLoading = true;
   bool _isUpdatingProfile = false;
-  bool _isClaimingLightningAddress = false;
 
   // Nostr data
   String? _nostrNpub;
@@ -36,10 +35,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _zapCount = 0;
   int _relaysConnected = 0;
 
-  // Lightning address claiming
-  final _usernameController = TextEditingController();
-  String? _usernameError;
-
   @override
   void initState() {
     super.initState();
@@ -48,7 +43,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
     super.dispose();
   }
 
@@ -101,12 +95,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         }
 
-        // Pre-fill username from profile or quick cache
-        final userName = profile?.name ?? quickName;
-        if (userName != null && _usernameController.text.isEmpty) {
-          _usernameController.text = userName.toLowerCase().replaceAll(' ', '');
-        }
-
         // Fetch fresh profile in background
         _refreshProfileFromNetwork(npub, profileService, relayPool);
       } else {
@@ -146,13 +134,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _relaysConnected = relayPool.connectedCount;
           _isLoading = false;
         });
-
-        // Pre-fill username
-        if (freshProfile.name != null && _usernameController.text.isEmpty) {
-          _usernameController.text = freshProfile.name!
-              .toLowerCase()
-              .replaceAll(' ', '');
-        }
       }
     } catch (e) {
       debugPrint('⚠️ Background profile refresh failed: $e');
@@ -559,334 +540,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
-  }
-
-  Future<void> _claimLightningAddress() async {
-    final username = _usernameController.text.trim().toLowerCase();
-
-    if (username.isEmpty) {
-      setState(() => _usernameError = 'Please enter a username');
-      return;
-    }
-
-    if (username.length < 3) {
-      setState(() => _usernameError = 'Username must be at least 3 characters');
-      return;
-    }
-
-    if (!RegExp(r'^[a-z0-9_]+$').hasMatch(username)) {
-      setState(
-        () =>
-            _usernameError =
-                'Only lowercase letters, numbers, and underscore allowed',
-      );
-      return;
-    }
-
-    setState(() {
-      _usernameError = null;
-      _isClaimingLightningAddress = true;
-    });
-
-    try {
-      // Update Nostr profile with lud16
-      final profileService = nostr_v2.NostrProfileService();
-      final lightningAddress = formatLightningAddress(username);
-
-      final success = await profileService.updateProfile(
-        lud16: lightningAddress,
-        name: _nostrProfile?.name ?? username,
-      );
-
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lightning address claimed: $lightningAddress'),
-            backgroundColor: AppColors.accentGreen,
-          ),
-        );
-        await _loadProfile();
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to claim lightning address'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isClaimingLightningAddress = false);
-      }
-    }
-  }
-
-  Future<void> _showEditLightningAddressModal(String currentAddress) async {
-    // Extract username from address
-    final currentUsername = currentAddress.split('@').first;
-    final usernameController = TextEditingController(text: currentUsername);
-    String? errorText;
-    bool isUpdating = false;
-
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setModalState) => Container(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24.r),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(20.w),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Handle
-                        Center(
-                          child: Container(
-                            width: 40.w,
-                            height: 4.h,
-                            decoration: BoxDecoration(
-                              color: AppColors.borderColor,
-                              borderRadius: BorderRadius.circular(2.r),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 20.h),
-
-                        // Title
-                        Text(
-                          'Edit Lightning Address',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          'Update your Lightning address on Nostr profile',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 13.sp,
-                          ),
-                        ),
-                        SizedBox(height: 20.h),
-
-                        // Username input
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(12.r),
-                            border: Border.all(
-                              color:
-                                  errorText != null
-                                      ? Colors.red
-                                      : AppColors.borderColor,
-                            ),
-                          ),
-                          child: TextField(
-                            controller: usernameController,
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 14.sp,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'username',
-                              hintStyle: TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 14.sp,
-                              ),
-                              suffixText: '@$lightningAddressDomain',
-                              suffixStyle: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12.sp,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16.w,
-                                vertical: 14.h,
-                              ),
-                            ),
-                            onChanged: (_) {
-                              if (errorText != null) {
-                                setModalState(() => errorText = null);
-                              }
-                            },
-                          ),
-                        ),
-                        if (errorText != null) ...[
-                          SizedBox(height: 8.h),
-                          Text(
-                            errorText!,
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 12.sp,
-                            ),
-                          ),
-                        ],
-                        SizedBox(height: 20.h),
-
-                        // Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(
-                                    color: AppColors.borderColor,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.r),
-                                  ),
-                                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                                ),
-                                child: Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 14.sp,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12.w),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed:
-                                    isUpdating
-                                        ? null
-                                        : () async {
-                                          final newUsername =
-                                              usernameController.text
-                                                  .trim()
-                                                  .toLowerCase();
-
-                                          // Validate
-                                          if (newUsername.isEmpty) {
-                                            setModalState(
-                                              () =>
-                                                  errorText =
-                                                      'Username cannot be empty',
-                                            );
-                                            return;
-                                          }
-                                          if (newUsername.length < 3) {
-                                            setModalState(
-                                              () =>
-                                                  errorText =
-                                                      'At least 3 characters required',
-                                            );
-                                            return;
-                                          }
-                                          if (!RegExp(
-                                            r'^[a-z0-9_]+$',
-                                          ).hasMatch(newUsername)) {
-                                            setModalState(
-                                              () =>
-                                                  errorText =
-                                                      'Only letters, numbers, underscore',
-                                            );
-                                            return;
-                                          }
-
-                                          setModalState(
-                                            () => isUpdating = true,
-                                          );
-
-                                          try {
-                                            final profileService =
-                                                nostr_v2.NostrProfileService();
-                                            final newAddress =
-                                                formatLightningAddress(
-                                                  newUsername,
-                                                );
-
-                                            final success = await profileService
-                                                .updateProfile(
-                                                  lud16: newAddress,
-                                                );
-
-                                            if (success && context.mounted) {
-                                              Navigator.pop(context, true);
-                                            } else if (context.mounted) {
-                                              setModalState(() {
-                                                errorText = 'Failed to update';
-                                                isUpdating = false;
-                                              });
-                                            }
-                                          } catch (e) {
-                                            setModalState(() {
-                                              errorText = 'Error: $e';
-                                              isUpdating = false;
-                                            });
-                                          }
-                                        },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF7931A),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.r),
-                                  ),
-                                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                                ),
-                                child:
-                                    isUpdating
-                                        ? SizedBox(
-                                          width: 20.w,
-                                          height: 20.w,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                        : Text(
-                                          'Save',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14.sp,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16.h),
-                      ],
-                    ),
-                  ),
-                ),
-          ),
-    );
-
-    if (result == true) {
-      await _loadProfile();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lightning address updated!'),
-            backgroundColor: AppColors.accentGreen,
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _showNostrOnboarding() async {
@@ -1569,9 +1222,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildLightningAddressCard(String? currentAddress) {
-    final hasClaimed =
-        currentAddress != null &&
-        currentAddress.contains('@$lightningAddressDomain');
+    // Try to get address from Breez SDK first, then from Nostr profile
+    final breezAddress = BreezSparkService.lightningAddressDetails?.address;
+    final displayAddress = breezAddress ?? currentAddress;
+    final hasAddress = displayAddress != null && displayAddress.isNotEmpty;
 
     return Container(
       width: double.infinity,
@@ -1579,189 +1233,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16.r),
+        border: hasAddress
+            ? Border.all(color: AppColors.accentGreen.withOpacity(0.3))
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.bolt, color: AppColors.accentYellow, size: 20.sp),
-              SizedBox(width: 8.w),
-              Text(
-                'Lightning Address',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
+              Container(
+                padding: EdgeInsets.all(8.r),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
+                child: Icon(Icons.bolt, color: AppColors.primary, size: 20.sp),
               ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-
-          if (hasClaimed) ...[
-            // Show claimed address
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-              decoration: BoxDecoration(
-                color: AppColors.accentGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(
-                  color: AppColors.accentGreen.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: AppColors.accentGreen,
-                    size: 18.sp,
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: Text(
-                      currentAddress,
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lightning Address',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14.sp,
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: currentAddress));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Lightning address copied!'),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    child: Icon(
-                      Icons.copy,
-                      color: const Color(0xFFF7931A),
-                      size: 18.sp,
-                    ),
-                  ),
-                  SizedBox(width: 12.w),
-                  GestureDetector(
-                    onTap: () => _showEditLightningAddressModal(currentAddress),
-                    child: Icon(
-                      Icons.edit,
-                      color: const Color(0xFFF7931A),
-                      size: 18.sp,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'Receive bitcoin directly to your wallet via this address',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
-            ),
-          ] else ...[
-            // Claim form
-            Text(
-              'Claim your @$lightningAddressDomain address to receive bitcoin directly',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
-            ),
-            SizedBox(height: 12.h),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(8.r),
-                      border: Border.all(
-                        color:
-                            _usernameError != null
-                                ? Colors.red
-                                : AppColors.borderColor,
-                      ),
-                    ),
-                    child: TextField(
-                      controller: _usernameController,
+                    SizedBox(height: 2.h),
+                    Text(
+                      hasAddress ? displayAddress : 'Setting up...',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: hasAddress
+                            ? AppColors.textPrimary
+                            : AppColors.textTertiary,
                         fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
                       ),
-                      decoration: InputDecoration(
-                        hintText: 'username',
-                        hintStyle: TextStyle(
-                          color: AppColors.textTertiary,
-                          fontSize: 14.sp,
-                        ),
-                        suffixText: '@$lightningAddressDomain',
-                        suffixStyle: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12.sp,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12.w,
-                          vertical: 12.h,
-                        ),
-                      ),
-                      onChanged: (_) {
-                        if (_usernameError != null) {
-                          setState(() => _usernameError = null);
-                        }
-                      },
                     ),
-                  ),
+                  ],
                 ),
-                SizedBox(width: 8.w),
-                ElevatedButton(
-                  onPressed:
-                      _isClaimingLightningAddress
-                          ? null
-                          : _claimLightningAddress,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF7931A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 12.h,
-                    ),
-                  ),
-                  child:
-                      _isClaimingLightningAddress
-                          ? SizedBox(
-                            width: 16.w,
-                            height: 16.w,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                          : Text(
-                            'Claim',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+              ),
+              if (hasAddress) ...[
+                IconButton(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: displayAddress));
+                    HapticFeedback.lightImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Lightning address copied!'),
+                        backgroundColor: AppColors.accentGreen,
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.copy_rounded, color: AppColors.primary, size: 20.sp),
+                  tooltip: 'Copy',
+                ),
+                IconButton(
+                  onPressed: () => _showEditLightningAddressModalNew(),
+                  icon: Icon(Icons.edit_rounded, color: AppColors.textSecondary, size: 20.sp),
+                  tooltip: 'Edit',
                 ),
               ],
-            ),
-            if (_usernameError != null) ...[
-              SizedBox(height: 4.h),
-              Text(
-                _usernameError!,
-                style: TextStyle(color: Colors.red, fontSize: 11.sp),
-              ),
             ],
+          ),
+          SizedBox(height: 12.h),
+          Text(
+            hasAddress
+                ? 'Share this address to receive Bitcoin instantly'
+                : 'Your lightning address is being set up automatically...',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12.sp,
+            ),
+          ),
+          if (!hasAddress) ...[
+            SizedBox(height: 8.h),
+            LinearProgressIndicator(
+              backgroundColor: AppColors.surface,
+              color: AppColors.primary,
+            ),
           ],
         ],
       ),
     );
+  }
+
+  Future<void> _showEditLightningAddressModalNew() async {
+    final currentUsername =
+        BreezSparkService.lightningAddressDetails?.username ?? '';
+    final hasExisting = BreezSparkService.lightningAddressDetails != null;
+
+    final result = await showEditLightningAddressModal(
+      context: context,
+      currentUsername: currentUsername,
+      hasExistingAddress: hasExisting,
+    );
+
+    if (result == true) {
+      // Refresh profile data
+      await _loadProfile();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lightning address updated!'),
+            backgroundColor: AppColors.accentGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }
 

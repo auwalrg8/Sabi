@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 import '../config/breez_config.dart';
 import '../core/constants/lightning_address.dart';
 import 'app_state_service.dart';
+import 'lightning_address_manager.dart';
 import 'profile_service.dart';
 
 /// Local wrapper class for payment history display
@@ -448,12 +449,84 @@ class BreezSparkService {
   // ============================================================================
   // Lightning address helpers
   // ============================================================================
+  
+  /// Sync lightning address - fetches existing or auto-registers new one.
+  /// This is called during SDK initialization to ensure user always has an address.
   static Future<void> _syncLightningAddress() async {
     try {
-      await fetchLightningAddress();
+      // First, try to fetch existing lightning address from SDK
+      final existingAddress = await fetchLightningAddress();
+      
+      if (existingAddress != null) {
+        debugPrint('✅ Lightning address already registered: ${existingAddress.address}');
+        return;
+      }
+      
+      // No address registered - auto-register a new one
+      debugPrint('🔄 No lightning address found, auto-registering...');
+      await _autoRegisterLightningAddress();
+      
     } catch (e) {
       debugPrint('⚠️ Lightning address sync failed: $e');
+      // Try auto-registration as fallback
+      try {
+        await _autoRegisterLightningAddress();
+      } catch (regError) {
+        debugPrint('⚠️ Auto-registration also failed: $regError');
+      }
     }
+  }
+  
+  /// Automatically register a lightning address with a random username.
+  /// Retries with alternative usernames if the first one is taken.
+  static Future<StoredLightningAddress?> _autoRegisterLightningAddress() async {
+    if (_sdk == null) {
+      debugPrint('⚠️ Cannot auto-register: SDK not initialized');
+      return null;
+    }
+    
+    // Generate initial random username
+    String username = LightningAddressManager.generateRandomUsername();
+    debugPrint('🎲 Generated username: $username');
+    
+    // Try to register with retries for taken usernames
+    const maxAttempts = 5;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        // Check availability first
+        final isAvailable = await checkLightningAddressAvailability(username);
+        
+        if (!isAvailable) {
+          debugPrint('⚠️ Username "$username" is taken, generating alternative...');
+          username = LightningAddressManager.generateRandomUsername();
+          continue;
+        }
+        
+        // Register the address
+        final address = await registerLightningAddress(
+          username: username,
+          description: 'Receive sats via Sabi Wallet',
+        );
+        
+        // Save to secure storage
+        await LightningAddressManager.saveRegisteredAddress(
+          username: username,
+          fullAddress: address.address,
+        );
+        
+        debugPrint('✅ Auto-registered lightning address: ${address.address}');
+        return address;
+        
+      } catch (e) {
+        debugPrint('⚠️ Registration attempt $attempt failed: $e');
+        if (attempt < maxAttempts) {
+          username = LightningAddressManager.generateRandomUsername();
+        }
+      }
+    }
+    
+    debugPrint('❌ Failed to auto-register lightning address after $maxAttempts attempts');
+    return null;
   }
 
   static Future<StoredLightningAddress?> fetchLightningAddress() async {
