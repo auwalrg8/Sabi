@@ -19,6 +19,7 @@ import 'l10n/localization.dart';
 import 'l10n/language_provider.dart';
 import 'services/secure_storage.dart';
 import 'services/breez_spark_service.dart';
+import 'services/payment_retry_service.dart';
 import 'services/contact_service.dart';
 import 'services/notification_service.dart';
 import 'services/profile_service.dart';
@@ -130,6 +131,12 @@ void main() async {
   try {
     await BreezSparkService.initPersistence();
     debugPrint('✅ BreezSparkService persistence initialized');
+    try {
+      await PaymentRetryService.start();
+      debugPrint('✅ PaymentRetryService started');
+    } catch (e) {
+      debugPrint('⚠️ PaymentRetryService start error: $e');
+    }
   } catch (e) {
     debugPrint('⚠️ BreezSparkService.initPersistence error: $e');
   }
