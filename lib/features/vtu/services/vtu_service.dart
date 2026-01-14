@@ -8,6 +8,7 @@ import 'package:sabi_wallet/services/contact_service.dart';
 import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/services/ln_address_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/services/payment_retry_service.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/models/models.dart';
@@ -137,37 +138,42 @@ class VtuService {
             amountSats,
             'Airtime: ₦${amountNaira.toInt()} to $phone',
           );
-          
+
           // Step 6: Mark as completed
           final completedOrder = await updateOrderStatus(
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.transactionId,
           );
-          
+
           // Save to recent contacts
           await _saveToRecentContacts(phone, 'Airtime Purchase');
 
           return completedOrder!;
-          
+
         } catch (paymentError) {
-          // CRITICAL: Service delivered but payment failed
-          // Mark as payment_failed for manual resolution
-          debugPrint(
-            '‼️ CRITICAL: Service delivered but payment failed: $paymentError',
+          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+
+          // Enqueue background retry to settle the agent
+          await PaymentRetryService.enqueue(
+            orderId: order.id,
+            sats: amountSats,
+            memo: 'Airtime: ₦${amountNaira.toInt()} to $phone',
+            lnAddress: VtuConfig.lightningAddress,
           );
 
-          await updateOrderStatus(
+          // Mark order as completed for the user, but note settlement pending
+          final completedOrder = await updateOrderStatus(
             order.id,
-            VtuOrderStatus
-                .failed, // Using failed for now, ideally 'payment_failed'
-            errorMessage:
-                'Payment failed but service delivered. Contact support.',
+            VtuOrderStatus.completed,
+            token: apiResponse.transactionId,
+            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
           );
 
-          throw PaymentFailedException(
-            'Service delivered but payment failed. Please contact support immediately.',
-          );
+          // Save to recent contacts
+          await _saveToRecentContacts(phone, 'Airtime Purchase');
+
+          return completedOrder!;
         }
       } else {
         // VTU.ng failed - No charge to user
@@ -236,25 +242,35 @@ class VtuService {
 
         try {
           await _payToAgent(amountSats, 'Data: $planName to $phone');
-          
+
           final completedOrder = await updateOrderStatus(
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.transactionId,
           );
-          
+
           await _saveToRecentContacts(phone, 'Data Purchase');
           return completedOrder!;
-          
+
         } catch (paymentError) {
-          await updateOrderStatus(
+          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+
+          await PaymentRetryService.enqueue(
+            orderId: order.id,
+            sats: amountSats,
+            memo: 'Data: $planName to $phone',
+            lnAddress: VtuConfig.lightningAddress,
+          );
+
+          final completedOrder = await updateOrderStatus(
             order.id,
-            VtuOrderStatus.failed,
-            errorMessage: 'Payment failed but service delivered.',
+            VtuOrderStatus.completed,
+            token: apiResponse.transactionId,
+            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
           );
-          throw PaymentFailedException(
-            'Service delivered but payment failed. Please contact support immediately.',
-          );
+
+          await _saveToRecentContacts(phone, 'Data Purchase');
+          return completedOrder!;
         }
       } else {
         await updateOrderStatus(
@@ -327,23 +343,31 @@ class VtuService {
             amountSats,
             'Electricity: ₦${amountNaira.toInt()} to $meterNumber',
           );
-          
+
           final completedOrder = await updateOrderStatus(
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.token ?? apiResponse.transactionId,
           );
           return completedOrder!;
-          
+
         } catch (paymentError) {
-          await updateOrderStatus(
+          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+
+          await PaymentRetryService.enqueue(
+            orderId: order.id,
+            sats: amountSats,
+            memo: 'Electricity: ₦${amountNaira.toInt()} to $meterNumber',
+            lnAddress: VtuConfig.lightningAddress,
+          );
+
+          final completedOrder = await updateOrderStatus(
             order.id,
-            VtuOrderStatus.failed,
-            errorMessage: 'Payment failed but token generated.',
+            VtuOrderStatus.completed,
+            token: apiResponse.token ?? apiResponse.transactionId,
+            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
           );
-          throw PaymentFailedException(
-            'Token generated but payment failed. Please check order history for token.',
-          );
+          return completedOrder!;
         }
       } else {
         await updateOrderStatus(
@@ -416,23 +440,31 @@ class VtuService {
             amountSats,
             'Cable TV: $planName to $smartcardNumber',
           );
-          
+
           final completedOrder = await updateOrderStatus(
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.transactionId,
           );
           return completedOrder!;
-          
+
         } catch (paymentError) {
-          await updateOrderStatus(
+          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+
+          await PaymentRetryService.enqueue(
+            orderId: order.id,
+            sats: amountSats,
+            memo: 'Cable TV: $planName to $smartcardNumber',
+            lnAddress: VtuConfig.lightningAddress,
+          );
+
+          final completedOrder = await updateOrderStatus(
             order.id,
-            VtuOrderStatus.failed,
-            errorMessage: 'Payment failed but subscription active.',
+            VtuOrderStatus.completed,
+            token: apiResponse.transactionId,
+            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
           );
-          throw PaymentFailedException(
-            'Subscription activated but payment failed. Contact support.',
-          );
+          return completedOrder!;
         }
       } else {
         await updateOrderStatus(
