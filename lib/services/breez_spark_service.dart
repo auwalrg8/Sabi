@@ -302,6 +302,10 @@ class BreezSparkService {
               preferSparkOverLightning: true,
               useDefaultExternalInputParsers: true,
               privateEnabledDefault: true,
+              optimizationConfig: OptimizationConfig(
+                autoEnabled: true,
+                multiplicity: 1,
+              ),
               lnurlDomain: lightningAddressDomain,
             ),
             seed: Seed.mnemonic(mnemonic: seedMnemonic),
