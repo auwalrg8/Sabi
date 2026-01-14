@@ -10,6 +10,7 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 
 class TapnobWebViewScreen extends ConsumerStatefulWidget {
   final double amount;
@@ -38,6 +39,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
   bool _showInsufficientModal = false;
   bool _showErrorModal = false;
   bool _isPaying = false;
+  bool _paymentSettled = false;
   String? _detectedInvoice;
   int? _invoiceAmountSats;
   double? _expectedNgn;
@@ -57,6 +59,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
             'InvoiceChannel',
             onMessageReceived: (JavaScriptMessage message) {
               final invoice = message.message;
+              if (_paymentSettled) return;
               _detectedInvoice = invoice;
               _preparePayment(invoice);
             },
@@ -253,6 +256,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
   }
 
   void _preparePayment(String invoice) async {
+    if (_paymentSettled) return;
     try {
       final prep = await BreezSparkService.prepareSendPayment(invoice);
       _invoiceAmountSats = prep.amount.toInt();
@@ -295,10 +299,34 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
     });
     try {
       await BreezSparkService.sendPayment(_detectedInvoice!);
+      // Mark as settled to avoid duplicate payments
+      _paymentSettled = true;
+
       setState(() {
         _showPayModal = false;
         _isPaying = false;
         _showSuccess = true;
+      });
+
+      // Update app balance/transactions and ensure Spend tab is active
+      try {
+        await ref.read(cashProvider.notifier).processPayment();
+        ref.read(cashProvider.notifier).toggleBuySell(false);
+      } catch (_) {}
+
+      // Emit outgoing payment notification/webhook
+      try {
+        await BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+          amountSats: _invoiceAmountSats ?? 0,
+          recipientName: 'Tapnob',
+          description: 'Tapnob purchase',
+        );
+      } catch (_) {}
+
+      // Close the Tapnob webview after a short delay
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        Navigator.of(context).pop();
       });
       Future.delayed(const Duration(seconds: 3), () {
         setState(() {
