@@ -29,14 +29,15 @@ class NetworkSelector extends StatelessWidget {
         SizedBox(height: 12.h),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: NetworkProvider.values.map((network) {
-            final isSelected = selectedNetwork == network;
-            return _NetworkButton(
-              network: network,
-              isSelected: isSelected,
-              onTap: () => onNetworkSelected(network),
-            );
-          }).toList(),
+          children:
+              NetworkProvider.values.map((network) {
+                final isSelected = selectedNetwork == network;
+                return _NetworkButton(
+                  network: network,
+                  isSelected: isSelected,
+                  onTap: () => onNetworkSelected(network),
+                );
+              }).toList(),
         ),
       ],
     );
@@ -63,14 +64,16 @@ class _NetworkButton extends StatelessWidget {
         width: 72.w,
         height: 72.h,
         decoration: BoxDecoration(
-          color: isSelected 
-              ? Color(network.primaryColor).withOpacity(0.2) 
-              : const Color(0xFF1A1A2E),
+          color:
+              isSelected
+                  ? Color(network.primaryColor).withOpacity(0.2)
+                  : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
-            color: isSelected 
-                ? Color(network.primaryColor) 
-                : const Color(0xFF2A2A3E),
+            color:
+                isSelected
+                    ? Color(network.primaryColor)
+                    : const Color(0xFF2A2A3E),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -88,7 +91,10 @@ class _NetworkButton extends StatelessWidget {
                 child: Text(
                   network.name[0],
                   style: TextStyle(
-                    color: network == NetworkProvider.mtn ? Colors.black : Colors.white,
+                    color:
+                        network == NetworkProvider.mtn
+                            ? Colors.black
+                            : Colors.white,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.bold,
                   ),

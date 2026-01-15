@@ -1,5 +1,5 @@
 /// P2P Trade Service - Real Lightning integration for P2P trades
-/// 
+///
 /// Handles invoice creation, payment verification, and trade lifecycle
 library;
 
@@ -33,13 +33,15 @@ class TradeResult<T> {
     this.errorMessage,
   });
 
-  factory TradeResult.success(T data) => TradeResult._(success: true, data: data);
-  
-  factory TradeResult.failure(String errorCode, [String? message]) => TradeResult._(
-    success: false,
-    errorCode: errorCode,
-    errorMessage: message ?? P2PErrorCodes.getDescription(errorCode),
-  );
+  factory TradeResult.success(T data) =>
+      TradeResult._(success: true, data: data);
+
+  factory TradeResult.failure(String errorCode, [String? message]) =>
+      TradeResult._(
+        success: false,
+        errorCode: errorCode,
+        errorMessage: message ?? P2PErrorCodes.getDescription(errorCode),
+      );
 }
 
 /// Invoice data for a P2P trade
@@ -59,7 +61,7 @@ class P2PInvoice {
   });
 
   bool get isExpired => DateTime.now().isAfter(expiresAt);
-  
+
   Duration get timeRemaining {
     final remaining = expiresAt.difference(DateTime.now());
     return remaining.isNegative ? Duration.zero : remaining;
@@ -199,25 +201,35 @@ class ActiveTrade {
       satsAmount: json['satsAmount'] as int,
       btcPrice: (json['btcPrice'] as num).toDouble(),
       paymentMethodId: json['paymentMethodId'] as String,
-      paymentDetails: json['paymentDetails'] != null 
-          ? Map<String, String>.from(json['paymentDetails'] as Map) 
-          : null,
-      invoice: json['invoice'] != null 
-          ? P2PInvoice.fromJson(Map<String, dynamic>.from(json['invoice'] as Map))
-          : null,
-      tradeCode: json['tradeCode'] != null
-          ? TradeCode.fromJson(Map<String, dynamic>.from(json['tradeCode'] as Map))
-          : null,
+      paymentDetails:
+          json['paymentDetails'] != null
+              ? Map<String, String>.from(json['paymentDetails'] as Map)
+              : null,
+      invoice:
+          json['invoice'] != null
+              ? P2PInvoice.fromJson(
+                Map<String, dynamic>.from(json['invoice'] as Map),
+              )
+              : null,
+      tradeCode:
+          json['tradeCode'] != null
+              ? TradeCode.fromJson(
+                Map<String, dynamic>.from(json['tradeCode'] as Map),
+              )
+              : null,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
-      paidAt: json['paidAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(json['paidAt'] as int) 
-          : null,
-      completedAt: json['completedAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(json['completedAt'] as int) 
-          : null,
-      cancelledAt: json['cancelledAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(json['cancelledAt'] as int) 
-          : null,
+      paidAt:
+          json['paidAt'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(json['paidAt'] as int)
+              : null,
+      completedAt:
+          json['completedAt'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(json['completedAt'] as int)
+              : null,
+      cancelledAt:
+          json['cancelledAt'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(json['cancelledAt'] as int)
+              : null,
       status: ActiveTradeStatus.values.firstWhere(
         (s) => s.name == json['status'],
         orElse: () => ActiveTradeStatus.created,
@@ -232,16 +244,22 @@ class ActiveTrade {
 enum ActiveTradeStatus {
   /// Trade created, waiting for invoice
   created,
+
   /// Invoice generated, waiting for fiat payment
   awaitingPayment,
+
   /// Buyer marked as paid, waiting for seller verification
   buyerPaid,
+
   /// Seller verified, releasing sats
   releasing,
+
   /// Trade completed successfully
   completed,
+
   /// Trade cancelled
   cancelled,
+
   /// Trade expired (timer ran out)
   expired,
 }
@@ -252,7 +270,8 @@ class P2PTradeService {
 
   static final Map<String, ActiveTrade> _activeTrades = {};
   static final Map<String, Timer> _tradeTimers = {};
-  static final StreamController<ActiveTrade> _tradeUpdates = StreamController.broadcast();
+  static final StreamController<ActiveTrade> _tradeUpdates =
+      StreamController.broadcast();
 
   /// Stream of trade updates
   static Stream<ActiveTrade> get tradeUpdates => _tradeUpdates.stream;
@@ -272,11 +291,16 @@ class P2PTradeService {
     bool requireTradeCode = false,
   }) async {
     final tradeId = _uuid.v4();
-    P2PLogger.info('Trade', 'Creating buy trade', tradeId: tradeId, metadata: {
-      'offerId': offerId,
-      'fiatAmount': fiatAmount,
-      'satsAmount': satsAmount,
-    });
+    P2PLogger.info(
+      'Trade',
+      'Creating buy trade',
+      tradeId: tradeId,
+      metadata: {
+        'offerId': offerId,
+        'fiatAmount': fiatAmount,
+        'satsAmount': satsAmount,
+      },
+    );
 
     try {
       // Generate trade code if required
@@ -304,7 +328,11 @@ class P2PTradeService {
       _startTradeTimer(tradeId);
       _tradeUpdates.add(trade);
 
-      P2PLogger.info('Trade', 'Buy trade created successfully', tradeId: tradeId);
+      P2PLogger.info(
+        'Trade',
+        'Buy trade created successfully',
+        tradeId: tradeId,
+      );
       return TradeResult.success(trade);
     } catch (e, stack) {
       P2PLogger.error(
@@ -330,23 +358,38 @@ class P2PTradeService {
     bool requireTradeCode = false,
   }) async {
     final tradeId = _uuid.v4();
-    P2PLogger.info('Trade', 'Creating sell trade', tradeId: tradeId, metadata: {
-      'offerId': offerId,
-      'fiatAmount': fiatAmount,
-      'satsAmount': satsAmount,
-    });
+    P2PLogger.info(
+      'Trade',
+      'Creating sell trade',
+      tradeId: tradeId,
+      metadata: {
+        'offerId': offerId,
+        'fiatAmount': fiatAmount,
+        'satsAmount': satsAmount,
+      },
+    );
 
     try {
       // Check if SDK is initialized
       if (!isReady) {
-        P2PLogger.error('Trade', 'SDK not initialized', tradeId: tradeId, errorCode: P2PErrorCodes.sdkNotInitialized);
+        P2PLogger.error(
+          'Trade',
+          'SDK not initialized',
+          tradeId: tradeId,
+          errorCode: P2PErrorCodes.sdkNotInitialized,
+        );
         return TradeResult.failure(P2PErrorCodes.sdkNotInitialized);
       }
 
       // Check balance
       final balance = await BreezSparkService.getBalance();
       if (balance < satsAmount) {
-        P2PLogger.error('Trade', 'Insufficient balance: $balance < $satsAmount', tradeId: tradeId, errorCode: P2PErrorCodes.insufficientBalance);
+        P2PLogger.error(
+          'Trade',
+          'Insufficient balance: $balance < $satsAmount',
+          tradeId: tradeId,
+          errorCode: P2PErrorCodes.insufficientBalance,
+        );
         return TradeResult.failure(P2PErrorCodes.insufficientBalance);
       }
 
@@ -358,7 +401,11 @@ class P2PTradeService {
       }
 
       // Create invoice for the trade amount
-      P2PLogger.debug('Trade', 'Creating Lightning invoice for $satsAmount sats', tradeId: tradeId);
+      P2PLogger.debug(
+        'Trade',
+        'Creating Lightning invoice for $satsAmount sats',
+        tradeId: tradeId,
+      );
       final bolt11 = await BreezSparkService.createInvoice(
         sats: satsAmount,
         memo: 'P2P Trade $tradeId',
@@ -392,7 +439,11 @@ class P2PTradeService {
       _startTradeTimer(tradeId);
       _tradeUpdates.add(trade);
 
-      P2PLogger.info('Trade', 'Sell trade created with invoice', tradeId: tradeId);
+      P2PLogger.info(
+        'Trade',
+        'Sell trade created with invoice',
+        tradeId: tradeId,
+      );
       return TradeResult.success(trade);
     } catch (e, stack) {
       P2PLogger.error(
@@ -409,10 +460,13 @@ class P2PTradeService {
   /// Start the 4-minute trade timer
   static void _startTradeTimer(String tradeId) {
     _tradeTimers[tradeId]?.cancel();
-    
-    _tradeTimers[tradeId] = Timer(const Duration(seconds: kTradeTimerSeconds), () {
-      _onTradeTimerExpired(tradeId);
-    });
+
+    _tradeTimers[tradeId] = Timer(
+      const Duration(seconds: kTradeTimerSeconds),
+      () {
+        _onTradeTimerExpired(tradeId);
+      },
+    );
 
     P2PLogger.debug('Trade', 'Started 4-minute timer', tradeId: tradeId);
   }
@@ -430,18 +484,26 @@ class P2PTradeService {
         cancelledAt: DateTime.now(),
         cancelReason: 'Payment timer expired',
       );
-      
+
       _activeTrades[tradeId] = expiredTrade;
       _tradeUpdates.add(expiredTrade);
-      
-      P2PLogger.error('Trade', 'Trade expired - timer ran out', tradeId: tradeId, errorCode: P2PErrorCodes.timerExpired);
+
+      P2PLogger.error(
+        'Trade',
+        'Trade expired - timer ran out',
+        tradeId: tradeId,
+        errorCode: P2PErrorCodes.timerExpired,
+      );
     }
 
     _tradeTimers.remove(tradeId);
   }
 
   /// Mark trade as paid (buyer side)
-  static Future<TradeResult<ActiveTrade>> markAsPaid(String tradeId, {String? proofPath}) async {
+  static Future<TradeResult<ActiveTrade>> markAsPaid(
+    String tradeId, {
+    String? proofPath,
+  }) async {
     final trade = _activeTrades[tradeId];
     if (trade == null) {
       return TradeResult.failure(P2PErrorCodes.tradeNotFound);
@@ -477,14 +539,18 @@ class P2PTradeService {
     }
 
     if (trade.status != ActiveTradeStatus.buyerPaid) {
-      P2PLogger.warning('Trade', 'Cannot release - buyer has not marked as paid', tradeId: tradeId);
+      P2PLogger.warning(
+        'Trade',
+        'Cannot release - buyer has not marked as paid',
+        tradeId: tradeId,
+      );
       return TradeResult.failure(P2PErrorCodes.tradeAlreadyCompleted);
     }
 
     try {
       // For seller: the buyer would pay the invoice we created
       // The release is confirming we received fiat and the Lightning payment can proceed
-      
+
       final updatedTrade = trade.copyWith(
         status: ActiveTradeStatus.completed,
         completedAt: DateTime.now(),
@@ -495,16 +561,28 @@ class P2PTradeService {
       _tradeTimers.remove(tradeId);
       _tradeUpdates.add(updatedTrade);
 
-      P2PLogger.info('Trade', 'Sats released - trade completed', tradeId: tradeId);
+      P2PLogger.info(
+        'Trade',
+        'Sats released - trade completed',
+        tradeId: tradeId,
+      );
       return TradeResult.success(updatedTrade);
     } catch (e, stack) {
-      P2PLogger.error('Trade', 'Failed to release sats: $e', tradeId: tradeId, stackTrace: stack);
+      P2PLogger.error(
+        'Trade',
+        'Failed to release sats: $e',
+        tradeId: tradeId,
+        stackTrace: stack,
+      );
       return TradeResult.failure(P2PErrorCodes.invoicePaymentFailed);
     }
   }
 
   /// Cancel a trade
-  static Future<TradeResult<ActiveTrade>> cancelTrade(String tradeId, {String? reason}) async {
+  static Future<TradeResult<ActiveTrade>> cancelTrade(
+    String tradeId, {
+    String? reason,
+  }) async {
     final trade = _activeTrades[tradeId];
     if (trade == null) {
       return TradeResult.failure(P2PErrorCodes.tradeNotFound);
@@ -525,7 +603,11 @@ class P2PTradeService {
     _tradeTimers.remove(tradeId);
     _tradeUpdates.add(updatedTrade);
 
-    P2PLogger.info('Trade', 'Trade cancelled: ${reason ?? "by user"}', tradeId: tradeId);
+    P2PLogger.info(
+      'Trade',
+      'Trade cancelled: ${reason ?? "by user"}',
+      tradeId: tradeId,
+    );
     return TradeResult.success(updatedTrade);
   }
 
@@ -534,22 +616,31 @@ class P2PTradeService {
 
   /// Get all active trades
   static List<ActiveTrade> getActiveTrades() {
-    return _activeTrades.values.where((t) =>
-      t.status == ActiveTradeStatus.awaitingPayment ||
-      t.status == ActiveTradeStatus.buyerPaid ||
-      t.status == ActiveTradeStatus.releasing
-    ).toList();
+    return _activeTrades.values
+        .where(
+          (t) =>
+              t.status == ActiveTradeStatus.awaitingPayment ||
+              t.status == ActiveTradeStatus.buyerPaid ||
+              t.status == ActiveTradeStatus.releasing,
+        )
+        .toList();
   }
 
   /// Get trade history
   static List<ActiveTrade> getTradeHistory() {
-    return _activeTrades.values.where((t) =>
-      t.status == ActiveTradeStatus.completed ||
-      t.status == ActiveTradeStatus.cancelled ||
-      t.status == ActiveTradeStatus.expired
-    ).toList()
-      ..sort((a, b) => (b.completedAt ?? b.cancelledAt ?? b.createdAt)
-          .compareTo(a.completedAt ?? a.cancelledAt ?? a.createdAt));
+    return _activeTrades.values
+        .where(
+          (t) =>
+              t.status == ActiveTradeStatus.completed ||
+              t.status == ActiveTradeStatus.cancelled ||
+              t.status == ActiveTradeStatus.expired,
+        )
+        .toList()
+      ..sort(
+        (a, b) => (b.completedAt ?? b.cancelledAt ?? b.createdAt).compareTo(
+          a.completedAt ?? a.cancelledAt ?? a.createdAt,
+        ),
+      );
   }
 
   /// Get remaining time for a trade in seconds

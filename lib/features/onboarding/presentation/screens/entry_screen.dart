@@ -27,11 +27,11 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
 
       // Mark onboarding complete
       await BreezSparkService.setOnboardingComplete();
-      
+
       // Start webhook bridge for push notifications
       BreezWebhookBridgeService().startListening();
       debugPrint('✅ BreezWebhookBridgeService started after wallet creation');
-      
+
       // Register FCM token for push notifications
       FCMTokenRegistrationService().registerToken();
 

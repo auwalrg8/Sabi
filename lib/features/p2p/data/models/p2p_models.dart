@@ -97,7 +97,16 @@ class MerchantFeedback {
   }) : createdAt = createdAt ?? DateTime.now();
 }
 
-enum TradeStatus { created, awaitingPayment, paid, releasingSoon, completed, cancelled, disputed }
+enum TradeStatus {
+  created,
+  awaitingPayment,
+  paid,
+  releasingSoon,
+  completed,
+  cancelled,
+  disputed,
+}
+
 enum TradeType { buy, sell }
 
 class Trade {

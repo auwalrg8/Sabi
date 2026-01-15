@@ -28,14 +28,25 @@ String formatTransactionTime(int unixTimestampMillis) {
 /// Formats a Unix timestamp (in seconds) for full date display in detail screens
 /// Returns "DD Mon YYYY • HH:MM" format
 String formatFullDateTime(int unixTimestampMillis) {
-  final date = DateTime.fromMillisecondsSinceEpoch(
-    unixTimestampMillis,
-    isUtc: true,
-  ).toLocal();
+  final date =
+      DateTime.fromMillisecondsSinceEpoch(
+        unixTimestampMillis,
+        isUtc: true,
+      ).toLocal();
 
   const monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   return "${date.day} ${monthNames[date.month - 1]} ${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";

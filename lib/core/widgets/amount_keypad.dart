@@ -36,14 +36,20 @@ class AmountKeypad extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 6.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: keys.map((key) => _KeypadButton(
-          value: key,
-          onTap: key.isEmpty
-              ? null
-              : key == '⌫'
-                  ? onDelete
-                  : () => onDigit(key),
-        )).toList(),
+        children:
+            keys
+                .map(
+                  (key) => _KeypadButton(
+                    value: key,
+                    onTap:
+                        key.isEmpty
+                            ? null
+                            : key == '⌫'
+                            ? onDelete
+                            : () => onDigit(key),
+                  ),
+                )
+                .toList(),
       ),
     );
   }
@@ -53,10 +59,7 @@ class _KeypadButton extends StatelessWidget {
   final String value;
   final VoidCallback? onTap;
 
-  const _KeypadButton({
-    required this.value,
-    this.onTap,
-  });
+  const _KeypadButton({required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +70,13 @@ class _KeypadButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap != null
-            ? () {
-                HapticFeedback.lightImpact();
-                onTap!();
-              }
-            : null,
+        onTap:
+            onTap != null
+                ? () {
+                  HapticFeedback.lightImpact();
+                  onTap!();
+                }
+                : null,
         borderRadius: BorderRadius.circular(16.r),
         child: Container(
           width: 80.w,
@@ -82,20 +86,21 @@ class _KeypadButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16.r),
           ),
           child: Center(
-            child: value == '⌫'
-                ? Icon(
-                    Icons.backspace_outlined,
-                    color: AppColors.textSecondary,
-                    size: 24.sp,
-                  )
-                : Text(
-                    value,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28.sp,
-                      fontWeight: FontWeight.w500,
+            child:
+                value == '⌫'
+                    ? Icon(
+                      Icons.backspace_outlined,
+                      color: AppColors.textSecondary,
+                      size: 24.sp,
+                    )
+                    : Text(
+                      value,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
           ),
         ),
       ),

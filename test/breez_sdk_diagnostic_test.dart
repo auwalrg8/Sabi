@@ -7,7 +7,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 
-const bool _skipBreezSdkDiagnostics = bool.fromEnvironment('SKIP_BREEZ_SDK_DIAGNOSTICS', defaultValue: true);
+const bool _skipBreezSdkDiagnostics = bool.fromEnvironment(
+  'SKIP_BREEZ_SDK_DIAGNOSTICS',
+  defaultValue: true,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,9 +18,7 @@ void main() {
   final tempDir = Directory.systemTemp.createTempSync('sabi_test');
   PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
 
-  group(
-    'Breez Spark SDK Diagnostics',
-    () {
+  group('Breez Spark SDK Diagnostics', () {
     setUpAll(() async {
       // Initialize Hive with a temp path for testing
       Hive.init(tempDir.path);
@@ -57,9 +58,10 @@ void main() {
         memo: 'Test invoice',
       );
 
-      expect(response, isNotEmpty,
-          reason: 'Should generate invoice');
-      print('Generated invoice (first 80 chars): ${response.substring(0, 80)}...');
+      expect(response, isNotEmpty, reason: 'Should generate invoice');
+      print(
+        'Generated invoice (first 80 chars): ${response.substring(0, 80)}...',
+      );
     });
 
     test('SDK initialization with restore', () async {
@@ -74,8 +76,11 @@ void main() {
         );
 
         final balance = await BreezSparkService.getBalance();
-        expect(balance, isNotNull,
-            reason: 'SDK should be initialized on restore');
+        expect(
+          balance,
+          isNotNull,
+          reason: 'SDK should be initialized on restore',
+        );
         print('✅ Wallet restored successfully');
       } else {
         print('ℹ️  No mnemonic found - skipping restore test');

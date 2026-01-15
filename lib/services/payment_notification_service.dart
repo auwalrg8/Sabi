@@ -23,10 +23,10 @@ class LocalNotificationService {
       // iOS initialization
       const DarwinInitializationSettings iosSettings =
           DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
+            requestAlertPermission: true,
+            requestBadgePermission: true,
+            requestSoundPermission: true,
+          );
 
       const InitializationSettings initSettings = InitializationSettings(
         android: androidSettings,
@@ -52,15 +52,15 @@ class LocalNotificationService {
     try {
       const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
-        'payment_channel',
-        'Payment Notifications',
-        channelDescription: 'Notifications for incoming payments and zaps',
-        importance: Importance.max,
-        priority: Priority.high,
-        enableVibration: true,
-        sound: RawResourceAndroidNotificationSound('notification'),
-        playSound: true,
-      );
+            'payment_channel',
+            'Payment Notifications',
+            channelDescription: 'Notifications for incoming payments and zaps',
+            importance: Importance.max,
+            priority: Priority.high,
+            enableVibration: true,
+            sound: RawResourceAndroidNotificationSound('notification'),
+            playSound: true,
+          );
 
       const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
         presentAlert: true,
@@ -95,10 +95,12 @@ class LocalNotificationService {
         return true; // iOS permissions handled during init
       }
 
-      final result = await _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+      final result =
+          await _notificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >()
+              ?.requestNotificationsPermission();
 
       return result ?? false;
     } catch (e) {
@@ -122,20 +124,24 @@ class PaymentNotificationSync {
       debugPrint('🔔 Starting to listen to Breez SDK payment stream...');
 
       // Subscribe to payment stream
-      _paymentStreamSubscription =
-          BreezSparkService.paymentStream.listen((payment) async {
-        await _handlePaymentReceived(payment);
-      }, onError: (error) {
-        debugPrint('❌ Payment stream error: $error');
-      });
+      _paymentStreamSubscription = BreezSparkService.paymentStream.listen(
+        (payment) async {
+          await _handlePaymentReceived(payment);
+        },
+        onError: (error) {
+          debugPrint('❌ Payment stream error: $error');
+        },
+      );
 
       // Subscribe to balance stream for real-time updates
-      _balanceStreamSubscription =
-          BreezSparkService.balanceStream.listen((balance) async {
-        debugPrint('💰 Balance updated: $balance sats');
-      }, onError: (error) {
-        debugPrint('❌ Balance stream error: $error');
-      });
+      _balanceStreamSubscription = BreezSparkService.balanceStream.listen(
+        (balance) async {
+          debugPrint('💰 Balance updated: $balance sats');
+        },
+        onError: (error) {
+          debugPrint('❌ Balance stream error: $error');
+        },
+      );
 
       debugPrint('✅ Listening to Breez SDK streams');
     } catch (e) {

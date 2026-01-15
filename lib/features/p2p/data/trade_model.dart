@@ -8,7 +8,7 @@ enum TradeStatus {
   released,
   disputed,
   cancelled,
-  blocked
+  blocked,
 }
 
 class TradeModel {
@@ -34,8 +34,8 @@ class TradeModel {
     this.releasedAt,
     this.timeLeftSeconds,
     this.receiveSats,
-  })  : proofs = proofs ?? [],
-        createdAt = createdAt ?? DateTime.now();
+  }) : proofs = proofs ?? [],
+       createdAt = createdAt ?? DateTime.now();
 
   TradeModel copyWith({
     String? id,

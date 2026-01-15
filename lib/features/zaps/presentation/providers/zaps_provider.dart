@@ -52,15 +52,16 @@ class ZapsNotifier extends _$ZapsNotifier {
   }
 
   void toggleLike(String postId) {
-    state = state.map((post) {
-      if (post.id == postId) {
-        return post.copyWith(
-          isLiked: !post.isLiked,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-        );
-      }
-      return post;
-    }).toList();
+    state =
+        state.map((post) {
+          if (post.id == postId) {
+            return post.copyWith(
+              isLiked: !post.isLiked,
+              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
+            );
+          }
+          return post;
+        }).toList();
   }
 
   void addPost(Post post) {

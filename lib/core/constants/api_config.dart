@@ -3,7 +3,8 @@ class ApiConfig {
   static const bool isDev = true;
 
   // Rust backend (Nodeless Spark) - Base URL selection
-  static final String baseUrl = isDev ? 'http://localhost:3000' : 'https://api.sabi.money';
+  static final String baseUrl =
+      isDev ? 'http://localhost:3000' : 'https://api.sabi.money';
 }
 
 class ApiEndpoints {

@@ -19,7 +19,8 @@ class InAppNotificationBanner extends StatefulWidget {
   });
 
   @override
-  State<InAppNotificationBanner> createState() => _InAppNotificationBannerState();
+  State<InAppNotificationBanner> createState() =>
+      _InAppNotificationBannerState();
 }
 
 class _InAppNotificationBannerState extends State<InAppNotificationBanner>
@@ -30,7 +31,7 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -39,10 +40,9 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
 
     _animationController.forward();
 
@@ -86,10 +86,7 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
           decoration: BoxDecoration(
             color: const Color(0xFF111128),
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(
-              color: _getAccentColor(),
-              width: 1.5,
-            ),
+            border: Border.all(color: _getAccentColor(), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -109,15 +106,11 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Icon(
-                    _getIcon(),
-                    color: _getAccentColor(),
-                    size: 22,
-                  ),
+                  child: Icon(_getIcon(), color: _getAccentColor(), size: 22),
                 ),
               ),
               SizedBox(width: 12.w),
-              
+
               // Content (title + message)
               Expanded(
                 child: Column(
@@ -148,7 +141,7 @@ class _InAppNotificationBannerState extends State<InAppNotificationBanner>
                 ),
               ),
               SizedBox(width: 8.w),
-              
+
               // Close button
               GestureDetector(
                 onTap: _dismissBanner,

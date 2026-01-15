@@ -19,11 +19,11 @@ class StoredLightningAddress {
   });
 
   Map<String, dynamic> toMap() => {
-        'address': address,
-        'username': username,
-        'description': description,
-        'lnurl': lnurl,
-      };
+    'address': address,
+    'username': username,
+    'description': description,
+    'lnurl': lnurl,
+  };
 
   static StoredLightningAddress? fromMap(Map? map) {
     if (map == null) return null;
@@ -32,7 +32,10 @@ class StoredLightningAddress {
     final username = casted['username'] as String?;
     final description = casted['description'] as String?;
     final lnurl = casted['lnurl'] as String?;
-    if (address == null || username == null || description == null || lnurl == null) {
+    if (address == null ||
+        username == null ||
+        description == null ||
+        lnurl == null) {
       return null;
     }
     return StoredLightningAddress(
@@ -42,7 +45,7 @@ class StoredLightningAddress {
       lnurl: lnurl,
     );
   }
-  
+
   @override
   String toString() => 'StoredLightningAddress($address)';
 }
@@ -63,19 +66,20 @@ class UserProfile {
 
   /// Get first letter of name for avatar display.
   String get initial => fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U';
-  
+
   /// Get formatted lightning address (fallback to generated one).
   String get lightningUsername => formatLightningAddress(username);
-  
+
   /// Get the actual registered lightning address, or fallback.
   String get sabiUsername => lightningAddress?.address ?? lightningUsername;
-  
+
   /// Check if user has a registered lightning address.
   bool get hasLightningAddress => lightningAddress != null;
-  
+
   /// Get description for lightning address.
   String get lightningAddressDescription =>
-      lightningAddress?.description ?? 'Receive sats directly via $lightningUsername';
+      lightningAddress?.description ??
+      'Receive sats directly via $lightningUsername';
 
   Map<String, dynamic> toMap() => {
     'fullName': fullName,
@@ -104,10 +108,13 @@ class UserProfile {
       fullName: fullName ?? this.fullName,
       username: username ?? this.username,
       profilePicturePath: profilePicturePath ?? this.profilePicturePath,
-      lightningAddress: clearLightningAddress ? null : (lightningAddress ?? this.lightningAddress),
+      lightningAddress:
+          clearLightningAddress
+              ? null
+              : (lightningAddress ?? this.lightningAddress),
     );
   }
-  
+
   @override
   String toString() => 'UserProfile($fullName, $username)';
 }
@@ -117,14 +124,14 @@ class ProfileService {
   static const _profileBox = 'user_profile';
   static const _profileKey = 'current_user';
   static Box? _box;
-  
+
   /// Check if service is initialized.
   static bool get isInitialized => _box != null && _box!.isOpen;
 
   /// Initialize the profile service.
   static Future<void> init() async {
     if (isInitialized) return;
-    
+
     try {
       _box = await Hive.openBox(_profileBox);
       debugPrint('✅ ProfileService initialized');
@@ -133,7 +140,9 @@ class ProfileService {
       if (!_box!.containsKey(_profileKey)) {
         final randomProfile = _generateRandomProfile();
         await saveProfile(randomProfile);
-        debugPrint('✅ Generated random profile for new user: ${randomProfile.username}');
+        debugPrint(
+          '✅ Generated random profile for new user: ${randomProfile.username}',
+        );
       }
     } catch (e) {
       debugPrint('❌ ProfileService init error: $e');
@@ -145,24 +154,25 @@ class ProfileService {
   static UserProfile _generateRandomProfile() {
     final username = LightningAddressManager.generateRandomUsername();
     // Convert username to display name (capitalize first letters)
-    final displayName = username
-        .replaceAll(RegExp(r'\d+$'), '') // Remove trailing numbers
-        .replaceAllMapped(
-          RegExp(r'([a-z])([A-Z])'),
-          (m) => '${m[1]} ${m[2]}',
-        )
-        .split(RegExp(r'(?=[A-Z])'))
-        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
-        .join(' ')
-        .trim();
-    
+    final displayName =
+        username
+            .replaceAll(RegExp(r'\d+$'), '') // Remove trailing numbers
+            .replaceAllMapped(
+              RegExp(r'([a-z])([A-Z])'),
+              (m) => '${m[1]} ${m[2]}',
+            )
+            .split(RegExp(r'(?=[A-Z])'))
+            .map(
+              (w) =>
+                  w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
+            )
+            .join(' ')
+            .trim();
+
     // Fallback display name
     final finalDisplayName = displayName.isNotEmpty ? displayName : 'Sabi User';
 
-    return UserProfile(
-      fullName: finalDisplayName,
-      username: username,
-    );
+    return UserProfile(fullName: finalDisplayName, username: username);
   }
 
   /// Get current user profile.
@@ -170,7 +180,7 @@ class ProfileService {
     if (!isInitialized) {
       await init();
     }
-    
+
     try {
       final data = _box!.get(_profileKey);
       if (data != null) {
@@ -189,7 +199,7 @@ class ProfileService {
     if (!isInitialized) {
       await init();
     }
-    
+
     try {
       await _box!.put(_profileKey, profile.toMap());
       debugPrint('✅ Profile saved: ${profile.fullName}');
@@ -224,11 +234,14 @@ class ProfileService {
     StoredLightningAddress? lightningAddress,
   ) async {
     final currentProfile = await getProfile();
-    final updatedProfile = lightningAddress == null
-        ? currentProfile.copyWith(clearLightningAddress: true)
-        : currentProfile.copyWith(lightningAddress: lightningAddress);
+    final updatedProfile =
+        lightningAddress == null
+            ? currentProfile.copyWith(clearLightningAddress: true)
+            : currentProfile.copyWith(lightningAddress: lightningAddress);
     await saveProfile(updatedProfile);
-    debugPrint('✅ Lightning address updated: ${lightningAddress?.address ?? "cleared"}');
+    debugPrint(
+      '✅ Lightning address updated: ${lightningAddress?.address ?? "cleared"}',
+    );
   }
 
   /// Validate username format.

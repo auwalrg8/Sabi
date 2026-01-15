@@ -24,7 +24,7 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
   double? _selectedAmount;
   String? _meterError;
   bool _useCustomAmount = false;
-  
+
   // Verification State
   bool _isVerifying = false;
   String? _verifiedName;
@@ -83,7 +83,7 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
         VtuService.isValidMeterNumber(_meterController.text.trim()) &&
         _selectedAmount != null &&
         _selectedAmount! >= 1000;
-        
+
     // MUST have verified name to proceed
     return hasValidInputs && _verifiedName != null;
   }
@@ -166,13 +166,14 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => VtuConfirmScreen(
-          serviceType: VtuServiceType.electricity,
-          recipient: meter,
-          amountNaira: _selectedAmount!,
-          electricityProvider: _selectedProvider,
-          meterType: _selectedMeterType,
-        ),
+        builder:
+            (_) => VtuConfirmScreen(
+              serviceType: VtuServiceType.electricity,
+              recipient: meter,
+              amountNaira: _selectedAmount!,
+              electricityProvider: _selectedProvider,
+              meterType: _selectedMeterType,
+            ),
       ),
     );
   }
@@ -249,43 +250,54 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                     ),
                     SizedBox(height: 12.h),
                     Row(
-                      children: MeterType.values.map((type) {
-                        final isSelected = _selectedMeterType == type;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => _onMeterTypeSelected(type),
-                            child: Container(
-                              margin: EdgeInsets.only(
-                                right: type == MeterType.prepaid ? 8.w : 0,
-                                left: type == MeterType.postpaid ? 8.w : 0,
-                              ),
-                              padding: EdgeInsets.symmetric(vertical: 14.h),
-                              decoration: BoxDecoration(
-                                color: isSelected 
-                                    ? const Color(0xFF1E88E5).withOpacity(0.15) 
-                                    : const Color(0xFF1A1A2E),
-                                borderRadius: BorderRadius.circular(12.r),
-                                border: Border.all(
-                                  color: isSelected 
-                                      ? const Color(0xFF1E88E5) 
-                                      : const Color(0xFF2A2A3E),
-                                  width: isSelected ? 2 : 1,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  type.name,
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : const Color(0xFFA1A1B2),
-                                    fontSize: 14.sp,
-                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      children:
+                          MeterType.values.map((type) {
+                            final isSelected = _selectedMeterType == type;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () => _onMeterTypeSelected(type),
+                                child: Container(
+                                  margin: EdgeInsets.only(
+                                    right: type == MeterType.prepaid ? 8.w : 0,
+                                    left: type == MeterType.postpaid ? 8.w : 0,
+                                  ),
+                                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelected
+                                            ? const Color(
+                                              0xFF1E88E5,
+                                            ).withOpacity(0.15)
+                                            : const Color(0xFF1A1A2E),
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    border: Border.all(
+                                      color:
+                                          isSelected
+                                              ? const Color(0xFF1E88E5)
+                                              : const Color(0xFF2A2A3E),
+                                      width: isSelected ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      type.name,
+                                      style: TextStyle(
+                                        color:
+                                            isSelected
+                                                ? Colors.white
+                                                : const Color(0xFFA1A1B2),
+                                        fontSize: 14.sp,
+                                        fontWeight:
+                                            isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
                     ),
                     SizedBox(height: 24.h),
 
@@ -305,7 +317,7 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                         });
                       },
                     ),
-                    
+
                     // Validation Result
                     if (_verifiedName != null) ...[
                       SizedBox(height: 12.h),
@@ -373,9 +385,10 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                       amounts: amounts,
                       selectedAmount: _useCustomAmount ? null : _selectedAmount,
                       onAmountSelected: _onAmountSelected,
-                      accentColor: _selectedProvider != null 
-                          ? Color(_selectedProvider!.primaryColor) 
-                          : const Color(0xFF1E88E5),
+                      accentColor:
+                          _selectedProvider != null
+                              ? Color(_selectedProvider!.primaryColor)
+                              : const Color(0xFF1E88E5),
                     ),
                     SizedBox(height: 20.h),
 
@@ -389,7 +402,8 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                     SizedBox(height: 24.h),
 
                     // Summary Card
-                    if (_selectedAmount != null && _selectedAmount! >= 1000) ...[
+                    if (_selectedAmount != null &&
+                        _selectedAmount! >= 1000) ...[
                       _SummaryCard(
                         amountNaira: _selectedAmount!,
                         provider: _selectedProvider,
@@ -417,9 +431,10 @@ class _UtilitiesScreenState extends ConsumerState<UtilitiesScreen> {
                   child: ElevatedButton(
                     onPressed: _isFormValid ? _proceedToConfirm : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedProvider != null 
-                          ? Color(_selectedProvider!.primaryColor) 
-                          : const Color(0xFF1E88E5),
+                      backgroundColor:
+                          _selectedProvider != null
+                              ? Color(_selectedProvider!.primaryColor)
+                              : const Color(0xFF1E88E5),
                       disabledBackgroundColor: const Color(0xFF2A2A3E),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r),
@@ -473,14 +488,16 @@ class _ProviderGrid extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              color: isSelected 
-                  ? Color(provider.primaryColor).withOpacity(0.15) 
-                  : const Color(0xFF1A1A2E),
+              color:
+                  isSelected
+                      ? Color(provider.primaryColor).withOpacity(0.15)
+                      : const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(12.r),
               border: Border.all(
-                color: isSelected 
-                    ? Color(provider.primaryColor) 
-                    : const Color(0xFF2A2A3E),
+                color:
+                    isSelected
+                        ? Color(provider.primaryColor)
+                        : const Color(0xFF2A2A3E),
                 width: isSelected ? 2 : 1,
               ),
             ),
@@ -494,11 +511,7 @@ class _ProviderGrid extends StatelessWidget {
                     color: Color(provider.primaryColor),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    Icons.bolt,
-                    color: Colors.white,
-                    size: 18.sp,
-                  ),
+                  child: Icon(Icons.bolt, color: Colors.white, size: 18.sp),
                 ),
                 SizedBox(height: 6.h),
                 Text(
@@ -555,9 +568,10 @@ class _MeterInputField extends StatelessWidget {
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-              color: errorText != null 
-                  ? const Color(0xFFFF4D4F) 
-                  : const Color(0xFF2A2A3E),
+              color:
+                  errorText != null
+                      ? const Color(0xFFFF4D4F)
+                      : const Color(0xFF2A2A3E),
             ),
           ),
           child: Row(
@@ -573,9 +587,10 @@ class _MeterInputField extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.electric_meter,
-                  color: selectedProvider != null 
-                      ? Color(selectedProvider!.primaryColor) 
-                      : const Color(0xFFA1A1B2),
+                  color:
+                      selectedProvider != null
+                          ? Color(selectedProvider!.primaryColor)
+                          : const Color(0xFFA1A1B2),
                   size: 22.sp,
                 ),
               ),
@@ -583,10 +598,7 @@ class _MeterInputField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.number,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.sp,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
                   decoration: InputDecoration(
                     hintText: 'Enter meter number',
                     hintStyle: TextStyle(
@@ -594,12 +606,15 @@ class _MeterInputField extends StatelessWidget {
                       fontSize: 16.sp,
                     ),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 14.h,
+                    ),
                   ),
                   onChanged: onChanged,
                 ),
               ),
-              
+
               // Verify Button suffix
               if (onVerifyPressed != null)
                 GestureDetector(
@@ -635,10 +650,7 @@ class _MeterInputField extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             errorText!,
-            style: TextStyle(
-              color: const Color(0xFFFF4D4F),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFFF4D4F), fontSize: 12.sp),
           ),
         ],
       ],
@@ -650,10 +662,7 @@ class _SummaryCard extends StatelessWidget {
   final double amountNaira;
   final ElectricityProvider? provider;
 
-  const _SummaryCard({
-    required this.amountNaira,
-    this.provider,
-  });
+  const _SummaryCard({required this.amountNaira, this.provider});
 
   @override
   Widget build(BuildContext context) {
@@ -661,8 +670,11 @@ class _SummaryCard extends StatelessWidget {
       future: VtuService.nairaToSats(amountNaira),
       builder: (context, snapshot) {
         final sats = snapshot.data ?? 0;
-        final color = provider != null ? Color(provider!.primaryColor) : const Color(0xFF1E88E5);
-        
+        final color =
+            provider != null
+                ? Color(provider!.primaryColor)
+                : const Color(0xFF1E88E5);
+
         return Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(

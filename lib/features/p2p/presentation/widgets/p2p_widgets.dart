@@ -40,7 +40,8 @@ class P2PLoadingState extends StatelessWidget {
   const P2PLoadingState({super.key});
 
   @override
-  Widget build(BuildContext context) => const Center(child: CircularProgressIndicator());
+  Widget build(BuildContext context) =>
+      const Center(child: CircularProgressIndicator());
 }
 
 class P2PErrorState extends StatelessWidget {
@@ -58,7 +59,7 @@ class P2PErrorState extends StatelessWidget {
           Text(message, style: P2PTextStyles.bodySmall),
           const SizedBox(height: 8),
           if (onRetry != null)
-            ElevatedButton(onPressed: onRetry, child: const Text('Retry'))
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );
@@ -72,7 +73,14 @@ class P2PAvatar extends StatelessWidget {
   final bool showVerificationBadge;
   final bool isVerified;
 
-  const P2PAvatar({super.key, this.imageUrl, required this.name, this.size = 40, this.showVerificationBadge = false, this.isVerified = false});
+  const P2PAvatar({
+    super.key,
+    this.imageUrl,
+    required this.name,
+    this.size = 40,
+    this.showVerificationBadge = false,
+    this.isVerified = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +100,13 @@ class P2PStatCard extends StatelessWidget {
   final Color? valueColor;
   final bool showPercentage;
 
-  const P2PStatCard({super.key, required this.label, required this.value, this.valueColor, this.showPercentage = false});
+  const P2PStatCard({
+    super.key,
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.showPercentage = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +118,12 @@ class P2PStatCard extends StatelessWidget {
         children: [
           Text(label, style: P2PTextStyles.statLabel),
           const SizedBox(height: 8),
-          Text(value, style: P2PTextStyles.bodyLarge.copyWith(color: valueColor ?? Colors.white)),
+          Text(
+            value,
+            style: P2PTextStyles.bodyLarge.copyWith(
+              color: valueColor ?? Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -115,11 +134,21 @@ class P2PFeedbackThumbs extends StatelessWidget {
   final int positive;
   final int negative;
 
-  const P2PFeedbackThumbs({super.key, required this.positive, required this.negative});
+  const P2PFeedbackThumbs({
+    super.key,
+    required this.positive,
+    required this.negative,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [Text('+$positive', style: P2PTextStyles.bodySmall), const SizedBox(width: 8), Text('-$negative', style: P2PTextStyles.bodySmall)]);
+    return Row(
+      children: [
+        Text('+$positive', style: P2PTextStyles.bodySmall),
+        const SizedBox(width: 8),
+        Text('-$negative', style: P2PTextStyles.bodySmall),
+      ],
+    );
   }
 }
 
@@ -131,7 +160,11 @@ class P2PPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(onPressed: onPressed, style: ElevatedButton.styleFrom(backgroundColor: P2PColors.primary), child: Text(label));
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(backgroundColor: P2PColors.primary),
+      child: Text(label),
+    );
   }
 }
 
@@ -144,7 +177,10 @@ class P2PCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = offer?.name ?? '';
-    final price = offer?.pricePerBtc != null ? '₦${offer.pricePerBtc.toStringAsFixed(0)}' : '₦0';
+    final price =
+        offer?.pricePerBtc != null
+            ? '₦${offer.pricePerBtc.toStringAsFixed(0)}'
+            : '₦0';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: P2PDecorations.cardDecoration,
@@ -154,7 +190,12 @@ class P2PCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(name, style: P2PTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                name,
+                style: P2PTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(price, style: P2PTextStyles.bodySmall),
             ],
@@ -172,16 +213,27 @@ class P2PFilterChips<T> extends StatelessWidget {
   final String Function(T) labelBuilder;
   final ValueChanged<T> onSelected;
 
-  const P2PFilterChips({super.key, required this.filters, required this.selectedFilter, required this.labelBuilder, required this.onSelected});
+  const P2PFilterChips({
+    super.key,
+    required this.filters,
+    required this.selectedFilter,
+    required this.labelBuilder,
+    required this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
-      children: filters.map((f) {
-        final selected = f == selectedFilter;
-        return ChoiceChip(label: Text(labelBuilder(f)), selected: selected, onSelected: (_) => onSelected(f));
-      }).toList(),
+      children:
+          filters.map((f) {
+            final selected = f == selectedFilter;
+            return ChoiceChip(
+              label: Text(labelBuilder(f)),
+              selected: selected,
+              onSelected: (_) => onSelected(f),
+            );
+          }).toList(),
     );
   }
 }
@@ -204,17 +256,25 @@ class P2PStatusBadge extends StatelessWidget {
 
   const P2PStatusBadge({super.key, required this.label, required this.color});
 
-  factory P2PStatusBadge.paid() => P2PStatusBadge(label: 'Paid', color: P2PColors.success);
-  factory P2PStatusBadge.awaitingPayment() => P2PStatusBadge(label: 'Awaiting', color: P2PColors.primary);
-  factory P2PStatusBadge.completed() => P2PStatusBadge(label: 'Completed', color: P2PColors.success);
-  factory P2PStatusBadge.cancelled() => P2PStatusBadge(label: 'Cancelled', color: P2PColors.error);
-  factory P2PStatusBadge.disputed() => P2PStatusBadge(label: 'Disputed', color: P2PColors.error);
+  factory P2PStatusBadge.paid() =>
+      P2PStatusBadge(label: 'Paid', color: P2PColors.success);
+  factory P2PStatusBadge.awaitingPayment() =>
+      P2PStatusBadge(label: 'Awaiting', color: P2PColors.primary);
+  factory P2PStatusBadge.completed() =>
+      P2PStatusBadge(label: 'Completed', color: P2PColors.success);
+  factory P2PStatusBadge.cancelled() =>
+      P2PStatusBadge(label: 'Cancelled', color: P2PColors.error);
+  factory P2PStatusBadge.disputed() =>
+      P2PStatusBadge(label: 'Disputed', color: P2PColors.error);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
       child: Text(label, style: P2PTextStyles.bodySmall.copyWith(color: color)),
     );
   }
@@ -224,13 +284,21 @@ class P2PVerificationBadge extends StatelessWidget {
   final String type;
   final bool isVerified;
 
-  const P2PVerificationBadge({super.key, required this.type, this.isVerified = false});
+  const P2PVerificationBadge({
+    super.key,
+    required this.type,
+    this.isVerified = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(isVerified ? Icons.check_circle : Icons.info_outline, size: 16, color: isVerified ? P2PColors.success : P2PColors.textMuted),
+        Icon(
+          isVerified ? Icons.check_circle : Icons.info_outline,
+          size: 16,
+          color: isVerified ? P2PColors.success : P2PColors.textMuted,
+        ),
         const SizedBox(width: 8),
         Text(type, style: P2PTextStyles.bodySmall),
       ],
@@ -248,7 +316,11 @@ class P2PTradeTypeIcon extends StatelessWidget {
     return CircleAvatar(
       radius: 20,
       backgroundColor: isBuy ? P2PColors.success : P2PColors.surface,
-      child: Icon(isBuy ? Icons.arrow_downward : Icons.arrow_upward, color: Colors.white, size: 18),
+      child: Icon(
+        isBuy ? Icons.arrow_downward : Icons.arrow_upward,
+        color: Colors.white,
+        size: 18,
+      ),
     );
   }
 }

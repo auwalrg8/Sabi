@@ -16,7 +16,11 @@ class P2PEscrowInfoScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF0C0C1A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -262,13 +266,15 @@ Since there's no server, we cannot resolve disputes. Trade carefully!
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: isWarning 
-            ? const Color(0xFFFF6B6B).withOpacity(0.1)
-            : const Color(0xFF111128),
+        color:
+            isWarning
+                ? const Color(0xFFFF6B6B).withOpacity(0.1)
+                : const Color(0xFF111128),
         borderRadius: BorderRadius.circular(16.r),
-        border: isWarning 
-            ? Border.all(color: const Color(0xFFFF6B6B).withOpacity(0.3))
-            : null,
+        border:
+            isWarning
+                ? Border.all(color: const Color(0xFFFF6B6B).withOpacity(0.3))
+                : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +422,8 @@ class P2PQuickInfoSheet extends StatelessWidget {
           icon: Icons.timer_outlined,
           color: const Color(0xFFF7931A),
           title: 'Payment Timer',
-          body: 'You have 4 minutes to complete payment. '
+          body:
+              'You have 4 minutes to complete payment. '
               'This protects both parties from price changes. '
               'If time runs out, the trade is cancelled automatically.',
         );
@@ -425,7 +432,8 @@ class P2PQuickInfoSheet extends StatelessWidget {
           icon: Icons.verified_user_outlined,
           color: const Color(0xFF6B4EFF),
           title: 'Trade Code',
-          body: 'Trade codes add security by splitting a 6-digit code between buyer and seller. '
+          body:
+              'Trade codes add security by splitting a 6-digit code between buyer and seller. '
               'Both must share their part to verify identity before completing the trade.',
         );
       case 'escrow':
@@ -433,7 +441,8 @@ class P2PQuickInfoSheet extends StatelessWidget {
           icon: Icons.lock_outline,
           color: const Color(0xFF00FFB2),
           title: 'Lightning Escrow',
-          body: 'Your sats are locked via a Lightning invoice during the trade. '
+          body:
+              'Your sats are locked via a Lightning invoice during the trade. '
               'No third party holds your funds - it\'s pure Bitcoin magic!',
         );
       case 'release':
@@ -441,7 +450,8 @@ class P2PQuickInfoSheet extends StatelessWidget {
           icon: Icons.send,
           color: const Color(0xFF00D4FF),
           title: 'Releasing Sats',
-          body: 'When you release sats, the Lightning invoice is paid and '
+          body:
+              'When you release sats, the Lightning invoice is paid and '
               'the buyer receives their Bitcoin. This action is IRREVERSIBLE. '
               'Only release after confirming payment!',
         );

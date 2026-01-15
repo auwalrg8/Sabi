@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Supported social platforms
 enum SocialPlatform {
-  x,           // Twitter/X
+  x, // Twitter/X
   facebook,
   nostr,
   telegram,
@@ -202,19 +202,16 @@ class SocialProfile {
 }
 
 /// Status of a profile share request
-enum ProfileShareStatus {
-  pending,
-  accepted,
-  declined,
-  expired,
-}
+enum ProfileShareStatus { pending, accepted, declined, expired }
 
 /// Type of share consent
 enum ShareConsent {
   /// Share my profiles and view theirs
   mutual,
+
   /// Only view their profiles (don't share mine)
   viewOnly,
+
   /// Declined to share
   declined,
 }
@@ -268,31 +265,41 @@ class ProfileShareRequest {
       tradeId: json['tradeId'] as String,
       requesterId: json['requesterId'] as String,
       requesterName: json['requesterName'] as String,
-      offeredPlatforms: (json['offeredPlatforms'] as List<dynamic>)
-          .map((p) => SocialPlatform.values.firstWhere(
-                (sp) => sp.name == p,
-                orElse: () => SocialPlatform.x,
-              ))
-          .toList(),
+      offeredPlatforms:
+          (json['offeredPlatforms'] as List<dynamic>)
+              .map(
+                (p) => SocialPlatform.values.firstWhere(
+                  (sp) => sp.name == p,
+                  orElse: () => SocialPlatform.x,
+                ),
+              )
+              .toList(),
       status: ProfileShareStatus.values.firstWhere(
         (s) => s.name == json['status'],
         orElse: () => ProfileShareStatus.pending,
       ),
-      response: json['response'] != null
-          ? ShareConsent.values.firstWhere(
-              (c) => c.name == json['response'],
-              orElse: () => ShareConsent.declined,
-            )
-          : null,
+      response:
+          json['response'] != null
+              ? ShareConsent.values.firstWhere(
+                (c) => c.name == json['response'],
+                orElse: () => ShareConsent.declined,
+              )
+              : null,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
-      respondedAt: json['respondedAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['respondedAt'] as int)
-          : null,
-      sharedProfiles: json['sharedProfiles'] != null
-          ? (json['sharedProfiles'] as List<dynamic>)
-              .map((p) => SocialProfile.fromJson(Map<String, dynamic>.from(p as Map)))
-              .toList()
-          : null,
+      respondedAt:
+          json['respondedAt'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(json['respondedAt'] as int)
+              : null,
+      sharedProfiles:
+          json['sharedProfiles'] != null
+              ? (json['sharedProfiles'] as List<dynamic>)
+                  .map(
+                    (p) => SocialProfile.fromJson(
+                      Map<String, dynamic>.from(p as Map),
+                    ),
+                  )
+                  .toList()
+              : null,
     );
   }
 
@@ -338,21 +345,28 @@ class SocialProfileService {
     if (_initialized) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Load profiles
       final raw = prefs.getString(_profilesKey);
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw) as List<dynamic>;
-        _profiles = list
-            .map((e) => SocialProfile.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList();
+        _profiles =
+            list
+                .map(
+                  (e) => SocialProfile.fromJson(
+                    Map<String, dynamic>.from(e as Map),
+                  ),
+                )
+                .toList();
       }
-      
+
       // Load sharing preference
       _sharingEnabled = prefs.getBool(_sharingEnabledKey) ?? true;
-      
+
       _initialized = true;
-      debugPrint('✅ SocialProfileService initialized with ${_profiles.length} profiles');
+      debugPrint(
+        '✅ SocialProfileService initialized with ${_profiles.length} profiles',
+      );
     } catch (e) {
       debugPrint('⚠️ Failed to initialize SocialProfileService: $e');
     }
@@ -390,11 +404,11 @@ class SocialProfileService {
   /// Add or update a profile
   static Future<void> setProfile(SocialProfile profile) async {
     await init();
-    
+
     // Remove existing profile for this platform
     _profiles.removeWhere((p) => p.platform == profile.platform);
     _profiles.add(profile);
-    
+
     await _persist();
     debugPrint('✅ Added/updated ${profile.platform.displayName} profile');
   }
@@ -415,7 +429,9 @@ class SocialProfileService {
   }
 
   /// Get profiles for selected platforms (for sharing)
-  static List<SocialProfile> getProfilesForPlatforms(List<SocialPlatform> platforms) {
+  static List<SocialProfile> getProfilesForPlatforms(
+    List<SocialPlatform> platforms,
+  ) {
     return _profiles.where((p) => platforms.contains(p.platform)).toList();
   }
 

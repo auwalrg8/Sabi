@@ -18,10 +18,11 @@ Future<bool?> showEditLightningAddressModal({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => EditLightningAddressModal(
-      currentUsername: currentUsername,
-      hasExistingAddress: hasExistingAddress,
-    ),
+    builder:
+        (context) => EditLightningAddressModal(
+          currentUsername: currentUsername,
+          hasExistingAddress: hasExistingAddress,
+        ),
   );
 }
 
@@ -36,7 +37,8 @@ class EditLightningAddressModal extends StatefulWidget {
   });
 
   @override
-  State<EditLightningAddressModal> createState() => _EditLightningAddressModalState();
+  State<EditLightningAddressModal> createState() =>
+      _EditLightningAddressModalState();
 }
 
 class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
@@ -59,14 +61,16 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
 
   Future<void> _saveUsername() async {
     final newUsername = _usernameController.text.trim().toLowerCase();
-    
+
     // Validate format
-    final validationError = LightningAddressManager.validateUsername(newUsername);
+    final validationError = LightningAddressManager.validateUsername(
+      newUsername,
+    );
     if (validationError != null) {
       setState(() => _errorText = validationError);
       return;
     }
-    
+
     // Skip if username hasn't changed
     if (newUsername == widget.currentUsername.toLowerCase()) {
       Navigator.pop(context, false);
@@ -80,8 +84,11 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
     });
 
     try {
-      final available = await BreezSparkService.checkLightningAddressAvailability(newUsername);
-      
+      final available =
+          await BreezSparkService.checkLightningAddressAvailability(
+            newUsername,
+          );
+
       if (!available) {
         setState(() {
           _errorText = 'Username "$newUsername" is already taken';
@@ -118,7 +125,8 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
       }
     } catch (e) {
       setState(() {
-        _errorText = 'Failed to update: ${e.toString().replaceAll('Exception: ', '')}';
+        _errorText =
+            'Failed to update: ${e.toString().replaceAll('Exception: ', '')}';
         _isChecking = false;
         _isUpdating = false;
       });
@@ -128,16 +136,14 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
   @override
   Widget build(BuildContext context) {
     final isProcessing = _isChecking || _isUpdating;
-    
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24.r),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
       ),
       child: Padding(
         padding: EdgeInsets.all(20.w),
@@ -160,7 +166,9 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
 
             // Title
             Text(
-              widget.hasExistingAddress ? 'Change Lightning Address' : 'Set Lightning Address',
+              widget.hasExistingAddress
+                  ? 'Change Lightning Address'
+                  : 'Set Lightning Address',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18.sp,
@@ -170,10 +178,7 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
             SizedBox(height: 8.h),
             Text(
               'Choose a unique username for your Lightning address',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13.sp,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13.sp),
             ),
             SizedBox(height: 20.h),
 
@@ -183,16 +188,14 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(
-                  color: _errorText != null ? Colors.red : AppColors.borderColor,
+                  color:
+                      _errorText != null ? Colors.red : AppColors.borderColor,
                 ),
               ),
               child: TextField(
                 controller: _usernameController,
                 enabled: !isProcessing,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14.sp,
-                ),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14.sp),
                 textInputAction: TextInputAction.done,
                 autocorrect: false,
                 onSubmitted: (_) => _saveUsername(),
@@ -220,19 +223,16 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
                 },
               ),
             ),
-            
+
             // Error text
             if (_errorText != null) ...[
               SizedBox(height: 8.h),
               Text(
                 _errorText!,
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 12.sp,
-                ),
+                style: TextStyle(color: Colors.red, fontSize: 12.sp),
               ),
             ],
-            
+
             SizedBox(height: 20.h),
 
             // Buttons
@@ -240,7 +240,10 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: isProcessing ? null : () => Navigator.pop(context, false),
+                    onPressed:
+                        isProcessing
+                            ? null
+                            : () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: AppColors.borderColor),
                       shape: RoundedRectangleBorder(
@@ -263,29 +266,32 @@ class _EditLightningAddressModalState extends State<EditLightningAddressModal> {
                     onPressed: isProcessing ? null : _saveUsername,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                      disabledBackgroundColor: AppColors.primary.withOpacity(
+                        0.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       padding: EdgeInsets.symmetric(vertical: 14.h),
                     ),
-                    child: isProcessing
-                        ? SizedBox(
-                            width: 20.w,
-                            height: 20.w,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                    child:
+                        isProcessing
+                            ? SizedBox(
+                              width: 20.w,
+                              height: 20.w,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : Text(
+                              'Save',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          )
-                        : Text(
-                            'Save',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
                   ),
                 ),
               ],

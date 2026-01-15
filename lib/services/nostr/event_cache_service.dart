@@ -40,24 +40,31 @@ class EventCacheService {
       debugPrint('❌ Failed to initialize EventCacheService: $e');
     }
   }
-  
+
   /// Alias for init() for backward compatibility
   Future<void> initialize() => init();
 
   // ==================== FEED POSTS ====================
 
   /// Save feed posts to cache
-  Future<void> cacheFeedPosts(List<NostrFeedPost> posts, {String feedType = 'global'}) async {
+  Future<void> cacheFeedPosts(
+    List<NostrFeedPost> posts, {
+    String feedType = 'global',
+  }) async {
     if (!_initialized || _feedBox == null) return;
 
     try {
       // Get existing posts
       final existingJson = _feedBox!.get(feedType) as String?;
-      final existing = existingJson != null
-          ? (jsonDecode(existingJson) as List<dynamic>)
-              .map((e) => NostrFeedPost.fromCacheJson(e as Map<String, dynamic>))
-              .toList()
-          : <NostrFeedPost>[];
+      final existing =
+          existingJson != null
+              ? (jsonDecode(existingJson) as List<dynamic>)
+                  .map(
+                    (e) =>
+                        NostrFeedPost.fromCacheJson(e as Map<String, dynamic>),
+                  )
+                  .toList()
+              : <NostrFeedPost>[];
 
       // Merge and deduplicate
       final merged = _mergePosts(posts, existing);
@@ -73,7 +80,9 @@ class EventCacheService {
   }
 
   /// Load cached feed posts
-  Future<List<NostrFeedPost>> loadCachedFeedPosts({String feedType = 'global'}) async {
+  Future<List<NostrFeedPost>> loadCachedFeedPosts({
+    String feedType = 'global',
+  }) async {
     if (!_initialized || _feedBox == null) return [];
 
     try {
@@ -81,9 +90,12 @@ class EventCacheService {
       if (json == null) return [];
 
       final list = jsonDecode(json) as List<dynamic>;
-      final posts = list
-          .map((e) => NostrFeedPost.fromCacheJson(e as Map<String, dynamic>))
-          .toList();
+      final posts =
+          list
+              .map(
+                (e) => NostrFeedPost.fromCacheJson(e as Map<String, dynamic>),
+              )
+              .toList();
 
       debugPrint('📦 Loaded ${posts.length} cached posts for $feedType feed');
       return posts;
@@ -112,10 +124,12 @@ class EventCacheService {
 
     try {
       await _profileBox!.put(profile.pubkey, jsonEncode(profile.toJson()));
-      
+
       // Prune if too many
       if (_profileBox!.length > _maxCachedProfiles) {
-        final keysToRemove = _profileBox!.keys.take(_profileBox!.length - _maxCachedProfiles);
+        final keysToRemove = _profileBox!.keys.take(
+          _profileBox!.length - _maxCachedProfiles,
+        );
         for (final key in keysToRemove) {
           await _profileBox!.delete(key);
         }
@@ -140,23 +154,27 @@ class EventCacheService {
       final json = _profileBox!.get(pubkey) as String?;
       if (json == null) return null;
 
-      return NostrProfile.fromCacheJson(jsonDecode(json) as Map<String, dynamic>);
+      return NostrProfile.fromCacheJson(
+        jsonDecode(json) as Map<String, dynamic>,
+      );
     } catch (e) {
       return null;
     }
   }
 
   /// Get multiple cached profiles
-  Future<Map<String, NostrProfile>> getCachedProfiles(List<String> pubkeys) async {
+  Future<Map<String, NostrProfile>> getCachedProfiles(
+    List<String> pubkeys,
+  ) async {
     final results = <String, NostrProfile>{};
-    
+
     for (final pubkey in pubkeys) {
       final profile = await getCachedProfile(pubkey);
       if (profile != null) {
         results[pubkey] = profile;
       }
     }
-    
+
     return results;
   }
 
@@ -168,7 +186,10 @@ class EventCacheService {
 
     try {
       await _followsBox!.put(userPubkey, jsonEncode(follows));
-      await _followsBox!.put('${userPubkey}_timestamp', DateTime.now().millisecondsSinceEpoch);
+      await _followsBox!.put(
+        '${userPubkey}_timestamp',
+        DateTime.now().millisecondsSinceEpoch,
+      );
       debugPrint('📦 Cached ${follows.length} follows for user');
     } catch (e) {
       debugPrint('❌ Failed to cache follows: $e');
@@ -239,7 +260,10 @@ class EventCacheService {
   // ==================== UTILITIES ====================
 
   /// Merge new posts with existing, newest first, no duplicates
-  List<NostrFeedPost> _mergePosts(List<NostrFeedPost> newPosts, List<NostrFeedPost> existing) {
+  List<NostrFeedPost> _mergePosts(
+    List<NostrFeedPost> newPosts,
+    List<NostrFeedPost> existing,
+  ) {
     final seenIds = <String>{};
     final merged = <NostrFeedPost>[];
 

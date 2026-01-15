@@ -115,10 +115,7 @@ extension ElectricityProviderExtension on ElectricityProvider {
 }
 
 /// Meter type for electricity purchase
-enum MeterType {
-  prepaid,
-  postpaid,
-}
+enum MeterType { prepaid, postpaid }
 
 extension MeterTypeExtension on MeterType {
   String get name {

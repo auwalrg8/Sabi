@@ -21,7 +21,7 @@ class NostrFeedPost {
   final List<String> mentionedPubkeys;
   final String? replyToEventId;
   final String? relayUrl;
-  
+
   // Parsed content
   List<String>? _imageUrls;
   List<String>? _videoUrls;
@@ -83,7 +83,10 @@ class NostrFeedPost {
   /// Extract image URLs from content
   List<String> get imageUrls {
     if (_imageUrls != null) return _imageUrls!;
-    final regex = RegExp(r'https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp)', caseSensitive: false);
+    final regex = RegExp(
+      r'https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp)',
+      caseSensitive: false,
+    );
     _imageUrls = regex.allMatches(content).map((m) => m.group(0)!).toList();
     return _imageUrls!;
   }
@@ -91,7 +94,10 @@ class NostrFeedPost {
   /// Extract video URLs from content
   List<String> get videoUrls {
     if (_videoUrls != null) return _videoUrls!;
-    final regex = RegExp(r'https?://[^\s]+\.(?:mp4|webm|mov)', caseSensitive: false);
+    final regex = RegExp(
+      r'https?://[^\s]+\.(?:mp4|webm|mov)',
+      caseSensitive: false,
+    );
     _videoUrls = regex.allMatches(content).map((m) => m.group(0)!).toList();
     return _videoUrls!;
   }
@@ -102,17 +108,18 @@ class NostrFeedPost {
     final regex = RegExp(r'https?://[^\s]+');
     final allUrls = regex.allMatches(content).map((m) => m.group(0)!).toList();
     // Filter out image and video URLs
-    _linkUrls = allUrls.where((url) {
-      final lower = url.toLowerCase();
-      return !lower.endsWith('.jpg') &&
-          !lower.endsWith('.jpeg') &&
-          !lower.endsWith('.png') &&
-          !lower.endsWith('.gif') &&
-          !lower.endsWith('.webp') &&
-          !lower.endsWith('.mp4') &&
-          !lower.endsWith('.webm') &&
-          !lower.endsWith('.mov');
-    }).toList();
+    _linkUrls =
+        allUrls.where((url) {
+          final lower = url.toLowerCase();
+          return !lower.endsWith('.jpg') &&
+              !lower.endsWith('.jpeg') &&
+              !lower.endsWith('.png') &&
+              !lower.endsWith('.gif') &&
+              !lower.endsWith('.webp') &&
+              !lower.endsWith('.mp4') &&
+              !lower.endsWith('.webm') &&
+              !lower.endsWith('.mov');
+        }).toList();
     return _linkUrls!;
   }
 
@@ -141,7 +148,8 @@ class NostrFeedPost {
     return NostrFeedPost(
       id: event.id,
       authorPubkey: event.pubkey,
-      authorName: event.pubkey.length > 8 ? event.pubkey.substring(0, 8) : event.pubkey,
+      authorName:
+          event.pubkey.length > 8 ? event.pubkey.substring(0, 8) : event.pubkey,
       content: event.content,
       timestamp: event.timestamp,
       hashtags: hashtags,
@@ -152,7 +160,10 @@ class NostrFeedPost {
   }
 
   /// Create from raw event JSON
-  factory NostrFeedPost.fromRawEvent(Map<String, dynamic> json, {String? relay}) {
+  factory NostrFeedPost.fromRawEvent(
+    Map<String, dynamic> json, {
+    String? relay,
+  }) {
     final event = NostrEvent.fromJson(json, relay: relay);
     return NostrFeedPost.fromEvent(event);
   }
@@ -199,18 +210,22 @@ class NostrFeedPost {
       authorLud16: json['author_lud16'] as String?,
       authorNip05Verified: json['author_nip05_verified'] as bool? ?? false,
       content: json['content'] as String? ?? '',
-      timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int? ?? 0),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(
+        json['timestamp'] as int? ?? 0,
+      ),
       zapAmountSats: json['zap_amount_sats'] as int? ?? 0,
       likeCount: json['like_count'] as int? ?? 0,
       replyCount: json['reply_count'] as int? ?? 0,
       repostCount: json['repost_count'] as int? ?? 0,
       hashtags: (json['hashtags'] as List<dynamic>?)?.cast<String>() ?? [],
-      mentionedPubkeys: (json['mentioned_pubkeys'] as List<dynamic>?)?.cast<String>() ?? [],
+      mentionedPubkeys:
+          (json['mentioned_pubkeys'] as List<dynamic>?)?.cast<String>() ?? [],
       replyToEventId: json['reply_to_event_id'] as String?,
       relayUrl: json['relay_url'] as String?,
     );
   }
 
   @override
-  String toString() => 'NostrFeedPost(id: ${id.substring(0, 8)}..., author: $authorName)';
+  String toString() =>
+      'NostrFeedPost(id: ${id.substring(0, 8)}..., author: $authorName)';
 }

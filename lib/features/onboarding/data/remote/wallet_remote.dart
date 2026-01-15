@@ -9,9 +9,13 @@ class WalletRemote {
 
   /// Create a new wallet with [deviceId] and [phone].
   /// Returns decoded JSON response on success.
-  Future<WalletModel> createWallet({required String userId, required String phoneNumber, String? backupType}) async {
+  Future<WalletModel> createWallet({
+    required String userId,
+    required String phoneNumber,
+    String? backupType,
+  }) async {
     final body = {
-      'device_id': userId,  // Using userId as device_id for now
+      'device_id': userId, // Using userId as device_id for now
       'phone': phoneNumber,
     };
 
@@ -20,7 +24,11 @@ class WalletRemote {
     }
 
     // Backend returns 200 OK on success
-    final resp = await _client.post(ApiEndpoints.walletCreate, body: body, expectedStatus: 200);
+    final resp = await _client.post(
+      ApiEndpoints.walletCreate,
+      body: body,
+      expectedStatus: 200,
+    );
 
     // New backend returns: {"wallet_id":"<uuid>","invite_code":"SABI-XXX","node_id":"<pubkey>"}
     if (resp.containsKey('wallet_id') && resp.containsKey('invite_code')) {

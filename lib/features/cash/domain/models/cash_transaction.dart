@@ -21,7 +21,11 @@ class CashTransaction {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    final transactionDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    final transactionDate = DateTime(
+      timestamp.year,
+      timestamp.month,
+      timestamp.day,
+    );
 
     if (transactionDate == today) {
       return 'Today ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
@@ -33,19 +37,25 @@ class CashTransaction {
   }
 
   String _monthName(int month) {
-    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return months[month];
   }
 }
 
-enum CashTransactionType {
-  buy,
-  sell,
-}
+enum CashTransactionType { buy, sell }
 
-enum CashTransactionStatus {
-  pending,
-  processing,
-  completed,
-  failed,
-}
+enum CashTransactionStatus { pending, processing, completed, failed }

@@ -114,8 +114,11 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
     }
 
     // Search in device contacts
-    final allContacts = _hasLoadedDeviceContacts ? _deviceContacts : _recentContacts;
-    ContactService.searchContacts(query, allContacts: allContacts).then((results) {
+    final allContacts =
+        _hasLoadedDeviceContacts ? _deviceContacts : _recentContacts;
+    ContactService.searchContacts(query, allContacts: allContacts).then((
+      results,
+    ) {
       if (mounted) {
         setState(() {
           _searchResults = results.take(10).toList();
@@ -152,11 +155,7 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
               onTap: _showContactPickerModal,
               child: Row(
                 children: [
-                  Icon(
-                    Icons.contacts,
-                    color: widget.accentColor,
-                    size: 18.sp,
-                  ),
+                  Icon(Icons.contacts, color: widget.accentColor, size: 18.sp),
                   SizedBox(width: 4.w),
                   Text(
                     'Contacts',
@@ -179,9 +178,10 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-              color: widget.errorText != null
-                  ? const Color(0xFFFF4D4F)
-                  : const Color(0xFF2A2A3E),
+              color:
+                  widget.errorText != null
+                      ? const Color(0xFFFF4D4F)
+                      : const Color(0xFF2A2A3E),
             ),
           ),
           child: Row(
@@ -197,10 +197,7 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      '🇳🇬',
-                      style: TextStyle(fontSize: 18.sp),
-                    ),
+                    Text('🇳🇬', style: TextStyle(fontSize: 18.sp)),
                     SizedBox(width: 4.w),
                     Text(
                       '+234',
@@ -216,10 +213,7 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
                 child: TextField(
                   controller: widget.controller,
                   keyboardType: TextInputType.phone,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.sp,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
                   decoration: InputDecoration(
                     hintText: '0801 234 5678',
                     hintStyle: TextStyle(
@@ -227,32 +221,36 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
                       fontSize: 16.sp,
                     ),
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
-                    suffixIcon: widget.detectedNetwork != null
-                        ? Padding(
-                            padding: EdgeInsets.only(right: 12.w),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8.w,
-                                vertical: 4.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: widget.networkColor?.withOpacity(0.2) ??
-                                    Colors.grey.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              child: Text(
-                                widget.detectedNetwork!,
-                                style: TextStyle(
-                                  color: widget.networkColor ?? Colors.grey,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 14.h,
+                    ),
+                    suffixIcon:
+                        widget.detectedNetwork != null
+                            ? Padding(
+                              padding: EdgeInsets.only(right: 12.w),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w,
+                                  vertical: 4.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      widget.networkColor?.withOpacity(0.2) ??
+                                      Colors.grey.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8.r),
+                                ),
+                                child: Text(
+                                  widget.detectedNetwork!,
+                                  style: TextStyle(
+                                    color: widget.networkColor ?? Colors.grey,
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                          )
-                        : null,
+                            )
+                            : null,
                     suffixIconConstraints: BoxConstraints(minHeight: 24.h),
                   ),
                   onChanged: widget.onChanged,
@@ -267,10 +265,7 @@ class _PhoneInputWithContactsState extends State<PhoneInputWithContacts> {
           SizedBox(height: 6.h),
           Text(
             widget.errorText!,
-            style: TextStyle(
-              color: const Color(0xFFFF4D4F),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFFF4D4F), fontSize: 12.sp),
           ),
         ],
 
@@ -381,10 +376,7 @@ class _RecentContactChip extends StatelessWidget {
             SizedBox(height: 4.h),
             Text(
               contact.displayName.split(' ').first,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11.sp,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 11.sp),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -423,9 +415,12 @@ class _ContactPickerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayContacts = searchQuery.isNotEmpty
-        ? searchResults
-        : (deviceContacts.isNotEmpty ? deviceContacts.take(20).toList() : recentContacts);
+    final displayContacts =
+        searchQuery.isNotEmpty
+            ? searchResults
+            : (deviceContacts.isNotEmpty
+                ? deviceContacts.take(20).toList()
+                : recentContacts);
 
     return Container(
       constraints: BoxConstraints(maxHeight: 300.h),
@@ -451,10 +446,7 @@ class _ContactPickerSection extends StatelessWidget {
                     ),
                     child: TextField(
                       controller: searchController,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14.sp,
-                      ),
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
                       decoration: InputDecoration(
                         hintText: 'Search contacts...',
                         hintStyle: TextStyle(

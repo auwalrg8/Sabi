@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
-import 'social_recovery_service.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
 import 'contact_picker_screen.dart';
 
 /// Screen for managing recovery guardians

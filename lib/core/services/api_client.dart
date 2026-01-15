@@ -34,7 +34,11 @@ class ApiClient {
     if (headers != null) defaultHeaders.addAll(headers);
 
     final response = await http
-        .post(uri, headers: defaultHeaders, body: body == null ? null : json.encode(body))
+        .post(
+          uri,
+          headers: defaultHeaders,
+          body: body == null ? null : json.encode(body),
+        )
         .timeout(timeout);
 
     final status = response.statusCode;
@@ -45,10 +49,12 @@ class ApiClient {
 
     // parse error body if available
     try {
-      final Map<String, dynamic> err = response.body.isNotEmpty
-          ? json.decode(response.body) as Map<String, dynamic>
-          : {'error': response.reasonPhrase ?? 'Unknown error'};
-      final String msg = err['error']?.toString() ?? response.reasonPhrase ?? 'Unknown error';
+      final Map<String, dynamic> err =
+          response.body.isNotEmpty
+              ? json.decode(response.body) as Map<String, dynamic>
+              : {'error': response.reasonPhrase ?? 'Unknown error'};
+      final String msg =
+          err['error']?.toString() ?? response.reasonPhrase ?? 'Unknown error';
       throw ApiException(msg, status);
     } catch (_) {
       throw ApiException('HTTP $status: ${response.reasonPhrase}', status);
@@ -65,7 +71,9 @@ class ApiClient {
     final defaultHeaders = <String, String>{'Content-Type': 'application/json'};
     if (headers != null) defaultHeaders.addAll(headers);
 
-    final response = await http.get(uri, headers: defaultHeaders).timeout(timeout);
+    final response = await http
+        .get(uri, headers: defaultHeaders)
+        .timeout(timeout);
     final status = response.statusCode;
 
     if (status == expectedStatus) {
@@ -74,10 +82,12 @@ class ApiClient {
     }
 
     try {
-      final Map<String, dynamic> err = response.body.isNotEmpty
-          ? json.decode(response.body) as Map<String, dynamic>
-          : {'error': response.reasonPhrase ?? 'Unknown error'};
-      final String msg = err['error']?.toString() ?? response.reasonPhrase ?? 'Unknown error';
+      final Map<String, dynamic> err =
+          response.body.isNotEmpty
+              ? json.decode(response.body) as Map<String, dynamic>
+              : {'error': response.reasonPhrase ?? 'Unknown error'};
+      final String msg =
+          err['error']?.toString() ?? response.reasonPhrase ?? 'Unknown error';
       throw ApiException(msg, status);
     } catch (_) {
       throw ApiException('HTTP $status: ${response.reasonPhrase}', status);

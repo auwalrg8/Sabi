@@ -31,9 +31,10 @@ class MyTradesNotifier extends StateNotifier<List<TradeModel>> {
   }
 }
 
-final myTradesProvider = StateNotifierProvider<MyTradesNotifier, List<TradeModel>>((ref) {
-  return MyTradesNotifier();
-});
+final myTradesProvider =
+    StateNotifierProvider<MyTradesNotifier, List<TradeModel>>((ref) {
+      return MyTradesNotifier();
+    });
 
 // Current trade state
 class TradeNotifier extends StateNotifier<TradeModel> {
@@ -43,10 +44,7 @@ class TradeNotifier extends StateNotifier<TradeModel> {
 
   void updatePayAmount(double amount) {
     final receiveSats = amount / state.offer.pricePerBtc * 100000000;
-    state = state.copyWith(
-      payAmount: amount,
-      receiveSats: receiveSats,
-    );
+    state = state.copyWith(payAmount: amount, receiveSats: receiveSats);
   }
 
   void addProof(String path) {
@@ -71,10 +69,7 @@ class TradeNotifier extends StateNotifier<TradeModel> {
   }
 
   void markPaid() {
-    state = state.copyWith(
-      status: TradeStatus.paid,
-      paidAt: DateTime.now(),
-    );
+    state = state.copyWith(status: TradeStatus.paid, paidAt: DateTime.now());
     ref.read(myTradesProvider.notifier).updateTrade(state.id, state);
   }
 
@@ -99,34 +94,37 @@ class TradeNotifier extends StateNotifier<TradeModel> {
   }
 }
 
-final tradeProvider = StateNotifierProvider.family<TradeNotifier, TradeModel, String>(
-  (ref, offerId) {
-    final offers = ref.read(p2pOffersProvider);
-    final offer = offers.firstWhere(
-      (o) => o.id == offerId,
-      orElse: () => P2POfferModel(
-        id: offerId,
-        name: 'Unknown',
-        pricePerBtc: 131448939.22,
-        paymentMethod: 'Unknown',
-        eta: '-',
-        ratingPercent: 0,
-        trades: 0,
-        minLimit: 0,
-        maxLimit: 0,
-      ),
-    );
+final tradeProvider =
+    StateNotifierProvider.family<TradeNotifier, TradeModel, String>((
+      ref,
+      offerId,
+    ) {
+      final offers = ref.read(p2pOffersProvider);
+      final offer = offers.firstWhere(
+        (o) => o.id == offerId,
+        orElse:
+            () => P2POfferModel(
+              id: offerId,
+              name: 'Unknown',
+              pricePerBtc: 131448939.22,
+              paymentMethod: 'Unknown',
+              eta: '-',
+              ratingPercent: 0,
+              trades: 0,
+              minLimit: 0,
+              maxLimit: 0,
+            ),
+      );
 
-    final trade = TradeModel(
-      id: _uuid.v4(),
-      offer: offer,
-      payAmount: 0,
-      receiveSats: 0,
-    );
+      final trade = TradeModel(
+        id: _uuid.v4(),
+        offer: offer,
+        payAmount: 0,
+        receiveSats: 0,
+      );
 
-    return TradeNotifier(trade, ref);
-  },
-);
+      return TradeNotifier(trade, ref);
+    });
 
 // Create offer state
 class CreateOfferState {
@@ -155,7 +153,8 @@ class CreateOfferState {
       type: type ?? this.type,
       marginPercent: marginPercent ?? this.marginPercent,
       availableSats: availableSats ?? this.availableSats,
-      selectedPaymentMethods: selectedPaymentMethods ?? this.selectedPaymentMethods,
+      selectedPaymentMethods:
+          selectedPaymentMethods ?? this.selectedPaymentMethods,
       requiresKyc: requiresKyc ?? this.requiresKyc,
     );
   }
@@ -199,6 +198,7 @@ class CreateOfferNotifier extends StateNotifier<CreateOfferState> {
   }
 }
 
-final createOfferProvider = StateNotifierProvider<CreateOfferNotifier, CreateOfferState>((ref) {
-  return CreateOfferNotifier();
-});
+final createOfferProvider =
+    StateNotifierProvider<CreateOfferNotifier, CreateOfferState>((ref) {
+      return CreateOfferNotifier();
+    });

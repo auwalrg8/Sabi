@@ -61,7 +61,7 @@ class _SendProgressScreenState extends State<SendProgressScreen>
       // Extract actual fees and amounts from SDK response
       final actualAmountSats = BreezSparkService.extractSendAmountSats(result);
       final actualFeeSats = BreezSparkService.extractSendFeeSats(result);
-      
+
       // Send push notification for successful outgoing payment
       BreezWebhookBridgeService().sendOutgoingPaymentNotification(
         amountSats: actualAmountSats,
@@ -77,14 +77,14 @@ class _SendProgressScreenState extends State<SendProgressScreen>
       debugPrint('❌ Payment failed: $e');
       _successTimer?.cancel();
       if (_navigatedToSuccess) return;
-      
+
       // Send push notification for failed payment
       BreezWebhookBridgeService().sendPaymentFailedNotification(
         amountSats: widget.transaction.amountInSats.toInt(),
         errorMessage: e.toString(),
         recipientName: widget.transaction.recipient.name,
       );
-      
+
       setState(() {
         _hasError = true;
         _errorMessage = e.toString();

@@ -13,7 +13,8 @@ class NotificationCenterScreen extends ConsumerStatefulWidget {
       _NotificationCenterScreenState();
 }
 
-class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScreen> {
+class _NotificationCenterScreenState
+    extends ConsumerState<NotificationCenterScreen> {
   List<NotificationItem> _notifications = [];
 
   @override
@@ -77,36 +78,37 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
             ),
         ],
       ),
-      body: _notifications.isEmpty
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.notifications_off,
-                  size: 60,
-                  color: const Color(0xFF555566),
+      body:
+          _notifications.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.notifications_off,
+                      size: 60,
+                      color: const Color(0xFF555566),
+                    ),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'No notifications yet',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        color: const Color(0xFFA1A1B2),
+                        fontFamily: 'Google Sans',
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 16.h),
-                Text(
-                  'No notifications yet',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    color: const Color(0xFFA1A1B2),
-                    fontFamily: 'Google Sans',
-                  ),
-                ),
-              ],
-            ),
-          )
-        : ListView.builder(
-            padding: EdgeInsets.all(16.r),
-            itemCount: _notifications.length,
-            itemBuilder: (context, index) {
-              final notification = _notifications[index];
-              return _buildNotificationTile(notification);
-            },
-          ),
+              )
+              : ListView.builder(
+                padding: EdgeInsets.all(16.r),
+                itemCount: _notifications.length,
+                itemBuilder: (context, index) {
+                  final notification = _notifications[index];
+                  return _buildNotificationTile(notification);
+                },
+              ),
     );
   }
 
@@ -124,9 +126,10 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
         decoration: BoxDecoration(
           color: const Color(0xFF111128),
           border: Border.all(
-            color: notification.isRead
-              ? Colors.transparent
-              : const Color(0xFFF7931A),
+            color:
+                notification.isRead
+                    ? Colors.transparent
+                    : const Color(0xFFF7931A),
             width: notification.isRead ? 0 : 1.5,
           ),
           borderRadius: BorderRadius.circular(12.r),
@@ -150,7 +153,7 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
               ),
             ),
             SizedBox(width: 12.w),
-            
+
             // Content
             Expanded(
               child: Column(
@@ -193,13 +196,10 @@ class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScr
               ),
             ),
             SizedBox(width: 8.w),
-            
+
             // Amount badge
             Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: 10.w,
-                vertical: 6.h,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
               decoration: BoxDecoration(
                 color: _getAccentColor(notification.type).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8.r),

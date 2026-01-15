@@ -67,20 +67,18 @@ class ContactService {
         withProperties: true,
         withPhoto: false,
       );
-      
+
       final List<ContactInfo> contactsList = [];
 
       for (final contact in contacts) {
-        final name = contact.displayName.isNotEmpty 
-            ? contact.displayName 
-            : 'Unknown';
+        final name =
+            contact.displayName.isNotEmpty ? contact.displayName : 'Unknown';
 
         // Extract phone numbers
         if (contact.phones.isNotEmpty) {
           for (final phone in contact.phones) {
-            final number = phone.number
-                .replaceAll(RegExp(r'[^\d+]'), '')
-                .trim();
+            final number =
+                phone.number.replaceAll(RegExp(r'[^\d+]'), '').trim();
             if (number.isNotEmpty) {
               contactsList.add(
                 ContactInfo(
@@ -110,7 +108,9 @@ class ContactService {
         }
       }
 
-      debugPrint('✅ Imported ${contactsList.length} contacts from ${contacts.length} device contacts');
+      debugPrint(
+        '✅ Imported ${contactsList.length} contacts from ${contacts.length} device contacts',
+      );
       return contactsList;
     } catch (e, stackTrace) {
       debugPrint('❌ Contact import error: $e');

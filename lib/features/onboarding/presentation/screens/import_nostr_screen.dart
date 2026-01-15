@@ -122,26 +122,11 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
   Widget _buildTabBar() {
     return Row(
       children: [
-        Expanded(
-          child: _buildTabButton(
-            'Paste Keys',
-            ImportMethod.pasteKeys,
-          ),
-        ),
+        Expanded(child: _buildTabButton('Paste Keys', ImportMethod.pasteKeys)),
         const SizedBox(width: 20),
-        Expanded(
-          child: _buildTabButton(
-            'Scan QR',
-            ImportMethod.scanQr,
-          ),
-        ),
+        Expanded(child: _buildTabButton('Scan QR', ImportMethod.scanQr)),
         const SizedBox(width: 20),
-        Expanded(
-          child: _buildTabButton(
-            'Connect',
-            ImportMethod.connect,
-          ),
-        ),
+        Expanded(child: _buildTabButton('Connect', ImportMethod.connect)),
       ],
     );
   }
@@ -155,29 +140,28 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
         });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        height: 48,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: isActive ? const Color(0xFFF7931A) : const Color(0xFF1A2942),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.white : const Color(0xFF9CA3AF),
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 24 / 14,
+            duration: const Duration(milliseconds: 300),
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color:
+                  isActive ? const Color(0xFFF7931A) : const Color(0xFF1A2942),
             ),
-          ),
-        ),
-      ).animate(target: isActive ? 1 : 0).scaleXY(
-        begin: 0.98,
-        end: 1.0,
-        duration: 200.ms,
-      ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? Colors.white : const Color(0xFF9CA3AF),
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  height: 24 / 14,
+                ),
+              ),
+            ),
+          )
+          .animate(target: isActive ? 1 : 0)
+          .scaleXY(begin: 0.98, end: 1.0, duration: 200.ms),
     );
   }
 
@@ -209,26 +193,26 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(66),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF374151),
-                width: 1,
-                style: BorderStyle.solid,
-              ),
-              color: const Color(0xFF0C0C1A),
-            ),
-            child: CustomPaint(
-              size: const Size(60, 60),
-              painter: QrCodeIconPainter(),
-            ),
-          )
+                padding: const EdgeInsets.all(66),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF374151),
+                    width: 1,
+                    style: BorderStyle.solid,
+                  ),
+                  color: const Color(0xFF0C0C1A),
+                ),
+                child: CustomPaint(
+                  size: const Size(60, 60),
+                  painter: QrCodeIconPainter(),
+                ),
+              )
               .animate(onPlay: (controller) => controller.repeat())
               .shimmer(
-            duration: 2000.ms,
-            color: const Color(0xFF4B5563).withValues(alpha: 0.3),
-          ),
+                duration: 2000.ms,
+                color: const Color(0xFF4B5563).withValues(alpha: 0.3),
+              ),
           const SizedBox(height: 16),
           Text(
             'Scan QR code from your Nostr client',
@@ -490,10 +474,7 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomPaint(
-            size: const Size(20, 20),
-            painter: InfoIconPainter(),
-          ),
+          CustomPaint(size: const Size(20, 20), painter: InfoIconPainter()),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -528,44 +509,40 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
         height: 60,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: canImport
-              ? const Color(0xFFF7931A)
-              : const Color(0xFF814F1A),
+          color: canImport ? const Color(0xFFF7931A) : const Color(0xFF814F1A),
         ),
         child: Center(
-          child: isImporting
-              ? Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                '⚡',
-                style: TextStyle(fontSize: 20),
-              )
-                  .animate(onPlay: (controller) => controller.repeat())
-                  .shake(duration: 1000.ms),
-              const SizedBox(width: 8),
-              const Text(
-                'Importing...',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Inter',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  height: 28 / 15,
-                ),
-              ),
-            ],
-          )
-              : const Text(
-            'Import & Continue',
-            style: TextStyle(
-              color: Colors.white,
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 24 / 14,
-            ),
-          ),
+          child:
+              isImporting
+                  ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('⚡', style: TextStyle(fontSize: 20))
+                          .animate(onPlay: (controller) => controller.repeat())
+                          .shake(duration: 1000.ms),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Importing...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          height: 28 / 15,
+                        ),
+                      ),
+                    ],
+                  )
+                  : const Text(
+                    'Import & Continue',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 24 / 14,
+                    ),
+                  ),
         ),
       ),
     );
@@ -613,25 +590,23 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(9999),
-                            color: const Color(0xFF00FFB2)
-                                .withValues(alpha: 0.2),
-                          ),
-                          child: Center(
-                            child: CustomPaint(
-                              size: const Size(40, 40),
-                              painter: CheckIconPainter(),
-                            ),
-                          ),
-                        )
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(9999),
+                                color: const Color(
+                                  0xFF00FFB2,
+                                ).withValues(alpha: 0.2),
+                              ),
+                              child: Center(
+                                child: CustomPaint(
+                                  size: const Size(40, 40),
+                                  painter: CheckIconPainter(),
+                                ),
+                              ),
+                            )
                             .animate()
-                            .scale(
-                          duration: 600.ms,
-                          curve: Curves.elasticOut,
-                        )
+                            .scale(duration: 600.ms, curve: Curves.elasticOut)
                             .fadeIn(duration: 400.ms),
                         const SizedBox(height: 13),
                         const Text(
@@ -644,10 +619,7 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
                             fontWeight: FontWeight.w700,
                             height: 32 / 20,
                           ),
-                        ).animate().fadeIn(
-                          delay: 200.ms,
-                          duration: 400.ms,
-                        ),
+                        ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
                         const SizedBox(height: 8),
                         const Text(
                           'Wallet is ready. We will now help you set up backup.',
@@ -659,10 +631,7 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
                             fontWeight: FontWeight.w400,
                             height: 24 / 14,
                           ),
-                        ).animate().fadeIn(
-                          delay: 300.ms,
-                          duration: 400.ms,
-                        ),
+                        ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -695,10 +664,7 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
                               ),
                             ],
                           ),
-                        ).animate().fadeIn(
-                          delay: 400.ms,
-                          duration: 400.ms,
-                        ),
+                        ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
                       ],
                     ),
                   ),
@@ -715,12 +681,13 @@ class _ImportNostrScreenState extends State<ImportNostrScreen> {
 class BackArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
     final path = Path();
     path.moveTo(size.width * 0.5, size.height * 0.2);
@@ -743,12 +710,13 @@ class BackArrowPainter extends CustomPainter {
 class QrCodeIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF4B5563)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = const Color(0xFF4B5563)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
     final squareSize = size.width * 0.2;
     final gap = size.width * 0.05;
@@ -807,12 +775,13 @@ class QrCodeIconPainter extends CustomPainter {
 class InfoIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFF7931A)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = const Color(0xFFF7931A)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
     canvas.drawCircle(
       Offset(size.width / 2, size.height / 2),
@@ -826,9 +795,10 @@ class InfoIconPainter extends CustomPainter {
       paint,
     );
 
-    final dotPaint = Paint()
-      ..color = const Color(0xFFF7931A)
-      ..style = PaintingStyle.fill;
+    final dotPaint =
+        Paint()
+          ..color = const Color(0xFFF7931A)
+          ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
       Offset(size.width / 2, size.height * 0.67),
@@ -844,12 +814,13 @@ class InfoIconPainter extends CustomPainter {
 class CheckIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF00FFB2)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = const Color(0xFF00FFB2)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
     final arcPath = Path();
     arcPath.addArc(

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'nostr_debug_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_debug_service.dart';
 
 /// Direct WebSocket client for Nostr relays
 /// Bypasses nostr_dart library for more reliable event fetching

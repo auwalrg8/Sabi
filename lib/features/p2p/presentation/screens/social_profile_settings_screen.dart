@@ -53,11 +53,7 @@ class _SocialProfileSettingsScreenState
               color: const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              size: 20.sp,
-            ),
+            child: Icon(Icons.arrow_back, color: Colors.white, size: 20.sp),
           ),
         ),
         title: Text(
@@ -70,35 +66,36 @@ class _SocialProfileSettingsScreenState
         ),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(16.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Info Card
-                  _buildInfoCard(),
-                  SizedBox(height: 24.h),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                padding: EdgeInsets.all(16.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Info Card
+                    _buildInfoCard(),
+                    SizedBox(height: 24.h),
 
-                  // Global Toggle
-                  _buildGlobalToggle(),
-                  SizedBox(height: 24.h),
+                    // Global Toggle
+                    _buildGlobalToggle(),
+                    SizedBox(height: 24.h),
 
-                  // Linked Profiles Section
-                  _buildLinkedProfilesSection(),
-                  SizedBox(height: 24.h),
+                    // Linked Profiles Section
+                    _buildLinkedProfilesSection(),
+                    SizedBox(height: 24.h),
 
-                  // Add More Section
-                  _buildAddMoreSection(),
-                  SizedBox(height: 24.h),
+                    // Add More Section
+                    _buildAddMoreSection(),
+                    SizedBox(height: 24.h),
 
-                  // Privacy Notice
-                  _buildPrivacyNotice(),
-                  SizedBox(height: 32.h),
-                ],
+                    // Privacy Notice
+                    _buildPrivacyNotice(),
+                    SizedBox(height: 32.h),
+                  ],
+                ),
               ),
-            ),
     );
   }
 
@@ -183,10 +180,7 @@ class _SocialProfileSettingsScreenState
       ),
       child: Text(
         text,
-        style: TextStyle(
-          color: const Color(0xFFA1A1B2),
-          fontSize: 10.sp,
-        ),
+        style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 10.sp),
       ),
     );
   }
@@ -277,14 +271,16 @@ class _SocialProfileSettingsScreenState
         if (_profiles.isEmpty)
           _buildEmptyState()
         else
-          ..._profiles.map((profile) => Padding(
-                padding: EdgeInsets.only(bottom: 12.h),
-                child: SocialProfileCard(
-                  profile: profile,
-                  onEdit: () => _showAddEditDialog(existingProfile: profile),
-                  onRemove: () => _confirmRemoveProfile(profile),
-                ),
-              )),
+          ..._profiles.map(
+            (profile) => Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: SocialProfileCard(
+                profile: profile,
+                onEdit: () => _showAddEditDialog(existingProfile: profile),
+                onRemove: () => _confirmRemoveProfile(profile),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -320,10 +316,7 @@ class _SocialProfileSettingsScreenState
           Text(
             'Add your social profiles to build trust with trading partners',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: const Color(0xFF6B6B80),
-              fontSize: 13.sp,
-            ),
+            style: TextStyle(color: const Color(0xFF6B6B80), fontSize: 13.sp),
           ),
           SizedBox(height: 16.h),
           ElevatedButton.icon(
@@ -350,7 +343,9 @@ class _SocialProfileSettingsScreenState
     // Find platforms not yet linked
     final linkedPlatforms = _profiles.map((p) => p.platform).toSet();
     final availablePlatforms =
-        SocialPlatform.values.where((p) => !linkedPlatforms.contains(p)).toList();
+        SocialPlatform.values
+            .where((p) => !linkedPlatforms.contains(p))
+            .toList();
 
     if (availablePlatforms.isEmpty) {
       return Container(
@@ -358,7 +353,9 @@ class _SocialProfileSettingsScreenState
         decoration: BoxDecoration(
           color: const Color(0xFF00FFB2).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: const Color(0xFF00FFB2).withValues(alpha: 0.3)),
+          border: Border.all(
+            color: const Color(0xFF00FFB2).withValues(alpha: 0.3),
+          ),
         ),
         child: Row(
           children: [
@@ -396,42 +393,43 @@ class _SocialProfileSettingsScreenState
         Wrap(
           spacing: 10.w,
           runSpacing: 10.h,
-          children: availablePlatforms.map((platform) {
-            return GestureDetector(
-              onTap: () => _showAddEditDialog(initialPlatform: platform),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: const Color(0xFF2A2A40)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      platform.emoji,
-                      style: TextStyle(fontSize: 18.sp),
+          children:
+              availablePlatforms.map((platform) {
+                return GestureDetector(
+                  onTap: () => _showAddEditDialog(initialPlatform: platform),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 12.h,
                     ),
-                    SizedBox(width: 8.w),
-                    Text(
-                      platform.displayName,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13.sp,
-                      ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A2E),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(color: const Color(0xFF2A2A40)),
                     ),
-                    SizedBox(width: 8.w),
-                    Icon(
-                      Icons.add_circle_outline,
-                      color: const Color(0xFF6B6B80),
-                      size: 16.sp,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(platform.emoji, style: TextStyle(fontSize: 18.sp)),
+                        SizedBox(width: 8.w),
+                        Text(
+                          platform.displayName,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.sp,
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Icon(
+                          Icons.add_circle_outline,
+                          color: const Color(0xFF6B6B80),
+                          size: 16.sp,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
+                  ),
+                );
+              }).toList(),
         ),
       ],
     );
@@ -498,19 +496,12 @@ class _SocialProfileSettingsScreenState
   Widget _buildPrivacyItem(IconData icon, String text) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFF6B6B80),
-          size: 16.sp,
-        ),
+        Icon(icon, color: const Color(0xFF6B6B80), size: 16.sp),
         SizedBox(width: 8.w),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              color: const Color(0xFFA1A1B2),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
           ),
         ),
       ],
@@ -523,67 +514,63 @@ class _SocialProfileSettingsScreenState
   }) {
     showDialog(
       context: context,
-      builder: (context) => AddProfileDialog(
-        initialPlatform: initialPlatform,
-        existingProfile: existingProfile,
-        onSave: (profile) async {
-          await SocialProfileService.setProfile(profile);
-          await _loadProfiles();
-        },
-      ),
+      builder:
+          (context) => AddProfileDialog(
+            initialPlatform: initialPlatform,
+            existingProfile: existingProfile,
+            onSave: (profile) async {
+              await SocialProfileService.setProfile(profile);
+              await _loadProfiles();
+            },
+          ),
     );
   }
 
   void _confirmRemoveProfile(SocialProfile profile) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.r),
-        ),
-        title: Text(
-          'Remove ${profile.platform.displayName}?',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18.sp,
-          ),
-        ),
-        content: Text(
-          'This will remove your ${profile.platform.displayName} profile from your trust profiles.',
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 14.sp,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: const Color(0xFF6B6B80),
-                fontSize: 14.sp,
-              ),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A2E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
             ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await SocialProfileService.removeProfile(profile.platform);
-              await _loadProfiles();
-            },
-            child: Text(
-              'Remove',
-              style: TextStyle(
-                color: const Color(0xFFFF6B6B),
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-              ),
+            title: Text(
+              'Remove ${profile.platform.displayName}?',
+              style: TextStyle(color: Colors.white, fontSize: 18.sp),
             ),
+            content: Text(
+              'This will remove your ${profile.platform.displayName} profile from your trust profiles.',
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: const Color(0xFF6B6B80),
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await SocialProfileService.removeProfile(profile.platform);
+                  await _loadProfiles();
+                },
+                child: Text(
+                  'Remove',
+                  style: TextStyle(
+                    color: const Color(0xFFFF6B6B),
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

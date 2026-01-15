@@ -59,11 +59,7 @@ class TradeCodeDisplay extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // My part (visible)
-              _CodeDigits(
-                digits: _myPart,
-                isVisible: true,
-                label: 'Your code',
-              ),
+              _CodeDigits(digits: _myPart, isVisible: true, label: 'Your code'),
               SizedBox(width: 12.w),
               Text(
                 '+',
@@ -77,7 +73,8 @@ class TradeCodeDisplay extends StatelessWidget {
               _CodeDigits(
                 digits: '???',
                 isVisible: false,
-                label: '${_otherRole.substring(0, 1).toUpperCase()}${_otherRole.substring(1)}\'s code',
+                label:
+                    '${_otherRole.substring(0, 1).toUpperCase()}${_otherRole.substring(1)}\'s code',
               ),
             ],
           ),
@@ -169,43 +166,46 @@ class _CodeDigits extends StatelessWidget {
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
-          children: digits.split('').map((d) {
-            return Container(
-              margin: EdgeInsets.symmetric(horizontal: 2.w),
-              width: 36.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: isVisible 
-                    ? const Color(0xFFF7931A).withOpacity(0.15)
-                    : const Color(0xFF2A2A3E),
-                borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(
-                  color: isVisible 
-                      ? const Color(0xFFF7931A).withOpacity(0.5)
-                      : const Color(0xFF3A3A4E),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  d,
-                  style: TextStyle(
-                    color: isVisible ? const Color(0xFFF7931A) : const Color(0xFF6B6B80),
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.bold,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+          children:
+              digits.split('').map((d) {
+                return Container(
+                  margin: EdgeInsets.symmetric(horizontal: 2.w),
+                  width: 36.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color:
+                        isVisible
+                            ? const Color(0xFFF7931A).withOpacity(0.15)
+                            : const Color(0xFF2A2A3E),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color:
+                          isVisible
+                              ? const Color(0xFFF7931A).withOpacity(0.5)
+                              : const Color(0xFF3A3A4E),
+                    ),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                  child: Center(
+                    child: Text(
+                      d,
+                      style: TextStyle(
+                        color:
+                            isVisible
+                                ? const Color(0xFFF7931A)
+                                : const Color(0xFF6B6B80),
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.bold,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
         ),
         SizedBox(height: 6.h),
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 10.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 10.sp),
         ),
       ],
     );
@@ -216,10 +216,7 @@ class _InstructionStep extends StatelessWidget {
   final String number;
   final String text;
 
-  const _InstructionStep({
-    required this.number,
-    required this.text,
-  });
+  const _InstructionStep({required this.number, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -350,9 +347,10 @@ class _TradeCodeInputState extends State<TradeCodeInput> {
         color: const Color(0xFF111128),
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: _isValid == null
-              ? const Color(0xFF2A2A3E)
-              : _isValid!
+          color:
+              _isValid == null
+                  ? const Color(0xFF2A2A3E)
+                  : _isValid!
                   ? const Color(0xFF00FFB2).withOpacity(0.5)
                   : const Color(0xFFFF6B6B).withOpacity(0.5),
         ),
@@ -377,16 +375,28 @@ class _TradeCodeInputState extends State<TradeCodeInput> {
               if (!widget.isBuyer) ...[
                 _buildInputDigits(),
                 SizedBox(width: 8.w),
-                Text('+', style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 20.sp)),
+                Text(
+                  '+',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 20.sp,
+                  ),
+                ),
                 SizedBox(width: 8.w),
               ],
-              
+
               // My code display
               ...widget.myCode.split('').map((d) => _buildCodeDigit(d, true)),
 
               if (widget.isBuyer) ...[
                 SizedBox(width: 8.w),
-                Text('+', style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 20.sp)),
+                Text(
+                  '+',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 20.sp,
+                  ),
+                ),
                 SizedBox(width: 8.w),
                 _buildInputDigits(),
               ],
@@ -423,14 +433,20 @@ class _TradeCodeInputState extends State<TradeCodeInput> {
               children: [
                 Icon(
                   _isValid! ? Icons.check_circle : Icons.error,
-                  color: _isValid! ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                  color:
+                      _isValid!
+                          ? const Color(0xFF00FFB2)
+                          : const Color(0xFFFF6B6B),
                   size: 18.sp,
                 ),
                 SizedBox(width: 8.w),
                 Text(
                   _isValid! ? 'Code verified!' : 'Code mismatch - try again',
                   style: TextStyle(
-                    color: _isValid! ? const Color(0xFF00FFB2) : const Color(0xFFFF6B6B),
+                    color:
+                        _isValid!
+                            ? const Color(0xFF00FFB2)
+                            : const Color(0xFFFF6B6B),
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                   ),
@@ -516,11 +532,7 @@ class TradeCodeBadge extends StatelessWidget {
   final bool hasTradeCode;
   final VoidCallback? onTap;
 
-  const TradeCodeBadge({
-    super.key,
-    required this.hasTradeCode,
-    this.onTap,
-  });
+  const TradeCodeBadge({super.key, required this.hasTradeCode, this.onTap});
 
   @override
   Widget build(BuildContext context) {

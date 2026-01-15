@@ -1,10 +1,5 @@
 /// Types of VTU services
-enum VtuServiceType {
-  airtime,
-  data,
-  electricity,
-  cableTv,
-}
+enum VtuServiceType { airtime, data, electricity, cableTv }
 
 extension VtuServiceTypeExtension on VtuServiceType {
   String get name {
@@ -22,13 +17,7 @@ extension VtuServiceTypeExtension on VtuServiceType {
 }
 
 /// Status of a VTU order
-enum VtuOrderStatus {
-  pending,
-  processing,
-  completed,
-  failed,
-  refunded,
-}
+enum VtuOrderStatus { pending, processing, completed, failed, refunded }
 
 extension VtuOrderStatusExtension on VtuOrderStatus {
   String get name {
@@ -63,11 +52,7 @@ extension VtuOrderStatusExtension on VtuOrderStatus {
 }
 
 /// Status of a refund request
-enum RefundStatus {
-  none,
-  requested,
-  completed,
-}
+enum RefundStatus { none, requested, completed }
 
 extension RefundStatusExtension on RefundStatus {
   String get name {
@@ -219,13 +204,12 @@ class VtuOrder {
       recipient: json['recipient'] as String,
       amountNaira: (json['amountNaira'] as num).toDouble(),
       amountSats: json['amountSats'] as int,
-      status: VtuOrderStatus.values.firstWhere(
-        (e) => e.name == json['status'],
-      ),
+      status: VtuOrderStatus.values.firstWhere((e) => e.name == json['status']),
       createdAt: DateTime.parse(json['createdAt'] as String),
-      completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'] as String)
-          : null,
+      completedAt:
+          json['completedAt'] != null
+              ? DateTime.parse(json['completedAt'] as String)
+              : null,
       networkCode: json['networkCode'] as String?,
       dataPlanId: json['dataPlanId'] as String?,
       electricityProvider: json['electricityProvider'] as String?,
@@ -234,19 +218,22 @@ class VtuOrder {
       cableTvProvider: json['cableTvProvider'] as String?,
       cableTvPlanId: json['cableTvPlanId'] as String?,
       errorMessage: json['errorMessage'] as String?,
-      refundStatus: json['refundStatus'] != null
-          ? RefundStatus.values.firstWhere(
-              (e) => e.name == json['refundStatus'],
-              orElse: () => RefundStatus.none,
-            )
-          : RefundStatus.none,
+      refundStatus:
+          json['refundStatus'] != null
+              ? RefundStatus.values.firstWhere(
+                (e) => e.name == json['refundStatus'],
+                orElse: () => RefundStatus.none,
+              )
+              : RefundStatus.none,
       refundInvoice: json['refundInvoice'] as String?,
-      refundRequestedAt: json['refundRequestedAt'] != null
-          ? DateTime.parse(json['refundRequestedAt'] as String)
-          : null,
-      refundCompletedAt: json['refundCompletedAt'] != null
-          ? DateTime.parse(json['refundCompletedAt'] as String)
-          : null,
+      refundRequestedAt:
+          json['refundRequestedAt'] != null
+              ? DateTime.parse(json['refundRequestedAt'] as String)
+              : null,
+      refundCompletedAt:
+          json['refundCompletedAt'] != null
+              ? DateTime.parse(json['refundCompletedAt'] as String)
+              : null,
     );
   }
 

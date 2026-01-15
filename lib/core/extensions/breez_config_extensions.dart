@@ -7,7 +7,8 @@ extension ConfigCopyWith on Config {
     String? apiKey,
     Network? network,
     int? syncIntervalSecs,
-    Fee? maxDepositClaimFee,
+    MaxFee? maxDepositClaimFee,
+    OptimizationConfig? optimizationConfig,
     String? lnurlDomain,
     bool? preferSparkOverLightning,
     List<ExternalInputParser>? externalInputParsers,
@@ -20,12 +21,17 @@ extension ConfigCopyWith on Config {
       network: network ?? this.network,
       syncIntervalSecs: syncIntervalSecs ?? this.syncIntervalSecs,
       maxDepositClaimFee: maxDepositClaimFee ?? this.maxDepositClaimFee,
+      optimizationConfig: optimizationConfig ?? this.optimizationConfig,
       lnurlDomain: lnurlDomain ?? this.lnurlDomain,
-      preferSparkOverLightning: preferSparkOverLightning ?? this.preferSparkOverLightning,
+      preferSparkOverLightning:
+          preferSparkOverLightning ?? this.preferSparkOverLightning,
       externalInputParsers: externalInputParsers ?? this.externalInputParsers,
-      useDefaultExternalInputParsers: useDefaultExternalInputParsers ?? this.useDefaultExternalInputParsers,
-      realTimeSyncServerUrl: realTimeSyncServerUrl ?? this.realTimeSyncServerUrl,
-      privateEnabledDefault: privateEnabledDefault ?? this.privateEnabledDefault,
+      useDefaultExternalInputParsers:
+          useDefaultExternalInputParsers ?? this.useDefaultExternalInputParsers,
+      realTimeSyncServerUrl:
+          realTimeSyncServerUrl ?? this.realTimeSyncServerUrl,
+      privateEnabledDefault:
+          privateEnabledDefault ?? this.privateEnabledDefault,
     );
   }
 }

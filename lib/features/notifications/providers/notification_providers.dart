@@ -3,16 +3,16 @@ import 'package:sabi_wallet/core/models/notification_model.dart';
 import 'package:sabi_wallet/services/notification_listener_service.dart';
 
 // Singleton instance of notification service
-final notificationListenerServiceProvider = Provider<NotificationListenerService>((ref) {
-  return NotificationListenerService();
-});
+final notificationListenerServiceProvider =
+    Provider<NotificationListenerService>((ref) {
+      return NotificationListenerService();
+    });
 
 // List of all notifications (sorted by timestamp, newest first)
-final notificationsProvider = StateNotifierProvider<
-    NotificationsNotifier,
-    List<NotificationItem>>((ref) {
-  return NotificationsNotifier();
-});
+final notificationsProvider =
+    StateNotifierProvider<NotificationsNotifier, List<NotificationItem>>((ref) {
+      return NotificationsNotifier();
+    });
 
 class NotificationsNotifier extends StateNotifier<List<NotificationItem>> {
   NotificationsNotifier() : super([]);
@@ -33,8 +33,7 @@ class NotificationsNotifier extends StateNotifier<List<NotificationItem>> {
 
   void markAllAsRead() {
     state = [
-      for (final notification in state)
-        notification.copyWith(isRead: true),
+      for (final notification in state) notification.copyWith(isRead: true),
     ];
   }
 
@@ -62,15 +61,15 @@ final inAppBannerProvider = StateProvider<NotificationItem?>((ref) => null);
 // Show in-app banner
 final showInAppBannerProvider =
     StateNotifierProvider<ShowInAppBannerNotifier, NotificationItem?>((ref) {
-  return ShowInAppBannerNotifier();
-});
+      return ShowInAppBannerNotifier();
+    });
 
 class ShowInAppBannerNotifier extends StateNotifier<NotificationItem?> {
   ShowInAppBannerNotifier() : super(null);
 
   void show(NotificationItem notification) {
     state = notification;
-    
+
     // Auto-dismiss after 5 seconds
     Future.delayed(const Duration(seconds: 5), () {
       if (state?.id == notification.id) {

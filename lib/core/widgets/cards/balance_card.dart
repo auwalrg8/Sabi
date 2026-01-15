@@ -78,7 +78,7 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
   Widget build(BuildContext context) {
     // Watch for currency changes
     final selectedCurrency = ref.watch(selectedFiatCurrencyProvider);
-    
+
     // Reload rate if currency changed
     if (selectedCurrency != _currentCurrency) {
       _currentCurrency = selectedCurrency;
@@ -111,150 +111,151 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
               ],
             ),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-          // Header: Title + Hide Button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Total Balance',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              // Hide balance button
-              IconButton(
-                onPressed: widget.onToggleHide,
-                icon: Icon(
-                  widget.isBalanceHidden ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.textSecondary,
-                  size: 22,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Balance display (sats or fiat)
-          if (widget.isBalanceHidden)
-            const Text(
-              '••••',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 40,
-                fontWeight: FontWeight.w700,
-                height: 0.9,
-                letterSpacing: 8,
-              ),
-            )
-          else if (_showFiat && _btcToFiatRate != null)
-            // Fiat view (NGN or USD based on settings)
-            Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Header: Title + Hide Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
-                      _currentCurrency.symbol,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        height: 0.9,
+                    const Text(
+                      'Total Balance',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          _formatFiat(widget.balanceSats, _btcToFiatRate!),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 40,
-                            fontWeight: FontWeight.w700,
-                            height: 0.9,
+                    // Hide balance button
+                    IconButton(
+                      onPressed: widget.onToggleHide,
+                      icon: Icon(
+                        widget.isBalanceHidden
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: AppColors.textSecondary,
+                        size: 22,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Balance display (sats or fiat)
+                if (widget.isBalanceHidden)
+                  const Text(
+                    '••••',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 40,
+                      fontWeight: FontWeight.w700,
+                      height: 0.9,
+                      letterSpacing: 8,
+                    ),
+                  )
+                else if (_showFiat && _btcToFiatRate != null)
+                  // Fiat view (NGN or USD based on settings)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            _currentCurrency.symbol,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              height: 0.9,
+                            ),
                           ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                _formatFiat(
+                                  widget.balanceSats,
+                                  _btcToFiatRate!,
+                                ),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w700,
+                                  height: 0.9,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${_formatSats(widget.balanceSats)} sats',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '${_formatSats(widget.balanceSats)} sats',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                      const SizedBox(height: 4),
+                    ],
+                  )
+                else
+                  // Sats view
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            _formatSats(widget.balanceSats),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 40,
+                              fontWeight: FontWeight.w700,
+                              height: 0.9,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'sats',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              height: 0.9,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '≈ ${_satsToBTC(widget.balanceSats)} BTC',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-              ],
-            )
-          else
-            // Sats view
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      _formatSats(widget.balanceSats),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w700,
-                        height: 0.9,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'sats',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        height: 0.9,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '≈ ${_satsToBTC(widget.balanceSats)} BTC',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
               ],
             ),
-            ],
           ),
-        ),
         ),
         // Confetti overlay
         if (widget.showConfetti)
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: Confetti(),
-            ),
-          ),
+          const Positioned.fill(child: IgnorePointer(child: Confetti())),
       ],
     );
   }
@@ -264,9 +265,11 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
     final fiatValue = btc * rate;
     // Use 2 decimal places for USD, 0 for NGN
     final decimals = _currentCurrency == FiatCurrency.usd ? 2 : 0;
-    return fiatValue.toStringAsFixed(decimals).replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (match) => '${match[1]},',
-    );
+    return fiatValue
+        .toStringAsFixed(decimals)
+        .replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (match) => '${match[1]},',
+        );
   }
 }

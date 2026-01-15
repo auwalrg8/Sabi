@@ -57,7 +57,7 @@ class UtilitiesHubScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 20.h),
-              
+
               // Utilities Grid
               GridView.count(
                 crossAxisCount: 2,
@@ -82,7 +82,7 @@ class UtilitiesHubScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  
+
                   // Cable TV
                   _UtilityCard(
                     icon: Icons.tv,
@@ -100,9 +100,9 @@ class UtilitiesHubScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               SizedBox(height: 32.h),
-              
+
               // Coming Soon Section
               Text(
                 'Coming Soon',
@@ -113,7 +113,7 @@ class UtilitiesHubScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 12.h),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -170,9 +170,7 @@ class _UtilityCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: const Color(0xFF2A2A3E),
-          ),
+          border: Border.all(color: const Color(0xFF2A2A3E)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,11 +183,7 @@ class _UtilityCard extends StatelessWidget {
                 color: color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12.r),
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 26.sp,
-              ),
+              child: Icon(icon, color: color, size: 26.sp),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,10 +219,7 @@ class _ComingSoonCard extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _ComingSoonCard({
-    required this.icon,
-    required this.label,
-  });
+  const _ComingSoonCard({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -237,24 +228,15 @@ class _ComingSoonCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E).withOpacity(0.5),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: const Color(0xFF2A2A3E).withOpacity(0.5),
-        ),
+        border: Border.all(color: const Color(0xFF2A2A3E).withOpacity(0.5)),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: const Color(0xFF6B7280),
-            size: 24.sp,
-          ),
+          Icon(icon, color: const Color(0xFF6B7280), size: 24.sp),
           SizedBox(height: 8.h),
           Text(
             label,
-            style: TextStyle(
-              color: const Color(0xFF6B7280),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFF6B7280), fontSize: 12.sp),
           ),
         ],
       ),

@@ -1,12 +1,12 @@
 /// Dialog widgets and utilities
-/// 
+///
 /// This file exports all dialog-related widgets and utilities
 /// for easy importing throughout the app.
-/// 
+///
 /// Usage:
 /// ```dart
 /// import 'package:sabi_wallet/core/widgets/dialogs/dialogs.dart';
-/// 
+///
 /// // Show a success dialog
 /// AppDialogs.success(
 ///   title: 'Success',

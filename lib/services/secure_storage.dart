@@ -16,10 +16,7 @@ class SecureStorage {
     // Hive.initFlutter() is now called globally in main() to avoid race conditions
     // HiveAesCipher requires a 32-byte key. Persist the key in secure storage.
     final key = await _getEncryptionKey();
-    _box = await Hive.openBox(
-      _boxName,
-      encryptionCipher: HiveAesCipher(key),
-    );
+    _box = await Hive.openBox(_boxName, encryptionCipher: HiveAesCipher(key));
     _initialized = true;
   }
 
@@ -28,7 +25,9 @@ class SecureStorage {
   static Future<List<int>> _getEncryptionKey() async {
     try {
       // Try to read existing key from secure storage
-      final existingKey = await _secureStorage.read(key: _hiveEncryptionKeyName);
+      final existingKey = await _secureStorage.read(
+        key: _hiveEncryptionKeyName,
+      );
       if (existingKey != null && existingKey.isNotEmpty) {
         // Decode the stored key (stored as base64)
         final bytes = base64Decode(existingKey);
@@ -36,14 +35,14 @@ class SecureStorage {
           return bytes;
         }
       }
-      
+
       // No existing key found - generate a new one
       final newKey = Hive.generateSecureKey();
-      
+
       // Store the key in secure storage for future use
       final keyBase64 = base64Encode(newKey);
       await _secureStorage.write(key: _hiveEncryptionKeyName, value: keyBase64);
-      
+
       return newKey;
     } catch (e) {
       // Fallback to generating a new key (will cause data loss if previous data exists)
@@ -54,7 +53,8 @@ class SecureStorage {
   static String? get inviteCode => _box.get('invite_code');
   static String? get nodeId => _box.get('node_id');
   static bool get hasWallet => inviteCode != null;
-  static bool get initialChannelOpened => _box.get('initial_channel_opened', defaultValue: false);
+  static bool get initialChannelOpened =>
+      _box.get('initial_channel_opened', defaultValue: false);
 
   static Future<void> saveWalletData({
     required String inviteCode,

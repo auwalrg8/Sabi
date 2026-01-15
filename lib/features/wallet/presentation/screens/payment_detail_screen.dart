@@ -16,7 +16,8 @@ class PaymentDetailScreen extends ConsumerStatefulWidget {
   const PaymentDetailScreen({super.key, required this.payment});
 
   @override
-  ConsumerState<PaymentDetailScreen> createState() => _PaymentDetailScreenState();
+  ConsumerState<PaymentDetailScreen> createState() =>
+      _PaymentDetailScreenState();
 }
 
 class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
@@ -85,7 +86,9 @@ class _PaymentDetailScreenState extends ConsumerState<PaymentDetailScreen> {
             widget.payment.description.isNotEmpty
                 ? widget.payment.description
                 : null,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(widget.payment.paymentTime * 1000),
+        timestamp: DateTime.fromMillisecondsSinceEpoch(
+          widget.payment.paymentTime * 1000,
+        ),
         transactionId: widget.payment.id,
       );
       await ReceiptService.shareAsPdf(data);

@@ -77,9 +77,10 @@ class _AmountButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? accentColor.withOpacity(0.15) 
-              : const Color(0xFF1A1A2E),
+          color:
+              isSelected
+                  ? accentColor.withOpacity(0.15)
+                  : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isSelected ? accentColor : const Color(0xFF2A2A3E),
@@ -140,9 +141,10 @@ class CustomAmountInput extends StatelessWidget {
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-              color: errorText != null 
-                  ? const Color(0xFFFF4D4F) 
-                  : const Color(0xFF2A2A3E),
+              color:
+                  errorText != null
+                      ? const Color(0xFFFF4D4F)
+                      : const Color(0xFF2A2A3E),
             ),
           ),
           child: Row(
@@ -169,10 +171,7 @@ class CustomAmountInput extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.number,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.sp,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
                   decoration: InputDecoration(
                     hintText: '1,000',
                     hintStyle: TextStyle(
@@ -180,7 +179,10 @@ class CustomAmountInput extends StatelessWidget {
                       fontSize: 16.sp,
                     ),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 14.h,
+                    ),
                   ),
                   onChanged: onChanged,
                 ),
@@ -192,20 +194,14 @@ class CustomAmountInput extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             'Min: ${RateService.formatNaira(minAmount ?? 0)} • Max: ${RateService.formatNaira(maxAmount ?? 0)}',
-            style: TextStyle(
-              color: const Color(0xFF6B7280),
-              fontSize: 11.sp,
-            ),
+            style: TextStyle(color: const Color(0xFF6B7280), fontSize: 11.sp),
           ),
         ],
         if (errorText != null) ...[
           SizedBox(height: 6.h),
           Text(
             errorText!,
-            style: TextStyle(
-              color: const Color(0xFFFF4D4F),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFFF4D4F), fontSize: 12.sp),
           ),
         ],
       ],

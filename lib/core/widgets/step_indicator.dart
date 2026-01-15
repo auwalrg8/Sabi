@@ -29,9 +29,7 @@ class StepIndicator extends StatelessWidget {
               height: 2.h,
               margin: EdgeInsets.symmetric(horizontal: 4.w),
               decoration: BoxDecoration(
-                color: isCompleted
-                    ? AppColors.primary
-                    : AppColors.surface,
+                color: isCompleted ? AppColors.primary : AppColors.surface,
                 borderRadius: BorderRadius.circular(1.r),
               ),
             ),
@@ -46,9 +44,10 @@ class StepIndicator extends StatelessWidget {
             stepNumber: stepIndex + 1,
             isCompleted: isCompleted,
             isCurrent: isCurrent,
-            label: stepLabels != null && stepIndex < stepLabels!.length
-                ? stepLabels![stepIndex]
-                : null,
+            label:
+                stepLabels != null && stepIndex < stepLabels!.length
+                    ? stepLabels![stepIndex]
+                    : null,
           );
         }
       }),
@@ -81,35 +80,35 @@ class _StepCircle extends StatelessWidget {
           height: isCurrent ? 36.h : 28.h,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isCompleted
-                ? AppColors.primary
-                : isCurrent
+            color:
+                isCompleted
+                    ? AppColors.primary
+                    : isCurrent
                     ? AppColors.primary.withValues(alpha: 0.2)
                     : AppColors.surface,
             border: Border.all(
-              color: isCompleted || isCurrent
-                  ? AppColors.primary
-                  : AppColors.textSecondary.withValues(alpha: 0.3),
+              color:
+                  isCompleted || isCurrent
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withValues(alpha: 0.3),
               width: 2.w,
             ),
           ),
           child: Center(
-            child: isCompleted
-                ? Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 16.sp,
-                  )
-                : Text(
-                    '$stepNumber',
-                    style: TextStyle(
-                      color: isCurrent
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      fontSize: isCurrent ? 14.sp : 12.sp,
-                      fontWeight: FontWeight.w600,
+            child:
+                isCompleted
+                    ? Icon(Icons.check, color: Colors.white, size: 16.sp)
+                    : Text(
+                      '$stepNumber',
+                      style: TextStyle(
+                        color:
+                            isCurrent
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                        fontSize: isCurrent ? 14.sp : 12.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
           ),
         ),
         if (label != null) ...[
@@ -117,9 +116,10 @@ class _StepCircle extends StatelessWidget {
           Text(
             label!,
             style: TextStyle(
-              color: isCurrent
-                  ? AppColors.primary
-                  : isCompleted
+              color:
+                  isCurrent
+                      ? AppColors.primary
+                      : isCompleted
                       ? Colors.white
                       : AppColors.textSecondary,
               fontSize: 10.sp,

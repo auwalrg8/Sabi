@@ -13,7 +13,8 @@ import '../firebase_options.dart';
 
 /// Global instance for background isolate use
 /// This ensures the same instance is used after initialization
-final FlutterLocalNotificationsPlugin _backgroundLocalNotifications = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin _backgroundLocalNotifications =
+    FlutterLocalNotificationsPlugin();
 bool _backgroundNotificationsInitialized = false;
 
 /// Top-level function to handle background messages (MUST be top-level)
@@ -22,13 +23,13 @@ bool _backgroundNotificationsInitialized = false;
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Need to initialize Firebase again for background isolate
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
+
   // Initialize local notifications for the background isolate
   await _initBackgroundNotifications();
-  
+
   debugPrint('🔔 [Background] FCM message received: ${message.messageId}');
   debugPrint('🔔 [Background] Data: ${message.data}');
-  
+
   // Handle the background message directly here to ensure proper initialization
   await _handleBackgroundMessageInternal(message);
 }
@@ -38,15 +39,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 @pragma('vm:entry-point')
 Future<void> _initBackgroundNotifications() async {
   if (_backgroundNotificationsInitialized) return;
-  
-  const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('ic_notification');
-  const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
-  
+
+  const AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('ic_notification');
+  const DarwinInitializationSettings iosSettings =
+      DarwinInitializationSettings();
+
   const InitializationSettings initSettings = InitializationSettings(
     android: androidSettings,
     iOS: iosSettings,
   );
-  
+
   await _backgroundLocalNotifications.initialize(initSettings);
   _backgroundNotificationsInitialized = true;
 }
@@ -54,64 +57,53 @@ Future<void> _initBackgroundNotifications() async {
 /// Handle background message - top level function for isolate
 @pragma('vm:entry-point')
 Future<void> _handleBackgroundMessageInternal(RemoteMessage message) async {
-  debugPrint('🔔 [Background Handler] Processing message: ${message.messageId}');
-  
+  debugPrint(
+    '🔔 [Background Handler] Processing message: ${message.messageId}',
+  );
+
   // Check if this is a "sync" message to trigger wallet sync
   final messageType = message.data['type'] as String?;
   if (messageType == 'sync' || messageType == 'wake_device') {
     debugPrint('🔄 [Background] Received sync trigger message');
     return;
   }
-  
-  // Check if this is a payment notification from the LNURL server
-  if (messageType == 'payment_received') {
-    debugPrint('💰 [Background] Payment received notification!');
-    
-    final amountSats = message.data['amountSats'] ?? '0';
-    final amountNaira = message.data['amountNaira'];
-    
-    String body = 'You received $amountSats sats';
-    if (amountNaira != null) {
-      body = 'You received $amountSats sats (₦$amountNaira)';
-    }
-    
-    await _backgroundLocalNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      '⚡ Payment Received!',
-      body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'sabi_wallet_payments',
-          'Payments',
-          importance: Importance.max,
-          priority: Priority.max,
-          playSound: true,
-          enableVibration: true,
-        ),
-        iOS: DarwinNotificationDetails(
-          presentSound: true,
-          presentBadge: true,
-          presentAlert: true,
-        ),
-      ),
-      payload: jsonEncode(message.data),
+
+  // Handle key background notification types when app is killed
+  if (messageType == 'payment_received' ||
+      messageType == 'p2p_new_message' ||
+      messageType == 'vtu_order_failed') {
+    final content = _buildBackgroundNotificationContent(
+      messageType,
+      message.data,
+    );
+    await _showBackgroundNotification(
+      title: content['title']!,
+      body: content['body']!,
+      data: message.data,
     );
     return;
   }
-  
+
   // Handle other data-only messages
   if (message.notification == null && message.data.isNotEmpty) {
-    final type = FirebaseNotificationService._getNotificationType(message.data['type'] as String?);
+    final type = FirebaseNotificationService._getNotificationType(
+      message.data['type'] as String?,
+    );
     final channelId = FirebaseNotificationService._getChannelForType(type);
-    
+    final channelName = FirebaseNotificationService._getChannelNameForType(
+      type,
+    );
+    final title = message.data['title'] ?? 'Sabi Wallet';
+    final body = message.data['body'] ?? 'You have a new notification';
+
     await _backgroundLocalNotifications.show(
       message.hashCode,
-      message.data['title'] ?? 'Sabi Wallet',
-      message.data['body'] ?? 'You have a new notification',
+      title,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           channelId,
-          channelId,
+          channelName,
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -126,28 +118,105 @@ Future<void> _handleBackgroundMessageInternal(RemoteMessage message) async {
   }
 }
 
+Map<String, String> _buildBackgroundNotificationContent(
+  String? type,
+  Map<String, dynamic> data,
+) {
+  switch (type) {
+    case 'payment_received':
+      final amountSats = data['amountSats'] ?? '0';
+      final amountNaira = data['amountNaira'];
+      final body =
+          amountNaira != null
+              ? 'You received $amountSats sats (₦$amountNaira)'
+              : 'You received $amountSats sats';
+      return {
+        'title': data['title'] ?? '⚡ Payment Received!',
+        'body': data['body'] ?? body,
+      };
+    case 'p2p_new_message':
+      return {
+        'title': data['title'] ?? 'P2P Order Message',
+        'body': data['body'] ?? 'You have a new message on your P2P order.',
+      };
+    case 'vtu_order_failed':
+      return {
+        'title': data['title'] ?? 'VTU Purchase Failed',
+        'body':
+            data['body'] ?? 'Your VTU purchase failed. Tap to view details.',
+      };
+    default:
+      return {
+        'title': data['title'] ?? 'Sabi Wallet',
+        'body': data['body'] ?? 'You have a new notification',
+      };
+  }
+}
+
+Future<void> _showBackgroundNotification({
+  required String title,
+  required String body,
+  required Map<String, dynamic> data,
+}) async {
+  final type = FirebaseNotificationService._getNotificationType(
+    data['type'] as String?,
+  );
+  final channelId = FirebaseNotificationService._getChannelForType(type);
+  final channelName = FirebaseNotificationService._getChannelNameForType(type);
+  final importance =
+      type == PushNotificationType.paymentReceived
+          ? Importance.max
+          : Importance.high;
+  final priority =
+      type == PushNotificationType.paymentReceived
+          ? Priority.max
+          : Priority.high;
+
+  await _backgroundLocalNotifications.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    title,
+    body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        channelId,
+        channelName,
+        importance: importance,
+        priority: priority,
+        playSound: true,
+        enableVibration: true,
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentSound: true,
+        presentBadge: true,
+        presentAlert: true,
+      ),
+    ),
+    payload: jsonEncode(data),
+  );
+}
+
 /// Notification channel definitions for Android
 class NotificationChannels {
   // Payment notifications - highest priority
   static const String paymentChannelId = 'sabi_wallet_payments';
   static const String paymentChannelName = 'Payments';
   static const String paymentChannelDesc = 'Lightning payment notifications';
-  
+
   // P2P trade notifications - high priority
   static const String p2pChannelId = 'sabi_wallet_p2p';
   static const String p2pChannelName = 'P2P Trading';
   static const String p2pChannelDesc = 'P2P trade updates and messages';
-  
+
   // Social notifications (zaps, DMs)
   static const String socialChannelId = 'sabi_wallet_social';
   static const String socialChannelName = 'Social';
   static const String socialChannelDesc = 'Zaps, DMs, and social activity';
-  
+
   // VTU order notifications
   static const String vtuChannelId = 'sabi_wallet_vtu';
   static const String vtuChannelName = 'VTU Orders';
   static const String vtuChannelDesc = 'Airtime and data purchase updates';
-  
+
   // Default channel
   static const String defaultChannelId = 'sabi_wallet_default';
   static const String defaultChannelName = 'General';
@@ -182,27 +251,29 @@ enum PushNotificationType {
 /// - Local notification display
 /// - Integration with existing notification system
 class FirebaseNotificationService {
-  static final FirebaseNotificationService _instance = FirebaseNotificationService._internal();
+  static final FirebaseNotificationService _instance =
+      FirebaseNotificationService._internal();
   factory FirebaseNotificationService() => _instance;
   FirebaseNotificationService._internal();
 
   // Firebase Messaging instance
   FirebaseMessaging? _messaging;
-  
+
   // Local notifications plugin for displaying notifications
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-  
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
   // Stream controller for notification events (for UI updates)
-  final StreamController<RemoteMessage> _messageStreamController = 
+  final StreamController<RemoteMessage> _messageStreamController =
       StreamController<RemoteMessage>.broadcast();
-  
+
   // Stream controller for notification taps (for navigation)
-  final StreamController<Map<String, dynamic>> _notificationTapController = 
+  final StreamController<Map<String, dynamic>> _notificationTapController =
       StreamController<Map<String, dynamic>>.broadcast();
-  
+
   // Current FCM token
   String? _fcmToken;
-  
+
   // Initialization state
   bool _isInitialized = false;
 
@@ -210,7 +281,8 @@ class FirebaseNotificationService {
   String? get fcmToken => _fcmToken;
   bool get isInitialized => _isInitialized;
   Stream<RemoteMessage> get messageStream => _messageStreamController.stream;
-  Stream<Map<String, dynamic>> get notificationTapStream => _notificationTapController.stream;
+  Stream<Map<String, dynamic>> get notificationTapStream =>
+      _notificationTapController.stream;
 
   /// Initialize Firebase and FCM
   Future<void> init() async {
@@ -231,7 +303,9 @@ class FirebaseNotificationService {
       _messaging = FirebaseMessaging.instance;
 
       // Set up background message handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       // Request permissions
       await _requestPermissions();
@@ -283,11 +357,14 @@ class FirebaseNotificationService {
         sound: true,
       );
 
-      debugPrint('🔔 Notification permission status: ${settings.authorizationStatus}');
+      debugPrint(
+        '🔔 Notification permission status: ${settings.authorizationStatus}',
+      );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         debugPrint('✅ User granted notification permission');
-      } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+      } else if (settings.authorizationStatus ==
+          AuthorizationStatus.provisional) {
         debugPrint('⚠️ User granted provisional notification permission');
       } else {
         debugPrint('❌ User denied notification permission');
@@ -309,7 +386,7 @@ class FirebaseNotificationService {
   /// Initialize local notifications plugin
   Future<void> _initLocalNotifications() async {
     const androidSettings = AndroidInitializationSettings('ic_notification');
-    
+
     const iosSettings = DarwinInitializationSettings(
       requestSoundPermission: true,
       requestBadgePermission: true,
@@ -333,8 +410,11 @@ class FirebaseNotificationService {
   Future<void> _createNotificationChannels() async {
     if (!Platform.isAndroid) return;
 
-    final androidPlugin = _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin =
+        _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
 
     if (androidPlugin == null) return;
 
@@ -403,15 +483,15 @@ class FirebaseNotificationService {
   Future<String?> _getToken() async {
     try {
       _fcmToken = await _messaging!.getToken();
-      
+
       if (_fcmToken != null) {
         // Save token locally
         await _saveTokenLocally(_fcmToken!);
-        
+
         // TODO: Send token to your backend/Nostr profile
         debugPrint('🔑 FCM Token obtained: ${_fcmToken!.substring(0, 20)}...');
       }
-      
+
       return _fcmToken;
     } catch (e) {
       debugPrint('❌ Error getting FCM token: $e');
@@ -423,9 +503,9 @@ class FirebaseNotificationService {
   void _onTokenRefresh(String newToken) async {
     debugPrint('🔄 FCM Token refreshed');
     _fcmToken = newToken;
-    
+
     await _saveTokenLocally(newToken);
-    
+
     // TODO: Update token on backend/Nostr profile
   }
 
@@ -471,7 +551,7 @@ class FirebaseNotificationService {
 
     // Emit to stream for navigation
     _notificationTapController.add(message.data);
-    
+
     // Handle navigation based on notification type
     _navigateToScreen(message.data);
   }
@@ -494,9 +574,9 @@ class FirebaseNotificationService {
   /// Navigate to appropriate screen based on notification data
   void _navigateToScreen(Map<String, dynamic> data) {
     final type = _getNotificationType(data['type'] as String?);
-    
+
     debugPrint('🧭 Navigating for notification type: $type');
-    
+
     // TODO: Implement actual navigation using your router
     switch (type) {
       case PushNotificationType.paymentReceived:
@@ -504,17 +584,17 @@ class FirebaseNotificationService {
         // Navigate to transaction details or wallet
         debugPrint('→ Navigate to wallet/transaction');
         break;
-        
+
       case PushNotificationType.zapReceived:
         // Navigate to zaps or social feed
         debugPrint('→ Navigate to social/zaps');
         break;
-        
+
       case PushNotificationType.dmReceived:
         // Navigate to DMs
         debugPrint('→ Navigate to DMs');
         break;
-        
+
       case PushNotificationType.p2pTradeStarted:
       case PushNotificationType.p2pPaymentMarked:
       case PushNotificationType.p2pPaymentConfirmed:
@@ -527,18 +607,18 @@ class FirebaseNotificationService {
         final tradeId = data['tradeId'] as String?;
         debugPrint('→ Navigate to P2P trade: $tradeId');
         break;
-        
+
       case PushNotificationType.vtuOrderComplete:
       case PushNotificationType.vtuOrderFailed:
         // Navigate to VTU order
         debugPrint('→ Navigate to VTU orders');
         break;
-        
+
       case PushNotificationType.socialRecoveryRequest:
         // Navigate to social recovery
         debugPrint('→ Navigate to social recovery');
         break;
-        
+
       default:
         // Navigate to notification center
         debugPrint('→ Navigate to notifications');
@@ -557,7 +637,8 @@ class FirebaseNotificationService {
 
     // Get title and body
     final title = notification?.title ?? data['title'] ?? 'Sabi Wallet';
-    final body = notification?.body ?? data['body'] ?? 'You have a new notification';
+    final body =
+        notification?.body ?? data['body'] ?? 'You have a new notification';
 
     // Show notification
     await _localNotifications.show(
@@ -631,7 +712,7 @@ class FirebaseNotificationService {
       case PushNotificationType.paymentReceived:
       case PushNotificationType.paymentSent:
         return NotificationChannels.paymentChannelId;
-        
+
       case PushNotificationType.p2pTradeStarted:
       case PushNotificationType.p2pPaymentMarked:
       case PushNotificationType.p2pPaymentConfirmed:
@@ -641,15 +722,15 @@ class FirebaseNotificationService {
       case PushNotificationType.p2pNewMessage:
       case PushNotificationType.p2pNewInquiry:
         return NotificationChannels.p2pChannelId;
-        
+
       case PushNotificationType.zapReceived:
       case PushNotificationType.dmReceived:
         return NotificationChannels.socialChannelId;
-        
+
       case PushNotificationType.vtuOrderComplete:
       case PushNotificationType.vtuOrderFailed:
         return NotificationChannels.vtuChannelId;
-        
+
       default:
         return NotificationChannels.defaultChannelId;
     }
@@ -661,7 +742,7 @@ class FirebaseNotificationService {
       case PushNotificationType.paymentReceived:
       case PushNotificationType.paymentSent:
         return NotificationChannels.paymentChannelName;
-        
+
       case PushNotificationType.p2pTradeStarted:
       case PushNotificationType.p2pPaymentMarked:
       case PushNotificationType.p2pPaymentConfirmed:
@@ -671,15 +752,15 @@ class FirebaseNotificationService {
       case PushNotificationType.p2pNewMessage:
       case PushNotificationType.p2pNewInquiry:
         return NotificationChannels.p2pChannelName;
-        
+
       case PushNotificationType.zapReceived:
       case PushNotificationType.dmReceived:
         return NotificationChannels.socialChannelName;
-        
+
       case PushNotificationType.vtuOrderComplete:
       case PushNotificationType.vtuOrderFailed:
         return NotificationChannels.vtuChannelName;
-        
+
       default:
         return NotificationChannels.defaultChannelName;
     }
@@ -690,14 +771,14 @@ class FirebaseNotificationService {
     switch (type) {
       case PushNotificationType.paymentReceived:
         return Importance.max;
-        
+
       case PushNotificationType.p2pTradeStarted:
       case PushNotificationType.p2pPaymentMarked:
       case PushNotificationType.p2pPaymentConfirmed:
       case PushNotificationType.p2pFundsReleased:
       case PushNotificationType.p2pTradeDisputed:
         return Importance.high;
-        
+
       default:
         return Importance.defaultImportance;
     }
@@ -708,14 +789,14 @@ class FirebaseNotificationService {
     switch (type) {
       case PushNotificationType.paymentReceived:
         return Priority.max;
-        
+
       case PushNotificationType.p2pTradeStarted:
       case PushNotificationType.p2pPaymentMarked:
       case PushNotificationType.p2pPaymentConfirmed:
       case PushNotificationType.p2pFundsReleased:
       case PushNotificationType.p2pTradeDisputed:
         return Priority.high;
-        
+
       default:
         return Priority.defaultPriority;
     }
@@ -746,10 +827,10 @@ class FirebaseNotificationService {
     try {
       await _messaging?.deleteToken();
       _fcmToken = null;
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('fcm_token');
-      
+
       debugPrint('✅ FCM token deleted');
     } catch (e) {
       debugPrint('❌ Error deleting FCM token: $e');

@@ -9,9 +9,10 @@ import '../firebase_notification_service.dart';
 import 'webhook_bridge_services.dart';
 
 /// Provider for the Firebase Notification Service instance
-final firebaseNotificationServiceProvider = Provider<FirebaseNotificationService>((ref) {
-  return FirebaseNotificationService();
-});
+final firebaseNotificationServiceProvider =
+    Provider<FirebaseNotificationService>((ref) {
+      return FirebaseNotificationService();
+    });
 
 /// Provider for the FCM token
 final fcmTokenProvider = FutureProvider<String?>((ref) async {
@@ -95,7 +96,8 @@ class NotificationPreferences {
 }
 
 /// Notifier for managing notification preferences
-class NotificationPreferencesNotifier extends StateNotifier<NotificationPreferences> {
+class NotificationPreferencesNotifier
+    extends StateNotifier<NotificationPreferences> {
   NotificationPreferencesNotifier() : super(const NotificationPreferences()) {
     _loadPreferences();
   }
@@ -106,7 +108,7 @@ class NotificationPreferencesNotifier extends StateNotifier<NotificationPreferen
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = prefs.getString(_prefsKey);
-      
+
       if (json != null) {
         // Parse JSON and load preferences
         // For simplicity, using individual keys
@@ -184,8 +186,10 @@ class NotificationPreferencesNotifier extends StateNotifier<NotificationPreferen
 }
 
 /// Provider for notification preferences
-final notificationPreferencesProvider = 
-    StateNotifierProvider<NotificationPreferencesNotifier, NotificationPreferences>((ref) {
+final notificationPreferencesProvider = StateNotifierProvider<
+  NotificationPreferencesNotifier,
+  NotificationPreferences
+>((ref) {
   return NotificationPreferencesNotifier();
 });
 
@@ -231,7 +235,8 @@ class PushNotificationItem {
 }
 
 /// Notifier for push notification history
-class PushNotificationHistoryNotifier extends StateNotifier<List<PushNotificationItem>> {
+class PushNotificationHistoryNotifier
+    extends StateNotifier<List<PushNotificationItem>> {
   final FirebaseNotificationService _service;
   StreamSubscription<RemoteMessage>? _subscription;
 
@@ -242,8 +247,13 @@ class PushNotificationHistoryNotifier extends StateNotifier<List<PushNotificatio
   void _listenToMessages() {
     _subscription = _service.messageStream.listen((message) {
       final item = PushNotificationItem(
-        id: message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        title: message.notification?.title ?? message.data['title'] ?? 'Notification',
+        id:
+            message.messageId ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        title:
+            message.notification?.title ??
+            message.data['title'] ??
+            'Notification',
         body: message.notification?.body ?? message.data['body'] ?? '',
         type: message.data['type'] ?? 'general',
         data: message.data,
@@ -252,7 +262,7 @@ class PushNotificationHistoryNotifier extends StateNotifier<List<PushNotificatio
 
       // Add to beginning of list (newest first)
       state = [item, ...state];
-      
+
       // Keep only last 100 notifications
       if (state.length > 100) {
         state = state.sublist(0, 100);
@@ -261,12 +271,13 @@ class PushNotificationHistoryNotifier extends StateNotifier<List<PushNotificatio
   }
 
   void markAsRead(String id) {
-    state = state.map((item) {
-      if (item.id == id) {
-        return item.copyWith(isRead: true);
-      }
-      return item;
-    }).toList();
+    state =
+        state.map((item) {
+          if (item.id == id) {
+            return item.copyWith(isRead: true);
+          }
+          return item;
+        }).toList();
   }
 
   void markAllAsRead() {
@@ -291,8 +302,10 @@ class PushNotificationHistoryNotifier extends StateNotifier<List<PushNotificatio
 }
 
 /// Provider for push notification history
-final pushNotificationHistoryProvider = 
-    StateNotifierProvider<PushNotificationHistoryNotifier, List<PushNotificationItem>>((ref) {
+final pushNotificationHistoryProvider = StateNotifierProvider<
+  PushNotificationHistoryNotifier,
+  List<PushNotificationItem>
+>((ref) {
   final service = ref.watch(firebaseNotificationServiceProvider);
   return PushNotificationHistoryNotifier(service);
 });
@@ -308,7 +321,7 @@ final pushNotificationsEnabledProvider = FutureProvider<bool>((ref) async {
   final messaging = FirebaseMessaging.instance;
   final settings = await messaging.getNotificationSettings();
   return settings.authorizationStatus == AuthorizationStatus.authorized ||
-         settings.authorizationStatus == AuthorizationStatus.provisional;
+      settings.authorizationStatus == AuthorizationStatus.provisional;
 });
 // ============================================================================
 // Webhook Bridge Providers
@@ -318,12 +331,12 @@ final pushNotificationsEnabledProvider = FutureProvider<bool>((ref) async {
 /// This bridges payment events to Firebase Cloud Functions
 final breezWebhookBridgeProvider = Provider<BreezWebhookBridgeService>((ref) {
   final service = BreezWebhookBridgeService();
-  
+
   // Dispose when provider is disposed
   ref.onDispose(() {
     service.dispose();
   });
-  
+
   return service;
 });
 

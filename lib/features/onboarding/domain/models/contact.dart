@@ -9,11 +9,7 @@ class Contact {
     this.isNostr = false,
   });
 
-  Contact copyWith({
-    String? name,
-    String? phone,
-    bool? isNostr,
-  }) {
+  Contact copyWith({String? name, String? phone, bool? isNostr}) {
     return Contact(
       name: name ?? this.name,
       phone: phone ?? this.phone,

@@ -21,22 +21,22 @@ class WalletCreationHelper {
     try {
       // Initialize Spark SDK (2025 Nodeless/Spark)
       await BreezSparkService.initializeSparkSDK();
-      
+
       final mnemonic = await BreezSparkService.getMnemonic() ?? '';
       await BreezSparkService.getBalance();
 
       // CRITICAL: Always save mnemonic to secure storage (for SDK re-init on app restart)
       await storage.saveMnemonic(mnemonic);
       debugPrint('✅ Mnemonic saved to secure storage');
-      
+
       // CRITICAL: Mark onboarding complete so app never loops back
       await BreezSparkService.setOnboardingComplete();
       debugPrint('✅ Onboarding marked complete');
-      
+
       // Start webhook bridge for push notifications
       BreezWebhookBridgeService().startListening();
       debugPrint('✅ BreezWebhookBridgeService started after wallet creation');
-      
+
       // Register FCM token for push notifications
       FCMTokenRegistrationService().registerToken();
 
@@ -49,7 +49,8 @@ class WalletCreationHelper {
               body: jsonEncode({
                 'phone': phoneNumber,
                 'backup_type': backupType,
-                'node_id': 'local-spark-node', // TODO: Get correct node ID from GetInfoResponse
+                'node_id':
+                    'local-spark-node', // TODO: Get correct node ID from GetInfoResponse
               }),
             )
             .timeout(const Duration(seconds: 3));

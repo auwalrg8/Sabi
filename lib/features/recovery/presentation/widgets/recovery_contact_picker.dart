@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'social_recovery_service.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
 
 /// Contact picker for selecting recovery contacts
 class RecoveryContactPicker extends StatefulWidget {
@@ -71,9 +71,10 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
                       color: const Color(0xFF111128),
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFFF7931A)
-                            : const Color(0xFFA1A1B2).withOpacity(0.3),
+                        color:
+                            isSelected
+                                ? const Color(0xFFF7931A)
+                                : const Color(0xFFA1A1B2).withOpacity(0.3),
                         width: isSelected ? 2.w : 1.w,
                       ),
                     ),
@@ -142,26 +143,29 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
                           width: 24.w,
                           height: 24.w,
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFFF7931A)
-                                : Colors.transparent,
+                            color:
+                                isSelected
+                                    ? const Color(0xFFF7931A)
+                                    : Colors.transparent,
                             border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFFF7931A)
-                                  : const Color(0xFFA1A1B2),
+                              color:
+                                  isSelected
+                                      ? const Color(0xFFF7931A)
+                                      : const Color(0xFFA1A1B2),
                               width: 2.w,
                             ),
                             borderRadius: BorderRadius.circular(4.r),
                           ),
-                          child: isSelected
-                              ? Center(
-                                  child: Icon(
-                                    Icons.check,
-                                    color: Colors.black,
-                                    size: 16.sp,
-                                  ),
-                                )
-                              : null,
+                          child:
+                              isSelected
+                                  ? Center(
+                                    child: Icon(
+                                      Icons.check,
+                                      color: Colors.black,
+                                      size: 16.sp,
+                                    ),
+                                  )
+                                  : null,
                         ),
                       ],
                     ),
@@ -185,11 +189,12 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
               ),
               if (_selectedIndices.length >= 3)
                 ElevatedButton(
-                  onPressed: () => widget.onContactsSelected(
-                    _selectedIndices
-                        .map((i) => widget.availableContacts[i])
-                        .toList(),
-                  ),
+                  onPressed:
+                      () => widget.onContactsSelected(
+                        _selectedIndices
+                            .map((i) => widget.availableContacts[i])
+                            .toList(),
+                      ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF7931A),
                     shape: RoundedRectangleBorder(
@@ -213,9 +218,8 @@ class _RecoveryContactPickerState extends State<RecoveryContactPicker> {
   }
 
   void _updateSelection() {
-    final selected = _selectedIndices
-        .map((i) => widget.availableContacts[i])
-        .toList();
+    final selected =
+        _selectedIndices.map((i) => widget.availableContacts[i]).toList();
     widget.onContactsSelected(selected);
   }
 }

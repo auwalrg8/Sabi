@@ -35,10 +35,7 @@ class LightningService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $inviteCode',
       },
-      body: json.encode({
-        'amount_sats': sats,
-        'description': memo,
-      }),
+      body: json.encode({'amount_sats': sats, 'description': memo}),
     );
 
     if (resp.statusCode != 200) {
@@ -54,7 +51,9 @@ class LightningService {
     if (inviteCode == null) {
       throw Exception('No invite_code stored');
     }
-    final uri = Uri.parse('https://api.breez.technology/v1/nodeless/payments?limit=$limit');
+    final uri = Uri.parse(
+      'https://api.breez.technology/v1/nodeless/payments?limit=$limit',
+    );
     final resp = await http.get(
       uri,
       headers: {
@@ -66,8 +65,9 @@ class LightningService {
       throw Exception('List payments error ${resp.statusCode}: ${resp.body}');
     }
     final decoded = json.decode(resp.body);
-    final list = (decoded is List ? decoded : (decoded['payments'] as List? ?? const []))
-        .cast<Map<String, dynamic>>();
+    final list =
+        (decoded is List ? decoded : (decoded['payments'] as List? ?? const []))
+            .cast<Map<String, dynamic>>();
     return list.map(LnPayment.fromJson).toList();
   }
 
@@ -123,12 +123,15 @@ class LnPayment {
     return LnPayment(
       id: json['id']?.toString() ?? json['payment_hash']?.toString() ?? '',
       inbound: json['inbound'] == true || json['direction'] == 'inbound',
-      amountSats: (json['amount_sats'] as num?)?.toInt() ??
-          (json['amount'] as num?)?.toInt() ?? 0,
+      amountSats:
+          (json['amount_sats'] as num?)?.toInt() ??
+          (json['amount'] as num?)?.toInt() ??
+          0,
       description: json['description'] as String?,
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'].toString())
-          : null,
+      timestamp:
+          json['timestamp'] != null
+              ? DateTime.tryParse(json['timestamp'].toString())
+              : null,
     );
   }
 }

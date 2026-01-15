@@ -19,7 +19,8 @@ const String _pushApiBaseUrl = String.fromEnvironment(
 /// Service for registering FCM tokens with your backend/Nostr profile
 /// This enables the server to send push notifications to this device
 class FCMTokenRegistrationService {
-  static final FCMTokenRegistrationService _instance = FCMTokenRegistrationService._internal();
+  static final FCMTokenRegistrationService _instance =
+      FCMTokenRegistrationService._internal();
   factory FCMTokenRegistrationService() => _instance;
   FCMTokenRegistrationService._internal();
 
@@ -33,7 +34,7 @@ class FCMTokenRegistrationService {
   /// Call this after user logs in or creates wallet
   Future<void> registerToken() async {
     debugPrint('🔔 FCMTokenRegistrationService.registerToken() called');
-    
+
     try {
       // Wait for FCM token if not immediately available
       String? token = _fcmService.fcmToken;
@@ -45,9 +46,11 @@ class FCMTokenRegistrationService {
           if (token != null) break;
         }
       }
-      
-      debugPrint('🔔 FCM token: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}');
-      
+
+      debugPrint(
+        '🔔 FCM token: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}',
+      );
+
       if (token == null) {
         debugPrint('⚠️ No FCM token available after waiting');
         return;
@@ -56,7 +59,7 @@ class FCMTokenRegistrationService {
       // Check if we already registered this token
       final prefs = await SharedPreferences.getInstance();
       final lastToken = prefs.getString(_lastTokenKey);
-      
+
       if (lastToken == token) {
         debugPrint('ℹ️ FCM token already registered');
         return;
@@ -64,18 +67,22 @@ class FCMTokenRegistrationService {
 
       // Get user's Nostr pubkey for association
       String? pubkey = _nostrProfile.currentPubkey;
-      
+
       // If no pubkey, try initializing NostrProfileService
       if (pubkey == null) {
         debugPrint('🔔 Nostr pubkey not ready, re-initializing...');
         await _nostrProfile.init(force: true);
         pubkey = _nostrProfile.currentPubkey;
       }
-      
-      debugPrint('🔔 Nostr pubkey: ${pubkey != null ? "${pubkey.substring(0, 16)}..." : "NULL"}');
-      
+
+      debugPrint(
+        '🔔 Nostr pubkey: ${pubkey != null ? "${pubkey.substring(0, 16)}..." : "NULL"}',
+      );
+
       if (pubkey == null) {
-        debugPrint('⚠️ No Nostr pubkey available - user may need to create/import keys');
+        debugPrint(
+          '⚠️ No Nostr pubkey available - user may need to create/import keys',
+        );
         return;
       }
 
@@ -92,20 +99,24 @@ class FCMTokenRegistrationService {
 
       if (response.statusCode == 200) {
         debugPrint('✅ FCM token registered with backend');
-        
+
         // Mark as sent
         await prefs.setString(_lastTokenKey, token);
         await prefs.setBool(_tokenSentKey, true);
-        
+
         // Save FCM token for background sync service
         await BackgroundPaymentSyncService().saveFcmToken(token);
-        
+
         // Also store locally for backup
         await _storeTokenLocally(token, pubkey);
-        
-        debugPrint('✅ FCM token registered for pubkey: ${pubkey.substring(0, 8)}...');
+
+        debugPrint(
+          '✅ FCM token registered for pubkey: ${pubkey.substring(0, 8)}...',
+        );
       } else {
-        debugPrint('❌ Backend registration failed: ${response.statusCode} - ${response.body}');
+        debugPrint(
+          '❌ Backend registration failed: ${response.statusCode} - ${response.body}',
+        );
         // Still store locally as fallback
         await _storeTokenLocally(token, pubkey);
       }
@@ -144,17 +155,14 @@ class FCMTokenRegistrationService {
     try {
       final token = _fcmService.fcmToken;
       final pubkey = _nostrProfile.currentPubkey;
-      
+
       // Call backend to remove this device's token
       if (token != null) {
         try {
           await http.post(
             Uri.parse('$_pushApiBaseUrl/unregister-device'),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'fcmToken': token,
-              'nostrPubkey': pubkey,
-            }),
+            body: jsonEncode({'fcmToken': token, 'nostrPubkey': pubkey}),
           );
           debugPrint('✅ Token unregistered from backend');
         } catch (e) {
@@ -219,7 +227,7 @@ class FCMTokenRegistrationService {
     final token = _fcmService.fcmToken;
     final pubkey = _nostrProfile.currentPubkey;
     final prefs = await SharedPreferences.getInstance();
-    
+
     return {
       'fcmToken': token != null ? '${token.substring(0, 20)}...' : null,
       'fcmTokenFull': token,

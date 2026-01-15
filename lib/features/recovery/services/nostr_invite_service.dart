@@ -58,7 +58,7 @@ class NostrInviteService {
   static const _storageKey = 'nostr_invites';
   static const _tempKeysKey = 'temp_keypairs';
   static const _inviteBaseUrl = 'sabiwallet.online/invite';
-  
+
   static late final FlutterSecureStorage _secureStorage;
 
   /// Initialize the service
@@ -73,18 +73,24 @@ class NostrInviteService {
       // Generate a temporary keypair using NostrService
       // For now, we'll use a simplified approach with deterministic generation
       final random = Random.secure();
-      final privateKeyBytes = List<int>.generate(32, (_) => random.nextInt(256));
-      
+      final privateKeyBytes = List<int>.generate(
+        32,
+        (_) => random.nextInt(256),
+      );
+
       // Convert to hex for nsec-like format
-      final nsec = privateKeyBytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-      
+      final nsec =
+          privateKeyBytes
+              .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+              .join();
+
       // Derive a public key deterministically (simplified)
       final publicKeyHash = sha256.convert(utf8.encode(nsec)).toString();
-      
+
       // Create a temporary npub reference
       final tempId = _generateRandomId(16);
       final npub = 'temp_$tempId';
-      
+
       // Store the keypair
       await _secureStorage.write(
         key: '$_tempKeysKey:$npub',
@@ -94,12 +100,8 @@ class NostrInviteService {
           'createdAt': DateTime.now().toIso8601String(),
         }),
       );
-      
-      return {
-        'npub': npub,
-        'nsec': nsec,
-        'publicKey': publicKeyHash,
-      };
+
+      return {'npub': npub, 'nsec': nsec, 'publicKey': publicKeyHash};
     } catch (e) {
       print('❌ Error generating temporary keypair: $e');
       rethrow;
@@ -116,7 +118,7 @@ class NostrInviteService {
     try {
       final inviteId = _generateRandomId(12);
       final inviteLink = '$_inviteBaseUrl/$inviteId';
-      
+
       // Store invite metadata
       final inviteData = {
         'inviteId': inviteId,
@@ -127,12 +129,12 @@ class NostrInviteService {
         'claimed': false,
         'claimedNpub': null,
       };
-      
+
       await _secureStorage.write(
         key: '$_storageKey:$inviteId',
         value: jsonEncode(inviteData),
       );
-      
+
       print('✅ Created invite link: $inviteLink for $contactName');
       return inviteLink;
     } catch (e) {
@@ -189,12 +191,12 @@ This link creates your Nostr account in seconds. No password needed!''';
         inviteData['claimed'] = true;
         inviteData['claimedNpub'] = claimedNpub;
         inviteData['claimedAt'] = DateTime.now().toIso8601String();
-        
+
         await _secureStorage.write(
           key: '$_storageKey:$inviteId',
           value: jsonEncode(inviteData),
         );
-        
+
         // Store the new keys
         await _secureStorage.write(
           key: '$_tempKeysKey:$claimedNpub',
@@ -204,7 +206,7 @@ This link creates your Nostr account in seconds. No password needed!''';
             'claimedAt': DateTime.now().toIso8601String(),
           }),
         );
-        
+
         print('✅ Invite claimed: $claimedNpub for $inviteId');
       }
     } catch (e) {
@@ -221,10 +223,10 @@ This link creates your Nostr account in seconds. No password needed!''';
     try {
       // In production, this would subscribe to Nostr kind 9999 (custom app events)
       // For now, periodic polling is used as fallback
-      
+
       // This could integrate with NostrService to listen for:
       // - kind 9999 with tags ['invite', inviteId, 'claimed', claimedNpub]
-      
+
       yield* _pollForClaimedInvites(inviteIds);
     } catch (e) {
       print('❌ Error listening for claimed invites: $e');
@@ -238,7 +240,7 @@ This link creates your Nostr account in seconds. No password needed!''';
     // Simulate polling every 30 seconds
     while (true) {
       await Future.delayed(const Duration(seconds: 30));
-      
+
       for (final inviteId in inviteIds) {
         final inviteData = await getInviteDetails(inviteId);
         if (inviteData != null && inviteData['claimed'] == true) {
@@ -263,10 +265,13 @@ This link creates your Nostr account in seconds. No password needed!''';
 
   /// Generate a random alphanumeric string
   static String _generateRandomId(int length) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     final random = Random.secure();
-    return List.generate(length, (_) => chars[random.nextInt(chars.length)])
-        .join();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   /// Get public key for temporary npub

@@ -10,7 +10,8 @@ class VtuOrderHistoryScreen extends ConsumerStatefulWidget {
   const VtuOrderHistoryScreen({super.key});
 
   @override
-  ConsumerState<VtuOrderHistoryScreen> createState() => _VtuOrderHistoryScreenState();
+  ConsumerState<VtuOrderHistoryScreen> createState() =>
+      _VtuOrderHistoryScreenState();
 }
 
 class _VtuOrderHistoryScreenState extends ConsumerState<VtuOrderHistoryScreen> {
@@ -64,21 +65,29 @@ class _VtuOrderHistoryScreenState extends ConsumerState<VtuOrderHistoryScreen> {
                     _FilterChip(
                       label: 'Airtime',
                       isSelected: _filterType == VtuServiceType.airtime,
-                      onTap: () => setState(() => _filterType = VtuServiceType.airtime),
+                      onTap:
+                          () => setState(
+                            () => _filterType = VtuServiceType.airtime,
+                          ),
                       color: const Color(0xFF00C853),
                     ),
                     SizedBox(width: 8.w),
                     _FilterChip(
                       label: 'Data',
                       isSelected: _filterType == VtuServiceType.data,
-                      onTap: () => setState(() => _filterType = VtuServiceType.data),
+                      onTap:
+                          () =>
+                              setState(() => _filterType = VtuServiceType.data),
                       color: const Color(0xFF2196F3),
                     ),
                     SizedBox(width: 8.w),
                     _FilterChip(
                       label: 'Electricity',
                       isSelected: _filterType == VtuServiceType.electricity,
-                      onTap: () => setState(() => _filterType = VtuServiceType.electricity),
+                      onTap:
+                          () => setState(
+                            () => _filterType = VtuServiceType.electricity,
+                          ),
                       color: const Color(0xFFFF9800),
                     ),
                   ],
@@ -89,45 +98,57 @@ class _VtuOrderHistoryScreenState extends ConsumerState<VtuOrderHistoryScreen> {
             // Orders List
             Expanded(
               child: ordersAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFF7931A)),
-                ),
-                error: (error, _) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: const Color(0xFFFF4D4F),
-                        size: 48.sp,
+                loading:
+                    () => const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFF7931A),
                       ),
-                      SizedBox(height: 16.h),
-                      Text(
-                        'Failed to load orders',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                        ),
+                    ),
+                error:
+                    (error, _) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: const Color(0xFFFF4D4F),
+                            size: 48.sp,
+                          ),
+                          SizedBox(height: 16.h),
+                          Text(
+                            'Failed to load orders',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          TextButton(
+                            onPressed:
+                                () =>
+                                    ref
+                                        .read(vtuOrdersProvider.notifier)
+                                        .refresh(),
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 8.h),
-                      TextButton(
-                        onPressed: () => ref.read(vtuOrdersProvider.notifier).refresh(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
                 data: (orders) {
-                  final filteredOrders = _filterType != null
-                      ? orders.where((o) => o.serviceType == _filterType).toList()
-                      : orders;
+                  final filteredOrders =
+                      _filterType != null
+                          ? orders
+                              .where((o) => o.serviceType == _filterType)
+                              .toList()
+                          : orders;
 
                   if (filteredOrders.isEmpty) {
                     return _EmptyState(filterType: _filterType);
                   }
 
                   return RefreshIndicator(
-                    onRefresh: () => ref.read(vtuOrdersProvider.notifier).refresh(),
+                    onRefresh:
+                        () => ref.read(vtuOrdersProvider.notifier).refresh(),
                     color: const Color(0xFFF7931A),
                     child: ListView.separated(
                       padding: EdgeInsets.all(16.w),
@@ -171,7 +192,10 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         decoration: BoxDecoration(
-          color: isSelected ? chipColor.withOpacity(0.15) : const Color(0xFF1A1A2E),
+          color:
+              isSelected
+                  ? chipColor.withOpacity(0.15)
+                  : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
             color: isSelected ? chipColor : const Color(0xFF2A2A3E),
@@ -216,8 +240,8 @@ class _EmptyState extends StatelessWidget {
           ),
           SizedBox(height: 16.h),
           Text(
-            filterType != null 
-                ? 'No ${filterType!.name} orders yet' 
+            filterType != null
+                ? 'No ${filterType!.name} orders yet'
                 : 'No orders yet',
             style: TextStyle(
               color: Colors.white,
@@ -228,10 +252,7 @@ class _EmptyState extends StatelessWidget {
           SizedBox(height: 8.h),
           Text(
             'Your VTU orders will appear here',
-            style: TextStyle(
-              color: const Color(0xFFA1A1B2),
-              fontSize: 14.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 14.sp),
           ),
         ],
       ),
@@ -311,11 +332,7 @@ class _OrderCard extends ConsumerWidget {
                   color: _serviceColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: Icon(
-                  _serviceIcon,
-                  color: _serviceColor,
-                  size: 24.sp,
-                ),
+                child: Icon(_serviceIcon, color: _serviceColor, size: 24.sp),
               ),
               SizedBox(width: 12.w),
               Expanded(
@@ -398,7 +415,11 @@ class _OrderCard extends ConsumerWidget {
                   SizedBox(height: 2.h),
                   Row(
                     children: [
-                      Icon(Icons.flash_on, color: const Color(0xFFF7931A), size: 14.sp),
+                      Icon(
+                        Icons.flash_on,
+                        color: const Color(0xFFF7931A),
+                        size: 14.sp,
+                      ),
                       Text(
                         '${order.amountSats} sats',
                         style: TextStyle(
@@ -433,7 +454,8 @@ class _OrderCard extends ConsumerWidget {
               ),
             ],
           ),
-          if (order.status == VtuOrderStatus.pending || order.status == VtuOrderStatus.processing) ...[
+          if (order.status == VtuOrderStatus.pending ||
+              order.status == VtuOrderStatus.processing) ...[
             SizedBox(height: 14.h),
             Container(
               padding: EdgeInsets.all(10.w),
@@ -658,70 +680,71 @@ class _OrderCard extends ConsumerWidget {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF111128),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.r),
-        ),
-        title: Text(
-          'Request Refund?',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This will generate a Lightning invoice for ${order.amountSats} sats.',
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 14.sp,
-              ),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: const Color(0xFF111128),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
             ),
-            SizedBox(height: 12.h),
-            Text(
-              'Share the invoice with the agent to receive your refund.',
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 14.sp,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: const Color(0xFF6B7280),
-                fontSize: 14.sp,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF7931A),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-            ),
-            child: Text(
-              'Request Refund',
+            title: Text(
+              'Request Refund?',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 14.sp,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w600,
               ),
             ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This will generate a Lightning invoice for ${order.amountSats} sats.',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                Text(
+                  'Share the invoice with the agent to receive your refund.',
+                  style: TextStyle(
+                    color: const Color(0xFFA1A1B2),
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: const Color(0xFF6B7280),
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF7931A),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                ),
+                child: Text(
+                  'Request Refund',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
@@ -730,16 +753,17 @@ class _OrderCard extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFFF7931A)),
-      ),
+      builder:
+          (context) => const Center(
+            child: CircularProgressIndicator(color: Color(0xFFF7931A)),
+          ),
     );
 
     try {
       final updatedOrder = await ref
           .read(vtuOrdersProvider.notifier)
           .requestRefund(order.id);
-      
+
       Navigator.pop(context); // Close loading
 
       if (updatedOrder != null && context.mounted) {
@@ -748,7 +772,7 @@ class _OrderCard extends ConsumerWidget {
       }
     } catch (e) {
       Navigator.pop(context); // Close loading
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -777,7 +801,20 @@ class _OrderCard extends ConsumerWidget {
     } else if (diff.inDays < 7) {
       return '${diff.inDays}d ago';
     } else {
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       return '${months[date.month - 1]} ${date.day}';
     }
   }

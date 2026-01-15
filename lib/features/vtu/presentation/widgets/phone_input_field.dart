@@ -37,9 +37,10 @@ class PhoneInputField extends StatelessWidget {
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-              color: errorText != null 
-                  ? const Color(0xFFFF4D4F) 
-                  : const Color(0xFF2A2A3E),
+              color:
+                  errorText != null
+                      ? const Color(0xFFFF4D4F)
+                      : const Color(0xFF2A2A3E),
             ),
           ),
           child: Row(
@@ -55,10 +56,7 @@ class PhoneInputField extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      '🇳🇬',
-                      style: TextStyle(fontSize: 18.sp),
-                    ),
+                    Text('🇳🇬', style: TextStyle(fontSize: 18.sp)),
                     SizedBox(width: 4.w),
                     Text(
                       '+234',
@@ -74,10 +72,7 @@ class PhoneInputField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.phone,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.sp,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
                   decoration: InputDecoration(
                     hintText: '0801 234 5678',
                     hintStyle: TextStyle(
@@ -85,27 +80,36 @@ class PhoneInputField extends StatelessWidget {
                       fontSize: 16.sp,
                     ),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
-                    suffixIcon: detectedNetwork != null
-                        ? Padding(
-                            padding: EdgeInsets.only(right: 12.w),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                              decoration: BoxDecoration(
-                                color: networkColor?.withOpacity(0.2) ?? Colors.grey.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              child: Text(
-                                detectedNetwork!,
-                                style: TextStyle(
-                                  color: networkColor ?? Colors.grey,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 14.h,
+                    ),
+                    suffixIcon:
+                        detectedNetwork != null
+                            ? Padding(
+                              padding: EdgeInsets.only(right: 12.w),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w,
+                                  vertical: 4.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      networkColor?.withOpacity(0.2) ??
+                                      Colors.grey.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8.r),
+                                ),
+                                child: Text(
+                                  detectedNetwork!,
+                                  style: TextStyle(
+                                    color: networkColor ?? Colors.grey,
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                          )
-                        : null,
+                            )
+                            : null,
                     suffixIconConstraints: BoxConstraints(minHeight: 24.h),
                   ),
                   onChanged: onChanged,
@@ -118,10 +122,7 @@ class PhoneInputField extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             errorText!,
-            style: TextStyle(
-              color: const Color(0xFFFF4D4F),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFFF4D4F), fontSize: 12.sp),
           ),
         ],
       ],

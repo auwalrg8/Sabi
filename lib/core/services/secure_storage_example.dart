@@ -90,8 +90,10 @@ class _SecureStorageExampleScreenState
               onPressed: () async {
                 final accessToken = await storage.getAuthToken();
                 final refreshToken = await storage.getRefreshToken();
-                setState(() => _output =
-                    'Access: $accessToken\nRefresh: $refreshToken');
+                setState(
+                  () =>
+                      _output = 'Access: $accessToken\nRefresh: $refreshToken',
+                );
               },
               child: const Text('Get Auth Tokens'),
             ),
@@ -123,7 +125,9 @@ class _SecureStorageExampleScreenState
             ElevatedButton(
               onPressed: () async {
                 final seed = await storage.getWalletSeed();
-                setState(() => _output = 'Wallet seed: ${seed?.substring(0, 30)}...');
+                setState(
+                  () => _output = 'Wallet seed: ${seed?.substring(0, 30)}...',
+                );
               },
               child: const Text('Get Wallet Seed'),
             ),
@@ -150,8 +154,9 @@ class _SecureStorageExampleScreenState
               onPressed: () async {
                 final privateKey = await storage.getNostrPrivateKey();
                 final publicKey = await storage.getNostrPublicKey();
-                setState(() =>
-                    _output = 'Private: $privateKey\nPublic: $publicKey');
+                setState(
+                  () => _output = 'Private: $privateKey\nPublic: $publicKey',
+                );
               },
               child: const Text('Get Nostr Keys'),
             ),
@@ -190,4 +195,3 @@ class _SecureStorageExampleScreenState
     );
   }
 }
-

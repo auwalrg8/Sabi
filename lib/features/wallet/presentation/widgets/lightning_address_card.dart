@@ -43,7 +43,8 @@ class LightningAddressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final address = userProfile?.sabiUsername ?? 'Not registered';
     final hasAddress = userProfile?.hasLightningAddress ?? false;
-    final description = userProfile?.lightningAddressDescription ?? 
+    final description =
+        userProfile?.lightningAddressDescription ??
         'Share your Lightning address to receive payments instantly.';
 
     return Container(
@@ -52,9 +53,10 @@ class LightningAddressCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: hasAddress 
-              ? AppColors.primary.withOpacity(0.3)
-              : AppColors.borderColor,
+          color:
+              hasAddress
+                  ? AppColors.primary.withOpacity(0.3)
+                  : AppColors.borderColor,
           width: 1,
         ),
       ),
@@ -103,9 +105,10 @@ class LightningAddressCard extends StatelessWidget {
                       Text(
                         address,
                         style: TextStyle(
-                          color: hasAddress 
-                              ? AppColors.textPrimary 
-                              : AppColors.textTertiary,
+                          color:
+                              hasAddress
+                                  ? AppColors.textPrimary
+                                  : AppColors.textTertiary,
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w600,
                         ),
@@ -139,9 +142,9 @@ class LightningAddressCard extends StatelessWidget {
               ],
             ],
           ),
-          
+
           SizedBox(height: 12.h),
-          
+
           // Description
           Text(
             description,
@@ -151,7 +154,7 @@ class LightningAddressCard extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          
+
           // Action buttons
           if (!hasAddress && !isLoading) ...[
             SizedBox(height: 16.h),
@@ -164,7 +167,7 @@ class LightningAddressCard extends StatelessWidget {
               ),
             ),
           ],
-          
+
           if (onRefresh != null && !isLoading) ...[
             SizedBox(height: 12.h),
             GestureDetector(

@@ -40,8 +40,9 @@ class ReceiptService {
     String? subject,
   }) async {
     try {
-      final boundary = receiptKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          receiptKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) {
         debugPrint('❌ Could not find render boundary');
         return;
@@ -55,7 +56,7 @@ class ReceiptService {
       }
 
       final bytes = byteData.buffer.asUint8List();
-      
+
       // Save to temp file
       final tempDir = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -63,10 +64,9 @@ class ReceiptService {
       await file.writeAsBytes(bytes);
 
       // Share
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: subject ?? 'Sabi Wallet Receipt',
-      );
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: subject ?? 'Sabi Wallet Receipt');
 
       debugPrint('✅ Receipt image shared successfully');
     } catch (e) {
@@ -79,9 +79,9 @@ class ReceiptService {
     try {
       final pdf = pw.Document();
 
-      final formattedDate = 
+      final formattedDate =
           '${data.timestamp.day}/${data.timestamp.month}/${data.timestamp.year}';
-      final formattedTime = 
+      final formattedTime =
           '${data.timestamp.hour.toString().padLeft(2, '0')}:${data.timestamp.minute.toString().padLeft(2, '0')}';
 
       pdf.addPage(
@@ -123,7 +123,7 @@ class ReceiptService {
                     ),
                   ),
                   pw.SizedBox(height: 40),
-                  
+
                   // Status
                   pw.Center(
                     child: pw.Container(
@@ -136,7 +136,9 @@ class ReceiptService {
                         borderRadius: pw.BorderRadius.circular(20),
                       ),
                       child: pw.Text(
-                        data.type == 'send' ? '✓ PAYMENT SENT' : '✓ PAYMENT RECEIVED',
+                        data.type == 'send'
+                            ? '✓ PAYMENT SENT'
+                            : '✓ PAYMENT RECEIVED',
                         style: pw.TextStyle(
                           color: PdfColors.white,
                           fontWeight: pw.FontWeight.bold,
@@ -246,10 +248,9 @@ class ReceiptService {
       await file.writeAsBytes(bytes);
 
       // Share
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: subject ?? 'Sabi Wallet Receipt',
-      );
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: subject ?? 'Sabi Wallet Receipt');
 
       debugPrint('✅ Receipt PDF shared successfully');
     } catch (e) {
@@ -264,19 +265,13 @@ class ReceiptService {
       children: [
         pw.Text(
           label,
-          style: pw.TextStyle(
-            color: PdfColors.grey600,
-            fontSize: 12,
-          ),
+          style: pw.TextStyle(color: PdfColors.grey600, fontSize: 12),
         ),
         pw.SizedBox(width: 20),
         pw.Expanded(
           child: pw.Text(
             value,
-            style: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 12,
-            ),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
             textAlign: pw.TextAlign.right,
           ),
         ),

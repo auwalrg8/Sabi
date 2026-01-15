@@ -119,9 +119,10 @@ class _TradeTimerWidgetState extends State<TradeTimerWidget>
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
-        final scale = _secondsRemaining <= kWarning1Min
-            ? 1.0 + (_pulseController.value * 0.05)
-            : 1.0;
+        final scale =
+            _secondsRemaining <= kWarning1Min
+                ? 1.0 + (_pulseController.value * 0.05)
+                : 1.0;
         return Transform.scale(
           scale: scale,
           child: Container(
@@ -134,11 +135,7 @@ class _TradeTimerWidgetState extends State<TradeTimerWidget>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.timer_outlined,
-                  color: _timerColor,
-                  size: 16.sp,
-                ),
+                Icon(Icons.timer_outlined, color: _timerColor, size: 16.sp),
                 SizedBox(width: 4.w),
                 Text(
                   _formattedTime,
@@ -164,9 +161,10 @@ class _TradeTimerWidgetState extends State<TradeTimerWidget>
         AnimatedBuilder(
           animation: _pulseController,
           builder: (context, child) {
-            final scale = _secondsRemaining <= kWarning1Min
-                ? 1.0 + (_pulseController.value * 0.03)
-                : 1.0;
+            final scale =
+                _secondsRemaining <= kWarning1Min
+                    ? 1.0 + (_pulseController.value * 0.03)
+                    : 1.0;
             return Transform.scale(
               scale: scale,
               child: SizedBox(
@@ -183,7 +181,9 @@ class _TradeTimerWidgetState extends State<TradeTimerWidget>
                         value: 1,
                         strokeWidth: 8.w,
                         backgroundColor: const Color(0xFF2A2A3E),
-                        valueColor: const AlwaysStoppedAnimation(Color(0xFF2A2A3E)),
+                        valueColor: const AlwaysStoppedAnimation(
+                          Color(0xFF2A2A3E),
+                        ),
                       ),
                     ),
                     // Progress circle
@@ -227,10 +227,7 @@ class _TradeTimerWidgetState extends State<TradeTimerWidget>
             );
           },
         ),
-        if (widget.showLabels) ...[
-          SizedBox(height: 12.h),
-          _buildWarningText(),
-        ],
+        if (widget.showLabels) ...[SizedBox(height: 12.h), _buildWarningText()],
       ],
     );
   }
@@ -262,9 +259,10 @@ class _TradeTimerWidgetState extends State<TradeTimerWidget>
         style: TextStyle(
           color: color,
           fontSize: 13.sp,
-          fontWeight: _secondsRemaining <= kWarning1Min
-              ? FontWeight.w600
-              : FontWeight.normal,
+          fontWeight:
+              _secondsRemaining <= kWarning1Min
+                  ? FontWeight.w600
+                  : FontWeight.normal,
         ),
       ),
     );
@@ -343,10 +341,7 @@ class _TradeTimerBarState extends State<TradeTimerBar> {
           children: [
             Text(
               'Payment Window',
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 12.sp,
-              ),
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
             ),
             Text(
               _formattedTime,

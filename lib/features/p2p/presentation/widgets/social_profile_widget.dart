@@ -33,18 +33,16 @@ class SocialProfileChip extends StatelessWidget {
           color: const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
-            color: profile.isVerified
-                ? const Color(0xFF00FFB2).withValues(alpha: 0.5)
-                : const Color(0xFF2A2A40),
+            color:
+                profile.isVerified
+                    ? const Color(0xFF00FFB2).withValues(alpha: 0.5)
+                    : const Color(0xFF2A2A40),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              profile.platform.emoji,
-              style: TextStyle(fontSize: 16.sp),
-            ),
+            Text(profile.platform.emoji, style: TextStyle(fontSize: 16.sp)),
             SizedBox(width: 6.w),
             Text(
               profile.displayHandle,
@@ -56,11 +54,7 @@ class SocialProfileChip extends StatelessWidget {
             ),
             if (showVerified && profile.isVerified) ...[
               SizedBox(width: 4.w),
-              Icon(
-                Icons.verified,
-                color: const Color(0xFF00FFB2),
-                size: 14.sp,
-              ),
+              Icon(Icons.verified, color: const Color(0xFF00FFB2), size: 14.sp),
             ],
             if (onRemove != null) ...[
               SizedBox(width: 8.w),
@@ -136,7 +130,7 @@ class SocialProfileCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: 12.w),
-          
+
           // Profile Info
           Expanded(
             child: Column(
@@ -173,7 +167,7 @@ class SocialProfileCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Actions
           if (isEditable) ...[
             IconButton(
@@ -201,7 +195,9 @@ class SocialProfileCard extends StatelessWidget {
                   Clipboard.setData(ClipboardData(text: url));
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${profile.platform.displayName} link copied!'),
+                      content: Text(
+                        '${profile.platform.displayName} link copied!',
+                      ),
                       backgroundColor: const Color(0xFF00FFB2),
                       duration: const Duration(seconds: 2),
                     ),
@@ -239,7 +235,9 @@ class SharedProfilesView extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF0D1421),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: const Color(0xFF00FFB2).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFF00FFB2).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,18 +278,21 @@ class SharedProfilesView extends StatelessWidget {
             ],
           ),
           SizedBox(height: 12.h),
-          
+
           // Profiles
           Wrap(
             spacing: 8.w,
             runSpacing: 8.h,
-            children: profiles
-                .map((p) => SocialProfileChip(profile: p, showVerified: true))
-                .toList(),
+            children:
+                profiles
+                    .map(
+                      (p) => SocialProfileChip(profile: p, showVerified: true),
+                    )
+                    .toList(),
           ),
-          
+
           SizedBox(height: 12.h),
-          
+
           // Privacy notice
           Row(
             children: [
@@ -345,15 +346,14 @@ class ProfileShareRequestCard extends StatelessWidget {
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF1A1A2E),
-            const Color(0xFF0D1421),
-          ],
+          colors: [const Color(0xFF1A1A2E), const Color(0xFF0D1421)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: const Color(0xFFF7931A).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(0xFFF7931A).withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,45 +399,46 @@ class ProfileShareRequestCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: 16.h),
-          
+
           // What they're offering
           Text(
             'They offer to share:',
-            style: TextStyle(
-              color: const Color(0xFF6B6B80),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFF6B6B80), fontSize: 12.sp),
           ),
           SizedBox(height: 8.h),
           Wrap(
             spacing: 8.w,
             runSpacing: 6.h,
-            children: request.offeredPlatforms.map((platform) {
-              return Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A40),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(platform.emoji, style: TextStyle(fontSize: 14.sp)),
-                    SizedBox(width: 4.w),
-                    Text(
-                      platform.displayName,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.sp,
-                      ),
+            children:
+                request.offeredPlatforms.map((platform) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 6.h,
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A40),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(platform.emoji, style: TextStyle(fontSize: 14.sp)),
+                        SizedBox(width: 4.w),
+                        Text(
+                          platform.displayName,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
           ),
           SizedBox(height: 20.h),
-          
+
           // Actions
           Row(
             children: [
@@ -457,7 +458,7 @@ class ProfileShareRequestCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 8.w),
-              
+
               // View Only
               Expanded(
                 child: OutlinedButton(
@@ -474,7 +475,7 @@ class ProfileShareRequestCard extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 8.w),
-              
+
               // Accept Mutual
               Expanded(
                 child: ElevatedButton(
@@ -499,13 +500,15 @@ class ProfileShareRequestCard extends StatelessWidget {
 
   Widget _buildResponsedCard() {
     final isAccepted = request.isAccepted;
-    final color = isAccepted ? const Color(0xFF00FFB2) : const Color(0xFF6B6B80);
+    final color =
+        isAccepted ? const Color(0xFF00FFB2) : const Color(0xFF6B6B80);
     final icon = isAccepted ? Icons.check_circle : Icons.cancel;
-    final text = isAccepted
-        ? (request.response == ShareConsent.mutual
-            ? 'Profiles shared mutually'
-            : 'Viewing their profiles')
-        : 'Profile share declined';
+    final text =
+        isAccepted
+            ? (request.response == ShareConsent.mutual
+                ? 'Profiles shared mutually'
+                : 'Viewing their profiles')
+            : 'Profile share declined';
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8.h),
@@ -564,10 +567,7 @@ class RequestProfileShareButton extends StatelessWidget {
             SizedBox(width: 8.w),
             Text(
               'Request Sent',
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 12.sp,
-              ),
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 12.sp),
             ),
           ],
         ),
@@ -633,9 +633,7 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF0A0A1A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Padding(
         padding: EdgeInsets.all(20.w),
         child: Column(
@@ -683,7 +681,7 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
               ],
             ),
             SizedBox(height: 20.h),
-            
+
             // Explanation
             Container(
               padding: EdgeInsets.all(12.w),
@@ -714,7 +712,7 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
               ),
             ),
             SizedBox(height: 20.h),
-            
+
             // Profile selection
             Text(
               'Select profiles to share:',
@@ -725,7 +723,7 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
               ),
             ),
             SizedBox(height: 12.h),
-            
+
             ...widget.availableProfiles.map((profile) {
               final isSelected = _selected.contains(profile.platform);
               return GestureDetector(
@@ -742,14 +740,16 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
                   margin: EdgeInsets.only(bottom: 8.h),
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF00FFB2).withValues(alpha: 0.1)
-                        : const Color(0xFF1A1A2E),
+                    color:
+                        isSelected
+                            ? const Color(0xFF00FFB2).withValues(alpha: 0.1)
+                            : const Color(0xFF1A1A2E),
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF00FFB2)
-                          : const Color(0xFF2A2A40),
+                      color:
+                          isSelected
+                              ? const Color(0xFF00FFB2)
+                              : const Color(0xFF2A2A40),
                     ),
                   ),
                   child: Row(
@@ -785,32 +785,35 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
                         width: 24.w,
                         height: 24.w,
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF00FFB2)
-                              : Colors.transparent,
+                          color:
+                              isSelected
+                                  ? const Color(0xFF00FFB2)
+                                  : Colors.transparent,
                           border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF00FFB2)
-                                : const Color(0xFF6B6B80),
+                            color:
+                                isSelected
+                                    ? const Color(0xFF00FFB2)
+                                    : const Color(0xFF6B6B80),
                           ),
                           borderRadius: BorderRadius.circular(6.r),
                         ),
-                        child: isSelected
-                            ? Icon(
-                                Icons.check,
-                                color: Colors.black,
-                                size: 16.sp,
-                              )
-                            : null,
+                        child:
+                            isSelected
+                                ? Icon(
+                                  Icons.check,
+                                  color: Colors.black,
+                                  size: 16.sp,
+                                )
+                                : null,
                       ),
                     ],
                   ),
                 ),
               );
             }),
-            
+
             SizedBox(height: 20.h),
-            
+
             // Actions
             Row(
               children: [
@@ -832,12 +835,13 @@ class _ProfileShareDialogState extends State<ProfileShareDialog> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: _selected.isEmpty
-                        ? null
-                        : () {
-                            widget.onSubmit(_selected.toList());
-                            Navigator.pop(context);
-                          },
+                    onPressed:
+                        _selected.isEmpty
+                            ? null
+                            : () {
+                              widget.onSubmit(_selected.toList());
+                              Navigator.pop(context);
+                            },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFF7931A),
                       foregroundColor: Colors.white,
@@ -884,7 +888,8 @@ class _AddProfileDialogState extends State<AddProfileDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedPlatform = widget.existingProfile?.platform ??
+    _selectedPlatform =
+        widget.existingProfile?.platform ??
         widget.initialPlatform ??
         SocialPlatform.x;
     _handleController.text = widget.existingProfile?.handle ?? '';
@@ -900,9 +905,7 @@ class _AddProfileDialogState extends State<AddProfileDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: const Color(0xFF0A0A1A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: SingleChildScrollView(
         padding: EdgeInsets.all(20.w),
         child: Column(
@@ -919,7 +922,7 @@ class _AddProfileDialogState extends State<AddProfileDialog> {
               ),
             ),
             SizedBox(height: 20.h),
-            
+
             // Platform selector
             if (widget.existingProfile == null) ...[
               Text(
@@ -933,49 +936,51 @@ class _AddProfileDialogState extends State<AddProfileDialog> {
               Wrap(
                 spacing: 8.w,
                 runSpacing: 8.h,
-                children: SocialPlatform.values.map((platform) {
-                  final isSelected = _selectedPlatform == platform;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedPlatform = platform;
-                        _error = null;
-                      });
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.w,
-                        vertical: 8.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFF00FFB2).withValues(alpha: 0.1)
-                            : const Color(0xFF1A1A2E),
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFF00FFB2)
-                              : const Color(0xFF2A2A40),
+                children:
+                    SocialPlatform.values.map((platform) {
+                      final isSelected = _selectedPlatform == platform;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedPlatform = platform;
+                            _error = null;
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 8.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                isSelected
+                                    ? const Color(
+                                      0xFF00FFB2,
+                                    ).withValues(alpha: 0.1)
+                                    : const Color(0xFF1A1A2E),
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(
+                              color:
+                                  isSelected
+                                      ? const Color(0xFF00FFB2)
+                                      : const Color(0xFF2A2A40),
+                            ),
+                          ),
+                          child: Text(
+                            platform.emoji,
+                            style: TextStyle(fontSize: 20.sp),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        platform.emoji,
-                        style: TextStyle(fontSize: 20.sp),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
               ),
               SizedBox(height: 20.h),
             ],
-            
+
             // Handle input
             Text(
               _selectedPlatform.displayName,
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 13.sp,
-              ),
+              style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
             ),
             SizedBox(height: 8.h),
             TextField(
@@ -1022,7 +1027,7 @@ class _AddProfileDialogState extends State<AddProfileDialog> {
               },
             ),
             SizedBox(height: 24.h),
-            
+
             // Actions
             Row(
               children: [
@@ -1065,19 +1070,27 @@ class _AddProfileDialogState extends State<AddProfileDialog> {
 
   void _save() {
     final handle = _handleController.text.trim();
-    
+
     if (handle.isEmpty) {
-      setState(() => _error = 'Please enter your ${_selectedPlatform.displayName} handle');
+      setState(
+        () =>
+            _error =
+                'Please enter your ${_selectedPlatform.displayName} handle',
+      );
       return;
     }
-    
+
     if (!_selectedPlatform.isValidHandle(handle)) {
-      setState(() => _error = 'Invalid ${_selectedPlatform.displayName} format');
+      setState(
+        () => _error = 'Invalid ${_selectedPlatform.displayName} format',
+      );
       return;
     }
 
     final profile = SocialProfile(
-      id: widget.existingProfile?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id:
+          widget.existingProfile?.id ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       platform: _selectedPlatform,
       handle: handle,
       isVerified: widget.existingProfile?.isVerified ?? false,

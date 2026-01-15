@@ -1,5 +1,5 @@
 /// Trade Code Model - Split verification system for P2P trades
-/// 
+///
 /// The trade code is a 6-digit code split between buyer and seller:
 /// - Buyer sees first 3 digits
 /// - Seller sees last 3 digits
@@ -21,7 +21,9 @@ class TradeCode {
   });
 
   /// Generate a new 6-digit trade code
-  factory TradeCode.generate({Duration validity = const Duration(minutes: 10)}) {
+  factory TradeCode.generate({
+    Duration validity = const Duration(minutes: 10),
+  }) {
     final random = Random.secure();
     final code = List.generate(6, (_) => random.nextInt(10)).join();
     final now = DateTime.now();
@@ -36,7 +38,9 @@ class TradeCode {
   factory TradeCode.fromJson(Map<String, dynamic> json) {
     return TradeCode._(
       fullCode: json['fullCode'] as String,
-      generatedAt: DateTime.fromMillisecondsSinceEpoch(json['generatedAt'] as int),
+      generatedAt: DateTime.fromMillisecondsSinceEpoch(
+        json['generatedAt'] as int,
+      ),
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] as int),
     );
   }
@@ -79,16 +83,22 @@ class TradeCode {
 enum TradeCodeStatus {
   /// Code not yet generated
   notGenerated,
+
   /// Waiting for buyer to share their part
   awaitingBuyerPart,
+
   /// Waiting for seller to share their part
   awaitingSellerPart,
+
   /// Both parts received, pending verification
   pendingVerification,
+
   /// Code verified successfully
   verified,
+
   /// Code verification failed
   failed,
+
   /// Code expired
   expired,
 }
@@ -130,5 +140,6 @@ class TradeCodeState {
   }
 
   bool get isVerified => status == TradeCodeStatus.verified;
-  bool get hasFailed => status == TradeCodeStatus.failed || status == TradeCodeStatus.expired;
+  bool get hasFailed =>
+      status == TradeCodeStatus.failed || status == TradeCodeStatus.expired;
 }

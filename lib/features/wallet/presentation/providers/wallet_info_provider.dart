@@ -12,9 +12,10 @@ import 'package:sabi_wallet/services/breez_spark_service.dart';
 /// Usage:
 /// final walletInfo = ref.watch(walletInfoProvider);
 /// ref.read(walletInfoProvider.notifier).refresh();
-final walletInfoProvider = StateNotifierProvider<WalletInfoNotifier, AsyncValue<WalletModel?>>((ref) {
-  return WalletInfoNotifier(ref);
-});
+final walletInfoProvider =
+    StateNotifierProvider<WalletInfoNotifier, AsyncValue<WalletModel?>>((ref) {
+      return WalletInfoNotifier(ref);
+    });
 
 class WalletInfoNotifier extends StateNotifier<AsyncValue<WalletModel?>> {
   final Ref _ref;
@@ -109,9 +110,10 @@ class WalletInfoNotifier extends StateNotifier<AsyncValue<WalletModel?>> {
       if (nairaToBtc != null) {
         // naira_to_btc: 1 NGN = x BTC. To compute NGN from BTC: NGN = BTC / x
         final btc = model.balanceSats / 100000000;
-        final nairaPerBtc = (nairaToBtc is num)
-            ? (1 / nairaToBtc)
-            : (1 / double.parse(nairaToBtc.toString()));
+        final nairaPerBtc =
+            (nairaToBtc is num)
+                ? (1 / nairaToBtc)
+                : (1 / double.parse(nairaToBtc.toString()));
         final computedNgn = btc * nairaPerBtc;
         return WalletModel(
           id: model.id,

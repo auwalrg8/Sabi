@@ -7,10 +7,7 @@ import 'vtu_order_history_screen.dart';
 class VtuSuccessScreen extends StatefulWidget {
   final VtuOrder order;
 
-  const VtuSuccessScreen({
-    super.key,
-    required this.order,
-  });
+  const VtuSuccessScreen({super.key, required this.order});
 
   @override
   State<VtuSuccessScreen> createState() => _VtuSuccessScreenState();
@@ -30,13 +27,15 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
   }
@@ -219,7 +218,9 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
                                   vertical: 4.h,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Color(widget.order.status.color).withOpacity(0.15),
+                                  color: Color(
+                                    widget.order.status.color,
+                                  ).withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(8.r),
                                 ),
                                 child: Text(
@@ -236,15 +237,18 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
                           SizedBox(height: 20.h),
                           Divider(color: const Color(0xFF2A2A3E)),
                           SizedBox(height: 16.h),
-                          
+
                           _DetailRow(
                             label: 'Order ID',
-                            value: widget.order.id.substring(0, 8).toUpperCase(),
+                            value:
+                                widget.order.id.substring(0, 8).toUpperCase(),
                           ),
                           SizedBox(height: 12.h),
                           _DetailRow(
                             label: 'Amount',
-                            value: RateService.formatNaira(widget.order.amountNaira),
+                            value: RateService.formatNaira(
+                              widget.order.amountNaira,
+                            ),
                           ),
                           SizedBox(height: 12.h),
                           _DetailRow(
@@ -268,7 +272,9 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                        border: Border.all(
+                          color: const Color(0xFF10B981).withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -361,7 +367,20 @@ class _VtuSuccessScreenState extends State<VtuSuccessScreen>
   }
 
   String _formatDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final hour = date.hour > 12 ? date.hour - 12 : date.hour;
     final ampm = date.hour >= 12 ? 'PM' : 'AM';
     return '${months[date.month - 1]} ${date.day}, ${date.year} at $hour:${date.minute.toString().padLeft(2, '0')} $ampm';
@@ -373,11 +392,7 @@ class _DetailRow extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const _DetailRow({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _DetailRow({required this.label, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -386,10 +401,7 @@ class _DetailRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 13.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
         ),
         Text(
           value,

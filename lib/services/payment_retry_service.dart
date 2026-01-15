@@ -110,7 +110,12 @@ class PaymentRetryService {
       );
 
       // Send via Breez
-      await BreezSparkService.sendPayment(invoice, sats: sats, comment: memo, recipientName: 'VTU Agent');
+      await BreezSparkService.sendPayment(
+        invoice,
+        sats: sats,
+        comment: memo,
+        recipientName: 'VTU Agent',
+      );
 
       // On success, remove entry and update order (clear error)
       await _box!.delete(id);
@@ -119,7 +124,12 @@ class PaymentRetryService {
       // Mark order as completed/paid (clear errorMessage if present)
       final order = await VtuService.getOrder(orderId);
       if (order != null) {
-        await VtuService.updateOrderStatus(orderId, VtuOrderStatus.completed, token: order.token, errorMessage: null);
+        await VtuService.updateOrderStatus(
+          orderId,
+          VtuOrderStatus.completed,
+          token: order.token,
+          errorMessage: null,
+        );
       }
 
       // Notify webhook
@@ -128,7 +138,6 @@ class PaymentRetryService {
         recipientName: 'VTU Agent',
         description: memo,
       );
-
     } catch (e) {
       attempts++;
       debugPrint('❌ Retry $id failed (attempt $attempts): $e');
@@ -136,7 +145,11 @@ class PaymentRetryService {
       if (attempts >= _maxAttempts) {
         // Give up - mark order with error and remove
         await _box!.delete(id);
-        await VtuService.updateOrderStatus(orderId, VtuOrderStatus.failed, errorMessage: 'Payment retry failed after $attempts attempts: $e');
+        await VtuService.updateOrderStatus(
+          orderId,
+          VtuOrderStatus.failed,
+          errorMessage: 'Payment retry failed after $attempts attempts: $e',
+        );
         // Send failed notification
         BreezWebhookBridgeService().sendPaymentFailedNotification(
           amountSats: sats,

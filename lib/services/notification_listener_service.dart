@@ -10,7 +10,7 @@ import 'package:sabi_wallet/core/models/notification_model.dart';
 /// - Manages notification state (read/unread)
 class NotificationListenerService {
   late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
-  
+
   // In-memory storage for notifications
   final List<NotificationItem> _notifications = [];
 
@@ -27,19 +27,19 @@ class NotificationListenerService {
       // Initialize local notifications
       const AndroidInitializationSettings androidInitializationSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
-      
+
       const DarwinInitializationSettings iOSInitializationSettings =
           DarwinInitializationSettings(
-        requestSoundPermission: true,
-        requestBadgePermission: true,
-        requestAlertPermission: true,
-      );
+            requestSoundPermission: true,
+            requestBadgePermission: true,
+            requestAlertPermission: true,
+          );
 
       const InitializationSettings initializationSettings =
           InitializationSettings(
-        android: androidInitializationSettings,
-        iOS: iOSInitializationSettings,
-      );
+            android: androidInitializationSettings,
+            iOS: iOSInitializationSettings,
+          );
 
       await _flutterLocalNotificationsPlugin.initialize(
         initializationSettings,
@@ -47,7 +47,7 @@ class NotificationListenerService {
       );
 
       print('✅ Notification service initialized');
-      
+
       // Start listening to Breez SDK events
       _startListeningToBreezEvents();
     } catch (e) {
@@ -61,7 +61,7 @@ class NotificationListenerService {
       // Subscribe to Breez SDK events
       // This assumes BreezSparkService.eventsStream is available
       // PaymentReceived event handling
-      
+
       print('🔔 Started listening to Breez SDK events');
     } catch (e) {
       print('❌ Error listening to Breez events: $e');
@@ -82,9 +82,10 @@ class NotificationListenerService {
       final notification = NotificationItem(
         id: const Uuid().v4(),
         title: 'Payment Received ⚡',
-        message: description.isEmpty 
-          ? 'You received ₦${_formatAmount(amount)}'
-          : description,
+        message:
+            description.isEmpty
+                ? 'You received ₦${_formatAmount(amount)}'
+                : description,
         amount: amount,
         currency: '₦',
         type: 'payment_received',

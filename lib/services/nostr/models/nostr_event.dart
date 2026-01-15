@@ -23,12 +23,13 @@ class NostrEvent {
 
   factory NostrEvent.fromJson(Map<String, dynamic> json, {String? relay}) {
     final rawTags = json['tags'] as List<dynamic>? ?? [];
-    final tags = rawTags.map<List<String>>((tag) {
-      if (tag is List) {
-        return tag.map((e) => e.toString()).toList();
-      }
-      return <String>[];
-    }).toList();
+    final tags =
+        rawTags.map<List<String>>((tag) {
+          if (tag is List) {
+            return tag.map((e) => e.toString()).toList();
+          }
+          return <String>[];
+        }).toList();
 
     return NostrEvent(
       id: json['id'] as String? ?? '',
@@ -54,7 +55,8 @@ class NostrEvent {
     };
   }
 
-  DateTime get timestamp => DateTime.fromMillisecondsSinceEpoch(createdAt * 1000);
+  DateTime get timestamp =>
+      DateTime.fromMillisecondsSinceEpoch(createdAt * 1000);
 
   /// Get first tag value by tag name
   String? getTagValue(String tagName) {
@@ -87,5 +89,6 @@ class NostrEvent {
   List<String> get mentionedPubkeys => getTagValues('p');
 
   @override
-  String toString() => 'NostrEvent(id: $id, kind: $kind, pubkey: ${pubkey.substring(0, 8)}...)';
+  String toString() =>
+      'NostrEvent(id: $id, kind: $kind, pubkey: ${pubkey.substring(0, 8)}...)';
 }

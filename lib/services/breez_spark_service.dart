@@ -71,21 +71,24 @@ class BreezSparkService {
       StreamController.broadcast();
   static final Map<String, PendingPaymentRecord> _pendingPayments = {};
   static StoredLightningAddress? _lightningAddressDetails;
-  static StoredLightningAddress? get lightningAddressDetails => _lightningAddressDetails;
-  static final StreamController<List<PendingPaymentRecord>> _pendingPaymentsController =
+  static StoredLightningAddress? get lightningAddressDetails =>
+      _lightningAddressDetails;
+  static final StreamController<List<PendingPaymentRecord>>
+  _pendingPaymentsController =
       StreamController<List<PendingPaymentRecord>>.broadcast();
   static final Stream<List<PendingPaymentRecord>> _pendingPaymentsStream =
       Stream.multi((controller) {
-    controller.add(_pendingPayments.values.toList());
-    final sub = _pendingPaymentsController.stream.listen(controller.add);
-    controller.onCancel = sub.cancel;
-  }, isBroadcast: true);
+        controller.add(_pendingPayments.values.toList());
+        final sub = _pendingPaymentsController.stream.listen(controller.add);
+        controller.onCancel = sub.cancel;
+      }, isBroadcast: true);
 
-  static Stream<List<PendingPaymentRecord>> get pendingPaymentsStream => _pendingPaymentsStream;
-  
+  static Stream<List<PendingPaymentRecord>> get pendingPaymentsStream =>
+      _pendingPaymentsStream;
+
   // DEBUG: Flag to allow app to work without SDK for development
   static bool _useMockSDK = false;
-  
+
   // CRITICAL: Track if the Rust bridge was successfully initialized
   // This is set from main.dart during app startup
   static bool rustBridgeInitialized = false;
@@ -144,7 +147,7 @@ class BreezSparkService {
   // Start payment polling to detect new payments
   static void _startPaymentPolling() {
     _paymentPollingTimer?.cancel();
-    
+
     // Initialize _lastPaymentId with current latest payment to avoid
     // triggering notification for existing payments
     listPayments(limit: 1).then((payments) {
@@ -153,7 +156,7 @@ class BreezSparkService {
         debugPrint('📋 Initial lastPaymentId set to: $_lastPaymentId');
       }
     });
-    
+
     _paymentPollingTimer = Timer.periodic(const Duration(seconds: 2), (
       _,
     ) async {
@@ -216,25 +219,29 @@ class BreezSparkService {
   static Future<List<int>> _getEncryptionKey() async {
     try {
       // Try to read existing key from secure storage
-      final existingKey = await _secureStorage.read(key: _hiveEncryptionKeyName);
+      final existingKey = await _secureStorage.read(
+        key: _hiveEncryptionKeyName,
+      );
       if (existingKey != null && existingKey.isNotEmpty) {
         // Decode the stored key (stored as base64)
         final bytes = base64Decode(existingKey);
         if (bytes.length == 32) {
-          debugPrint('🔑 Using existing Hive encryption key from secure storage');
+          debugPrint(
+            '🔑 Using existing Hive encryption key from secure storage',
+          );
           return bytes;
         }
       }
-      
+
       // No existing key found - generate a new one
       debugPrint('🔑 Generating new Hive encryption key...');
       final newKey = encrypt_pkg.Key.fromLength(32).bytes;
-      
+
       // Store the key in secure storage for future use
       final keyBase64 = base64Encode(newKey);
       await _secureStorage.write(key: _hiveEncryptionKeyName, value: keyBase64);
       debugPrint('✅ Hive encryption key saved to secure storage');
-      
+
       return newKey;
     } catch (e) {
       debugPrint('❌ Error getting encryption key: $e');
@@ -259,10 +266,10 @@ class BreezSparkService {
           '1. Missing native library in the build\n'
           '2. Architecture mismatch (e.g., x86 vs ARM)\n'
           '3. Build configuration issues\n\n'
-          'Please try reinstalling the app or contact support.'
+          'Please try reinstalling the app or contact support.',
         );
       }
-      
+
       if (isInitialized && !isRestore) {
         debugPrint('✅ Spark SDK already initialized');
         return;
@@ -314,7 +321,7 @@ class BreezSparkService {
         );
         debugPrint('✅ Connected to Breez Spark SDK successfully');
       } catch (e) {
-        if (e.toString().contains('libbreez_sdk_spark_flutter.so') || 
+        if (e.toString().contains('libbreez_sdk_spark_flutter.so') ||
             e.toString().contains('dynamic library') ||
             e.toString().contains('Failed to load')) {
           // Native library missing - use mock SDK for development/testing
@@ -416,27 +423,27 @@ class BreezSparkService {
       debugPrint('⏳ SDK not initialized yet - returning 0 balance');
       return 0; // Return safe default instead of throwing
     }
-    
+
     // Return mock balance if using mock SDK
     if (_useMockSDK) {
       debugPrint('💰 Balance: 100000 sats (mock)');
       return 100000;
     }
-    
+
     try {
       // First try with ensureSynced: true for fresh balance
       // If network fails, fall back to cached balance
       GetInfoResponse info;
       try {
-        info = await _sdk!.getInfo(
-          request: GetInfoRequest(ensureSynced: true),
-        ).timeout(const Duration(seconds: 5));
+        info = await _sdk!
+            .getInfo(request: GetInfoRequest(ensureSynced: true))
+            .timeout(const Duration(seconds: 5));
       } catch (syncError) {
         debugPrint('⚠️ Synced balance fetch failed, using cached: $syncError');
         // Fall back to cached balance (ensureSynced: false)
-        info = await _sdk!.getInfo(
-          request: GetInfoRequest(ensureSynced: false),
-        ).timeout(const Duration(seconds: 5));
+        info = await _sdk!
+            .getInfo(request: GetInfoRequest(ensureSynced: false))
+            .timeout(const Duration(seconds: 5));
       }
 
       // balanceSats is already in sats (not msat)
@@ -453,23 +460,24 @@ class BreezSparkService {
   // ============================================================================
   // Lightning address helpers
   // ============================================================================
-  
+
   /// Sync lightning address - fetches existing or auto-registers new one.
   /// This is called during SDK initialization to ensure user always has an address.
   static Future<void> _syncLightningAddress() async {
     try {
       // First, try to fetch existing lightning address from SDK
       final existingAddress = await fetchLightningAddress();
-      
+
       if (existingAddress != null) {
-        debugPrint('✅ Lightning address already registered: ${existingAddress.address}');
+        debugPrint(
+          '✅ Lightning address already registered: ${existingAddress.address}',
+        );
         return;
       }
-      
+
       // No address registered - auto-register a new one
       debugPrint('🔄 No lightning address found, auto-registering...');
       await _autoRegisterLightningAddress();
-      
     } catch (e) {
       debugPrint('⚠️ Lightning address sync failed: $e');
       // Try auto-registration as fallback
@@ -480,7 +488,7 @@ class BreezSparkService {
       }
     }
   }
-  
+
   /// Automatically register a lightning address with a random username.
   /// Retries with alternative usernames if the first one is taken.
   static Future<StoredLightningAddress?> _autoRegisterLightningAddress() async {
@@ -488,39 +496,40 @@ class BreezSparkService {
       debugPrint('⚠️ Cannot auto-register: SDK not initialized');
       return null;
     }
-    
+
     // Generate initial random username
     String username = LightningAddressManager.generateRandomUsername();
     debugPrint('🎲 Generated username: $username');
-    
+
     // Try to register with retries for taken usernames
     const maxAttempts = 5;
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         // Check availability first
         final isAvailable = await checkLightningAddressAvailability(username);
-        
+
         if (!isAvailable) {
-          debugPrint('⚠️ Username "$username" is taken, generating alternative...');
+          debugPrint(
+            '⚠️ Username "$username" is taken, generating alternative...',
+          );
           username = LightningAddressManager.generateRandomUsername();
           continue;
         }
-        
+
         // Register the address
         final address = await registerLightningAddress(
           username: username,
           description: 'Receive sats via Sabi Wallet',
         );
-        
+
         // Save to secure storage
         await LightningAddressManager.saveRegisteredAddress(
           username: username,
           fullAddress: address.address,
         );
-        
+
         debugPrint('✅ Auto-registered lightning address: ${address.address}');
         return address;
-        
       } catch (e) {
         debugPrint('⚠️ Registration attempt $attempt failed: $e');
         if (attempt < maxAttempts) {
@@ -528,8 +537,10 @@ class BreezSparkService {
         }
       }
     }
-    
-    debugPrint('❌ Failed to auto-register lightning address after $maxAttempts attempts');
+
+    debugPrint(
+      '❌ Failed to auto-register lightning address after $maxAttempts attempts',
+    );
     return null;
   }
 
@@ -555,7 +566,9 @@ class BreezSparkService {
       throw Exception('SDK not initialized');
     }
     final request = CheckLightningAddressRequest(username: username);
-    final available = await _sdk!.checkLightningAddressAvailable(request: request);
+    final available = await _sdk!.checkLightningAddressAvailable(
+      request: request,
+    );
     debugPrint('ℹ️ Lightning username "$username" available: $available');
     return available;
   }
@@ -568,7 +581,8 @@ class BreezSparkService {
       debugPrint('❌ SDK not initialized - cannot register Lightning address');
       throw Exception('SDK not initialized');
     }
-    final desc = description ?? 'Receive payments via Sabi wallet for $username';
+    final desc =
+        description ?? 'Receive payments via Sabi wallet for $username';
     final request = RegisterLightningAddressRequest(
       username: username,
       description: desc,
@@ -590,7 +604,9 @@ class BreezSparkService {
     debugPrint('🗑️ Lightning address deleted');
   }
 
-  static Future<LnurlReceiveMetadata?> fetchLnurlReceiveMetadata(String paymentId) async {
+  static Future<LnurlReceiveMetadata?> fetchLnurlReceiveMetadata(
+    String paymentId,
+  ) async {
     if (_sdk == null) {
       debugPrint('❌ SDK not initialized - cannot fetch LNURL metadata');
       throw Exception('SDK not initialized');
@@ -605,7 +621,9 @@ class BreezSparkService {
     return null;
   }
 
-  static StoredLightningAddress _buildLightningAddressDetails(LightningAddressInfo info) {
+  static StoredLightningAddress _buildLightningAddressDetails(
+    LightningAddressInfo info,
+  ) {
     return StoredLightningAddress(
       address: info.lightningAddress,
       username: info.username,
@@ -712,14 +730,16 @@ class BreezSparkService {
     }
     final pendingId = const Uuid().v4();
     final pendingAmountSats = sats ?? 0;
-    _registerPendingPayment(PendingPaymentRecord(
-      id: pendingId,
-      recipientName: recipientName ?? identifier,
-      recipientIdentifier: identifier,
-      amountSats: pendingAmountSats,
-      startedAt: DateTime.now(),
-      memo: comment.isEmpty ? null : comment,
-    ));
+    _registerPendingPayment(
+      PendingPaymentRecord(
+        id: pendingId,
+        recipientName: recipientName ?? identifier,
+        recipientIdentifier: identifier,
+        amountSats: pendingAmountSats,
+        startedAt: DateTime.now(),
+        memo: comment.isEmpty ? null : comment,
+      ),
+    );
     try {
       debugPrint('💸 Sending to: $identifier');
 
@@ -770,13 +790,13 @@ class BreezSparkService {
       debugPrint('⏳ SDK not initialized yet - returning empty payments list');
       return []; // Return safe default instead of throwing
     }
-    
+
     // Return empty list if using mock SDK
     if (_useMockSDK) {
       debugPrint('📋 Total payments: 0 (mock)');
       return [];
     }
-    
+
     try {
       final response = await _sdk!.listPayments(
         request: ListPaymentsRequest(limit: limit),

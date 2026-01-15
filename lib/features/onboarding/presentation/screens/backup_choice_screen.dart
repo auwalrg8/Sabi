@@ -121,7 +121,7 @@ class BackupChoiceScreen extends ConsumerWidget {
                         },
                       ),
                       SizedBox(height: 24.h),
-                      
+
                       // Info text about backup importance
                       Container(
                         padding: EdgeInsets.all(16.r),

@@ -11,7 +11,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';

@@ -155,14 +155,19 @@ class RecoverySetScreen extends ConsumerWidget {
                   onPressed: () {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const WalletSuccessScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const WalletSuccessScreen(),
+                      ),
                       (route) => false, // Clear onboarding stack
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                   ),
-                  child: const Text('Continue to Wallet', style: TextStyle(color: AppColors.surface)),
+                  child: const Text(
+                    'Continue to Wallet',
+                    style: TextStyle(color: AppColors.surface),
+                  ),
                 ),
               ),
             ],

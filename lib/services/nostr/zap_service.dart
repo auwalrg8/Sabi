@@ -97,7 +97,9 @@ class ZapService {
     required Future<int> Function() getBalance, // Get wallet balance
     required Future<String?> Function(String bolt11) payInvoice, // Pay bolt11
   }) async {
-    debugPrint('⚡ Starting zap: $amountSats sats to ${recipientPubkey.substring(0, 8)}...');
+    debugPrint(
+      '⚡ Starting zap: $amountSats sats to ${recipientPubkey.substring(0, 8)}...',
+    );
 
     try {
       // 1. Check balance first
@@ -115,7 +117,9 @@ class ZapService {
 
       final lightningAddress = profile.lud16 ?? profile.lud06;
       if (lightningAddress == null) {
-        debugPrint('❌ No Lightning address for ${profile.displayNameOrFallback}');
+        debugPrint(
+          '❌ No Lightning address for ${profile.displayNameOrFallback}',
+        );
         return ZapResult.noLightningAddress();
       }
 
@@ -150,7 +154,7 @@ class ZapService {
           eventId: eventId,
           lnurl: lightningAddress,
         );
-        
+
         if (zapRequest != null) {
           zapRequestJson = jsonEncode(zapRequest);
           debugPrint('⚡ Created zap request event');
@@ -166,14 +170,16 @@ class ZapService {
       );
 
       if (invoice == null) {
-        return ZapResult.failure('Could not get invoice from Lightning address');
+        return ZapResult.failure(
+          'Could not get invoice from Lightning address',
+        );
       }
 
       debugPrint('⚡ Got invoice: ${invoice.substring(0, 30)}...');
 
       // 7. Pay the invoice via Breez SDK
       final paymentResult = await payInvoice(invoice);
-      
+
       if (paymentResult != null) {
         debugPrint('✅ Zap successful! Payment hash: $paymentResult');
         return ZapResult.success(amountSats, paymentHash: paymentResult);
@@ -195,12 +201,12 @@ class ZapService {
 
     try {
       String url;
-      
+
       if (address.contains('@')) {
         // Standard lud16 format: name@domain.com
         final parts = address.split('@');
         if (parts.length != 2) return null;
-        
+
         final username = parts[0];
         final domain = parts[1];
         url = 'https://$domain/.well-known/lnurlp/$username';
@@ -214,9 +220,9 @@ class ZapService {
 
       debugPrint('⚡ Resolving LNURL: $url');
 
-      final response = await http.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
         debugPrint('❌ LNURL resolution failed: ${response.statusCode}');
@@ -224,7 +230,7 @@ class ZapService {
       }
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      
+
       // Check for error
       if (json['status'] == 'ERROR') {
         debugPrint('❌ LNURL error: ${json['reason']}');
@@ -233,7 +239,7 @@ class ZapService {
 
       final data = LnurlPayData.fromJson(json);
       _lnurlCache[address] = data;
-      
+
       debugPrint('⚡ LNURL resolved. Allows Nostr: ${data.allowsNostr}');
       return data;
     } catch (e) {
@@ -287,10 +293,12 @@ class ZapService {
       // ignore: unused_local_variable
       final nostrInstance = Nostr(privateKey: hexPrivKey);
       final event = Event(senderPubkey, 9734, tags, comment);
-      
+
       // The nostr instance is used to initialize with the key
       // Event signing happens automatically via nostr_dart
-      debugPrint('🔑 Zap request created with pubkey: ${senderPubkey.substring(0, 8)}...');
+      debugPrint(
+        '🔑 Zap request created with pubkey: ${senderPubkey.substring(0, 8)}...',
+      );
 
       return {
         'id': event.id,
@@ -317,9 +325,7 @@ class ZapService {
     try {
       // Build callback URL with parameters
       final uri = Uri.parse(callback);
-      final params = <String, String>{
-        'amount': amountMsats.toString(),
-      };
+      final params = <String, String>{'amount': amountMsats.toString()};
 
       if (comment != null && comment.isNotEmpty) {
         params['comment'] = comment;
@@ -329,16 +335,17 @@ class ZapService {
         params['nostr'] = zapRequest;
       }
 
-      final fullUri = uri.replace(queryParameters: {
-        ...uri.queryParameters,
-        ...params,
-      });
-
-      debugPrint('⚡ Fetching invoice from: ${fullUri.toString().substring(0, 50)}...');
-
-      final response = await http.get(fullUri).timeout(
-        const Duration(seconds: 15),
+      final fullUri = uri.replace(
+        queryParameters: {...uri.queryParameters, ...params},
       );
+
+      debugPrint(
+        '⚡ Fetching invoice from: ${fullUri.toString().substring(0, 50)}...',
+      );
+
+      final response = await http
+          .get(fullUri)
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
         debugPrint('❌ Invoice fetch failed: ${response.statusCode}');

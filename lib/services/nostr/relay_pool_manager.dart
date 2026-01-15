@@ -284,29 +284,26 @@ class RelayPoolManager {
   /// Reduced from 55+ to 20 to avoid rate limiting
   static const List<String> primalRelays = [
     // ========== TIER 1: Core High-Performance Relays ==========
-    'wss://relay.primal.net',    // Primal's main relay - excellent uptime
-    'wss://relay.damus.io',      // Damus relay - very popular
-    'wss://relay.snort.social',  // Snort relay - high performance
-    'wss://nos.lol',             // Fast and reliable
-    'wss://nostr.wine',          // Premium relay
-    'wss://relay.nostr.band',    // Good for discovery
-    'wss://purplepag.es',        // NIP-65 discovery relay
-    
+    'wss://relay.primal.net', // Primal's main relay - excellent uptime
+    'wss://relay.damus.io', // Damus relay - very popular
+    'wss://relay.snort.social', // Snort relay - high performance
+    'wss://nos.lol', // Fast and reliable
+    'wss://nostr.wine', // Premium relay
+    'wss://relay.nostr.band', // Good for discovery
+    'wss://purplepag.es', // NIP-65 discovery relay
     // ========== TIER 2: Popular Relays ==========
-    'wss://nostr.oxtr.dev',      // Reliable community relay
-    'wss://eden.nostr.land',     // Good performance
+    'wss://nostr.oxtr.dev', // Reliable community relay
+    'wss://eden.nostr.land', // Good performance
     'wss://nostr.bitcoiner.social', // Bitcoin-focused
-    'wss://offchain.pub',        // Reliable
-    'wss://nostr.fmt.wiz.biz',   // Long-running relay
-    
+    'wss://offchain.pub', // Reliable
+    'wss://nostr.fmt.wiz.biz', // Long-running relay
     // ========== TIER 3: DM & Inbox Relays ==========
-    'wss://inbox.nostr.wine',    // DM-focused (requires NIP-42 for some)
-    'wss://nostr.land',          // Good for DMs
+    'wss://inbox.nostr.wine', // DM-focused (requires NIP-42 for some)
+    'wss://nostr.land', // Good for DMs
     'wss://nostr-pub.wellorder.net', // Reliable fallback
-    
     // ========== TIER 4: Regional Diversity ==========
-    'wss://relay.nostr.ch',      // Europe
-    'wss://nostr.swiss',         // Europe
+    'wss://relay.nostr.ch', // Europe
+    'wss://nostr.swiss', // Europe
     'wss://relay.nostr.wirednet.jp', // Asia
     'wss://nostr.einundzwanzig.space', // German community
   ];
@@ -319,7 +316,7 @@ class RelayPoolManager {
 
   bool get isInitialized => _initialized;
   Stream<NostrEvent> get eventStream => _globalEventController.stream;
-  
+
   /// Get the count of connected relays
   int get connectedCount => _relays.values.where((r) => r.isConnected).length;
 
@@ -452,7 +449,7 @@ class RelayPoolManager {
     // Subscribe to connected relays (up to maxRelays)
     final relays = connectedRelays.take(maxRelays).toList();
     final targetRelays = relays.length;
-    
+
     if (targetRelays == 0) {
       debugPrint('⚠️ No connected relays for fetch');
       return [];
@@ -463,7 +460,9 @@ class RelayPoolManager {
     // Set up timeout
     final timeoutTimer = Timer(Duration(seconds: timeoutSeconds), () {
       if (!completer.isCompleted) {
-        debugPrint('📨 Fetch timeout: ${events.length} events from $relaysResponded/$targetRelays relays');
+        debugPrint(
+          '📨 Fetch timeout: ${events.length} events from $relaysResponded/$targetRelays relays',
+        );
         completer.complete(events.values.toList());
       }
     });
@@ -473,7 +472,7 @@ class RelayPoolManager {
     // 2. Most relays have responded
     void checkEarlyComplete() {
       if (completer.isCompleted || !earlyComplete) return;
-      
+
       // Complete early if we have enough events
       if (events.length >= maxEvents) {
         debugPrint('📨 Early complete: got $maxEvents events');
@@ -481,10 +480,12 @@ class RelayPoolManager {
         completer.complete(events.values.toList());
         return;
       }
-      
+
       // Complete early if 60% of relays responded (don't wait for slow ones)
       if (relaysResponded >= (targetRelays * 0.6).ceil()) {
-        debugPrint('📨 Early complete: $relaysResponded/$targetRelays relays, ${events.length} events');
+        debugPrint(
+          '📨 Early complete: $relaysResponded/$targetRelays relays, ${events.length} events',
+        );
         timeoutTimer.cancel();
         completer.complete(events.values.toList());
       }
@@ -498,7 +499,7 @@ class RelayPoolManager {
         }
       });
       subscriptions[subId] = relay.url;
-      
+
       // Track relay responses via EOSE (end of stored events)
       // Use a small delay to count as "responded" since we can't hook EOSE directly
       Future.delayed(const Duration(milliseconds: 500), () {

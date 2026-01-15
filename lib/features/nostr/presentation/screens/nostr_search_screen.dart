@@ -3,9 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'nostr_profile_screen.dart';
-import '../../services/nostr/nostr_service.dart' as nostr_v2;
+import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
 /// Search type tabs
 enum SearchType { users, notes, hashtags }

@@ -27,7 +27,7 @@ class NotificationBadge extends StatelessWidget {
             size: 24,
           ),
         ),
-        
+
         // Badge (red dot + count)
         if (unreadCount > 0)
           Positioned(

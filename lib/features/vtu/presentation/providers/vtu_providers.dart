@@ -3,9 +3,10 @@ import '../../data/models/models.dart';
 import '../../services/vtu_service.dart';
 
 /// Provider for VTU orders list
-final vtuOrdersProvider = StateNotifierProvider<VtuOrdersNotifier, AsyncValue<List<VtuOrder>>>((ref) {
-  return VtuOrdersNotifier();
-});
+final vtuOrdersProvider =
+    StateNotifierProvider<VtuOrdersNotifier, AsyncValue<List<VtuOrder>>>((ref) {
+      return VtuOrdersNotifier();
+    });
 
 class VtuOrdersNotifier extends StateNotifier<AsyncValue<List<VtuOrder>>> {
   VtuOrdersNotifier() : super(const AsyncValue.loading()) {
@@ -54,12 +55,20 @@ class VtuOrdersNotifier extends StateNotifier<AsyncValue<List<VtuOrder>>> {
   }
 
   Future<void> markCompleted(String orderId, {String? token}) async {
-    await VtuService.updateOrderStatus(orderId, VtuOrderStatus.completed, token: token);
+    await VtuService.updateOrderStatus(
+      orderId,
+      VtuOrderStatus.completed,
+      token: token,
+    );
     await loadOrders();
   }
 
   Future<void> markFailed(String orderId, String errorMessage) async {
-    await VtuService.updateOrderStatus(orderId, VtuOrderStatus.failed, errorMessage: errorMessage);
+    await VtuService.updateOrderStatus(
+      orderId,
+      VtuOrderStatus.failed,
+      errorMessage: errorMessage,
+    );
     await loadOrders();
   }
 
@@ -89,10 +98,14 @@ class VtuOrdersNotifier extends StateNotifier<AsyncValue<List<VtuOrder>>> {
 final selectedNetworkProvider = StateProvider<NetworkProvider?>((ref) => null);
 
 /// Provider for selected electricity provider
-final selectedElectricityProvider = StateProvider<ElectricityProvider?>((ref) => null);
+final selectedElectricityProvider = StateProvider<ElectricityProvider?>(
+  (ref) => null,
+);
 
 /// Provider for selected meter type
-final selectedMeterTypeProvider = StateProvider<MeterType>((ref) => MeterType.prepaid);
+final selectedMeterTypeProvider = StateProvider<MeterType>(
+  (ref) => MeterType.prepaid,
+);
 
 /// Provider for phone number input
 final phoneNumberProvider = StateProvider<String>((ref) => '');
@@ -110,7 +123,10 @@ final selectedDataPlanProvider = StateProvider<DataPlan?>((ref) => null);
 final selectedElectricityAmountProvider = StateProvider<double?>((ref) => null);
 
 /// Provider to convert Naira to Sats
-final nairaToSatsProvider = FutureProvider.family<int, double>((ref, naira) async {
+final nairaToSatsProvider = FutureProvider.family<int, double>((
+  ref,
+  naira,
+) async {
   return await VtuService.nairaToSats(naira);
 });
 
@@ -125,10 +141,15 @@ final dataPlansProvider = Provider<List<DataPlan>>((ref) {
 final pendingOrdersCountProvider = Provider<int>((ref) {
   final ordersAsync = ref.watch(vtuOrdersProvider);
   return ordersAsync.maybeWhen(
-    data: (orders) => orders.where((o) => 
-      o.status == VtuOrderStatus.pending || 
-      o.status == VtuOrderStatus.processing
-    ).length,
+    data:
+        (orders) =>
+            orders
+                .where(
+                  (o) =>
+                      o.status == VtuOrderStatus.pending ||
+                      o.status == VtuOrderStatus.processing,
+                )
+                .length,
     orElse: () => 0,
   );
 });

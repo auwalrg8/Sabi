@@ -16,17 +16,18 @@ const String _pushApiBaseUrl = String.fromEnvironment(
 );
 
 /// Service that bridges Breez SDK payments with Firebase push notifications
-/// 
+///
 /// This service:
 /// 1. Listens to the payment stream from BreezSparkService
 /// 2. When a payment is received, sends a webhook to Cloud Functions
 /// 3. Cloud Functions then sends push notifications to the user's devices
-/// 
+///
 /// Note: For true offline notifications, you need to configure Breez SDK
 /// to send webhooks directly to your Cloud Functions. This service handles
 /// the foreground case where the app detects the payment.
 class BreezWebhookBridgeService {
-  static final BreezWebhookBridgeService _instance = BreezWebhookBridgeService._internal();
+  static final BreezWebhookBridgeService _instance =
+      BreezWebhookBridgeService._internal();
   factory BreezWebhookBridgeService() => _instance;
   BreezWebhookBridgeService._internal();
 
@@ -65,7 +66,9 @@ class BreezWebhookBridgeService {
     debugPrint('   Amount: ${payment.amountSats} sats');
     debugPrint('   IsIncoming: ${payment.isIncoming}');
 
-    debugPrint('⚡ Processing payment: ${payment.amountSats} sats (${payment.isIncoming ? "incoming" : "outgoing"})');
+    debugPrint(
+      '⚡ Processing payment: ${payment.amountSats} sats (${payment.isIncoming ? "incoming" : "outgoing"})',
+    );
 
     try {
       final pubkey = _nostrProfile.currentPubkey;
@@ -97,7 +100,10 @@ class BreezWebhookBridgeService {
           'amountNaira': amountNaira?.toStringAsFixed(2),
           'paymentHash': payment.id,
           'description': payment.description,
-          'timestamp': DateTime.fromMillisecondsSinceEpoch(payment.paymentTime).toIso8601String(),
+          'timestamp':
+              DateTime.fromMillisecondsSinceEpoch(
+                payment.paymentTime,
+              ).toIso8601String(),
           'isIncoming': payment.isIncoming,
         }),
       );
@@ -105,13 +111,15 @@ class BreezWebhookBridgeService {
       if (response.statusCode == 200) {
         debugPrint('✅ Payment webhook sent successfully');
       } else {
-        debugPrint('⚠️ Webhook failed: ${response.statusCode} - ${response.body}');
+        debugPrint(
+          '⚠️ Webhook failed: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
       debugPrint('❌ Error sending payment webhook: $e');
     }
   }
-  
+
   /// Send notification for successful outgoing payment
   Future<bool> sendOutgoingPaymentNotification({
     required int amountSats,
@@ -125,7 +133,7 @@ class BreezWebhookBridgeService {
         debugPrint('⚠️ No pubkey for outgoing payment notification');
         return false;
       }
-      
+
       // Convert sats to Naira using current rate
       double? amountNaira;
       try {
@@ -145,7 +153,11 @@ class BreezWebhookBridgeService {
           'amountSats': amountSats,
           'amountNaira': amountNaira?.toStringAsFixed(2),
           'paymentHash': paymentHash,
-          'description': description ?? (recipientName != null ? 'Payment to $recipientName' : 'Outgoing payment'),
+          'description':
+              description ??
+              (recipientName != null
+                  ? 'Payment to $recipientName'
+                  : 'Outgoing payment'),
           'timestamp': DateTime.now().toIso8601String(),
           'isIncoming': false,
           'recipientName': recipientName,
@@ -159,7 +171,7 @@ class BreezWebhookBridgeService {
       return false;
     }
   }
-  
+
   /// Send notification for failed payment
   Future<bool> sendPaymentFailedNotification({
     required int amountSats,
@@ -172,7 +184,7 @@ class BreezWebhookBridgeService {
         debugPrint('⚠️ No pubkey for payment failure notification');
         return false;
       }
-      
+
       // Convert sats to Naira using current rate
       double? amountNaira;
       try {
@@ -275,9 +287,9 @@ class BreezWebhookBridgeService {
   /// Health check for the Cloud Functions
   Future<bool> checkCloudFunctionsHealth() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_pushApiBaseUrl/health'),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse('$_pushApiBaseUrl/health'))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

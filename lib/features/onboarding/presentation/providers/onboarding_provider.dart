@@ -11,7 +11,8 @@ class OnboardingNotifier extends _$OnboardingNotifier {
   OnboardingState build() => OnboardingState();
 
   void setPath(OnboardingPath path) => state = state.copyWith(path: path);
-  void setBackupMethod(BackupMethod method) => state = state.copyWith(backupMethod: method);
+  void setBackupMethod(BackupMethod method) =>
+      state = state.copyWith(backupMethod: method);
 
   void toggleContact(Contact contact) {
     final newSet = Set<Contact>.from(state.selectedContacts);

@@ -33,13 +33,19 @@ final btcToFiatRateProvider = FutureProvider<double>((ref) async {
 });
 
 /// Convert sats to fiat in the user's selected currency
-final satsToFiatProvider = FutureProvider.family<double, int>((ref, sats) async {
+final satsToFiatProvider = FutureProvider.family<double, int>((
+  ref,
+  sats,
+) async {
   final currency = ref.watch(selectedFiatCurrencyProvider);
   return await RateService.satsToFiat(sats, currency);
 });
 
 /// Format sats as fiat string in user's selected currency
-final formattedFiatProvider = FutureProvider.family<String, int>((ref, sats) async {
+final formattedFiatProvider = FutureProvider.family<String, int>((
+  ref,
+  sats,
+) async {
   final currency = ref.watch(selectedFiatCurrencyProvider);
   final fiatAmount = await RateService.satsToFiat(sats, currency);
   return RateService.formatFiat(fiatAmount, currency);

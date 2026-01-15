@@ -505,7 +505,8 @@ class VtuApiService {
           plans.add(
             VtuCableTvPlan(
               variationId: variation['variation_id']?.toString() ?? '',
-              name: variation['plan_name']?.toString() ??
+              name:
+                  variation['plan_name']?.toString() ??
                   variation['name']?.toString() ??
                   '',
               price: price,

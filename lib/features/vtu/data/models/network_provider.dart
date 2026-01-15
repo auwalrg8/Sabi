@@ -1,10 +1,5 @@
 /// Mobile network operators in Nigeria
-enum NetworkProvider {
-  mtn,
-  glo,
-  airtel,
-  nineMobile,
-}
+enum NetworkProvider { mtn, glo, airtel, nineMobile }
 
 extension NetworkProviderExtension on NetworkProvider {
   String get name {
@@ -63,11 +58,34 @@ extension NetworkProviderExtension on NetworkProvider {
   List<String> get prefixes {
     switch (this) {
       case NetworkProvider.mtn:
-        return ['0803', '0806', '0703', '0706', '0813', '0816', '0810', '0814', '0903', '0906', '0913', '0916'];
+        return [
+          '0803',
+          '0806',
+          '0703',
+          '0706',
+          '0813',
+          '0816',
+          '0810',
+          '0814',
+          '0903',
+          '0906',
+          '0913',
+          '0916',
+        ];
       case NetworkProvider.glo:
         return ['0805', '0807', '0705', '0815', '0811', '0905', '0915'];
       case NetworkProvider.airtel:
-        return ['0802', '0808', '0708', '0812', '0701', '0902', '0901', '0907', '0912'];
+        return [
+          '0802',
+          '0808',
+          '0708',
+          '0812',
+          '0701',
+          '0902',
+          '0901',
+          '0907',
+          '0912',
+        ];
       case NetworkProvider.nineMobile:
         return ['0809', '0817', '0818', '0908', '0909'];
     }
@@ -75,9 +93,9 @@ extension NetworkProviderExtension on NetworkProvider {
 
   static NetworkProvider? detectFromPhone(String phone) {
     if (phone.length < 4) return null;
-    
+
     final prefix = phone.substring(0, 4);
-    
+
     for (final provider in NetworkProvider.values) {
       if (provider.prefixes.contains(prefix)) {
         return provider;

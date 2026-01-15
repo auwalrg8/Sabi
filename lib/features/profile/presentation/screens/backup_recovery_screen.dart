@@ -6,9 +6,9 @@ import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/recover_with_guys_screen.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/seed_phrase_screen.dart';
-import 'package:sabi_wallet/features/recovery/guardian_management_screen.dart';
-import 'package:sabi_wallet/features/recovery/social_recovery_service.dart';
-import 'package:sabi_wallet/features/recovery/recovery_setup_flow.dart';
+import 'package:sabi_wallet/features/recovery/presentation/screens/guardian_management_screen.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
+import 'package:sabi_wallet/features/recovery/presentation/widgets/recovery_setup_flow.dart';
 
 class BackupRecoveryScreen extends ConsumerStatefulWidget {
   const BackupRecoveryScreen({super.key});
@@ -174,9 +174,7 @@ class _BackupRecoveryScreenState extends ConsumerState<BackupRecoveryScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.3),
-        ),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,10 +282,7 @@ class _BackupRecoveryScreenState extends ConsumerState<BackupRecoveryScreen> {
               ),
               child: Text(
                 'Set Up Social Recovery',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15.sp,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15.sp),
               ),
             ),
           ),
@@ -307,25 +302,29 @@ class _BackupRecoveryScreenState extends ConsumerState<BackupRecoveryScreen> {
 
     final isHealthy = overallStatus == GuardianHealthStatus.healthy;
     final isWarning = overallStatus == GuardianHealthStatus.warning;
-    final borderColor = isHealthy
-        ? AppColors.accentGreen
-        : isWarning
+    final borderColor =
+        isHealthy
+            ? AppColors.accentGreen
+            : isWarning
             ? Colors.orange
             : Colors.red;
 
-    final statusText = isHealthy
-        ? 'Health: Strong'
-        : isWarning
+    final statusText =
+        isHealthy
+            ? 'Health: Strong'
+            : isWarning
             ? 'Health: Warning'
             : 'Health: Critical';
 
-    final subtitleText = isHealthy
-        ? '$healthyCount contacts online recently'
-        : isWarning
+    final subtitleText =
+        isHealthy
+            ? '$healthyCount contacts online recently'
+            : isWarning
             ? '$warningCount contacts may need attention'
             : 'Less than 3 contacts reachable';
 
-    final healthValue = totalCount > 0 ? (healthyCount + warningCount * 0.5) / totalCount : 0.0;
+    final healthValue =
+        totalCount > 0 ? (healthyCount + warningCount * 0.5) / totalCount : 0.0;
 
     return Container(
       padding: EdgeInsets.all(18.w),
@@ -549,14 +548,18 @@ class _BackupStatusCard extends StatelessWidget {
       future: storage.getBackupStatus(),
       builder: (context, snapshot) {
         final status = snapshot.data;
-        final isBackedUp = (status != null && status != 'none' && status != 'skipped') || isRecoverySetUp;
-        final borderColor = isBackedUp ? AppColors.accentGreen : AppColors.accentRed;
+        final isBackedUp =
+            (status != null && status != 'none' && status != 'skipped') ||
+            isRecoverySetUp;
+        final borderColor =
+            isBackedUp ? AppColors.accentGreen : AppColors.accentRed;
         final title = isBackedUp ? 'Wallet Backed Up' : 'Wallet Not Backed Up';
-        final subtitle = isBackedUp
-            ? isRecoverySetUp
-                ? 'Protected by Social Recovery'
-                : 'Seed phrase backed up'
-            : 'Set up a backup to protect your funds';
+        final subtitle =
+            isBackedUp
+                ? isRecoverySetUp
+                    ? 'Protected by Social Recovery'
+                    : 'Seed phrase backed up'
+                : 'Set up a backup to protect your funds';
 
         return Container(
           padding: EdgeInsets.all(18.w),

@@ -4,17 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/recovery/social_recovery_service.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'wallet_success_screen.dart';
 
-enum RecoveryState {
-  input,
-  searching,
-  requestingShares,
-  restored,
-  failed,
-}
+enum RecoveryState { input, searching, requestingShares, restored, failed }
 
 /// Display model for recovery contacts (distinct from SocialRecoveryService.RecoveryContact)
 class RecoveryGuardianDisplay {
@@ -45,7 +39,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
   int _sharesReceived = 0;
   late AnimationController _spinController;
   late AnimationController _progressController;
-  
+
   List<RecoveryGuardianDisplay> _contacts = [];
   List<RecoveryShare> _collectedShares = [];
   StreamSubscription<RecoveryShare>? _shareSubscription;
@@ -84,14 +78,14 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
       // Initialize services
       await SocialRecoveryService.init();
       await NostrService.init();
-      
+
       // The identifier (npub or phone) could be used in future to look up
       // the user's recovery contacts from a decentralized registry
       // For now, we use locally stored contacts
-      
+
       // Look up the user's stored recovery contacts
       final contacts = await SocialRecoveryService.getRecoveryContacts();
-      
+
       if (contacts.isEmpty) {
         setState(() {
           _state = RecoveryState.failed;
@@ -101,12 +95,17 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
       }
 
       // Convert to display contacts
-      _contacts = contacts.map((c) => RecoveryGuardianDisplay(
-        name: c.name,
-        npub: c.npub,
-        initial: c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-        shareReceived: false,
-      )).toList();
+      _contacts =
+          contacts
+              .map(
+                (c) => RecoveryGuardianDisplay(
+                  name: c.name,
+                  npub: c.npub,
+                  initial: c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+                  shareReceived: false,
+                ),
+              )
+              .toList();
 
       setState(() {
         _state = RecoveryState.requestingShares;
@@ -117,7 +116,6 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
 
       // Request shares from all contacts
       await SocialRecoveryService.requestRecoveryShares();
-      
     } catch (e) {
       print('❌ Recovery error: $e');
       setState(() {
@@ -131,12 +129,12 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
     _shareSubscription = SocialRecoveryService.listenForRecoveryShares().listen(
       (share) {
         if (!mounted) return;
-        
+
         // Mark the contact as having responded
         final contactIndex = _contacts.indexWhere(
-          (c) => c.npub == share.senderNpub
+          (c) => c.npub == share.senderNpub,
         );
-        
+
         if (contactIndex >= 0) {
           setState(() {
             _contacts[contactIndex].shareReceived = true;
@@ -175,7 +173,8 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
         if (_collectedShares.length < 3) {
           setState(() {
             _state = RecoveryState.failed;
-            _errorMessage = 'Timed out waiting for shares. '
+            _errorMessage =
+                'Timed out waiting for shares. '
                 'Only received ${_collectedShares.length}/3 shares.';
           });
         }
@@ -186,7 +185,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
   Future<void> _attemptRecovery() async {
     try {
       final recoveredSeed = await SocialRecoveryService.attemptRecovery(
-        _collectedShares
+        _collectedShares,
       );
 
       if (recoveredSeed != null) {
@@ -220,9 +219,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
             children: [
               _buildHeader(),
               SizedBox(height: 24.h),
-              Expanded(
-                child: _buildContent(),
-              ),
+              Expanded(child: _buildContent()),
             ],
           ),
         ),
@@ -241,11 +238,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
               color: const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(8.r),
             ),
-            child: const Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
         ),
         SizedBox(width: 12.w),
@@ -378,7 +371,9 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                               fontSize: 13.sp,
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 14.h),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 14.h,
+                            ),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -387,7 +382,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                   ),
                 ),
                 SizedBox(height: 20.h),
-                
+
                 // Info Card
                 Container(
                   padding: EdgeInsets.all(16.r),
@@ -424,7 +419,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
             ),
           ),
         ),
-        
+
         // Start Button
         GestureDetector(
           onTap: hasInput ? _startRecovery : null,
@@ -432,9 +427,8 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
             width: double.infinity,
             padding: EdgeInsets.symmetric(vertical: 16.h),
             decoration: BoxDecoration(
-              color: hasInput
-                  ? const Color(0xFFF7931A)
-                  : const Color(0xFF333355),
+              color:
+                  hasInput ? const Color(0xFFF7931A) : const Color(0xFF333355),
               borderRadius: BorderRadius.circular(12.r),
             ),
             child: Center(
@@ -443,9 +437,10 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
-                  color: hasInput
-                      ? const Color(0xFF0C0C1A)
-                      : const Color(0xFF666680),
+                  color:
+                      hasInput
+                          ? const Color(0xFF0C0C1A)
+                          : const Color(0xFF666680),
                   fontFamily: 'Google Sans',
                 ),
               ),
@@ -537,7 +532,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                 ),
               ),
               SizedBox(height: 20.h),
-              
+
               // Progress bar
               AnimatedBuilder(
                 animation: _progressController,
@@ -573,7 +568,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
           ),
         ),
         SizedBox(height: 20.h),
-        
+
         // Contacts List
         Expanded(
           child: ListView.builder(
@@ -587,9 +582,10 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                   color: const Color(0xFF1A1A2E),
                   borderRadius: BorderRadius.circular(12.r),
                   border: Border.all(
-                    color: contact.shareReceived
-                        ? const Color(0xFF00FFB2)
-                        : const Color(0xFF333355),
+                    color:
+                        contact.shareReceived
+                            ? const Color(0xFF00FFB2)
+                            : const Color(0xFF333355),
                   ),
                 ),
                 child: Row(
@@ -599,30 +595,32 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                       width: 48.r,
                       height: 48.r,
                       decoration: BoxDecoration(
-                        color: contact.shareReceived
-                            ? const Color(0xFF00FFB2)
-                            : const Color(0xFF8B5CF6),
+                        color:
+                            contact.shareReceived
+                                ? const Color(0xFF00FFB2)
+                                : const Color(0xFF8B5CF6),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
-                        child: contact.shareReceived
-                            ? Icon(
-                                Icons.check,
-                                color: const Color(0xFF0C0C1A),
-                                size: 24.r,
-                              )
-                            : Text(
-                                contact.initial,
-                                style: TextStyle(
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                        child:
+                            contact.shareReceived
+                                ? Icon(
+                                  Icons.check,
+                                  color: const Color(0xFF0C0C1A),
+                                  size: 24.r,
+                                )
+                                : Text(
+                                  contact.initial,
+                                  style: TextStyle(
+                                    fontSize: 18.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
                       ),
                     ),
                     SizedBox(width: 12.w),
-                    
+
                     // Name and status
                     Expanded(
                       child: Column(
@@ -643,9 +641,10 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                                 ? 'Share received ✓'
                                 : 'Waiting for response...',
                             style: TextStyle(
-                              color: contact.shareReceived
-                                  ? const Color(0xFF00FFB2)
-                                  : const Color(0xFFA1A1B2),
+                              color:
+                                  contact.shareReceived
+                                      ? const Color(0xFF00FFB2)
+                                      : const Color(0xFFA1A1B2),
                               fontSize: 12.sp,
                               fontFamily: 'Google Sans',
                             ),
@@ -653,7 +652,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                         ],
                       ),
                     ),
-                    
+
                     // Status icon
                     if (!contact.shareReceived)
                       AnimatedBuilder(
@@ -725,12 +724,10 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
                 // to initialize the wallet
                 SocialRecoveryService.storeRecoveredSeed(_recoveredSeed!);
               }
-              
+
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const WalletSuccessScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const WalletSuccessScreen()),
               );
             },
             child: Container(
@@ -770,11 +767,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
               color: Colors.red.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 64.r,
-            ),
+            child: Icon(Icons.error_outline, color: Colors.red, size: 64.r),
           ),
           SizedBox(height: 24.h),
           Text(

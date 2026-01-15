@@ -1,5 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'dart:convert';
 import 'dart:math';
 

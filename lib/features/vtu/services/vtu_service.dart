@@ -78,7 +78,7 @@ class VtuService {
   /// Validate transaction requirements (User balance & Agent liquidity)
   static Future<void> validateTransaction(double amountNaira) async {
     final amountSats = await nairaToSats(amountNaira);
-    
+
     // 1. Check User Balance
     if (!await hasSufficientBalance(amountSats)) {
       throw InsufficientBalanceException(
@@ -150,9 +150,10 @@ class VtuService {
           await _saveToRecentContacts(phone, 'Airtime Purchase');
 
           return completedOrder!;
-
         } catch (paymentError) {
-          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+          debugPrint(
+            '⚠️ Payment to agent failed after delivery: $paymentError',
+          );
 
           // Enqueue background retry to settle the agent
           await PaymentRetryService.enqueue(
@@ -167,7 +168,8 @@ class VtuService {
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.transactionId,
-            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
+            errorMessage:
+                'Delivery successful — settlement pending (will retry in background).',
           );
 
           // Save to recent contacts
@@ -194,7 +196,7 @@ class VtuService {
           e is PaymentFailedException) {
         rethrow;
       }
-      
+
       // Other errors - mark order as failed
       await updateOrderStatus(
         order.id,
@@ -229,7 +231,7 @@ class VtuService {
 
     try {
       await updateOrderStatus(order.id, VtuOrderStatus.processing);
-      
+
       debugPrint('🚀 Delivery First: Attempting Data API call for ${order.id}');
       final apiResponse = await VtuApiService.buyData(
         phone: formatPhoneNumber(phone),
@@ -251,9 +253,10 @@ class VtuService {
 
           await _saveToRecentContacts(phone, 'Data Purchase');
           return completedOrder!;
-
         } catch (paymentError) {
-          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+          debugPrint(
+            '⚠️ Payment to agent failed after delivery: $paymentError',
+          );
 
           await PaymentRetryService.enqueue(
             orderId: order.id,
@@ -266,7 +269,8 @@ class VtuService {
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.transactionId,
-            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
+            errorMessage:
+                'Delivery successful — settlement pending (will retry in background).',
           );
 
           await _saveToRecentContacts(phone, 'Data Purchase');
@@ -323,7 +327,7 @@ class VtuService {
 
     try {
       await updateOrderStatus(order.id, VtuOrderStatus.processing);
-      
+
       debugPrint(
         '🚀 Delivery First: Attempting Electricity API call for ${order.id}',
       );
@@ -350,9 +354,10 @@ class VtuService {
             token: apiResponse.token ?? apiResponse.transactionId,
           );
           return completedOrder!;
-
         } catch (paymentError) {
-          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+          debugPrint(
+            '⚠️ Payment to agent failed after delivery: $paymentError',
+          );
 
           await PaymentRetryService.enqueue(
             orderId: order.id,
@@ -365,7 +370,8 @@ class VtuService {
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.token ?? apiResponse.transactionId,
-            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
+            errorMessage:
+                'Delivery successful — settlement pending (will retry in background).',
           );
           return completedOrder!;
         }
@@ -447,9 +453,10 @@ class VtuService {
             token: apiResponse.transactionId,
           );
           return completedOrder!;
-
         } catch (paymentError) {
-          debugPrint('⚠️ Payment to agent failed after delivery: $paymentError');
+          debugPrint(
+            '⚠️ Payment to agent failed after delivery: $paymentError',
+          );
 
           await PaymentRetryService.enqueue(
             orderId: order.id,
@@ -462,7 +469,8 @@ class VtuService {
             order.id,
             VtuOrderStatus.completed,
             token: apiResponse.transactionId,
-            errorMessage: 'Delivery successful — settlement pending (will retry in background).',
+            errorMessage:
+                'Delivery successful — settlement pending (will retry in background).',
           );
           return completedOrder!;
         }
@@ -507,7 +515,7 @@ class VtuService {
 
       // Send payment via Breez SDK
       await BreezSparkService.sendPayment(invoice, sats: sats);
-      
+
       // Send push notification for successful VTU payment
       BreezWebhookBridgeService().sendOutgoingPaymentNotification(
         amountSats: sats,
@@ -518,14 +526,14 @@ class VtuService {
       debugPrint('✅ Agent payment successful');
     } catch (e) {
       debugPrint('❌ Agent payment failed: $e');
-      
+
       // Send push notification for failed VTU payment
       BreezWebhookBridgeService().sendPaymentFailedNotification(
         amountSats: sats,
         errorMessage: e.toString(),
         recipientName: 'VTU Agent',
       );
-      
+
       throw PaymentFailedException(e.toString());
     }
   }
@@ -777,7 +785,9 @@ class VtuService {
         throw RefundException('Only failed orders can be refunded');
       }
       if (order.refundStatus != RefundStatus.none) {
-        throw RefundException('Refund already ${order.refundStatus.name.toLowerCase()}');
+        throw RefundException(
+          'Refund already ${order.refundStatus.name.toLowerCase()}',
+        );
       }
     }
 

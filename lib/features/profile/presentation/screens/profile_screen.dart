@@ -6,10 +6,10 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
-import 'package:sabi_wallet/features/nostr/nostr_edit_modal.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_edit_modal.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
-import 'package:sabi_wallet/features/nostr/widgets/nostr_onboarding_screen.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_onboarding_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/widgets/edit_lightning_address_modal.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 
@@ -1233,9 +1233,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16.r),
-        border: hasAddress
-            ? Border.all(color: AppColors.accentGreen.withOpacity(0.3))
-            : null,
+        border:
+            hasAddress
+                ? Border.all(color: AppColors.accentGreen.withOpacity(0.3))
+                : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1267,9 +1268,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       hasAddress ? displayAddress : 'Setting up...',
                       style: TextStyle(
-                        color: hasAddress
-                            ? AppColors.textPrimary
-                            : AppColors.textTertiary,
+                        color:
+                            hasAddress
+                                ? AppColors.textPrimary
+                                : AppColors.textTertiary,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1291,12 +1293,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     );
                   },
-                  icon: Icon(Icons.copy_rounded, color: AppColors.primary, size: 20.sp),
+                  icon: Icon(
+                    Icons.copy_rounded,
+                    color: AppColors.primary,
+                    size: 20.sp,
+                  ),
                   tooltip: 'Copy',
                 ),
                 IconButton(
                   onPressed: () => _showEditLightningAddressModalNew(),
-                  icon: Icon(Icons.edit_rounded, color: AppColors.textSecondary, size: 20.sp),
+                  icon: Icon(
+                    Icons.edit_rounded,
+                    color: AppColors.textSecondary,
+                    size: 20.sp,
+                  ),
                   tooltip: 'Edit',
                 ),
               ],
@@ -1307,10 +1317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             hasAddress
                 ? 'Share this address to receive Bitcoin instantly'
                 : 'Your lightning address is being set up automatically...',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
           ),
           if (!hasAddress) ...[
             SizedBox(height: 8.h),

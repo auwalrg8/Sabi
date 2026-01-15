@@ -61,7 +61,12 @@ class PaymentDebugScreen extends ConsumerWidget {
                       'Timestamp (Unix milliseconds)',
                       '${payment.paymentTime}',
                     ),
-                    _InfoRow('Description', payment.description.isEmpty ? '(empty)' : payment.description),
+                    _InfoRow(
+                      'Description',
+                      payment.description.isEmpty
+                          ? '(empty)'
+                          : payment.description,
+                    ),
                     if (payment.bolt11 != null)
                       _InfoRow(
                         'Invoice',
@@ -73,15 +78,17 @@ class PaymentDebugScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-        error: (error, stack) => Center(
-          child: Text(
-            'Error: $error',
-            style: const TextStyle(color: Colors.red),
-          ),
-        ),
+        loading:
+            () => const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+        error:
+            (error, stack) => Center(
+              child: Text(
+                'Error: $error',
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
       ),
     );
   }

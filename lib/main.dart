@@ -5,7 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:sabi_wallet/core/widgets/connectivity_banner.dart';
 import 'package:sabi_wallet/features/auth/presentation/screens/biometric_auth_screen.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
 import 'package:sabi_wallet/services/nostr/feed_aggregator.dart';
@@ -101,7 +101,7 @@ void main() async {
     // Store the failure state so we can show proper error to user
     // Don't swallow this error - it means wallet won't work!
   }
-  
+
   // Store the initialization state globally
   BreezSparkService.rustBridgeInitialized = rustBridgeInitialized;
 

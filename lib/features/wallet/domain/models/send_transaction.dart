@@ -22,8 +22,9 @@ class SendTransaction {
   });
 
   double get total => amount + fee;
-  
-  double get amountInSats => amountSats != null ? amountSats!.toDouble() : amount * 1000;
-  
+
+  double get amountInSats =>
+      amountSats != null ? amountSats!.toDouble() : amount * 1000;
+
   double get feeInSats => feeSats != null ? feeSats!.toDouble() : fee * 100;
 }

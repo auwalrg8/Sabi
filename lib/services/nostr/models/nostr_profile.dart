@@ -14,7 +14,7 @@ class NostrProfile {
   final String? lud06; // LNURL fallback
   final String? website;
   final int? createdAt;
-  
+
   // Stats (fetched separately)
   int followerCount;
   int followingCount;
@@ -62,7 +62,12 @@ class NostrProfile {
   String? get lightningAddress => lud16 ?? lud06;
 
   /// Create from Kind 0 event content
-  factory NostrProfile.fromEventContent(String pubkey, String npub, String content, {int? createdAt}) {
+  factory NostrProfile.fromEventContent(
+    String pubkey,
+    String npub,
+    String content, {
+    int? createdAt,
+  }) {
     try {
       final json = jsonDecode(content) as Map<String, dynamic>;
       return NostrProfile.fromJson(pubkey, npub, json, createdAt: createdAt);
@@ -71,12 +76,18 @@ class NostrProfile {
     }
   }
 
-  factory NostrProfile.fromJson(String pubkey, String npub, Map<String, dynamic> json, {int? createdAt}) {
+  factory NostrProfile.fromJson(
+    String pubkey,
+    String npub,
+    Map<String, dynamic> json, {
+    int? createdAt,
+  }) {
     return NostrProfile(
       pubkey: pubkey,
       npub: npub,
       name: json['name'] as String?,
-      displayName: json['display_name'] as String? ?? json['displayName'] as String?,
+      displayName:
+          json['display_name'] as String? ?? json['displayName'] as String?,
       about: json['about'] as String?,
       picture: json['picture'] as String?,
       banner: json['banner'] as String?,
@@ -182,5 +193,6 @@ class NostrProfile {
   }
 
   @override
-  String toString() => 'NostrProfile(npub: $shortNpub, name: $displayNameOrFallback)';
+  String toString() =>
+      'NostrProfile(npub: $shortNpub, name: $displayNameOrFallback)';
 }

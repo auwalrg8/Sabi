@@ -1,5 +1,5 @@
 /// P2P Logger Utility - Comprehensive error logging for serverless P2P
-/// 
+///
 /// Since there's no server to track issues, we log everything locally
 /// for debugging and user support.
 library;
@@ -9,13 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Log levels for P2P operations
-enum P2PLogLevel {
-  debug,
-  info,
-  warning,
-  error,
-  critical,
-}
+enum P2PLogLevel { debug, info, warning, error, critical }
 
 /// A single log entry
 class P2PLogEntry {
@@ -218,7 +212,9 @@ class P2PLogger {
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw) as List<dynamic>;
         _memoryLogs.addAll(
-          list.map((e) => P2PLogEntry.fromJson(Map<String, dynamic>.from(e as Map))),
+          list.map(
+            (e) => P2PLogEntry.fromJson(Map<String, dynamic>.from(e as Map)),
+          ),
         );
       }
       _initialized = true;
@@ -276,18 +272,51 @@ class P2PLogger {
   }
 
   /// Log debug message
-  static void debug(String category, String message, {Map<String, dynamic>? metadata, String? tradeId}) {
-    _log(P2PLogLevel.debug, category, message, metadata: metadata, tradeId: tradeId);
+  static void debug(
+    String category,
+    String message, {
+    Map<String, dynamic>? metadata,
+    String? tradeId,
+  }) {
+    _log(
+      P2PLogLevel.debug,
+      category,
+      message,
+      metadata: metadata,
+      tradeId: tradeId,
+    );
   }
 
   /// Log info message
-  static void info(String category, String message, {Map<String, dynamic>? metadata, String? tradeId}) {
-    _log(P2PLogLevel.info, category, message, metadata: metadata, tradeId: tradeId);
+  static void info(
+    String category,
+    String message, {
+    Map<String, dynamic>? metadata,
+    String? tradeId,
+  }) {
+    _log(
+      P2PLogLevel.info,
+      category,
+      message,
+      metadata: metadata,
+      tradeId: tradeId,
+    );
   }
 
   /// Log warning message
-  static void warning(String category, String message, {Map<String, dynamic>? metadata, String? tradeId}) {
-    _log(P2PLogLevel.warning, category, message, metadata: metadata, tradeId: tradeId);
+  static void warning(
+    String category,
+    String message, {
+    Map<String, dynamic>? metadata,
+    String? tradeId,
+  }) {
+    _log(
+      P2PLogLevel.warning,
+      category,
+      message,
+      metadata: metadata,
+      tradeId: tradeId,
+    );
   }
 
   /// Log error message
@@ -351,9 +380,12 @@ class P2PLogger {
 
   /// Get error logs only
   static List<P2PLogEntry> getErrors() {
-    return _memoryLogs.where((l) => 
-      l.level == P2PLogLevel.error || l.level == P2PLogLevel.critical
-    ).toList();
+    return _memoryLogs
+        .where(
+          (l) =>
+              l.level == P2PLogLevel.error || l.level == P2PLogLevel.critical,
+        )
+        .toList();
   }
 
   /// Clear all logs
@@ -364,16 +396,16 @@ class P2PLogger {
 
   /// Export logs as JSON string (for support)
   static String exportLogs() {
-    return const JsonEncoder.withIndent('  ').convert(
-      _memoryLogs.map((l) => l.toJson()).toList(),
-    );
+    return const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_memoryLogs.map((l) => l.toJson()).toList());
   }
 
   /// Export logs for a specific trade (for support)
   static String exportTradeLog(String tradeId) {
     final tradeLogs = getLogsForTrade(tradeId);
-    return const JsonEncoder.withIndent('  ').convert(
-      tradeLogs.map((l) => l.toJson()).toList(),
-    );
+    return const JsonEncoder.withIndent(
+      '  ',
+    ).convert(tradeLogs.map((l) => l.toJson()).toList());
   }
 }

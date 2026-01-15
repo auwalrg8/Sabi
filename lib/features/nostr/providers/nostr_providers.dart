@@ -51,7 +51,10 @@ final followsListProvider = FutureProvider<List<String>>((ref) async {
 });
 
 /// Check if user follows a specific pubkey
-final isFollowingProvider = FutureProvider.family<bool, String>((ref, pubkey) async {
+final isFollowingProvider = FutureProvider.family<bool, String>((
+  ref,
+  pubkey,
+) async {
   final profileService = ref.watch(nostrProfileServiceProvider);
   return await profileService.isFollowing(pubkey);
 });
@@ -63,7 +66,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<NostrFeedPost>>> {
   StreamSubscription<NostrFeedPost>? _subscription;
 
   FeedNotifier(this._feedAggregator, this._feedType)
-      : super(const AsyncValue.loading()) {
+    : super(const AsyncValue.loading()) {
     _init();
   }
 
@@ -84,7 +87,9 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<NostrFeedPost>>> {
 
   void _subscribeToUpdates() {
     _subscription?.cancel();
-    _subscription = _feedAggregator.subscribeToFeed(type: _feedType).listen((post) {
+    _subscription = _feedAggregator.subscribeToFeed(type: _feedType).listen((
+      post,
+    ) {
       // Add new post to existing list
       final current = state.valueOrNull ?? [];
       if (!current.any((p) => p.id == post.id)) {
@@ -103,16 +108,18 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<NostrFeedPost>>> {
 }
 
 /// Following feed provider
-final followingFeedProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<NostrFeedPost>>>((ref) {
-  final feedAggregator = ref.watch(feedAggregatorProvider);
-  return FeedNotifier(feedAggregator, FeedType.following);
-});
+final followingFeedProvider =
+    StateNotifierProvider<FeedNotifier, AsyncValue<List<NostrFeedPost>>>((ref) {
+      final feedAggregator = ref.watch(feedAggregatorProvider);
+      return FeedNotifier(feedAggregator, FeedType.following);
+    });
 
 /// Global feed provider
-final globalFeedProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<NostrFeedPost>>>((ref) {
-  final feedAggregator = ref.watch(feedAggregatorProvider);
-  return FeedNotifier(feedAggregator, FeedType.global);
-});
+final globalFeedProvider =
+    StateNotifierProvider<FeedNotifier, AsyncValue<List<NostrFeedPost>>>((ref) {
+      final feedAggregator = ref.watch(feedAggregatorProvider);
+      return FeedNotifier(feedAggregator, FeedType.global);
+    });
 
 /// Zap state for tracking zap operations
 class ZapState {
@@ -120,17 +127,9 @@ class ZapState {
   final String? error;
   final ZapResult? lastResult;
 
-  const ZapState({
-    this.isLoading = false,
-    this.error,
-    this.lastResult,
-  });
+  const ZapState({this.isLoading = false, this.error, this.lastResult});
 
-  ZapState copyWith({
-    bool? isLoading,
-    String? error,
-    ZapResult? lastResult,
-  }) {
+  ZapState copyWith({bool? isLoading, String? error, ZapResult? lastResult}) {
     return ZapState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -206,7 +205,9 @@ final zapNotifierProvider = StateNotifierProvider<ZapNotifier, ZapState>((ref) {
 });
 
 /// NIP-99 P2P offers provider (one-shot fetch)
-final nip99OffersProvider = FutureProvider.autoDispose<List<NostrP2POffer>>((ref) async {
+final nip99OffersProvider = FutureProvider.autoDispose<List<NostrP2POffer>>((
+  ref,
+) async {
   final marketplace = ref.watch(nip99MarketplaceProvider);
   final offers = await marketplace.fetchOffers(limit: 50);
   await marketplace.enrichOffersWithProfiles(offers);
@@ -214,24 +215,31 @@ final nip99OffersProvider = FutureProvider.autoDispose<List<NostrP2POffer>>((ref
 });
 
 /// NIP-99 P2P offers stream provider (real-time)
-final nip99OffersStreamProvider = StreamProvider.autoDispose<NostrP2POffer>((ref) {
+final nip99OffersStreamProvider = StreamProvider.autoDispose<NostrP2POffer>((
+  ref,
+) {
   final marketplace = ref.watch(nip99MarketplaceProvider);
   return marketplace.subscribeToOffers();
 });
 
 /// Current user's P2P offers
-final userP2POffersProvider = FutureProvider.autoDispose<List<NostrP2POffer>>((ref) async {
+final userP2POffersProvider = FutureProvider.autoDispose<List<NostrP2POffer>>((
+  ref,
+) async {
   final marketplace = ref.watch(nip99MarketplaceProvider);
   final profileService = ref.watch(nostrProfileServiceProvider);
-  
+
   final pubkey = profileService.currentPubkey;
   if (pubkey == null) return [];
-  
+
   return await marketplace.fetchUserOffers(pubkey);
 });
 
 /// Profile fetch provider (by pubkey)
-final profileByPubkeyProvider = FutureProvider.family<NostrProfile?, String>((ref, pubkey) async {
+final profileByPubkeyProvider = FutureProvider.family<NostrProfile?, String>((
+  ref,
+  pubkey,
+) async {
   final profileService = ref.watch(nostrProfileServiceProvider);
   return await profileService.fetchProfile(pubkey);
 });
@@ -240,10 +248,10 @@ final profileByPubkeyProvider = FutureProvider.family<NostrProfile?, String>((re
 Future<void> initializeNostrServices() async {
   final relayPool = RelayPoolManager();
   final cache = EventCacheService();
-  
+
   // Initialize cache first
   await cache.initialize();
-  
+
   // Initialize relay pool and connect
   await relayPool.init();
 }

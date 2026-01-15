@@ -424,10 +424,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               vertical: 16.h,
             ),
             suffixText: '@sabiwallet.xyz',
-            suffixStyle: TextStyle(
-              color: AppColors.primary,
-              fontSize: 16.sp,
-            ),
+            suffixStyle: TextStyle(color: AppColors.primary, fontSize: 16.sp),
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {

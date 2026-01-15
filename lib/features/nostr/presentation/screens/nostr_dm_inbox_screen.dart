@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
-import '../../services/nostr/dm_service.dart';
-import '../../services/nostr/feed_aggregator.dart';
-import '../../services/nostr/nostr_profile_service.dart';
-import '../p2p/presentation/widgets/p2p_offer_preview_widget.dart';
+import 'package:sabi_wallet/services/nostr/dm_service.dart';
+import 'package:sabi_wallet/services/nostr/feed_aggregator.dart';
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
+import 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_offer_preview_widget.dart';
 import 'nostr_profile_screen.dart';
 
 /// Provider for DM service

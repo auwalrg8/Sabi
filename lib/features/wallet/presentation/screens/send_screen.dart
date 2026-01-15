@@ -423,7 +423,7 @@ class _SendScreenState extends ConsumerState<SendScreen>
         feeSats: feeSats,
         bolt11: _recipient?.identifier,
       );
-      
+
       // Send push notification for successful outgoing payment
       BreezWebhookBridgeService().sendOutgoingPaymentNotification(
         amountSats: amountSats,
@@ -431,7 +431,7 @@ class _SendScreenState extends ConsumerState<SendScreen>
         description: _memoController.text.isEmpty ? null : _memoController.text,
         paymentHash: transactionId,
       );
-      
+
       // Save to recent contacts after successful payment
       ContactService.addRecentContact(
         ContactInfo(
@@ -440,7 +440,7 @@ class _SendScreenState extends ConsumerState<SendScreen>
           type: _recipient!.type.name,
         ),
       );
-      
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -668,17 +668,13 @@ class _SendScreenState extends ConsumerState<SendScreen>
                     ),
                     SizedBox(width: 12.w),
                     Expanded(
-                      child: _actionButton(
-                        'Recent',
-                        Icons.history_rounded,
-                        () {
-                          if (_recent.isEmpty) {
-                            _showSnack('No recent recipients');
-                            return;
-                          }
-                          _showRecentBottomSheet();
-                        },
-                      ),
+                      child: _actionButton('Recent', Icons.history_rounded, () {
+                        if (_recent.isEmpty) {
+                          _showSnack('No recent recipients');
+                          return;
+                        }
+                        _showRecentBottomSheet();
+                      }),
                     ),
                   ],
                 ),
@@ -728,7 +724,9 @@ class _SendScreenState extends ConsumerState<SendScreen>
                         children: [
                           Icon(
                             Icons.send_rounded,
-                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.5,
+                            ),
                             size: 48.sp,
                           ),
                           SizedBox(height: 16.h),
@@ -876,19 +874,34 @@ class _SendScreenState extends ConsumerState<SendScreen>
                 // Amount display
                 AmountDisplay(
                   amount: _amountText,
-                  currency: _mode == _CurrencyMode.sats ? 'sats' : _selectedCurrency.symbol,
-                  secondaryAmount: _mode == _CurrencyMode.sats
-                      ? fiat.toStringAsFixed(_selectedCurrency == FiatCurrency.usd ? 2 : 0)
-                      : sats.toString(),
-                  secondaryCurrency: _mode == _CurrencyMode.sats ? _selectedCurrency.symbol : '',
+                  currency:
+                      _mode == _CurrencyMode.sats
+                          ? 'sats'
+                          : _selectedCurrency.symbol,
+                  secondaryAmount:
+                      _mode == _CurrencyMode.sats
+                          ? fiat.toStringAsFixed(
+                            _selectedCurrency == FiatCurrency.usd ? 2 : 0,
+                          )
+                          : sats.toString(),
+                  secondaryCurrency:
+                      _mode == _CurrencyMode.sats
+                          ? _selectedCurrency.symbol
+                          : '',
                   onToggleCurrency: _toggleMode,
                 ),
                 SizedBox(height: 24.h),
                 // Quick amount chips
                 AmountChips(
                   amounts: const [1000, 5000, 10000, 50000],
-                  selectedAmount: _quickIndex >= 0 ? [1000, 5000, 10000, 50000][_quickIndex] : null,
-                  currency: _mode == _CurrencyMode.sats ? '' : _selectedCurrency.symbol,
+                  selectedAmount:
+                      _quickIndex >= 0
+                          ? [1000, 5000, 10000, 50000][_quickIndex]
+                          : null,
+                  currency:
+                      _mode == _CurrencyMode.sats
+                          ? ''
+                          : _selectedCurrency.symbol,
                   onSelected: (amount) {
                     if (amount != null) {
                       final idx = [1000, 5000, 10000, 50000].indexOf(amount);
@@ -927,10 +940,7 @@ class _SendScreenState extends ConsumerState<SendScreen>
                 ),
                 SizedBox(height: 20.h),
                 // Keypad
-                AmountKeypad(
-                  onDigit: _appendDigit,
-                  onDelete: _deleteDigit,
-                ),
+                AmountKeypad(onDigit: _appendDigit, onDelete: _deleteDigit),
               ],
             ),
           ),
@@ -956,10 +966,7 @@ class _SendScreenState extends ConsumerState<SendScreen>
               ),
               child: Text(
                 'Continue',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -1093,57 +1100,61 @@ class _SendScreenState extends ConsumerState<SendScreen>
             width: double.infinity,
             height: 56.h,
             child: ElevatedButton(
-              onPressed: _isSending
-                  ? null
-                  : () {
-                      HapticFeedback.heavyImpact();
-                      _confirmAndSend();
-                    },
+              onPressed:
+                  _isSending
+                      ? null
+                      : () {
+                        HapticFeedback.heavyImpact();
+                        _confirmAndSend();
+                      },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                disabledBackgroundColor: AppColors.primary.withValues(
+                  alpha: 0.5,
+                ),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
-              child: _isSending
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 20.w,
-                          height: 20.h,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.w,
-                            color: Colors.white,
+              child:
+                  _isSending
+                      ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20.w,
+                            height: 20.h,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.w,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Text(
-                          'Sending...',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
+                          SizedBox(width: 12.w),
+                          Text(
+                            'Sending...',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send_rounded, size: 20.sp),
-                        SizedBox(width: 8.w),
-                        Text(
-                          'Send Payment',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
+                        ],
+                      )
+                      : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.send_rounded, size: 20.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Send Payment',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
             ),
           ),
         ),

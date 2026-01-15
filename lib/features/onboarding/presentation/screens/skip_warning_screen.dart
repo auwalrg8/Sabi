@@ -45,10 +45,7 @@ class _SkipWarningScreenState extends State<SkipWarningScreen> {
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.accentRed,
-                  width: 1,
-                ),
+                border: Border.all(color: AppColors.accentRed, width: 1),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.15),
@@ -195,7 +192,8 @@ class _SkipWarningScreenState extends State<SkipWarningScreen> {
                                     Navigator.pushAndRemoveUntil(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const WalletSuccessScreen(),
+                                        builder:
+                                            (_) => const WalletSuccessScreen(),
                                       ),
                                       (route) => false,
                                     );
@@ -204,8 +202,8 @@ class _SkipWarningScreenState extends State<SkipWarningScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.disabled,
                             foregroundColor: AppColors.textPrimary,
-                            disabledBackgroundColor:
-                                AppColors.disabled.withValues(alpha: 0.5),
+                            disabledBackgroundColor: AppColors.disabled
+                                .withValues(alpha: 0.5),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -264,12 +262,13 @@ class _SkipWarningScreenState extends State<SkipWarningScreen> {
 class _WarningTrianglePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.accentRed
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final paint =
+        Paint()
+          ..color = AppColors.accentRed
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final path = Path();
     path.moveTo(size.width * 0.5, size.height * 0.125);
@@ -285,9 +284,10 @@ class _WarningTrianglePainter extends CustomPainter {
       paint,
     );
 
-    final dotPaint = Paint()
-      ..color = AppColors.accentRed
-      ..style = PaintingStyle.fill;
+    final dotPaint =
+        Paint()
+          ..color = AppColors.accentRed
+          ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
       Offset(size.width * 0.5, size.height * 0.75),

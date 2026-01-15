@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
-import 'social_recovery_service.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
 
 /// Success screen shown after recovery shares are sent
 class SocialRecoverySuccessScreen extends StatefulWidget {
   final List<RecoveryContact> contacts;
 
-  const SocialRecoverySuccessScreen({
-    super.key,
-    required this.contacts,
-  });
+  const SocialRecoverySuccessScreen({super.key, required this.contacts});
 
   @override
   State<SocialRecoverySuccessScreen> createState() =>
@@ -33,14 +30,10 @@ class _SocialRecoverySuccessScreenState
   void _showConfetti() {
     if (_confettiFired || !mounted) return;
     _confettiFired = true;
-    
+
     Confetti.launch(
       context,
-      options: const ConfettiOptions(
-        particleCount: 100,
-        spread: 360,
-        y: 0.5,
-      ),
+      options: const ConfettiOptions(particleCount: 100, spread: 360, y: 0.5),
     );
   }
 
@@ -186,8 +179,10 @@ class _SocialRecoverySuccessScreenState
                 child: ElevatedButton(
                   onPressed: () {
                     // Use root navigator to avoid history assertion error
-                    Navigator.of(context, rootNavigator: true)
-                        .pushNamedAndRemoveUntil('/home', (route) => false);
+                    Navigator.of(
+                      context,
+                      rootNavigator: true,
+                    ).pushNamedAndRemoveUntil('/home', (route) => false);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF7931A),

@@ -5,9 +5,10 @@ import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 enum SuggestionCardType { backup, nostr, pin }
 
 /// Provider for the list of visible suggestion cards
-final suggestionsProvider = StateNotifierProvider<SuggestionsNotifier, List<SuggestionCardType>>((ref) {
-  return SuggestionsNotifier(ref.read(secureStorageServiceProvider));
-});
+final suggestionsProvider =
+    StateNotifierProvider<SuggestionsNotifier, List<SuggestionCardType>>((ref) {
+      return SuggestionsNotifier(ref.read(secureStorageServiceProvider));
+    });
 
 class SuggestionsNotifier extends StateNotifier<List<SuggestionCardType>> {
   static const _storageKey = 'dismissed_suggestions';
@@ -25,7 +26,10 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionCardType>> {
       state = [];
     } else if (dismissed != null) {
       final ids = dismissed.split(',').map((e) => e.trim()).toSet();
-      state = SuggestionCardType.values.where((e) => !ids.contains(e.name)).toList();
+      state =
+          SuggestionCardType.values
+              .where((e) => !ids.contains(e.name))
+              .toList();
     } else {
       state = SuggestionCardType.values.toList();
     }
@@ -38,7 +42,10 @@ class SuggestionsNotifier extends StateNotifier<List<SuggestionCardType>> {
     if (newState.isEmpty) {
       await _storage.write(key: _storageKey, value: 'all');
     } else {
-      final dismissed = SuggestionCardType.values.where((e) => !newState.contains(e)).map((e) => e.name).join(',');
+      final dismissed = SuggestionCardType.values
+          .where((e) => !newState.contains(e))
+          .map((e) => e.name)
+          .join(',');
       await _storage.write(key: _storageKey, value: dismissed);
     }
   }

@@ -12,10 +12,10 @@ class MerchantModel {
   final int negativeFeedback;
   final DateTime joinedDate;
   final DateTime? firstTradeDate;
-  
+
   /// Number of linked social platforms (for display, not actual profiles)
   final int linkedPlatformsCount;
-  
+
   /// Whether this merchant is open to sharing social profiles during trades
   final bool openToProfileSharing;
 
@@ -37,12 +37,13 @@ class MerchantModel {
     this.openToProfileSharing = false,
   });
 
-  double get rating => positiveFeedback + negativeFeedback > 0
-      ? (positiveFeedback / (positiveFeedback + negativeFeedback)) * 100
-      : 100.0;
+  double get rating =>
+      positiveFeedback + negativeFeedback > 0
+          ? (positiveFeedback / (positiveFeedback + negativeFeedback)) * 100
+          : 100.0;
 
   int get totalTrades => positiveFeedback + negativeFeedback;
-  
+
   /// Whether this merchant has linked social profiles
   bool get hasLinkedProfiles => linkedPlatformsCount > 0;
 }

@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'social_recovery_service.dart';
-import 'recovery_contact_picker.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
+import 'package:sabi_wallet/features/recovery/presentation/widgets/recovery_contact_picker.dart';
 import 'social_recovery_success_screen.dart';
 
 /// Screen for setting up social recovery with trusted contacts
 class SocialRecoverySetupScreen extends StatefulWidget {
   final String masterSeed;
 
-  const SocialRecoverySetupScreen({
-    super.key,
-    required this.masterSeed,
-  });
+  const SocialRecoverySetupScreen({super.key, required this.masterSeed});
 
   @override
   State<SocialRecoverySetupScreen> createState() =>
@@ -97,9 +94,8 @@ class _SocialRecoverySetupScreenState extends State<SocialRecoverySetupScreen> {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => SocialRecoverySuccessScreen(
-              contacts: _selectedContacts,
-            ),
+            builder:
+                (_) => SocialRecoverySuccessScreen(contacts: _selectedContacts),
           ),
           (route) => route.isFirst,
         );
@@ -136,64 +132,66 @@ class _SocialRecoverySetupScreenState extends State<SocialRecoverySetupScreen> {
           style: TextStyle(color: Colors.white),
         ),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
-              ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: RecoveryContactPicker(
-                    availableContacts: _availableContacts,
-                    onContactsSelected: (contacts) {
-                      setState(() => _selectedContacts = contacts);
-                    },
-                  ),
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(Color(0xFFF7931A)),
                 ),
-                // Send button
-                Padding(
-                  padding: EdgeInsets.all(16.w),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56.h,
-                    child: ElevatedButton(
-                      onPressed:
-                          _isSending || _selectedContacts.length < 3
-                              ? null
-                              : _sendRecoveryShares,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF7931A),
-                        disabledBackgroundColor: const Color(0xFFA1A1B2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: _isSending
-                          ? SizedBox(
-                              height: 24.h,
-                              width: 24.h,
-                              child: const CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation(
-                                  Color(0xFF0C0C1A),
-                                ),
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Send Recovery Shares',
-                              style: TextStyle(
-                                color: const Color(0xFF0C0C1A),
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+              )
+              : Column(
+                children: [
+                  Expanded(
+                    child: RecoveryContactPicker(
+                      availableContacts: _availableContacts,
+                      onContactsSelected: (contacts) {
+                        setState(() => _selectedContacts = contacts);
+                      },
                     ),
                   ),
-                ),
-              ],
-            ),
+                  // Send button
+                  Padding(
+                    padding: EdgeInsets.all(16.w),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56.h,
+                      child: ElevatedButton(
+                        onPressed:
+                            _isSending || _selectedContacts.length < 3
+                                ? null
+                                : _sendRecoveryShares,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF7931A),
+                          disabledBackgroundColor: const Color(0xFFA1A1B2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                        child:
+                            _isSending
+                                ? SizedBox(
+                                  height: 24.h,
+                                  width: 24.h,
+                                  child: const CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation(
+                                      Color(0xFF0C0C1A),
+                                    ),
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : Text(
+                                  'Send Recovery Shares',
+                                  style: TextStyle(
+                                    color: const Color(0xFF0C0C1A),
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 }

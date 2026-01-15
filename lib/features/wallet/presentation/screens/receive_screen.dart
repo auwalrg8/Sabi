@@ -7,7 +7,7 @@ import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'package:sabi_wallet/features/wallet/presentation/widgets/edit_lightning_address_modal.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
@@ -91,7 +91,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to refresh: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text(
+            'Failed to refresh: ${e.toString().replaceAll('Exception: ', '')}',
+          ),
           backgroundColor: AppColors.surface,
           behavior: SnackBarBehavior.floating,
         ),
@@ -107,7 +109,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         _userProfile?.username ??
         '';
     final hasExisting = _userProfile?.hasLightningAddress ?? false;
-    
+
     final result = await showEditLightningAddressModal(
       context: context,
       currentUsername: currentUsername,
@@ -127,6 +129,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       }
     }
   }
+
   @override
   void dispose() {
     _descriptionController.dispose();
@@ -586,7 +589,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   onPressed: registered ? _showEditLightningAddressModal : null,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: registered ? AppColors.accentYellow : AppColors.borderColor,
+                      color:
+                          registered
+                              ? AppColors.accentYellow
+                              : AppColors.borderColor,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.r),
@@ -598,14 +604,20 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                     children: [
                       Icon(
                         Icons.edit_rounded,
-                        color: registered ? AppColors.accentYellow : AppColors.textTertiary,
+                        color:
+                            registered
+                                ? AppColors.accentYellow
+                                : AppColors.textTertiary,
                         size: 18.sp,
                       ),
                       SizedBox(width: 6.w),
                       Text(
                         'Edit',
                         style: TextStyle(
-                          color: registered ? AppColors.accentYellow : AppColors.textTertiary,
+                          color:
+                              registered
+                                  ? AppColors.accentYellow
+                                  : AppColors.textTertiary,
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                         ),

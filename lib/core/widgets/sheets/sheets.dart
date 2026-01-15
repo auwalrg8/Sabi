@@ -1,15 +1,15 @@
 /// Bottom sheet widgets and utilities
-/// 
+///
 /// This file exports all sheet-related widgets and utilities
 /// for easy importing throughout the app.
-/// 
+///
 /// Usage:
 /// ```dart
 /// import 'package:sabi_wallet/core/widgets/sheets/sheets.dart';
-/// 
+///
 /// // Show a loading sheet
 /// AppSheets.loading(message: 'Processing...');
-/// 
+///
 /// // Show a success sheet
 /// AppSheets.success(
 ///   title: 'Success',

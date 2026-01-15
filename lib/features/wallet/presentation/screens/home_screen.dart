@@ -27,8 +27,8 @@ import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
 import 'package:sabi_wallet/features/home/widgets/suggestions_slider.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
-import 'package:sabi_wallet/features/nostr/nostr_feed_screen.dart';
-import 'package:sabi_wallet/features/nostr/nostr_edit_modal.dart';
+import 'package:sabi_wallet/features/nostr/presentation/screens/nostr_feed_screen.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_edit_modal.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../providers/wallet_info_provider.dart';
@@ -38,7 +38,7 @@ import 'receive_screen.dart';
 import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'transactions_screen.dart';
-import 'package:sabi_wallet/features/agent/agent_screen.dart';
+import 'package:sabi_wallet/features/agent/presentation/screens/agent_screen.dart';
 import 'package:sabi_wallet/features/common/coming_soon_screen.dart';
 import 'package:sabi_wallet/features/vtu/vtu.dart';
 import 'notifications_screen.dart';
@@ -341,7 +341,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       debugPrint('🔄 App resumed - refreshing services...');
       // Refresh suggestions to reflect completed tasks
       ref.read(suggestionsProvider.notifier).refresh();
-      
+
       // Refresh wallet/balance data on resume
       _refreshOnResume();
     }

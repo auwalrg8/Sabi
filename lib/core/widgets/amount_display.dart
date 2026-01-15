@@ -23,12 +23,13 @@ class AmountDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onToggleCurrency != null
-          ? () {
-              HapticFeedback.selectionClick();
-              onToggleCurrency!();
-            }
-          : null,
+      onTap:
+          onToggleCurrency != null
+              ? () {
+                HapticFeedback.selectionClick();
+                onToggleCurrency!();
+              }
+              : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -104,12 +105,12 @@ class AmountDisplay extends StatelessWidget {
     final parts = amount.split('.');
     final intPart = parts[0];
     final decPart = parts.length > 1 ? '.${parts[1]}' : '';
-    
+
     final formatted = intPart.replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (match) => '${match[1]},',
     );
-    
+
     return '$formatted$decPart';
   }
 }

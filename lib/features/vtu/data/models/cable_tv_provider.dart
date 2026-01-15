@@ -1,9 +1,5 @@
 /// Cable TV providers in Nigeria
-enum CableTvProvider {
-  dstv,
-  gotv,
-  startimes,
-}
+enum CableTvProvider { dstv, gotv, startimes }
 
 extension CableTvProviderExtension on CableTvProvider {
   String get name {
@@ -112,10 +108,8 @@ class CableTvPlan {
   double get profitMargin => price - resellerPrice;
 
   /// Format price for display
-  String get formattedPrice => '₦${price.toInt().toString().replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]},',
-      )}';
+  String get formattedPrice =>
+      '₦${price.toInt().toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
 }
 
 /// Customer verification info for Cable TV

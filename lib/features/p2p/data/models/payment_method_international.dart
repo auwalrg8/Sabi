@@ -1,5 +1,5 @@
 /// International Payment Methods for P2P Trading
-/// 
+///
 /// Supports global payment methods across different regions
 library;
 
@@ -452,7 +452,14 @@ class PaymentMethods {
   static List<InternationalPaymentMethod> getAllMethods() {
     return [
       // Nigeria
-      gtBank, opay, palmpay, moniepoint, kuda, firstBank, accessBank, zenithBank,
+      gtBank,
+      opay,
+      palmpay,
+      moniepoint,
+      kuda,
+      firstBank,
+      accessBank,
+      zenithBank,
       // Global
       wise, paypal, revolut,
       // USA
@@ -477,12 +484,16 @@ class PaymentMethods {
   }
 
   /// Get methods available in a specific region
-  static List<InternationalPaymentMethod> getMethodsForRegion(PaymentRegion region) {
+  static List<InternationalPaymentMethod> getMethodsForRegion(
+    PaymentRegion region,
+  ) {
     return getAllMethods().where((m) => m.isAvailableIn(region)).toList();
   }
 
   /// Get methods by category
-  static List<InternationalPaymentMethod> getMethodsByCategory(PaymentCategory category) {
+  static List<InternationalPaymentMethod> getMethodsByCategory(
+    PaymentCategory category,
+  ) {
     return getAllMethods().where((m) => m.category == category).toList();
   }
 

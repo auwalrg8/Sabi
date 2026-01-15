@@ -1,5 +1,5 @@
 /// Lightning Address constants for Sabi Wallet
-/// 
+///
 /// This file defines the domain and formatting for Lightning Addresses
 /// used throughout the app for receiving payments.
 
@@ -8,12 +8,13 @@
 const String lightningAddressDomain = 'sabiwallet.xyz';
 
 /// Format a username into a full lightning address.
-/// 
+///
 /// Example: formatLightningAddress('swiftfalcon42') => 'swiftfalcon42@sabiwallet.xyz'
-String formatLightningAddress(String username) => '$username@$lightningAddressDomain';
+String formatLightningAddress(String username) =>
+    '$username@$lightningAddressDomain';
 
 /// Extract username from a full lightning address.
-/// 
+///
 /// Example: extractUsername('user@sabiwallet.xyz') => 'user'
 /// Returns the full string if no @ is found.
 String extractUsername(String address) {

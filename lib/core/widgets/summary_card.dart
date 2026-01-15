@@ -9,12 +9,7 @@ class SummaryCard extends StatelessWidget {
   final String? title;
   final EdgeInsets? padding;
 
-  const SummaryCard({
-    super.key,
-    required this.items,
-    this.title,
-    this.padding,
-  });
+  const SummaryCard({super.key, required this.items, this.title, this.padding});
 
   @override
   Widget build(BuildContext context) {
@@ -104,11 +99,7 @@ class _SummaryRow extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10.r),
             ),
-            child: Icon(
-              item.icon,
-              color: AppColors.primary,
-              size: 18.sp,
-            ),
+            child: Icon(item.icon, color: AppColors.primary, size: 18.sp),
           ),
           SizedBox(width: 12.w),
         ],
@@ -133,9 +124,10 @@ class _SummaryRow extends StatelessWidget {
                       style: TextStyle(
                         color: item.valueColor ?? Colors.white,
                         fontSize: item.isHighlighted ? 18.sp : 15.sp,
-                        fontWeight: item.isHighlighted
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                        fontWeight:
+                            item.isHighlighted
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),

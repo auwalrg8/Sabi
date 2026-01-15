@@ -26,19 +26,20 @@ class AmountChips extends StatelessWidget {
       spacing: 10.w,
       runSpacing: 10.h,
       alignment: WrapAlignment.center,
-      children: amounts.map((amount) {
-        final isSelected = selectedAmount == amount;
-        return _AmountChip(
-          amount: amount,
-          isSelected: isSelected,
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onSelected(isSelected ? null : amount);
-          },
-          formatAmount: formatAmount,
-          currency: currency,
-        );
-      }).toList(),
+      children:
+          amounts.map((amount) {
+            final isSelected = selectedAmount == amount;
+            return _AmountChip(
+              amount: amount,
+              isSelected: isSelected,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onSelected(isSelected ? null : amount);
+              },
+              formatAmount: formatAmount,
+              currency: currency,
+            );
+          }).toList(),
     );
   }
 }
@@ -60,39 +61,37 @@ class _AmountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayText = formatAmount != null
-        ? formatAmount!(amount)
-        : '${currency ?? ''}${_formatNumber(amount)}';
+    final displayText =
+        formatAmount != null
+            ? formatAmount!(amount)
+            : '${currency ?? ''}${_formatNumber(amount)}';
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: EdgeInsets.symmetric(
-          horizontal: 18.w,
-          vertical: 12.h,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 12.h),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary
-              : AppColors.surface,
+          color: isSelected ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(24.r),
           border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : AppColors.textSecondary.withValues(alpha: 0.2),
+            color:
+                isSelected
+                    ? AppColors.primary
+                    : AppColors.textSecondary.withValues(alpha: 0.2),
             width: 1.5,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : null,
         ),
         child: Text(
           displayText,

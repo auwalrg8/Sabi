@@ -1,9 +1,4 @@
-enum PaymentMethodType {
-  bankTransfer,
-  mobileMoney,
-  cash,
-  giftCard,
-}
+enum PaymentMethodType { bankTransfer, mobileMoney, cash, giftCard }
 
 class PaymentMethodModel {
   final String id;

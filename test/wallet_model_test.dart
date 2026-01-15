@@ -16,9 +16,9 @@ void main() {
         "lightning_node_id": "node_abc123",
         "node_address": "lnd_node_abc123@127.0.0.1:9735",
         "synced": false,
-        "initialized_at": "2025-11-30T12:34:56+00:00"
+        "initialized_at": "2025-11-30T12:34:56+00:00",
       },
-      "created_at": "2025-11-30T12:34:56+00:00"
+      "created_at": "2025-11-30T12:34:56+00:00",
     };
 
     final model = WalletModel.fromJson(payload);
@@ -30,6 +30,9 @@ void main() {
     expect(model.balanceSats, 123456);
     expect(model.balanceNgn, 15000.5);
     expect(model.connectionDetails, isNotNull);
-    expect(model.connectionDetails!.walletId, '11111111-1111-1111-1111-111111111111');
+    expect(
+      model.connectionDetails!.walletId,
+      '11111111-1111-1111-1111-111111111111',
+    );
   });
 }

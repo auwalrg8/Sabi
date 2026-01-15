@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 
 /// Bottom sheet modal for editing Nostr keys (npub/nsec)
 class NostrEditModal extends StatefulWidget {

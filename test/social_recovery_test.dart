@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sabi_wallet/features/recovery/social_recovery_service.dart';
+import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
 
 void main() {
   group('RecoveryContact', () {

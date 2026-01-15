@@ -5,11 +5,7 @@ class RecipientAvatar extends StatelessWidget {
   final String initial;
   final double size;
 
-  const RecipientAvatar({
-    super.key,
-    required this.initial,
-    this.size = 64,
-  });
+  const RecipientAvatar({super.key, required this.initial, this.size = 64});
 
   @override
   Widget build(BuildContext context) {

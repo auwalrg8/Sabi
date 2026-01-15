@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'nostr_service.dart';
-import 'nostr_debug_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_debug_service.dart';
 
 /// Debug screen for viewing Nostr connection status and logs
 class NostrDebugScreen extends StatefulWidget {

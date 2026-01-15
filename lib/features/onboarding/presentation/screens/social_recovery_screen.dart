@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/recovery/social_recovery_setup_screen.dart';
+import 'package:sabi_wallet/features/recovery/presentation/screens/social_recovery_setup_screen.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 
 class SocialRecoveryScreen extends ConsumerStatefulWidget {
@@ -39,9 +39,7 @@ class _SocialRecoveryScreenState extends ConsumerState<SocialRecoveryScreen> {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => SocialRecoverySetupScreen(
-              masterSeed: masterSeed,
-            ),
+            builder: (_) => SocialRecoverySetupScreen(masterSeed: masterSeed),
           ),
           (route) => route.isFirst,
         );

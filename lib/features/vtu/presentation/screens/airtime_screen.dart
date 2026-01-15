@@ -87,9 +87,9 @@ class _AirtimeScreenState extends ConsumerState<AirtimeScreen> {
     }
 
     if (_selectedNetwork == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a network')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a network')));
       return;
     }
 
@@ -103,13 +103,14 @@ class _AirtimeScreenState extends ConsumerState<AirtimeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => VtuConfirmScreen(
-          serviceType: VtuServiceType.airtime,
-          recipient: phone,
-          amountNaira: _selectedAmount!,
-          network: _selectedNetwork,
-          networkCode: _selectedNetwork!.code,
-        ),
+        builder:
+            (_) => VtuConfirmScreen(
+              serviceType: VtuServiceType.airtime,
+              recipient: phone,
+              amountNaira: _selectedAmount!,
+              network: _selectedNetwork,
+              networkCode: _selectedNetwork!.code,
+            ),
       ),
     );
   }
@@ -170,14 +171,16 @@ class _AirtimeScreenState extends ConsumerState<AirtimeScreen> {
                     PhoneInputWithContacts(
                       controller: _phoneController,
                       detectedNetwork: _selectedNetwork?.name,
-                      networkColor: _selectedNetwork != null 
-                          ? Color(_selectedNetwork!.primaryColor) 
-                          : null,
+                      networkColor:
+                          _selectedNetwork != null
+                              ? Color(_selectedNetwork!.primaryColor)
+                              : null,
                       errorText: _phoneError,
                       onChanged: _onPhoneChanged,
-                      accentColor: _selectedNetwork != null 
-                          ? Color(_selectedNetwork!.primaryColor) 
-                          : const Color(0xFFF7931A),
+                      accentColor:
+                          _selectedNetwork != null
+                              ? Color(_selectedNetwork!.primaryColor)
+                              : const Color(0xFFF7931A),
                     ),
                     SizedBox(height: 24.h),
 
@@ -186,9 +189,10 @@ class _AirtimeScreenState extends ConsumerState<AirtimeScreen> {
                       amounts: amounts,
                       selectedAmount: _useCustomAmount ? null : _selectedAmount,
                       onAmountSelected: _onAmountSelected,
-                      accentColor: _selectedNetwork != null 
-                          ? Color(_selectedNetwork!.primaryColor) 
-                          : const Color(0xFFF7931A),
+                      accentColor:
+                          _selectedNetwork != null
+                              ? Color(_selectedNetwork!.primaryColor)
+                              : const Color(0xFFF7931A),
                     ),
                     SizedBox(height: 20.h),
 
@@ -230,9 +234,10 @@ class _AirtimeScreenState extends ConsumerState<AirtimeScreen> {
                   child: ElevatedButton(
                     onPressed: _isFormValid ? _proceedToConfirm : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedNetwork != null 
-                          ? Color(_selectedNetwork!.primaryColor) 
-                          : const Color(0xFFF7931A),
+                      backgroundColor:
+                          _selectedNetwork != null
+                              ? Color(_selectedNetwork!.primaryColor)
+                              : const Color(0xFFF7931A),
                       disabledBackgroundColor: const Color(0xFF2A2A3E),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r),
@@ -241,9 +246,10 @@ class _AirtimeScreenState extends ConsumerState<AirtimeScreen> {
                     child: Text(
                       'Continue',
                       style: TextStyle(
-                        color: _selectedNetwork == NetworkProvider.mtn 
-                            ? Colors.black 
-                            : Colors.white,
+                        color:
+                            _selectedNetwork == NetworkProvider.mtn
+                                ? Colors.black
+                                : Colors.white,
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                       ),
@@ -263,10 +269,7 @@ class _SummaryCard extends StatelessWidget {
   final double amountNaira;
   final NetworkProvider? network;
 
-  const _SummaryCard({
-    required this.amountNaira,
-    this.network,
-  });
+  const _SummaryCard({required this.amountNaira, this.network});
 
   @override
   Widget build(BuildContext context) {
@@ -274,8 +277,11 @@ class _SummaryCard extends StatelessWidget {
       future: VtuService.nairaToSats(amountNaira),
       builder: (context, snapshot) {
         final sats = snapshot.data ?? 0;
-        final color = network != null ? Color(network!.primaryColor) : const Color(0xFFF7931A);
-        
+        final color =
+            network != null
+                ? Color(network!.primaryColor)
+                : const Color(0xFFF7931A);
+
         return Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(

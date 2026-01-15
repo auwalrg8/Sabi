@@ -1,12 +1,22 @@
 import 'package:intl/intl.dart';
 
-String formatCurrency(double amount, {String locale = 'en_NG', String symbol = '₦'}) {
-  final formatter = NumberFormat.currency(locale: locale, symbol: symbol, decimalDigits: 2);
+String formatCurrency(
+  double amount, {
+  String locale = 'en_NG',
+  String symbol = '₦',
+}) {
+  final formatter = NumberFormat.currency(
+    locale: locale,
+    symbol: symbol,
+    decimalDigits: 2,
+  );
   return formatter.format(amount);
 }
 
 String formatBtc(double btc, {int decimals = 8}) {
-  final formatter = NumberFormat('###,##0.${List.filled(decimals, '0').join()}');
+  final formatter = NumberFormat(
+    '###,##0.${List.filled(decimals, '0').join()}',
+  );
   return '${formatter.format(btc)} BTC';
 }
 

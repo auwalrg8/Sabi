@@ -46,7 +46,7 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
 
     // Load plans for this provider
     final plans = await VtuService.getCableTvPlans(provider.code);
-    
+
     setState(() {
       _plans = plans;
       _isLoadingPlans = false;
@@ -61,10 +61,11 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
 
   Future<void> _verifySmartcard() async {
     final smartcard = _smartcardController.text.trim();
-    
+
     if (!VtuService.isValidSmartcardNumber(smartcard)) {
       setState(() {
-        _smartcardError = 'Please enter a valid smartcard number (10-11 digits)';
+        _smartcardError =
+            'Please enter a valid smartcard number (10-11 digits)';
       });
       return;
     }
@@ -93,7 +94,8 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
       if (info != null && info.isValid) {
         _customerInfo = info;
       } else {
-        _verificationError = 'Could not verify smartcard. Please check the number and try again.';
+        _verificationError =
+            'Could not verify smartcard. Please check the number and try again.';
       }
     });
   }
@@ -111,15 +113,16 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => VtuConfirmScreen(
-          serviceType: VtuServiceType.cableTv,
-          recipient: _smartcardController.text.trim(),
-          amountNaira: _selectedPlan!.displayPrice,
-          cableTvProvider: _selectedProvider,
-          variationId: _selectedPlan!.variationId,
-          cableTvPlanName: _selectedPlan!.name,
-          phone: _phoneController.text.trim(),
-        ),
+        builder:
+            (_) => VtuConfirmScreen(
+              serviceType: VtuServiceType.cableTv,
+              recipient: _smartcardController.text.trim(),
+              amountNaira: _selectedPlan!.displayPrice,
+              cableTvProvider: _selectedProvider,
+              variationId: _selectedPlan!.variationId,
+              cableTvPlanName: _selectedPlan!.name,
+              phone: _phoneController.text.trim(),
+            ),
       ),
     );
   }
@@ -213,23 +216,28 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
                               borderRadius: BorderRadius.circular(12.r),
                             ),
                           ),
-                          child: _isVerifying
-                              ? SizedBox(
-                                  width: 20.w,
-                                  height: 20.h,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(_selectedProvider!.primaryColor),
+                          child:
+                              _isVerifying
+                                  ? SizedBox(
+                                    width: 20.w,
+                                    height: 20.h,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(
+                                        _selectedProvider!.primaryColor,
+                                      ),
+                                    ),
+                                  )
+                                  : Text(
+                                    'Verify Smartcard',
+                                    style: TextStyle(
+                                      color: Color(
+                                        _selectedProvider!.primaryColor,
+                                      ),
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  'Verify Smartcard',
-                                  style: TextStyle(
-                                    color: Color(_selectedProvider!.primaryColor),
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
                         ),
                       ),
                     ],
@@ -317,9 +325,10 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
                               height: 30.h,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: _selectedProvider != null
-                                    ? Color(_selectedProvider!.primaryColor)
-                                    : const Color(0xFF1E88E5),
+                                color:
+                                    _selectedProvider != null
+                                        ? Color(_selectedProvider!.primaryColor)
+                                        : const Color(0xFF1E88E5),
                               ),
                             ),
                             SizedBox(height: 12.h),
@@ -365,9 +374,10 @@ class _CableTvScreenState extends ConsumerState<CableTvScreen> {
                   child: ElevatedButton(
                     onPressed: _isFormValid ? _proceedToConfirm : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedProvider != null
-                          ? Color(_selectedProvider!.primaryColor)
-                          : const Color(0xFF1E88E5),
+                      backgroundColor:
+                          _selectedProvider != null
+                              ? Color(_selectedProvider!.primaryColor)
+                              : const Color(0xFF1E88E5),
                       disabledBackgroundColor: const Color(0xFF2A2A3E),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.r),
@@ -404,60 +414,63 @@ class _ProviderSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: CableTvProvider.values.map((provider) {
-        final isSelected = selectedProvider == provider;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onProviderSelected(provider),
-            child: Container(
-              margin: EdgeInsets.only(
-                right: provider != CableTvProvider.values.last ? 10.w : 0,
-              ),
-              padding: EdgeInsets.symmetric(vertical: 16.h),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Color(provider.primaryColor).withOpacity(0.15)
-                    : const Color(0xFF1A1A2E),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: isSelected
-                      ? Color(provider.primaryColor)
-                      : const Color(0xFF2A2A3E),
-                  width: isSelected ? 2 : 1,
+      children:
+          CableTvProvider.values.map((provider) {
+            final isSelected = selectedProvider == provider;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onProviderSelected(provider),
+                child: Container(
+                  margin: EdgeInsets.only(
+                    right: provider != CableTvProvider.values.last ? 10.w : 0,
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 16.h),
+                  decoration: BoxDecoration(
+                    color:
+                        isSelected
+                            ? Color(provider.primaryColor).withOpacity(0.15)
+                            : const Color(0xFF1A1A2E),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color:
+                          isSelected
+                              ? Color(provider.primaryColor)
+                              : const Color(0xFF2A2A3E),
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 40.w,
+                        height: 40.h,
+                        decoration: BoxDecoration(
+                          color: Color(provider.primaryColor),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Icon(Icons.tv, color: Colors.white, size: 22.sp),
+                      ),
+                      SizedBox(height: 8.h),
+                      Text(
+                        provider.name,
+                        style: TextStyle(
+                          color:
+                              isSelected
+                                  ? Colors.white
+                                  : const Color(0xFFA1A1B2),
+                          fontSize: 12.sp,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 40.w,
-                    height: 40.h,
-                    decoration: BoxDecoration(
-                      color: Color(provider.primaryColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Icon(
-                      Icons.tv,
-                      color: Colors.white,
-                      size: 22.sp,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    provider.name,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : const Color(0xFFA1A1B2),
-                      fontSize: 12.sp,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 }
@@ -494,9 +507,10 @@ class _SmartcardInputField extends StatelessWidget {
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-              color: errorText != null
-                  ? const Color(0xFFFF4D4F)
-                  : const Color(0xFF2A2A3E),
+              color:
+                  errorText != null
+                      ? const Color(0xFFFF4D4F)
+                      : const Color(0xFF2A2A3E),
             ),
           ),
           child: Row(
@@ -512,9 +526,10 @@ class _SmartcardInputField extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.credit_card,
-                  color: selectedProvider != null
-                      ? Color(selectedProvider!.primaryColor)
-                      : const Color(0xFFA1A1B2),
+                  color:
+                      selectedProvider != null
+                          ? Color(selectedProvider!.primaryColor)
+                          : const Color(0xFFA1A1B2),
                   size: 22.sp,
                 ),
               ),
@@ -522,10 +537,7 @@ class _SmartcardInputField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.number,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.sp,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
                   decoration: InputDecoration(
                     hintText: 'Enter smartcard number',
                     hintStyle: TextStyle(
@@ -533,8 +545,10 @@ class _SmartcardInputField extends StatelessWidget {
                       fontSize: 16.sp,
                     ),
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 14.h,
+                    ),
                   ),
                   onChanged: onChanged,
                 ),
@@ -546,10 +560,7 @@ class _SmartcardInputField extends StatelessWidget {
           SizedBox(height: 6.h),
           Text(
             errorText!,
-            style: TextStyle(
-              color: const Color(0xFFFF4D4F),
-              fontSize: 12.sp,
-            ),
+            style: TextStyle(color: const Color(0xFFFF4D4F), fontSize: 12.sp),
           ),
         ],
       ],
@@ -561,10 +572,7 @@ class _PhoneInputField extends StatelessWidget {
   final TextEditingController controller;
   final CableTvProvider? selectedProvider;
 
-  const _PhoneInputField({
-    required this.controller,
-    this.selectedProvider,
-  });
+  const _PhoneInputField({required this.controller, this.selectedProvider});
 
   @override
   Widget build(BuildContext context) {
@@ -599,9 +607,10 @@ class _PhoneInputField extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.phone,
-                  color: selectedProvider != null
-                      ? Color(selectedProvider!.primaryColor)
-                      : const Color(0xFFA1A1B2),
+                  color:
+                      selectedProvider != null
+                          ? Color(selectedProvider!.primaryColor)
+                          : const Color(0xFFA1A1B2),
                   size: 22.sp,
                 ),
               ),
@@ -609,10 +618,7 @@ class _PhoneInputField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.phone,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.sp,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp),
                   decoration: InputDecoration(
                     hintText: 'Enter phone number',
                     hintStyle: TextStyle(
@@ -620,8 +626,10 @@ class _PhoneInputField extends StatelessWidget {
                       fontSize: 16.sp,
                     ),
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 14.h,
+                    ),
                   ),
                 ),
               ),
@@ -637,10 +645,7 @@ class _CustomerInfoCard extends StatelessWidget {
   final VtuCableTvCustomerInfo customerInfo;
   final CableTvProvider? provider;
 
-  const _CustomerInfoCard({
-    required this.customerInfo,
-    this.provider,
-  });
+  const _CustomerInfoCard({required this.customerInfo, this.provider});
 
   @override
   Widget build(BuildContext context) {
@@ -676,7 +681,10 @@ class _CustomerInfoCard extends StatelessWidget {
           _InfoRow(label: 'Name', value: customerInfo.customerName),
           if (customerInfo.currentBouquet.isNotEmpty) ...[
             SizedBox(height: 8.h),
-            _InfoRow(label: 'Current Package', value: customerInfo.currentBouquet),
+            _InfoRow(
+              label: 'Current Package',
+              value: customerInfo.currentBouquet,
+            ),
           ],
           if (customerInfo.dueDate.isNotEmpty) ...[
             SizedBox(height: 8.h),
@@ -701,10 +709,7 @@ class _InfoRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: const Color(0xFFA1A1B2),
-            fontSize: 13.sp,
-          ),
+          style: TextStyle(color: const Color(0xFFA1A1B2), fontSize: 13.sp),
         ),
         Flexible(
           child: Text(
@@ -738,9 +743,10 @@ class _PlansList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = provider != null
-        ? Color(provider!.primaryColor)
-        : const Color(0xFF1E88E5);
+    final color =
+        provider != null
+            ? Color(provider!.primaryColor)
+            : const Color(0xFF1E88E5);
 
     return ListView.separated(
       shrinkWrap: true,
@@ -757,9 +763,8 @@ class _PlansList extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? color.withOpacity(0.1)
-                  : const Color(0xFF1A1A2E),
+              color:
+                  isSelected ? color.withOpacity(0.1) : const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(12.r),
               border: Border.all(
                 color: isSelected ? color : const Color(0xFF2A2A3E),
@@ -775,11 +780,7 @@ class _PlansList extends StatelessWidget {
                     color: color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
-                  child: Icon(
-                    Icons.live_tv,
-                    color: color,
-                    size: 22.sp,
-                  ),
+                  child: Icon(Icons.live_tv, color: color, size: 22.sp),
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
@@ -834,10 +835,7 @@ class _SummaryCard extends StatelessWidget {
   final VtuCableTvPlan plan;
   final CableTvProvider? provider;
 
-  const _SummaryCard({
-    required this.plan,
-    this.provider,
-  });
+  const _SummaryCard({required this.plan, this.provider});
 
   @override
   Widget build(BuildContext context) {
@@ -845,9 +843,10 @@ class _SummaryCard extends StatelessWidget {
       future: VtuService.nairaToSats(plan.displayPrice),
       builder: (context, snapshot) {
         final sats = snapshot.data ?? 0;
-        final color = provider != null
-            ? Color(provider!.primaryColor)
-            : const Color(0xFF1E88E5);
+        final color =
+            provider != null
+                ? Color(provider!.primaryColor)
+                : const Color(0xFF1E88E5);
 
         return Container(
           padding: EdgeInsets.all(16.w),

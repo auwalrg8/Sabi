@@ -29,7 +29,12 @@ class LoggerService {
   }
 
   /// Log error messages with optional stack trace
-  static void error(String message, {String? tag, dynamic error, StackTrace? stackTrace}) {
+  static void error(
+    String message, {
+    String? tag,
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
     if (kDebugMode) {
       final prefix = tag ?? _tag;
       debugPrint('$prefix [ERROR] $message');
@@ -43,7 +48,12 @@ class LoggerService {
   }
 
   /// Log critical errors that should always be logged
-  static void critical(String message, {String? tag, dynamic error, StackTrace? stackTrace}) {
+  static void critical(
+    String message, {
+    String? tag,
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
     final prefix = tag ?? _tag;
     debugPrint('$prefix [CRITICAL] $message');
     if (error != null) {

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sabi_wallet/features/nostr/nostr_service.dart';
-import 'package:sabi_wallet/features/recovery/nostr_invite_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
+import 'package:sabi_wallet/features/recovery/services/nostr_invite_service.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Contact model for guardian selection

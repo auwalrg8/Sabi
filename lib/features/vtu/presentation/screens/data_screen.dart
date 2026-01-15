@@ -202,9 +202,10 @@ class _DataScreenState extends ConsumerState<DataScreen> {
                               : null,
                       errorText: _phoneError,
                       onChanged: _onPhoneChanged,
-                      accentColor: _selectedNetwork != null 
-                          ? Color(_selectedNetwork!.primaryColor) 
-                          : const Color(0xFFF7931A),
+                      accentColor:
+                          _selectedNetwork != null
+                              ? Color(_selectedNetwork!.primaryColor)
+                              : const Color(0xFFF7931A),
                     ),
                     SizedBox(height: 24.h),
 

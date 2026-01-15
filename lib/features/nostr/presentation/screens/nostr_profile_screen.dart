@@ -7,10 +7,10 @@ import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'nostr_service.dart';
-import '../../services/nostr/nostr_service.dart' as nostr_v2;
-import '../../services/nostr/dm_service.dart';
-import '../../services/breez_spark_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
+import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
+import 'package:sabi_wallet/services/nostr/dm_service.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 
 /// Full-featured Nostr Profile Screen
 /// Displays user profile with banner, stats, posts, and social actions

@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 /// Reusable animated dialog icon widget
-/// 
+///
 /// Displays an icon with a circular background and animations
 /// Used in all dialog types (info, success, error, warning, danger)
 class DialogIcon extends StatelessWidget {
   /// The icon to display
   final IconData icon;
-  
+
   /// The color of the icon
   final Color iconColor;
-  
+
   /// The background color of the icon container
   final Color backgroundColor;
-  
+
   /// The size of the icon (default: 64)
   final double iconSize;
-  
+
   /// The padding around the icon (default: 24)
   final double padding;
-  
+
   /// Whether to apply shake animation (used for danger/warning dialogs)
   final bool applyShake;
 
@@ -38,15 +38,8 @@ class DialogIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconWidget = Container(
       padding: EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        size: iconSize,
-        color: iconColor,
-      ),
+      decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+      child: Icon(icon, size: iconSize, color: iconColor),
     );
 
     // Apply animations
@@ -63,4 +56,3 @@ class DialogIcon extends StatelessWidget {
     return animatedWidget;
   }
 }
-

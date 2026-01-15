@@ -17,14 +17,16 @@ final breezInitProvider = FutureProvider<bool>((ref) async {
     if (mnemonic != null && mnemonic.isNotEmpty) {
       // Initialize Spark SDK with the stored mnemonic
       await BreezSparkService.initializeSparkSDK(mnemonic: mnemonic);
-      
+
       // Start webhook bridge for push notifications
       BreezWebhookBridgeService().startListening();
-      debugPrint('✅ BreezWebhookBridgeService started from breez_init_provider');
-      
+      debugPrint(
+        '✅ BreezWebhookBridgeService started from breez_init_provider',
+      );
+
       // Register FCM token for push notifications
       FCMTokenRegistrationService().registerToken();
-      
+
       return true;
     }
 

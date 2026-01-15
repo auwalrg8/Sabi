@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
 import 'what_is_nostr_modal.dart';
 
 /// Nostr Onboarding Screen - Guides new users through Nostr setup
@@ -235,7 +235,10 @@ class _NostrOnboardingScreenState extends State<NostrOnboardingScreen>
                 onPressed: () {
                   Navigator.pop(context); // Close dialog
                   widget.onComplete?.call();
-                  Navigator.pop(context, true); // Return true to indicate success
+                  Navigator.pop(
+                    context,
+                    true,
+                  ); // Return true to indicate success
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF9945FF),

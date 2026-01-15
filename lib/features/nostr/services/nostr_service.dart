@@ -8,10 +8,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
-import 'nostr_debug_service.dart';
-import 'nostr_relay_client.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_debug_service.dart';
+import 'package:sabi_wallet/features/nostr/data/nostr_relay_client.dart';
 import 'package:sabi_wallet/services/nostr/relay_pool_manager.dart';
-import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart' as profile_v2;
+import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart'
+    as profile_v2;
 
 // Global debug service instance
 final _debug = NostrDebugService();
@@ -1393,10 +1394,7 @@ class NostrService {
         _nostr!.sendEvent(event);
 
         // Update cache
-        await _storage.write(
-          key: _followsKey,
-          value: newFollows.join(','),
-        );
+        await _storage.write(key: _followsKey, value: newFollows.join(','));
         _debug.success(
           'TOGGLE_FOLLOW',
           'Published new contact list',

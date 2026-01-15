@@ -7,22 +7,22 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
-import 'nostr_service.dart';
-import 'nostr_edit_modal.dart';
+import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_edit_modal.dart';
 import 'nostr_profile_screen.dart';
 import 'nostr_search_screen.dart';
 import 'nostr_dm_inbox_screen.dart';
-import 'widgets/what_is_nostr_modal.dart';
-import 'widgets/nostr_onboarding_screen.dart';
-import '../../services/breez_spark_service.dart';
-import '../../services/nostr/dm_service.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/what_is_nostr_modal.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_onboarding_screen.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/nostr/dm_service.dart';
 import 'package:sabi_wallet/services/nostr/nostr_service.dart' as nostr_v2;
 
 // New services - to be used for enhanced features
 // ignore: unused_import
-import 'providers/nostr_providers.dart';
+import 'package:sabi_wallet/features/nostr/providers/nostr_providers.dart';
 // ignore: unused_import
-import 'widgets/enhanced_zap_slider.dart';
+import 'package:sabi_wallet/features/nostr/presentation/widgets/enhanced_zap_slider.dart';
 
 /// Filter types for the feed
 enum FeedFilter { global, following, trending24h }

@@ -129,7 +129,6 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
 
       VtuOrder completedOrder;
 
-
       switch (widget.serviceType) {
         case VtuServiceType.airtime:
           completedOrder = await VtuService.processAirtimePurchase(
@@ -155,7 +154,9 @@ class _VtuConfirmScreenState extends ConsumerState<VtuConfirmScreen> {
             discoCode: widget.electricityProvider?.code ?? '',
             meterType: widget.meterType?.code ?? 'prepaid',
             amountNaira: widget.amountNaira,
-            phone: widget.phone ?? widget.recipient, // Use phone or meter for notifications
+            phone:
+                widget.phone ??
+                widget.recipient, // Use phone or meter for notifications
           );
           break;
 

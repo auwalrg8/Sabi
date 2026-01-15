@@ -17,26 +17,29 @@ final balanceProvider = FutureProvider<int>((ref) async {
 });
 
 /// Provider to manually refresh balance with loading state
-final balanceNotifierProvider = StateNotifierProvider<BalanceNotifier, AsyncValue<int>>((ref) {
-  return BalanceNotifier();
-});
+final balanceNotifierProvider =
+    StateNotifierProvider<BalanceNotifier, AsyncValue<int>>((ref) {
+      return BalanceNotifier();
+    });
 
 class BalanceNotifier extends StateNotifier<AsyncValue<int>> {
   Timer? _autoRefreshTimer;
   StreamSubscription? _balanceStreamSubscription;
-  
+
   BalanceNotifier() : super(const AsyncValue.data(0)) {
     // Start listening to balance stream for real-time updates
-    _balanceStreamSubscription = BreezSparkService.balanceStream.listen((balance) {
+    _balanceStreamSubscription = BreezSparkService.balanceStream.listen((
+      balance,
+    ) {
       if (mounted) {
         state = AsyncValue.data(balance);
       }
     });
-    
+
     // Start auto-refresh timer to poll balance when SDK is ready
     _startAutoRefresh();
   }
-  
+
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
@@ -68,7 +71,7 @@ class BalanceNotifier extends StateNotifier<AsyncValue<int>> {
   Future<void> refresh() async {
     await _loadBalance();
   }
-  
+
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();

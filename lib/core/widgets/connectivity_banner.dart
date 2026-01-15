@@ -97,14 +97,23 @@ class _State extends ConsumerState<ConnectivityBanner>
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
                   child: Container(
                     decoration: BoxDecoration(
                       color: _color.withOpacity(0.1), // 10% background
-                      border: Border.all(color: _color.withOpacity(1.0), width: 1), // stroke 100%
+                      border: Border.all(
+                        color: _color.withOpacity(1.0),
+                        width: 1,
+                      ), // stroke 100%
                       borderRadius: BorderRadius.circular(12.r),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 12.h,
+                    ),
                     child: Row(
                       children: [
                         Icon(_icon, color: _color, size: 22.sp),
@@ -121,7 +130,8 @@ class _State extends ConsumerState<ConnectivityBanner>
                         ),
                         GestureDetector(
                           onTap: () {
-                            _dismissedBackend = ref.read(backendStatusProvider).value;
+                            _dismissedBackend =
+                                ref.read(backendStatusProvider).value;
                             _hide();
                           },
                           child: Icon(Icons.close, color: _color, size: 20.sp),

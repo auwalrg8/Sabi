@@ -24,7 +24,7 @@ class NostrService {
       debugPrint('NostrService (v2): Already initialized with valid resources');
       return;
     }
-    
+
     // Hive.initFlutter() is called once in main.dart, no need to call again
     // Just open the box (Hive handles reopening gracefully)
     try {

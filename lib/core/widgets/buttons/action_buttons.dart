@@ -6,16 +6,36 @@ class ActionButtons extends StatelessWidget {
   final VoidCallback onReceive;
   final VoidCallback onBuy;
 
-  const ActionButtons({super.key, required this.onSend, required this.onReceive, required this.onBuy});
+  const ActionButtons({
+    super.key,
+    required this.onSend,
+    required this.onReceive,
+    required this.onBuy,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _ActionButton(icon: Icons.send, label: 'Send', color: Colors.red, onTap: onSend),
-        _ActionButton(icon: Icons.download, label: 'Receive', color: AppColors.accentGreen, onTap: onReceive),
-        _ActionButton(icon: Icons.shopping_cart, label: 'Buy', color: AppColors.primary, onTap: onBuy),
+        _ActionButton(
+          icon: Icons.send,
+          label: 'Send',
+          color: Colors.red,
+          onTap: onSend,
+        ),
+        _ActionButton(
+          icon: Icons.download,
+          label: 'Receive',
+          color: AppColors.accentGreen,
+          onTap: onReceive,
+        ),
+        _ActionButton(
+          icon: Icons.shopping_cart,
+          label: 'Buy',
+          color: AppColors.primary,
+          onTap: onBuy,
+        ),
       ],
     );
   }
@@ -27,7 +47,12 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,18 +64,34 @@ class _ActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
               child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),

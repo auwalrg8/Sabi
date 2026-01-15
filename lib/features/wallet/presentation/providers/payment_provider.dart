@@ -7,15 +7,11 @@ final paymentHistoryProvider = StreamProvider<List<PaymentRecord>>((ref) {
 });
 
 /// Provider for latest payments (cached list)
-final latestPaymentsProvider = FutureProvider<List<PaymentRecord>>(
-  (ref) async {
-    return BreezSparkService.listPayments();
-  },
-);
+final latestPaymentsProvider = FutureProvider<List<PaymentRecord>>((ref) async {
+  return BreezSparkService.listPayments();
+});
 
 /// Provider for all payments (complete history)
-final allPaymentsProvider = FutureProvider<List<PaymentRecord>>(
-  (ref) async {
-    return BreezSparkService.listPayments();
-  },
-);
+final allPaymentsProvider = FutureProvider<List<PaymentRecord>>((ref) async {
+  return BreezSparkService.listPayments();
+});

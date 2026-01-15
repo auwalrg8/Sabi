@@ -165,11 +165,11 @@ class _SeedRecoveryScreenState extends ConsumerState<SeedRecoveryScreen> {
 
       // CRITICAL: Mark onboarding complete so app never loops back
       await BreezSparkService.setOnboardingComplete();
-      
+
       // Start webhook bridge for push notifications
       BreezWebhookBridgeService().startListening();
       debugPrint('✅ BreezWebhookBridgeService started after wallet recovery');
-      
+
       // Register FCM token for push notifications
       FCMTokenRegistrationService().registerToken();
 

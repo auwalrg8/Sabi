@@ -17,7 +17,7 @@ class EventStreamService {
   final _balanceController = StreamController<BalanceUpdate>.broadcast();
   final _paymentController = StreamController<PaymentNotification>.broadcast();
   final _healthController = StreamController<bool>.broadcast();
-  
+
   bool _isConnected = false;
   Timer? _reconnectTimer;
 
@@ -27,7 +27,8 @@ class EventStreamService {
   Stream<BalanceUpdate> get balanceUpdates => _balanceController.stream;
 
   /// Stream of payment notifications
-  Stream<PaymentNotification> get paymentNotifications => _paymentController.stream;
+  Stream<PaymentNotification> get paymentNotifications =>
+      _paymentController.stream;
 
   /// Stream of health status (true = online, false = offline)
   Stream<bool> get healthStatus => _healthController.stream;
@@ -38,7 +39,9 @@ class EventStreamService {
   /// Start listening to /events stream
   Future<void> start() async {
     final inviteCode = SecureStorage.inviteCode;
-    if (inviteCode == null || inviteCode.isEmpty || inviteCode == 'device_local_wallet') {
+    if (inviteCode == null ||
+        inviteCode.isEmpty ||
+        inviteCode == 'device_local_wallet') {
       // For local-only wallets, simulate connected status
       _isConnected = true;
       _healthController.add(true);
@@ -72,15 +75,15 @@ class EventStreamService {
             .transform(utf8.decoder)
             .transform(const LineSplitter())
             .listen(
-          _handleEvent,
-          onError: (error) {
-            _handleDisconnect();
-          },
-          onDone: () {
-            _handleDisconnect();
-          },
-          cancelOnError: false,
-        );
+              _handleEvent,
+              onError: (error) {
+                _handleDisconnect();
+              },
+              onDone: () {
+                _handleDisconnect();
+              },
+              cancelOnError: false,
+            );
       } else {
         _handleDisconnect();
       }
@@ -131,7 +134,7 @@ class EventStreamService {
   void _handleDisconnect() {
     _isConnected = false;
     _healthController.add(false);
-    
+
     // Attempt to reconnect after 5 seconds
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
@@ -171,9 +174,11 @@ class BalanceUpdate {
     return BalanceUpdate(
       balanceSats: (json['balance_sats'] as num?)?.toInt() ?? 0,
       balanceNgn: (json['balance_ngn'] as num?)?.toDouble(),
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      timestamp:
+          json['timestamp'] != null
+              ? DateTime.tryParse(json['timestamp'].toString()) ??
+                  DateTime.now()
+              : DateTime.now(),
     );
   }
 }
@@ -201,9 +206,11 @@ class PaymentNotification {
       inbound: json['inbound'] == true || json['direction'] == 'inbound',
       amountSats: (json['amount_sats'] as num?)?.toInt() ?? 0,
       description: json['description'] as String?,
-      timestamp: json['timestamp'] != null
-          ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      timestamp:
+          json['timestamp'] != null
+              ? DateTime.tryParse(json['timestamp'].toString()) ??
+                  DateTime.now()
+              : DateTime.now(),
       status: json['status']?.toString() ?? 'unknown',
     );
   }

@@ -78,9 +78,10 @@ class RateService {
     final lastUpdate = box.get('rate_timestamp_btc_usd');
 
     if (cached != null && lastUpdate != null) {
-      final minutesAgo = DateTime.now()
-          .difference(DateTime.fromMillisecondsSinceEpoch(lastUpdate))
-          .inMinutes;
+      final minutesAgo =
+          DateTime.now()
+              .difference(DateTime.fromMillisecondsSinceEpoch(lastUpdate))
+              .inMinutes;
       if (minutesAgo < 5) return cached;
     }
 
@@ -92,7 +93,10 @@ class RateService {
         final data = jsonDecode(response.body);
         final rate = (data['btc']['usd'] as num).toDouble();
         await box.put('btc_usd_rate', rate);
-        await box.put('rate_timestamp_btc_usd', DateTime.now().millisecondsSinceEpoch);
+        await box.put(
+          'rate_timestamp_btc_usd',
+          DateTime.now().millisecondsSinceEpoch,
+        );
         return rate;
       }
     } catch (e) {
@@ -113,17 +117,24 @@ class RateService {
 
     if (cached != null && lastUpdate != null) {
       final minutesAgo =
-          DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastUpdate)).inMinutes;
+          DateTime.now()
+              .difference(DateTime.fromMillisecondsSinceEpoch(lastUpdate))
+              .inMinutes;
       if (minutesAgo < 5) return cached;
     }
 
     try {
-      final response = await http.get(Uri.parse(_usdUrl)).timeout(const Duration(seconds: 8));
+      final response = await http
+          .get(Uri.parse(_usdUrl))
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final rate = (data['usd']['ngn'] as num).toDouble();
         await box.put('usd_ngn_rate', rate);
-        await box.put('rate_timestamp_usd', DateTime.now().millisecondsSinceEpoch);
+        await box.put(
+          'rate_timestamp_usd',
+          DateTime.now().millisecondsSinceEpoch,
+        );
         return rate;
       }
     } catch (e) {
@@ -145,7 +156,8 @@ class RateService {
 
   /// Format amount in the specified fiat currency
   static String formatFiat(double amount, FiatCurrency currency) {
-    final formatted = amount.toStringAsFixed(currency == FiatCurrency.usd ? 2 : 0)
+    final formatted = amount
+        .toStringAsFixed(currency == FiatCurrency.usd ? 2 : 0)
         .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
     return '${currency.symbol}$formatted';
   }

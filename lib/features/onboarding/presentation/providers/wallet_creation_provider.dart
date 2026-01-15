@@ -7,10 +7,7 @@ class WalletCreationState {
 
   WalletCreationState({this.isLoading = false, this.errorMessage});
 
-  WalletCreationState copyWith({
-    bool? isLoading,
-    String? errorMessage,
-  }) {
+  WalletCreationState copyWith({bool? isLoading, String? errorMessage}) {
     return WalletCreationState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -30,6 +27,7 @@ class WalletCreationNotifier extends StateNotifier<WalletCreationState> {
   }
 }
 
-final walletCreationProvider = StateNotifierProvider<WalletCreationNotifier, WalletCreationState>((ref) {
-  return WalletCreationNotifier();
-});
+final walletCreationProvider =
+    StateNotifierProvider<WalletCreationNotifier, WalletCreationState>((ref) {
+      return WalletCreationNotifier();
+    });

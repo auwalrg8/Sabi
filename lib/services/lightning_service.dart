@@ -15,10 +15,7 @@ class LightningService {
         'Authorization': 'Bearer $inviteCode',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'amount_sats': sats,
-        'description': memo,
-      }),
+      body: jsonEncode({'amount_sats': sats, 'description': memo}),
     );
 
     if (response.statusCode != 200) {
