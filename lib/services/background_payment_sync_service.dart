@@ -66,6 +66,11 @@ void callbackDispatcher() {
 /// 3. When app wakes, it can do a proper sync
 Future<void> _performBackgroundSync() async {
   debugPrint('🔍 [Background] Starting payment sync...');
+  // Show a persistent foreground notification while the sync runs
+  await showForegroundNotification(
+    title: 'Sabi Wallet — Syncing wallet data',
+    body: 'Keeping your wallet up to date',
+  );
 
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -125,6 +130,9 @@ Future<void> _performBackgroundSync() async {
     }
   } catch (e) {
     debugPrint('❌ [Background] Sync error: $e');
+  } finally {
+    // Remove the foreground notification when finished
+    await hideForegroundNotification();
   }
 }
 
@@ -175,6 +183,50 @@ Future<void> _showLocalNotification({
   );
 
   debugPrint('🔔 [Background] Local notification shown');
+}
+
+/// Show a persistent foreground notification while background sync runs.
+Future<void> showForegroundNotification({
+  required String title,
+  required String body,
+}) async {
+  final FlutterLocalNotificationsPlugin notifications =
+      FlutterLocalNotificationsPlugin();
+
+  // Initialize if needed (mirrors _showLocalNotification initialization)
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosSettings = DarwinInitializationSettings();
+  const settings = InitializationSettings(
+    android: androidSettings,
+    iOS: iosSettings,
+  );
+  await notifications.initialize(settings);
+
+  const androidDetails = AndroidNotificationDetails(
+    'sabi_wallet_foreground',
+    'Foreground Sync',
+    channelDescription: 'Ongoing wallet sync',
+    importance: Importance.low,
+    priority: Priority.low,
+    icon: '@mipmap/ic_launcher',
+    ongoing: true,
+    onlyAlertOnce: true,
+    showWhen: true,
+    playSound: false,
+  );
+
+  const iosDetails = DarwinNotificationDetails();
+  const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+  // Use a fixed id so we can cancel it later
+  await notifications.show(9999, title, body, details, payload: '{"action":"foreground_sync"}');
+}
+
+/// Remove the foreground notification when sync completes.
+Future<void> hideForegroundNotification() async {
+  final FlutterLocalNotificationsPlugin notifications =
+      FlutterLocalNotificationsPlugin();
+  await notifications.cancel(9999);
 }
 
 /// Service class for managing background sync
