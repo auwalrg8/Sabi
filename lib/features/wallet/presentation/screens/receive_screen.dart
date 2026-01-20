@@ -7,7 +7,7 @@ import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
-import 'package:sabi_wallet/features/nostr/services/nostr_service.dart';
+// Nostr receive removed from this screen — nostr imports not required here
 import 'package:sabi_wallet/features/wallet/presentation/widgets/edit_lightning_address_modal.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 
@@ -27,12 +27,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   String? _bolt11;
   bool _creating = false;
   bool _isSyncingLightningAddress = false;
-  String _selectedTab = 'lightning';
   UserProfile? _userProfile;
-  String? _nostrNpub;
-  bool _isLoadingNostr = false;
 
-  final List<int> presetAmounts = [1000, 5000, 10000, 50000, 100000];
+  final List<int> presetAmounts = [1000, 5000, 10000];
   final List<String> expiryOptions = [
     '1 hour',
     '24 hours',
@@ -44,7 +41,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   void initState() {
     super.initState();
     _loadUserProfile();
-    _loadNostrNpub();
   }
 
   Future<void> _loadUserProfile() async {
@@ -54,24 +50,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     }
   }
 
-  Future<void> _loadNostrNpub() async {
-    setState(() => _isLoadingNostr = true);
-    try {
-      await NostrService.init();
-      final npub = await NostrService.getNpub();
-      if (mounted) {
-        setState(() {
-          _nostrNpub = npub;
-          _isLoadingNostr = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('❌ Error loading Nostr npub: $e');
-      if (mounted) {
-        setState(() => _isLoadingNostr = false);
-      }
-    }
-  }
+  // Nostr npub loading removed — nostr receive removed from this screen
 
   Future<void> _refreshLightningAddress() async {
     if (_isSyncingLightningAddress) return;
@@ -160,7 +139,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 padding: EdgeInsets.all(30.h),
                 child: Column(
                   children: [
-                    if (_selectedTab == 'lightning') ...[
                       _buildQRCodeSection(),
                       SizedBox(height: 30.h),
                       _buildUserInfo(),
@@ -170,9 +148,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                       _buildExpiryAndDescription(),
                       SizedBox(height: 30.h),
                       _buildActionButtons(),
-                    ] else if (_selectedTab == 'nostr') ...[
-                      _buildNostrReceiveSection(),
-                    ],
                   ],
                 ),
               ),
@@ -248,129 +223,12 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             ],
           ),
           SizedBox(height: 20.h),
-          _buildTabSelector(),
         ],
       ),
     );
   }
 
-  Widget _buildTabSelector() {
-    return Container(
-      height: 48.h,
-      padding: EdgeInsets.all(4.r),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14.r),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _selectedTab = 'lightning');
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: 40.h,
-                decoration: BoxDecoration(
-                  color:
-                      _selectedTab == 'lightning'
-                          ? AppColors.primary
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                  boxShadow:
-                      _selectedTab == 'lightning'
-                          ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : null,
-                ),
-                child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('⚡', style: TextStyle(fontSize: 16.sp)),
-                      SizedBox(width: 6.w),
-                      Text(
-                        AppLocalizations.of(context)!.lightning,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.sp,
-                          fontWeight:
-                              _selectedTab == 'lightning'
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 4.w),
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _selectedTab = 'nostr');
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: 40.h,
-                decoration: BoxDecoration(
-                  color:
-                      _selectedTab == 'nostr'
-                          ? AppColors.primary
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                  boxShadow:
-                      _selectedTab == 'nostr'
-                          ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : null,
-                ),
-                child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.blur_on_rounded,
-                        color: Colors.white,
-                        size: 16.sp,
-                      ),
-                      SizedBox(width: 6.w),
-                      Text(
-                        'Nostr',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.sp,
-                          fontWeight:
-                              _selectedTab == 'nostr'
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   Widget _buildQRCodeSection() {
     final displayData = _bolt11 ?? _userProfile?.sabiUsername;
@@ -482,11 +340,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
 
   Widget _buildUserInfo() {
+    // Use profile-style lightning address card (copy + display only)
     final username = _userProfile?.sabiUsername ?? '@sabi/user';
-    final registered = _userProfile?.hasLightningAddress ?? false;
-    final description =
-        _userProfile?.lightningAddressDescription ??
-        'Share your Lightning address to receive payments instantly.';
+    final displayAddress = username;
 
     return Container(
       padding: EdgeInsets.all(16.r),
@@ -496,12 +352,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       ),
       child: Column(
         children: [
-          // Lightning address with copy
           GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              _copyToClipboard(username, 'Lightning address');
-            },
+            onTap: () => _copyToClipboard(displayAddress, 'Lightning address'),
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
               decoration: BoxDecoration(
@@ -515,200 +367,25 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.bolt_rounded,
-                    color: AppColors.primary,
-                    size: 20.sp,
-                  ),
+                  Icon(Icons.bolt_rounded, color: AppColors.primary, size: 20.sp),
                   SizedBox(width: 8.w),
                   Flexible(
                     child: Text(
-                      username,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      displayAddress,
+                      style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   SizedBox(width: 8.w),
-                  Icon(
-                    Icons.copy_rounded,
-                    color: AppColors.primary,
-                    size: 18.sp,
+                  IconButton(
+                    onPressed: () => _copyToClipboard(displayAddress, 'Lightning address'),
+                    icon: Icon(Icons.copy_rounded, color: AppColors.primary, size: 18.sp),
+                    tooltip: 'Copy',
                   ),
                 ],
               ),
             ),
           ),
-          SizedBox(height: 12.h),
-          // Description
-          Text(
-            description,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 12.h),
-          // Registration status
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-            decoration: BoxDecoration(
-              color:
-                  registered
-                      ? AppColors.accentGreen.withValues(alpha: 0.1)
-                      : AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20.r),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  registered ? Icons.check_circle : Icons.info_outline_rounded,
-                  color: registered ? AppColors.accentGreen : AppColors.primary,
-                  size: 16.sp,
-                ),
-                SizedBox(width: 6.w),
-                Text(
-                  registered ? 'Address active' : 'Not registered',
-                  style: TextStyle(
-                    color:
-                        registered ? AppColors.accentGreen : AppColors.primary,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 12.h),
-          // Action buttons - always show Edit + Refresh since address is auto-registered
-          Row(
-            children: [
-              // Edit button
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: registered ? _showEditLightningAddressModal : null,
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color:
-                          registered
-                              ? AppColors.accentYellow
-                              : AppColors.borderColor,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.edit_rounded,
-                        color:
-                            registered
-                                ? AppColors.accentYellow
-                                : AppColors.textTertiary,
-                        size: 18.sp,
-                      ),
-                      SizedBox(width: 6.w),
-                      Text(
-                        'Edit',
-                        style: TextStyle(
-                          color:
-                              registered
-                                  ? AppColors.accentYellow
-                                  : AppColors.textTertiary,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              // Refresh button
-              Expanded(
-                child: OutlinedButton(
-                  onPressed:
-                      _isSyncingLightningAddress
-                          ? null
-                          : _refreshLightningAddress,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_isSyncingLightningAddress)
-                        SizedBox(
-                          width: 16.w,
-                          height: 16.h,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.w,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      else
-                        Icon(
-                          Icons.refresh_rounded,
-                          color: AppColors.primary,
-                          size: 18.sp,
-                        ),
-                      SizedBox(width: 6.w),
-                      Text(
-                        _isSyncingLightningAddress ? 'Syncing...' : 'Refresh',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // Show hint if address is being set up
-          if (!registered) ...[
-            SizedBox(height: 12.h),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 14.w,
-                    height: 14.h,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: Text(
-                      'Setting up your lightning address...',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
