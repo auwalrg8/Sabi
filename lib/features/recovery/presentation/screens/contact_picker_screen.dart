@@ -32,8 +32,9 @@ class ContactWithStatus {
   static String _generateId(String? npub, String? phoneNumber, String name) {
     // Create unique ID from available identifiers
     if (npub != null && npub.isNotEmpty) return 'nostr_$npub';
-    if (phoneNumber != null && phoneNumber.isNotEmpty)
+    if (phoneNumber != null && phoneNumber.isNotEmpty) {
       return 'phone_$phoneNumber';
+    }
     return 'name_${name.hashCode}_${DateTime.now().microsecondsSinceEpoch}';
   }
 
@@ -68,7 +69,7 @@ class _ContactPickerScreenState extends State<ContactPickerScreen>
   final TextEditingController _npubInputController = TextEditingController();
 
   List<ContactWithStatus> _nostrFollows = [];
-  List<ContactWithStatus> _deviceContacts = [];
+  final List<ContactWithStatus> _deviceContacts = [];
   List<ContactWithStatus> _allContacts = [];
   List<ContactWithStatus> _filteredContacts = [];
   List<ContactWithStatus> _searchResults = [];

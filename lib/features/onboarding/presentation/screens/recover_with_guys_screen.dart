@@ -41,7 +41,7 @@ class _RecoverWithGuysScreenState extends State<RecoverWithGuysScreen>
   late AnimationController _progressController;
 
   List<RecoveryGuardianDisplay> _contacts = [];
-  List<RecoveryShare> _collectedShares = [];
+  final List<RecoveryShare> _collectedShares = [];
   StreamSubscription<RecoveryShare>? _shareSubscription;
   String? _errorMessage;
   String? _recoveredSeed;

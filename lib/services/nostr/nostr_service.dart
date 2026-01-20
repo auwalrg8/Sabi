@@ -1,6 +1,6 @@
 /// Nostr Services for Sabi Wallet
 /// Primal-grade performance with NIP-57 zaps and NIP-99 P2P
-library nostr_services;
+library;
 
 export 'models/models.dart';
 export 'relay_pool_manager.dart';

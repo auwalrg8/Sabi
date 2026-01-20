@@ -1,5 +1,6 @@
 /// Nostr Zap Models for NIP-57
 /// Includes zap request (kind 9734) and zap receipt (kind 9735)
+library;
 
 /// Zap Request (Kind 9734) - Created by sender, included in LNURL callback
 class NostrZapRequest {

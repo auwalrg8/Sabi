@@ -1,5 +1,6 @@
 /// NIP-99 Classified Listing Model for P2P Offers
 /// Kind: 30402 (Classified Listing)
+library;
 
 enum P2POfferType { buy, sell }
 
@@ -211,10 +212,12 @@ class NostrP2POffer {
     }
 
     // Amount limits
-    if (minAmountSats != null)
+    if (minAmountSats != null) {
       tags.add(['min_amount', minAmountSats.toString()]);
-    if (maxAmountSats != null)
+    }
+    if (maxAmountSats != null) {
       tags.add(['max_amount', maxAmountSats.toString()]);
+    }
 
     // Location
     if (location != null) tags.add(['location', location!]);

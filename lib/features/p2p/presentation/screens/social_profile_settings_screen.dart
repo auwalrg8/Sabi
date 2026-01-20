@@ -225,7 +225,7 @@ class _SocialProfileSettingsScreenState
               await SocialProfileService.setSharingEnabled(value);
               setState(() => _sharingEnabled = value);
             },
-            activeColor: const Color(0xFF00FFB2),
+            activeThumbColor: const Color(0xFF00FFB2),
             activeTrackColor: const Color(0xFF00FFB2).withValues(alpha: 0.3),
             inactiveThumbColor: const Color(0xFF6B6B80),
             inactiveTrackColor: const Color(0xFF2A2A40),

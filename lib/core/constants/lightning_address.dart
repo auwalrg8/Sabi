@@ -2,6 +2,7 @@
 ///
 /// This file defines the domain and formatting for Lightning Addresses
 /// used throughout the app for receiving payments.
+library;
 
 /// The domain for Sabi Wallet lightning addresses.
 /// Example: username@sabiwallet.xyz

@@ -922,19 +922,22 @@ class VtuDataPlan {
     final lower = name.toLowerCase();
     if (lower.contains('1 day') ||
         lower.contains('daily') ||
-        lower.contains('- 1 '))
+        lower.contains('- 1 ')) {
       return '1 day';
+    }
     if (lower.contains('2 day')) return '2 days';
     if (lower.contains('3 day')) return '3 days';
     if (lower.contains('7 day') ||
         lower.contains('weekly') ||
-        lower.contains('1 week'))
+        lower.contains('1 week')) {
       return '7 days';
+    }
     if (lower.contains('14 day') || lower.contains('2 week')) return '14 days';
     if (lower.contains('30 day') ||
         lower.contains('monthly') ||
-        lower.contains('1 month'))
+        lower.contains('1 month')) {
       return '30 days';
+    }
     if (lower.contains('60 day') || lower.contains('2 month')) return '60 days';
     if (lower.contains('90 day') || lower.contains('3 month')) return '90 days';
     if (lower.contains('sunday')) return 'Sunday';
@@ -1004,13 +1007,16 @@ class VtuCableTvPlan {
     if (lower.contains('weekly') || lower.contains('1 week')) return '7 days';
     if (lower.contains('monthly') ||
         lower.contains('1 month') ||
-        lower.contains('30 day'))
+        lower.contains('30 day')) {
       return '30 days';
-    if (lower.contains('3 month') || lower.contains('quarterly'))
+    }
+    if (lower.contains('3 month') || lower.contains('quarterly')) {
       return '90 days';
+    }
     if (lower.contains('6 month')) return '180 days';
-    if (lower.contains('annual') || lower.contains('12 month'))
+    if (lower.contains('annual') || lower.contains('12 month')) {
       return '365 days';
+    }
     return '30 days'; // Default to monthly
   }
 }

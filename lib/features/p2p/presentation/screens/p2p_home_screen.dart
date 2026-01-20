@@ -1839,7 +1839,7 @@ class _BuyRequestCard extends StatelessWidget {
                           ),
                           SizedBox(width: 4.w),
                           Text(
-                            '${offer.merchant?.rating.toStringAsFixed(1) ?? '5.0'}',
+                            offer.merchant?.rating.toStringAsFixed(1) ?? '5.0',
                             style: TextStyle(
                               fontSize: 12.sp,
                               color: Colors.white70,

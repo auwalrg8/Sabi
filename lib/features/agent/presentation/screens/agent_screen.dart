@@ -158,7 +158,7 @@ class _AgentScreenState extends State<AgentScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create invoice: ${_errorMessage}'),
+            content: Text('Failed to create invoice: $_errorMessage'),
             backgroundColor: Colors.red.shade400,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

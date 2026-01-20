@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/settings_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
+import 'package:sabi_wallet/features/vtu/presentation/screens/utilities_hub_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -59,6 +60,21 @@ class MoreScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const BackupRecoveryScreen(),
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: 16.h),
+
+              _MoreActionButton(
+                icon: Icons.receipt_long_outlined,
+                label: 'Utilities',
+                description: 'Electricity, Cable TV and more',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UtilitiesHubScreen(),
                     ),
                   );
                 },

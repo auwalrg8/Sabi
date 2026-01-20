@@ -27,7 +27,6 @@ import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
 import 'package:sabi_wallet/features/home/widgets/suggestions_slider.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
-import 'package:sabi_wallet/features/nostr/presentation/screens/nostr_feed_screen.dart';
 import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_edit_modal.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -38,8 +37,6 @@ import 'receive_screen.dart';
 import 'send_screen.dart';
 import 'qr_scanner_screen.dart';
 import 'transactions_screen.dart';
-import 'package:sabi_wallet/features/agent/presentation/screens/agent_screen.dart';
-import 'package:sabi_wallet/features/common/coming_soon_screen.dart';
 import 'package:sabi_wallet/features/vtu/vtu.dart';
 import 'notifications_screen.dart';
 import 'payment_detail_screen.dart';
@@ -716,7 +713,9 @@ class _HomeContentState extends State<_HomeContent> {
                       ],
                     ),
                     SizedBox(height: 10.h),
-                    // Second row: Nostr, Agent, Card, Rewards
+                    // Second row: Nostr, Agent, Card were part of the UI
+                    // Commented out for now (kept for future feature work)
+                    /*
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -776,6 +775,7 @@ class _HomeContentState extends State<_HomeContent> {
                         ),
                       ],
                     ),
+                    */
                   ],
                 ),
                 SizedBox(height: 10.h),

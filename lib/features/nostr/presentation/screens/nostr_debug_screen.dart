@@ -293,7 +293,7 @@ class _NostrDebugScreenState extends State<NostrDebugScreen> {
                         Switch(
                           value: _autoScroll,
                           onChanged: (v) => setState(() => _autoScroll = v),
-                          activeColor: Colors.orange,
+                          activeThumbColor: Colors.orange,
                         ),
                       ],
                     ),

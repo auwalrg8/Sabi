@@ -307,7 +307,7 @@ class DMService {
     }
 
     debugPrint(
-      '📨 DMService: Processed $processedReceived incoming, $processedSent sent (${decryptionErrors} decryption errors)',
+      '📨 DMService: Processed $processedReceived incoming, $processedSent sent ($decryptionErrors decryption errors)',
     );
     debugPrint('📨 DMService: Total ${_conversations.length} conversations');
 
