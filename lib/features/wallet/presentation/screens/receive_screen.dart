@@ -479,6 +479,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     );
   }
 
+
+
   Widget _buildUserInfo() {
     final username = _userProfile?.sabiUsername ?? '@sabi/user';
     final registered = _userProfile?.hasLightningAddress ?? false;
@@ -711,6 +713,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       ),
     );
   }
+  
 
   Widget _buildAmountSelector() {
     return Column(

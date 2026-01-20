@@ -1312,20 +1312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ],
           ),
-          SizedBox(height: 12.h),
-          Text(
-            hasAddress
-                ? 'Share this address to receive Bitcoin instantly'
-                : 'Your lightning address is being set up automatically...',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
-          ),
-          if (!hasAddress) ...[
-            SizedBox(height: 8.h),
-            LinearProgressIndicator(
-              backgroundColor: AppColors.surface,
-              color: AppColors.primary,
-            ),
-          ],
+          
         ],
       ),
     );
