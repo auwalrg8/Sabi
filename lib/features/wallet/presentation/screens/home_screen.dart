@@ -7,6 +7,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 // Cash screen is accessible from Trade -> Buy/Spend; removed from Home tabs
 import 'package:sabi_wallet/features/more/presentation/screens/more_screen.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
