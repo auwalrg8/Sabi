@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sabi_wallet/features/p2p/data/p2p_offer_model.dart';
@@ -109,16 +110,31 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Top bar with title and actions
+                        // Top bar with optional back button, title and actions
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'P2P Trading',
-                              style: TextStyle(
-                                fontSize: 24.sp,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                            if (Navigator.canPop(context))
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  width: 40.w,
+                                  height: 40.h,
+                                  margin: EdgeInsets.only(right: 12.w),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
+                                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20.sp),
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                'P2P Trading',
+                                style: TextStyle(
+                                  fontSize: 24.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                             Row(
@@ -180,20 +196,6 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                                 ),
                                 SizedBox(width: 8.w),
                                 _IconButton(
-                                  icon: Icons.help_outline,
-                                  onTap:
-                                      () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (_) =>
-                                                  const P2PEscrowInfoScreen(),
-                                        ),
-                                      ),
-                                  tooltip: 'How it works',
-                                ),
-                                SizedBox(width: 8.w),
-                                _IconButton(
                                   icon: Icons.history,
                                   onTap:
                                       () => Navigator.push(
@@ -225,13 +227,7 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                         ),
                         SizedBox(height: 12.h),
 
-                        // NIP-99 Relay Status Indicator
-                        const _Nip99StatusBanner(),
-                        SizedBox(height: 12.h),
-
-                        // Live Rates Card - Real rates from API
-                        const _LiveRatesCard(),
-                        SizedBox(height: 16.h),
+                        // NIP-99 banner and live rates removed from P2P per design
 
                         // Tab Bar - Buy BTC / Sell BTC
                         Container(
@@ -364,19 +360,7 @@ class _BuyBtcTab extends ConsumerWidget {
       color: const Color(0xFF00C853),
       child: CustomScrollView(
         slivers: [
-          // Explainer Card
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 8.h),
-              child: _ExplainerCard(
-                icon: Icons.shopping_cart,
-                iconColor: const Color(0xFF00C853),
-                title: 'Buy Bitcoin',
-                description:
-                    'Browse offers from sellers. Pay with your preferred method and receive BTC directly to your wallet.',
-              ),
-            ),
-          ),
+          // Buy explainer removed from P2P Buy tab per design
 
           // Payment Filter Chips
           SliverToBoxAdapter(

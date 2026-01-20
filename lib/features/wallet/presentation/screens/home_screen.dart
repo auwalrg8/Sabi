@@ -5,10 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
-import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart'
-    as cash_screen;
+// Cash screen is accessible from Trade -> Buy/Spend; removed from Home tabs
 import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
 import 'package:sabi_wallet/features/more/presentation/screens/more_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
@@ -17,6 +15,9 @@ import 'package:sabi_wallet/services/nostr/nostr_profile_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sabi_wallet/services/event_stream_service.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+import '../providers/rate_provider.dart';
+import 'package:sabi_wallet/features/trade/presentation/screens/trade_screen.dart';
 import 'package:sabi_wallet/services/notification_service.dart';
 import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
@@ -68,8 +69,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onToggleBalance:
             () => setState(() => _isBalanceVisible = !_isBalanceVisible),
       ),
-      const cash_screen.CashScreen(),
-      const P2PHomeScreen(),
+      const ProfileScreen(),
+      const TradeScreen(),
       const MoreScreen(),
     ];
     // Initialize Breez SDK first, then poll payments
@@ -431,13 +432,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             elevation: 0,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
               BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance_wallet),
-                label: 'Cash',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.swap_horiz),
-                label: 'P2P',
+                icon: Icon(Icons.show_chart_outlined),
+                label: 'Trade',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.grid_view_rounded),
@@ -580,6 +578,7 @@ class _HomeContentState extends State<_HomeContent> {
                   ],
                 ),
                 SizedBox(height: 10.h),
+                // Trade tab is added to main navigation; its UI is implemented in _TradeScreen below.
                 // Moved: tap to switch currency hint (placed above balance card)
                 Text(
                   AppLocalizations.of(context)!.tapToSwitch,
@@ -1001,6 +1000,195 @@ class _HomeContentState extends State<_HomeContent> {
   }
 }
 
+
+
+/// Copied Live Rates Card adapted for Trade tab
+class _TradeLiveRatesCard extends ConsumerStatefulWidget {
+  const _TradeLiveRatesCard();
+
+  @override
+  ConsumerState<_TradeLiveRatesCard> createState() =>
+      _TradeLiveRatesCardState();
+}
+
+class _TradeLiveRatesCardState extends ConsumerState<_TradeLiveRatesCard> {
+  double? _btcNgnRate;
+  double? _btcUsdRate;
+  double? _usdNgnRate;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRates();
+  }
+
+  Future<void> _loadRates() async {
+    setState(() => _isLoading = true);
+    try {
+      final btcNgn = await RateService.getBtcToNgnRate();
+      final btcUsd = await RateService.getBtcToUsdRate();
+      final usdNgn = await RateService.getUsdToNgnRate();
+      if (mounted) {
+        setState(() {
+          _btcNgnRate = btcNgn;
+          _btcUsdRate = btcUsd;
+          _usdNgnRate = usdNgn;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedCurrency = ref.watch(selectedFiatCurrencyProvider);
+    final showBtcUsd = selectedCurrency == FiatCurrency.usd;
+
+    final btcRate = showBtcUsd ? (_btcUsdRate ?? 0) : (_btcNgnRate ?? 0);
+    final usdRate = _usdNgnRate ?? 0;
+
+    return GestureDetector(
+      onTap: _loadRates,
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [const Color(0xFF1A1A3E), const Color(0xFF111128)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: Colors.white12),
+        ),
+        child:
+            _isLoading
+                ? Center(
+                  child: SizedBox(
+                    width: 20.w,
+                    height: 20.h,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFF7931A),
+                    ),
+                  ),
+                )
+                : Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(6.w),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFF7931A,
+                                  ).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6.r),
+                                ),
+                                child: Icon(
+                                  Icons.currency_bitcoin,
+                                  color: const Color(0xFFF7931A),
+                                  size: 14.sp,
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                              Text(
+                                showBtcUsd ? 'BTC/USD' : 'BTC/NGN',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                              SizedBox(width: 4.w),
+                              Icon(
+                                Icons.refresh,
+                                color: Colors.white24,
+                                size: 12.sp,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            showBtcUsd
+                                ? '\$${_formatNumber(btcRate)}'
+                                : '₦${_formatNumber(btcRate)}',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 50.h, color: Colors.white12),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(6.w),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF00C853,
+                                    ).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(6.r),
+                                  ),
+                                  child: Icon(
+                                    Icons.attach_money,
+                                    color: const Color(0xFF00C853),
+                                    size: 14.sp,
+                                  ),
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'USD/NGN',
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              '₦${_formatNumber(usdRate)}',
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+      ),
+    );
+  }
+
+  String _formatNumber(double number) {
+    return number
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
+  }
+}
+
 class _FigmaActionButton extends StatelessWidget {
   final String? asset;
   final IconData? icon;
@@ -1099,6 +1287,8 @@ class _InboundStatusBanner extends StatelessWidget {
                   ),
                 ),
               ),
+              SizedBox(height: 12.h),
+              // Trade tab preview could live here in future
             ],
           ),
         );

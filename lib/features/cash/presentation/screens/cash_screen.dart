@@ -132,8 +132,8 @@ class _CashScreenState extends ConsumerState<CashScreen>
                 child: Column(
                   children: [
                     SizedBox(height: 8.h),
-                    _buildRateCard(cashState),
-                    SizedBox(height: 20.h),
+                    // Live rates card removed — Cash is now accessed from Trade
+                    SizedBox(height: 12.h),
                     _buildTabSelector(cashState, cashNotifier),
                     SizedBox(height: 24.h),
                     _buildAmountDisplay(cashState, satsEquivalent),
@@ -162,6 +162,22 @@ class _CashScreenState extends ConsumerState<CashScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          if (Navigator.canPop(context))
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 40.w,
+                height: 40.h,
+                margin: EdgeInsets.only(right: 12.w),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(Icons.arrow_back, color: Colors.white, size: 20.sp),
+              ),
+            )
+          else
+            SizedBox(width: 40.w),
           Text(
             'Cash',
             style: TextStyle(
