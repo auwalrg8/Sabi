@@ -200,8 +200,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
-                  final data =
-                      _bolt11 ?? _userProfile?.sabiUsername ?? _nostrNpub;
+                  final data = _bolt11 ?? _userProfile?.sabiUsername;
                   if (data != null) {
                     _copyToClipboard(data, 'Address');
                   }
@@ -676,46 +675,5 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     }
   }
 
-  Widget _buildNostrReceiveSection() {
-    if (_isLoadingNostr) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    return Column(
-      children: [
-        Text(
-          'Your Nostr npub:',
-          style: TextStyle(color: Colors.white70, fontSize: 14.sp),
-        ),
-        SelectableText(
-          _nostrNpub ?? 'Not set',
-          style: TextStyle(color: Colors.white, fontSize: 16.sp),
-        ),
-        const SizedBox(height: 24),
-        if (_nostrNpub != null)
-          Container(
-            padding: EdgeInsets.all(16.r),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            child: QrImageView(
-              data: _nostrNpub!,
-              version: QrVersions.auto,
-              size: 240.w,
-              backgroundColor: Colors.white,
-              padding: EdgeInsets.all(8.r),
-              errorCorrectionLevel: QrErrorCorrectLevel.M,
-              eyeStyle: const QrEyeStyle(
-                eyeShape: QrEyeShape.square,
-                color: Colors.black,
-              ),
-              dataModuleStyle: const QrDataModuleStyle(
-                dataModuleShape: QrDataModuleShape.square,
-                color: Colors.black,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
+  // Nostr receive UI removed; no nostr-specific widgets here anymore.
 }
