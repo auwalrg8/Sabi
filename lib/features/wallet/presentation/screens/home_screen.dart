@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 // Cash screen is accessible from Trade -> Buy/Spend; removed from Home tabs
-import 'package:sabi_wallet/features/profile/presentation/screens/profile_screen.dart';
 import 'package:sabi_wallet/features/more/presentation/screens/more_screen.dart';
 import 'package:sabi_wallet/core/widgets/cards/balance_card.dart';
 
@@ -69,7 +68,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onToggleBalance:
             () => setState(() => _isBalanceVisible = !_isBalanceVisible),
       ),
-      const ProfileScreen(),
       const TradeScreen(),
       const MoreScreen(),
     ];
@@ -432,7 +430,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             elevation: 0,
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
               BottomNavigationBarItem(
                 icon: Icon(Icons.show_chart_outlined),
                 label: 'Trade',
