@@ -1,3 +1,14 @@
+## Release v1.0.3 — 2026-01-24
+
+- **Version:** 1.0.3+4
+- **Highlights:** Bug fixes, dependency updates, and polish across onboarding and payments.
+
+### Notes
+- Updated `pubspec.yaml` version to `1.0.3+4`.
+- See full commit history for details.
+
+---
+
 ## What's Changed
 
 ### Architecture Improvements
