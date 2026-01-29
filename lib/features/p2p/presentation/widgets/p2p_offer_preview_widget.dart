@@ -260,7 +260,7 @@ class _P2POfferPreviewWidgetState extends State<P2POfferPreviewWidget> {
                     ),
                   ),
                   Text(
-                    '₦${_formatter.format(offer.pricePerBtc.toInt())}/BTC',
+                    '₦${_formatter.format(_safeToInt(offer.pricePerBtc))}/BTC',
                     style: TextStyle(
                       color: const Color(0xFF00FFB2),
                       fontSize: 11.sp,
@@ -460,7 +460,7 @@ class _P2POfferPreviewWidgetState extends State<P2POfferPreviewWidget> {
                             ),
                           ),
                           Text(
-                            '₦${_formatter.format(offer.pricePerBtc.toInt())}',
+                            '₦${_formatter.format(_safeToInt(offer.pricePerBtc))}',
                             style: TextStyle(
                               color: const Color(0xFF00FFB2),
                               fontSize: 18.sp,
@@ -580,4 +580,10 @@ bool containsP2POfferReference(String message) {
 List<String> extractNaddrReferences(String message) {
   final regex = RegExp(r'nostr:naddr1[a-z0-9]+');
   return regex.allMatches(message).map((m) => m.group(0)!).toList();
+}
+
+/// Safely converts double to int, handling Infinity and NaN
+int _safeToInt(double value, [int defaultValue = 0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value.toInt();
 }

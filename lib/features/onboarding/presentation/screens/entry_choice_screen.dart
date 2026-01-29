@@ -8,7 +8,7 @@ import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choi
 
 import '../providers/onboarding_provider.dart';
 import 'import_nostr_screen.dart';
-import 'recover_with_guys_screen.dart';
+import 'restore_choice_screen.dart';
 import 'seed_recovery_screen.dart';
 
 class EntryChoiceScreen extends ConsumerStatefulWidget {
@@ -108,13 +108,10 @@ class _EntryChoiceScreenState extends ConsumerState<EntryChoiceScreen> {
               const SizedBox(height: 20),
               _RecoverWalletCard(
                 onTap: () {
-                  ref
-                      .read(onboardingNotifierProvider.notifier)
-                      .setPath(OnboardingPath.recoverWithGuys);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const RecoverWithGuysScreen(),
+                      builder: (_) => const RestoreChoiceScreen(),
                     ),
                   );
                 },

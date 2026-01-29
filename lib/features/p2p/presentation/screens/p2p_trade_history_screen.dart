@@ -210,7 +210,7 @@ class _StatsCard extends StatelessWidget {
               Expanded(
                 child: _StatItem(
                   label: 'Total Trades',
-                  value: stats['totalTrades']!.toInt().toString(),
+                  value: _safeToInt(stats['totalTrades']!).toString(),
                   icon: Icons.swap_horiz,
                 ),
               ),
@@ -218,7 +218,7 @@ class _StatsCard extends StatelessWidget {
               Expanded(
                 child: _StatItem(
                   label: 'Completed',
-                  value: stats['completedTrades']!.toInt().toString(),
+                  value: _safeToInt(stats['completedTrades']!).toString(),
                   icon: Icons.check_circle,
                   valueColor: const Color(0xFF00FFB2),
                 ),
@@ -241,7 +241,7 @@ class _StatsCard extends StatelessWidget {
               Expanded(
                 child: _StatItem(
                   label: 'Sats Acquired',
-                  value: formatter.format(stats['totalSats']!.toInt()),
+                  value: formatter.format(_safeToInt(stats['totalSats']!)),
                   icon: Icons.currency_bitcoin,
                   valueColor: const Color(0xFFF7931A),
                 ),
@@ -451,7 +451,7 @@ class _HistoryTradeCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '₦${formatter.format(trade.amount.toInt())}',
+                      '₦${formatter.format(_safeToInt(trade.amount))}',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14.sp,
@@ -490,7 +490,7 @@ class _HistoryTradeCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${trade.isBuying ? '+' : '-'}${formatter.format(trade.sats.toInt())}',
+                      '${trade.isBuying ? '+' : '-'}${formatter.format(_safeToInt(trade.sats))}',
                       style: TextStyle(
                         color:
                             trade.isBuying
@@ -597,4 +597,10 @@ class _HistoryTrade {
     required this.completedAt,
     required this.isBuying,
   });
+}
+
+/// Safely converts double to int, handling Infinity and NaN
+int _safeToInt(double value, [int defaultValue = 0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value.toInt();
 }

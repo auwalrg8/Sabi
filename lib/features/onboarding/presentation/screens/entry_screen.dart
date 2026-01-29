@@ -6,7 +6,7 @@ import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/home_screen.dart';
-import 'seed_recovery_screen.dart';
+import 'restore_choice_screen.dart';
 
 class EntryScreen extends ConsumerStatefulWidget {
   const EntryScreen({super.key});
@@ -58,7 +58,7 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
     if (mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const SeedRecoveryScreen()),
+        MaterialPageRoute(builder: (_) => const RestoreChoiceScreen()),
       );
     }
   }

@@ -492,6 +492,68 @@ class SocialRecoveryService {
     }
   }
 
+  /// Listen for incoming recovery shares AND store them (for guardian use)
+  /// This allows the guardian to later resend the share via any Nostr client
+  static Stream<RecoveryShare> listenAndStoreRecoveryShares() async* {
+    await for (final share in listenForRecoveryShares()) {
+      // Store the share for later use
+      try {
+        await storeReceivedShare(
+          shareIndex: share.index,
+          shareData: share.encryptedData,
+          ownerNpub: share.senderNpub,
+          receivedAt: share.timestamp,
+        );
+        print(
+          '✅ Stored received share #${share.index} from ${share.senderNpub}',
+        );
+      } catch (e) {
+        print('⚠️ Could not store received share: $e');
+      }
+      yield share;
+    }
+  }
+
+  /// Process a single DM to check if it contains a recovery share
+  /// Returns the share if found, null otherwise
+  /// Also stores the share for guardian use
+  static Future<RecoveryShare?> processIncomingDMForShare({
+    required String decryptedContent,
+    required String senderNpub,
+  }) async {
+    try {
+      final content = jsonDecode(decryptedContent) as Map<String, dynamic>;
+
+      if (content['type'] == 'sabi_recovery_share') {
+        final share = RecoveryShare(
+          index: content['share_index'] as int,
+          encryptedData: content['share_data'] as String,
+          senderNpub: senderNpub,
+          timestamp: DateTime.fromMillisecondsSinceEpoch(
+            (content['timestamp'] as int? ??
+                    DateTime.now().millisecondsSinceEpoch ~/ 1000) *
+                1000,
+          ),
+        );
+
+        // Store for guardian use
+        await storeReceivedShare(
+          shareIndex: share.index,
+          shareData: share.encryptedData,
+          ownerNpub: senderNpub,
+          receivedAt: share.timestamp,
+        );
+
+        print('✅ Received and stored recovery share #${share.index}');
+        return share;
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Attempt to recover wallet from collected shares
   static Future<String?> attemptRecovery(List<RecoveryShare> shares) async {
     try {
@@ -1085,6 +1147,122 @@ class SocialRecoveryService {
     } catch (e) {
       print('❌ Error revoking and regenerating shares: $e');
       rethrow;
+    }
+  }
+
+  // ============================================================
+  // GUARDIAN SHARE STORAGE - For guardians to store and resend shares
+  // ============================================================
+
+  static const _guardianReceivedShareKey = 'guardian_received_share';
+
+  /// Store a received recovery share (called when guardian receives a share)
+  /// This allows guardians to view and resend the share later
+  static Future<void> storeReceivedShare({
+    required int shareIndex,
+    required String shareData,
+    required String ownerNpub,
+    required DateTime receivedAt,
+  }) async {
+    await init();
+    final data = jsonEncode({
+      'share_index': shareIndex,
+      'share_data': shareData,
+      'owner_npub': ownerNpub,
+      'received_at': receivedAt.toIso8601String(),
+    });
+    await _secureStorage.write(key: _guardianReceivedShareKey, value: data);
+    print('✅ Stored received recovery share (index $shareIndex)');
+  }
+
+  /// Get the stored received share (if this user is a guardian for someone)
+  static Future<Map<String, dynamic>?> getReceivedShare() async {
+    await init();
+    final data = await _secureStorage.read(key: _guardianReceivedShareKey);
+    if (data == null) return null;
+    return jsonDecode(data) as Map<String, dynamic>;
+  }
+
+  /// Check if user has a stored share to send
+  static Future<bool> hasReceivedShare() async {
+    await init();
+    final data = await _secureStorage.read(key: _guardianReceivedShareKey);
+    return data != null;
+  }
+
+  /// Delete stored received share
+  static Future<void> deleteReceivedShare() async {
+    await init();
+    await _secureStorage.delete(key: _guardianReceivedShareKey);
+    print('✅ Deleted received recovery share');
+  }
+
+  /// Send the stored share to a requester (when guardian approves recovery request)
+  static Future<void> sendStoredShareToRequester(String requesterNpub) async {
+    await init();
+
+    final shareInfo = await getReceivedShare();
+    if (shareInfo == null) {
+      throw Exception('No stored share found');
+    }
+
+    await NostrService.init();
+    await NostrService.reinitialize();
+
+    final dmContent = jsonEncode({
+      'type': 'sabi_recovery_share',
+      'version': 1,
+      'share_index': shareInfo['share_index'],
+      'share_data': shareInfo['share_data'],
+      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'message': 'Here is your recovery share.',
+    });
+
+    await NostrService.sendEncryptedDM(
+      targetNpub: requesterNpub,
+      message: dmContent,
+    );
+
+    print('✅ Sent stored share to requester $requesterNpub');
+  }
+
+  /// Get the share data formatted for manual copy/paste
+  /// This allows guardians to send via other Nostr clients like Primal
+  static Future<String?> getShareForManualSending() async {
+    await init();
+
+    final shareInfo = await getReceivedShare();
+    if (shareInfo == null) return null;
+
+    // Return the JSON that the guardian can copy and send via any Nostr client
+    return jsonEncode({
+      'type': 'sabi_recovery_share',
+      'version': 1,
+      'share_index': shareInfo['share_index'],
+      'share_data': shareInfo['share_data'],
+      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'message': 'Sabi Wallet recovery share - paste this in encrypted DM',
+    });
+  }
+
+  /// Parse a manually entered share (from any Nostr client)
+  static RecoveryShare? parseManualShare(String jsonString, String senderNpub) {
+    try {
+      final content = jsonDecode(jsonString) as Map<String, dynamic>;
+
+      if (content['type'] != 'sabi_recovery_share') {
+        return null;
+      }
+
+      return RecoveryShare(
+        index: content['share_index'] as int,
+        encryptedData: content['share_data'] as String,
+        senderNpub: senderNpub,
+        timestamp: DateTime.now(),
+      );
+    } catch (e) {
+      print('❌ Failed to parse manual share: $e');
+      return null;
     }
   }
 }

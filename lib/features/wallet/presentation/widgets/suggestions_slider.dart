@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/suggestions_provider.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/backup_recovery_screen.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/edit_nostr_screen.dart';
+import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 
 class SuggestionsSlider extends StatelessWidget {
   final List<SuggestionCardType> cards;
@@ -46,7 +49,12 @@ class _SuggestionCard extends StatelessWidget {
           title: 'Wallet Not Backed Up',
           subtitle: 'Set up a backup to project your funds',
           actionLabel: 'Set up',
-          onAction: () {},
+          onAction: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BackupRecoveryScreen()),
+            );
+          },
           onDismiss: onDismiss,
         );
       case SuggestionCardType.nostr:
@@ -56,7 +64,12 @@ class _SuggestionCard extends StatelessWidget {
           title: 'Set Up Your Nostr',
           subtitle: 'To enable zaps and social features',
           actionLabel: 'Set up',
-          onAction: () {},
+          onAction: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditNostrScreen()),
+            );
+          },
           onDismiss: onDismiss,
         );
       case SuggestionCardType.pin:
@@ -66,7 +79,12 @@ class _SuggestionCard extends StatelessWidget {
           title: 'Secure wallet',
           subtitle: 'Set up a pin code to secure wallet',
           actionLabel: 'Set up',
-          onAction: () {},
+          onAction: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChangePinScreen(isCreate: true)),
+            );
+          },
           onDismiss: onDismiss,
         );
     }

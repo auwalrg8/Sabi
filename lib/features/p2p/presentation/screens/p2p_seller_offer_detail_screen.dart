@@ -10,6 +10,7 @@ import 'package:sabi_wallet/features/p2p/services/p2p_notification_service.dart'
 import 'package:sabi_wallet/features/p2p/services/p2p_trade_manager.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_offer_messages_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_edit_offer_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/widgets/seller_trade_management_card.dart';
 
 /// P2P Seller Offer Detail Screen - Management view for offer owners
 class P2PSellerOfferDetailScreen extends ConsumerStatefulWidget {
@@ -241,7 +242,7 @@ class _P2PSellerOfferDetailScreenState
 
                     // Tab Content
                     SizedBox(
-                      height: 400.h, // Fixed height for tab content
+                      height: 500.h, // Increased height for better trade management view
                       child: TabBarView(
                         controller: _tabController,
                         children: [
@@ -252,7 +253,7 @@ class _P2PSellerOfferDetailScreenState
                             notifications: offerNotifications,
                             onViewAll: _navigateToMessages,
                           ),
-                          _ActiveTradesTab(offerId: offer.id),
+                          _ActiveTradesTab(offerId: offer.id, offer: offer),
                         ],
                       ),
                     ),
@@ -336,7 +337,7 @@ class _P2PSellerOfferDetailScreenState
 
           // Price
           Text(
-            '₦${formatter.format(offer.pricePerBtc.toInt())}',
+            '₦${formatter.format(_safeToInt(offer.pricePerBtc))}',
             style: TextStyle(
               color: const Color(0xFF00FFB2),
               fontSize: 28.sp,
@@ -1033,26 +1034,58 @@ class _MessagePreviewTile extends StatelessWidget {
   }
 }
 
-// Active Trades Tab
-class _ActiveTradesTab extends ConsumerWidget {
+// Active Trades Tab - Enhanced with Binance-like trade management
+class _ActiveTradesTab extends ConsumerStatefulWidget {
   final String offerId;
+  final P2POfferModel? offer;
 
-  const _ActiveTradesTab({required this.offerId});
+  const _ActiveTradesTab({required this.offerId, this.offer});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Get real trades for this offer from trade manager
-    final trades = ref.watch(activeTradesForOfferProvider(offerId));
+  ConsumerState<_ActiveTradesTab> createState() => _ActiveTradesTabState();
+}
+
+class _ActiveTradesTabState extends ConsumerState<_ActiveTradesTab> {
+  @override
+  Widget build(BuildContext context) {
+    // Get all trades for this offer from trade manager (including completed)
+    final allTrades = ref.watch(tradesForOfferProvider(widget.offerId));
+    
+    // Separate active and completed trades
+    final activeTrades = allTrades.where((t) => 
+      t.status == P2PTradeStatus.pendingPayment ||
+      t.status == P2PTradeStatus.paymentSubmitted ||
+      t.status == P2PTradeStatus.releasing
+    ).toList();
+    
+    final completedTrades = allTrades.where((t) =>
+      t.status == P2PTradeStatus.completed ||
+      t.status == P2PTradeStatus.cancelled ||
+      t.status == P2PTradeStatus.expired
+    ).toList();
+
+    // Sort: active first (by creation), then completed (newest first)
+    activeTrades.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    completedTrades.sort((a, b) => (b.completedAt ?? b.createdAt).compareTo(a.completedAt ?? a.createdAt));
+
+    final trades = [...activeTrades, ...completedTrades];
 
     if (trades.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.swap_horiz, size: 64, color: Colors.grey[700]),
+            Container(
+              padding: EdgeInsets.all(24.r),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111128),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.swap_horiz, size: 48.sp, color: Colors.grey[600]),
+            ),
             SizedBox(height: 16.h),
             Text(
-              'No active trades',
+              'No trades yet',
               style: TextStyle(
                 color: Colors.grey[400],
                 fontSize: 16.sp,
@@ -1060,31 +1093,86 @@ class _ActiveTradesTab extends ConsumerWidget {
               ),
             ),
             SizedBox(height: 8.h),
-            Text(
-              'Active trades for this offer will appear here',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13.sp),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 40.w),
+              child: Text(
+                'When buyers start trades on your offer, they will appear here for you to manage',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13.sp),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 16.w),
-      itemCount: trades.length,
-      itemBuilder: (context, index) {
-        final trade = trades[index];
-        return _TradeCard(trade: trade);
-      },
+    return Column(
+      children: [
+        // Active trades count banner
+        if (activeTrades.isNotEmpty)
+          Container(
+            margin: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.notifications_active, color: Colors.orange, size: 18.sp),
+                SizedBox(width: 8.w),
+                Text(
+                  '${activeTrades.length} active trade${activeTrades.length > 1 ? 's' : ''} requiring attention',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Trades list
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            itemCount: trades.length,
+            itemBuilder: (context, index) {
+              final trade = trades[index];
+              
+              // Use the new enhanced trade management card for active trades
+              final isActive = trade.status == P2PTradeStatus.pendingPayment ||
+                  trade.status == P2PTradeStatus.paymentSubmitted ||
+                  trade.status == P2PTradeStatus.releasing;
+              
+              if (isActive) {
+                return SellerTradeManagementCard(
+                  trade: trade,
+                  offer: widget.offer,
+                  onTradeUpdated: () {
+                    // Refresh the trades list
+                    ref.invalidate(tradesForOfferProvider(widget.offerId));
+                  },
+                );
+              } else {
+                // Use compact card for completed trades
+                return _CompletedTradeCard(trade: trade);
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-// Trade Card Widget
-class _TradeCard extends StatelessWidget {
+// Compact Trade Card for completed trades
+class _CompletedTradeCard extends StatelessWidget {
   final P2PTrade trade;
 
-  const _TradeCard({required this.trade});
+  const _CompletedTradeCard({required this.trade});
 
   @override
   Widget build(BuildContext context) {
@@ -1092,111 +1180,67 @@ class _TradeCard extends StatelessWidget {
 
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
-      padding: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: const Color(0xFF111128),
+        color: const Color(0xFF111128).withOpacity(0.6),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(
-          color: _getStatusColor(trade.status).withOpacity(0.3),
+          color: _getStatusColor(trade.status).withOpacity(0.2),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Trade #${trade.id.substring(0, 8)}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(trade.status).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Text(
-                  _getStatusText(trade.status),
+          // Status icon
+          Container(
+            padding: EdgeInsets.all(8.r),
+            decoration: BoxDecoration(
+              color: _getStatusColor(trade.status).withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getStatusIcon(trade.status),
+              color: _getStatusColor(trade.status),
+              size: 18.sp,
+            ),
+          ),
+          SizedBox(width: 12.w),
+          // Trade info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Trade #${trade.id.substring(0, 8)}',
                   style: TextStyle(
-                    color: _getStatusColor(trade.status),
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Amount',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 11.sp,
-                      ),
-                    ),
-                    Text(
-                      '₦${formatter.format(trade.fiatAmount.toInt())}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                SizedBox(height: 2.h),
+                Text(
+                  '₦${formatter.format(_safeToInt(trade.fiatAmount))} → ${formatter.format(trade.satsAmount)} sats',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12.sp),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sats',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 11.sp,
-                      ),
-                    ),
-                    Text(
-                      '${formatter.format(trade.satsAmount)} sats',
-                      style: TextStyle(
-                        color: const Color(0xFF00FFB2),
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          SizedBox(height: 8.h),
-          Row(
+          // Status and time
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
-              SizedBox(width: 4.w),
               Text(
-                _formatTimeAgo(trade.createdAt),
-                style: TextStyle(color: Colors.grey[500], fontSize: 12.sp),
-              ),
-              const Spacer(),
-              Text(
-                trade.isBuyer ? 'Buying' : 'Selling',
+                _getStatusText(trade.status),
                 style: TextStyle(
-                  color: trade.isBuyer ? Colors.green : Colors.orange,
-                  fontSize: 12.sp,
+                  color: _getStatusColor(trade.status),
+                  fontSize: 11.sp,
                   fontWeight: FontWeight.w500,
                 ),
+              ),
+              SizedBox(height: 2.h),
+              Text(
+                _formatTimeAgo(trade.completedAt ?? trade.createdAt),
+                style: TextStyle(color: Colors.grey[600], fontSize: 11.sp),
               ),
             ],
           ),
@@ -1207,38 +1251,39 @@ class _TradeCard extends StatelessWidget {
 
   Color _getStatusColor(P2PTradeStatus status) {
     switch (status) {
-      case P2PTradeStatus.pendingPayment:
-        return Colors.amber;
-      case P2PTradeStatus.paymentSubmitted:
-        return Colors.blue;
-      case P2PTradeStatus.releasing:
-        return Colors.purple;
       case P2PTradeStatus.completed:
         return Colors.green;
       case P2PTradeStatus.cancelled:
       case P2PTradeStatus.expired:
         return Colors.red;
-      case P2PTradeStatus.disputed:
-        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(P2PTradeStatus status) {
+    switch (status) {
+      case P2PTradeStatus.completed:
+        return Icons.check_circle;
+      case P2PTradeStatus.cancelled:
+        return Icons.cancel;
+      case P2PTradeStatus.expired:
+        return Icons.timer_off;
+      default:
+        return Icons.help;
     }
   }
 
   String _getStatusText(P2PTradeStatus status) {
     switch (status) {
-      case P2PTradeStatus.pendingPayment:
-        return 'Awaiting Payment';
-      case P2PTradeStatus.paymentSubmitted:
-        return 'Payment Submitted';
-      case P2PTradeStatus.releasing:
-        return 'Releasing BTC';
       case P2PTradeStatus.completed:
         return 'Completed';
       case P2PTradeStatus.cancelled:
         return 'Cancelled';
       case P2PTradeStatus.expired:
         return 'Expired';
-      case P2PTradeStatus.disputed:
-        return 'Disputed';
+      default:
+        return status.name;
     }
   }
 
@@ -1298,4 +1343,10 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Safely converts double to int, handling Infinity and NaN
+int _safeToInt(double value, [int defaultValue = 0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value.toInt();
 }

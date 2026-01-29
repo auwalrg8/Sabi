@@ -163,13 +163,32 @@ class NIP99MarketplaceService {
   }
 
   /// Fetch P2P offers from relays
+  /// Only fetches Sabi Wallet P2P BTC offers (must have 'p2p' AND 'bitcoin' tags)
   Future<List<NostrP2POffer>> fetchOffers({
     String? location,
+    String? currency,
     P2POfferType? type,
     String? paymentMethod,
-    int limit = 50,
+    int limit = 200,
+    int offset = 0,  // For pagination
+    bool useCache = true,
   }) async {
-    debugPrint('🔍 Fetching P2P offers...');
+    debugPrint('🔍 Fetching Sabi Wallet P2P offers (limit: $limit, offset: $offset)...');
+
+    // Return from cache if available and requested
+    if (useCache && offset == 0 && _offersCache.isNotEmpty) {
+      final cachedOffers = _filterOffers(
+        _offersCache.values.toList(),
+        location: location,
+        currency: currency,
+        type: type,
+        paymentMethod: paymentMethod,
+      );
+      if (cachedOffers.isNotEmpty) {
+        debugPrint('📦 Returning ${cachedOffers.length} cached offers');
+        return cachedOffers.take(limit).toList();
+      }
+    }
 
     // Ensure relay pool is initialized
     if (!_relayPool.isInitialized) {
@@ -177,44 +196,51 @@ class NIP99MarketplaceService {
       await _relayPool.init();
     }
 
-    // Build filter
+    // Build filter for NIP-99 classified listings
     final filter = <String, dynamic>{
       'kinds': [classifiedListingKind],
-      'limit': limit,
+      'limit': limit + offset + 50, // Fetch extra for filtering
     };
-
-    // Add tag filters
-    final tagFilters = <String>['p2p', 'bitcoin'];
-    if (type != null) {
-      tagFilters.add(type == P2POfferType.buy ? 'buy' : 'sell');
-    }
-
-    // Note: Nostr filtering by multiple tags requires relay support
-    // We'll filter client-side for maximum compatibility
 
     final events = await _relayPool.fetch(
       filter: filter,
-      timeoutSeconds: 10,
-      maxEvents: limit * 2, // Fetch more for filtering
+      timeoutSeconds: 15,
+      maxEvents: (limit + offset) * 2,
     );
 
-    debugPrint('📦 Received ${events.length} events');
+    debugPrint('📦 Received ${events.length} events from relays');
 
-    // Parse and filter offers
+    // Parse and filter for Sabi Wallet P2P BTC offers only
     final offers = <NostrP2POffer>[];
     final seenIds = <String>{};
 
     for (final event in events) {
       try {
-        // Check if it's a P2P offer (has 'p2p' tag)
+        // Check for Sabi Wallet P2P markers
         final hasP2pTag = event.tags.any(
-          (tag) =>
-              tag.isNotEmpty &&
-              tag[0] == 't' &&
-              tag.length > 1 &&
-              tag[1] == 'p2p',
+          (tag) => tag.length > 1 && tag[0] == 't' && tag[1] == 'p2p',
         );
-        if (!hasP2pTag) continue;
+        final hasBitcoinTag = event.tags.any(
+          (tag) => tag.length > 1 && tag[0] == 't' && 
+                   (tag[1] == 'bitcoin' || tag[1] == 'btc'),
+        );
+        final hasPriceTag = event.tags.any(
+          (tag) => tag.isNotEmpty && tag[0] == 'price',
+        );
+        final hasPaymentMethod = event.tags.any(
+          (tag) => tag.isNotEmpty && tag[0] == 'payment_method',
+        );
+        
+        // STRICT FILTER: Accept only Sabi Wallet P2P BTC offers
+        // Option 1: New format - has both 'p2p' AND 'bitcoin' tags
+        // Option 2: Legacy format - has price tag AND payment_method (Sabi-specific)
+        final isNewFormat = hasP2pTag && hasBitcoinTag;
+        final isLegacyFormat = hasPriceTag && hasPaymentMethod;
+        
+        if (!isNewFormat && !isLegacyFormat) {
+          // Not a Sabi Wallet P2P offer - skip
+          continue;
+        }
 
         final offer = NostrP2POffer.fromNip99Event(
           eventId: event.id,
@@ -228,31 +254,102 @@ class NIP99MarketplaceService {
         if (seenIds.contains(offer.id)) continue;
         seenIds.add(offer.id);
 
-        // Apply filters
-        if (location != null &&
-            offer.location?.toLowerCase() != location.toLowerCase()) {
-          continue;
-        }
-        if (type != null && offer.type != type) {
-          continue;
-        }
-        if (paymentMethod != null &&
-            !offer.paymentMethods.contains(paymentMethod)) {
-          continue;
-        }
-
-        offers.add(offer);
+        // Update cache
         _offersCache[offer.id] = offer;
+        offers.add(offer);
       } catch (e) {
         debugPrint('⚠️ Failed to parse offer: $e');
       }
     }
 
-    // Sort by creation date (newest first)
-    offers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // Apply smart filters
+    var filteredOffers = _filterOffers(
+      offers,
+      location: location,
+      currency: currency,
+      type: type,
+      paymentMethod: paymentMethod,
+    );
 
-    debugPrint('✅ Parsed ${offers.length} valid P2P offers');
-    return offers.take(limit).toList();
+    // Sort by creation date (newest first)
+    filteredOffers.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Apply pagination
+    if (offset > 0 && offset < filteredOffers.length) {
+      filteredOffers = filteredOffers.skip(offset).toList();
+    }
+
+    debugPrint('✅ Found ${filteredOffers.length} Sabi Wallet P2P offers');
+    return filteredOffers.take(limit).toList();
+  }
+
+  /// Filter offers by location, currency, type, and payment method
+  List<NostrP2POffer> _filterOffers(
+    List<NostrP2POffer> offers, {
+    String? location,
+    String? currency,
+    P2POfferType? type,
+    String? paymentMethod,
+  }) {
+    return offers.where((offer) {
+      // Filter by location (case-insensitive partial match)
+      if (location != null && location.isNotEmpty) {
+        final offerLocation = offer.location?.toLowerCase() ?? '';
+        if (!offerLocation.contains(location.toLowerCase())) {
+          return false;
+        }
+      }
+      
+      // Filter by currency
+      if (currency != null && currency.isNotEmpty) {
+        if (offer.currency.toUpperCase() != currency.toUpperCase()) {
+          return false;
+        }
+      }
+      
+      // Filter by type (buy/sell)
+      if (type != null && offer.type != type) {
+        return false;
+      }
+      
+      // Filter by payment method (partial match)
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        final hasMethod = offer.paymentMethods.any(
+          (pm) => pm.toLowerCase().contains(paymentMethod.toLowerCase()),
+        );
+        if (!hasMethod) return false;
+      }
+      
+      return true;
+    }).toList();
+  }
+
+  /// Get cached offers count
+  int get cachedOffersCount => _offersCache.length;
+
+  /// Clear offers cache
+  void clearOffersCache() {
+    _offersCache.clear();
+    debugPrint('🗑️ Offers cache cleared');
+  }
+
+  /// Get offers from cache only (no network)
+  List<NostrP2POffer> getCachedOffers({
+    String? location,
+    String? currency,
+    P2POfferType? type,
+    String? paymentMethod,
+    int limit = 200,
+  }) {
+    final filtered = _filterOffers(
+      _offersCache.values.toList(),
+      location: location,
+      currency: currency,
+      type: type,
+      paymentMethod: paymentMethod,
+    );
+    filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return filtered.take(limit).toList();
   }
 
   /// Subscribe to real-time P2P offers

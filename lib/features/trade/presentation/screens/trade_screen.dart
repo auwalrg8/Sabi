@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_home_screen.dart';
+// P2P v2 - Clean unified P2P trading system
+import 'package:sabi_wallet/features/p2p_v2/screens/p2p_home_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_escrow_info_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_shared_widgets.dart';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
@@ -165,7 +166,7 @@ class _TradeScreenState extends ConsumerState<TradeScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const P2PHomeScreen()),
+                        MaterialPageRoute(builder: (_) => const P2PV2HomeScreen()),
                       );
                     },
                     child: Text(

@@ -89,20 +89,22 @@ class _RecoverySetupFlowState extends ConsumerState<RecoverySetupFlow> {
 
       if (!mounted) return;
 
-      // 3. Show success screen
-      await Navigator.push(
+      // 3. Show success screen (not during onboarding, so isOnboarding = false)
+      final result = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder:
-              (context) =>
-                  SocialRecoverySuccessScreen(contacts: recoveryContacts),
+              (context) => SocialRecoverySuccessScreen(
+                contacts: recoveryContacts,
+                isOnboarding: false,
+              ),
         ),
       );
 
       if (!mounted) return;
 
-      // Navigate back
-      Navigator.pop(context);
+      // Navigate back with result
+      Navigator.pop(context, result ?? true);
     } catch (e) {
       print('❌ Error setting up recovery: $e');
       if (!mounted) return;

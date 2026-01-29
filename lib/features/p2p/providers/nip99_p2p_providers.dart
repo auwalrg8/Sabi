@@ -250,33 +250,65 @@ final filteredNip99OffersProvider =
           .toList();
     });
 
+/// Safe conversion of double to int, handling Infinity and NaN
+int _safeToInt(double value, [int defaultValue = 0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value.toInt();
+}
+
+/// Safe double that handles Infinity and NaN
+double _safeDouble(double value, [double defaultValue = 0.0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value;
+}
+
 /// Helper to convert NostrP2POffer to P2POfferModel for UI compatibility
-/// Returns null if the offer has expired
+/// Returns null if the offer has expired or is cancelled
 P2POfferModel? _convertToP2POfferModel(NostrP2POffer offer) {
+  // Validate price first - skip offers with invalid prices
+  final rawPrice = offer.pricePerBtc;
+  if (rawPrice.isNaN || rawPrice.isInfinite || rawPrice < 0) {
+    debugPrint('❌ Offer ${offer.id} rejected: invalid price=$rawPrice');
+    return null;
+  }
+  
+  debugPrint('🔄 Converting offer: ${offer.id}, type: ${offer.type}, price: $rawPrice, min: ${offer.minAmountSats}, max: ${offer.maxAmountSats}');
+  
   // Filter out expired offers
   if (offer.expiresAt != null && offer.expiresAt!.isBefore(DateTime.now())) {
+    debugPrint('❌ Offer ${offer.id} rejected: expired');
     return null; // Expired offer
   }
 
   // Filter out cancelled/completed offers
   if (offer.status == P2POfferStatus.cancelled ||
       offer.status == P2POfferStatus.completed) {
+    debugPrint('❌ Offer ${offer.id} rejected: status=${offer.status}');
     return null;
   }
 
+  // Note: We no longer filter by price/limits here to allow all valid offers
+  // The UI can choose to display or filter as needed
+  debugPrint('✅ Offer ${offer.id} accepted for conversion');
+
+  // Use sensible defaults for missing values with safe conversions
+  final minLimit = offer.minAmountSats ?? 10000; // Default 10k sats min
+  final maxLimit = offer.maxAmountSats ?? 10000000; // Default 10M sats max
+  final price = _safeDouble(rawPrice, 0.0);
+  
   return P2POfferModel(
     id: offer.id,
     name: offer.sellerName ?? offer.npub?.substring(0, 12) ?? 'Anonymous',
-    pricePerBtc: offer.pricePerBtc,
+    pricePerBtc: price,
     paymentMethod:
         offer.paymentMethods.isNotEmpty
             ? offer.paymentMethods.first
-            : 'Unknown',
+            : 'Bank Transfer',
     eta: '< 15 min', // Default ETA
     ratingPercent: 100, // Default rating for new system
     trades: 0, // Will be tracked separately
-    minLimit: offer.minAmountSats ?? 0,
-    maxLimit: offer.maxAmountSats ?? 0,
+    minLimit: minLimit,
+    maxLimit: maxLimit,
     type: offer.type == P2POfferType.buy ? OfferType.buy : OfferType.sell,
     merchant: MerchantModel(
       id: offer.pubkey,
@@ -292,7 +324,7 @@ P2POfferModel? _convertToP2POfferModel(NostrP2POffer offer) {
     requiresKyc: false,
     paymentInstructions: offer.description,
     paymentAccountDetails: offer.paymentAccountDetails,
-    availableSats: (offer.maxAmountSats ?? 0).toDouble(),
+    availableSats: _safeDouble((offer.maxAmountSats ?? 0).toDouble(), 0.0),
   );
 }
 
@@ -365,6 +397,15 @@ final activeTradesForOfferProvider = Provider.family<List<P2PTrade>, String>((
 ) {
   final tradeManager = ref.watch(p2pTradeManagerProvider);
   return tradeManager.getActiveTradesForOffer(offerId);
+});
+
+/// Provider for ALL trades for a specific offer (including completed/cancelled)
+final tradesForOfferProvider = Provider.family<List<P2PTrade>, String>((
+  ref,
+  offerId,
+) {
+  final tradeManager = ref.watch(p2pTradeManagerProvider);
+  return tradeManager.getTradesForOffer(offerId);
 });
 
 /// Provider for all trades for a specific offer

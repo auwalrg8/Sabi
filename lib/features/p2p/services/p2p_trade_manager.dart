@@ -609,107 +609,123 @@ class P2PTradeManager extends ChangeNotifier {
   }
 
   /// Release BTC to buyer (seller side) - Final action
+  /// Sends Lightning payment to buyer's invoice/address
   Future<bool> releaseBtc(String tradeId) async {
     final trade = _trades[tradeId];
-    if (trade == null) return false;
+    if (trade == null) {
+      P2PLogger.error('TradeManager', 'Trade not found', tradeId: tradeId);
+      return false;
+    }
 
     if (trade.status != P2PTradeStatus.releasing &&
         trade.status != P2PTradeStatus.paymentSubmitted) {
       P2PLogger.warning(
         'TradeManager',
-        'Cannot release - invalid status',
+        'Cannot release - invalid status: ${trade.status}',
         tradeId: tradeId,
       );
       return false;
     }
 
-    try {
-      // Execute Lightning payment to buyer
-      bool paymentSuccess = false;
-
-      if (trade.buyerLightningAddress != null &&
-          trade.buyerLightningAddress!.isNotEmpty) {
-        // Pay to buyer's invoice
-        P2PLogger.info(
-          'TradeManager',
-          'Sending ${trade.satsAmount} sats to buyer',
-          tradeId: tradeId,
-        );
-
-        try {
-          // Use BreezSparkService.sendPayment which accepts a bolt11 string
-          await BreezSparkService.sendPayment(trade.buyerLightningAddress!);
-          paymentSuccess = true;
-
-          // Send push notification for successful P2P payment
-          BreezWebhookBridgeService().sendOutgoingPaymentNotification(
-            amountSats: trade.satsAmount,
-            recipientName: 'P2P Buyer',
-            description: 'P2P Trade #${tradeId.substring(0, 8)}',
-          );
-        } catch (e) {
-          P2PLogger.error(
-            'TradeManager',
-            'Lightning payment failed: $e',
-            tradeId: tradeId,
-          );
-
-          // Send push notification for failed P2P payment
-          BreezWebhookBridgeService().sendPaymentFailedNotification(
-            amountSats: trade.satsAmount,
-            errorMessage: e.toString(),
-            recipientName: 'P2P Buyer',
-          );
-
-          // For demo purposes, continue even if payment fails
-          paymentSuccess = true;
-        }
-      } else {
-        // No invoice - in real app, buyer would need to provide one
-        // For demo, we mark as complete
-        P2PLogger.warning(
-          'TradeManager',
-          'No buyer invoice - simulating release',
-          tradeId: tradeId,
-        );
-        paymentSuccess = true;
-      }
-
-      if (paymentSuccess) {
-        final updatedTrade = trade.copyWith(
-          status: P2PTradeStatus.completed,
-          completedAt: DateTime.now(),
-        );
-
-        _trades[tradeId] = updatedTrade;
-        _tradeTimers[tradeId]?.cancel();
-        _tradeTimers.remove(tradeId);
-        await _saveTrades();
-        _tradeUpdates.add(updatedTrade);
-
-        // Notify buyer
-        await _notifyCounterparty(
-          trade: updatedTrade,
-          messageType: P2PMessageType.btcReleased,
-          data: {'satsAmount': trade.satsAmount},
-        );
-
-        P2PLogger.info(
-          'TradeManager',
-          'BTC released successfully',
-          tradeId: tradeId,
-        );
-        return true;
-      }
-
+    // Validate buyer has a Lightning invoice/address
+    if (trade.buyerLightningAddress == null ||
+        trade.buyerLightningAddress!.isEmpty) {
+      P2PLogger.error(
+        'TradeManager',
+        'Cannot release - buyer has no Lightning invoice',
+        tradeId: tradeId,
+      );
       return false;
+    }
+
+    // Update status to releasing
+    final releasingTrade = trade.copyWith(status: P2PTradeStatus.releasing);
+    _trades[tradeId] = releasingTrade;
+    await _saveTrades();
+    _tradeUpdates.add(releasingTrade);
+
+    try {
+      P2PLogger.info(
+        'TradeManager',
+        'Sending ${trade.satsAmount} sats to buyer Lightning invoice',
+        tradeId: tradeId,
+        metadata: {
+          'invoicePreview': trade.buyerLightningAddress!.length > 20
+              ? '${trade.buyerLightningAddress!.substring(0, 20)}...'
+              : trade.buyerLightningAddress!,
+        },
+      );
+
+      // Use sendPayment which handles both BOLT11 invoices and Lightning addresses
+      await BreezSparkService.sendPayment(
+        trade.buyerLightningAddress!,
+        sats: trade.satsAmount,
+        recipientName: trade.buyerName ?? 'P2P Buyer',
+        comment: 'P2P Trade #${tradeId.substring(0, 8)}',
+      );
+
+      // Payment succeeded
+      P2PLogger.info(
+        'TradeManager',
+        'Lightning payment sent successfully!',
+        tradeId: tradeId,
+      );
+
+      // Send push notification for successful P2P payment
+      BreezWebhookBridgeService().sendOutgoingPaymentNotification(
+        amountSats: trade.satsAmount,
+        recipientName: trade.buyerName ?? 'P2P Buyer',
+        description: 'P2P Trade #${tradeId.substring(0, 8)} completed',
+      );
+
+      // Update trade to completed
+      final completedTrade = trade.copyWith(
+        status: P2PTradeStatus.completed,
+        completedAt: DateTime.now(),
+      );
+
+      _trades[tradeId] = completedTrade;
+      _tradeTimers[tradeId]?.cancel();
+      _tradeTimers.remove(tradeId);
+      await _saveTrades();
+      _tradeUpdates.add(completedTrade);
+
+      // Notify buyer via Nostr DM
+      await _notifyCounterparty(
+        trade: completedTrade,
+        messageType: P2PMessageType.btcReleased,
+        data: {'satsAmount': trade.satsAmount},
+      );
+
+      P2PLogger.info(
+        'TradeManager',
+        'BTC released successfully - trade completed',
+        tradeId: tradeId,
+      );
+      return true;
     } catch (e, stack) {
       P2PLogger.error(
         'TradeManager',
-        'Failed to release BTC: $e',
+        'Lightning payment failed: $e',
         tradeId: tradeId,
         stackTrace: stack,
       );
+
+      // Send push notification for failed P2P payment
+      BreezWebhookBridgeService().sendPaymentFailedNotification(
+        amountSats: trade.satsAmount,
+        errorMessage: e.toString(),
+        recipientName: trade.buyerName ?? 'P2P Buyer',
+      );
+
+      // Revert status back to paymentSubmitted so seller can retry
+      final revertedTrade = trade.copyWith(
+        status: P2PTradeStatus.paymentSubmitted,
+      );
+      _trades[tradeId] = revertedTrade;
+      await _saveTrades();
+      _tradeUpdates.add(revertedTrade);
+
       return false;
     }
   }

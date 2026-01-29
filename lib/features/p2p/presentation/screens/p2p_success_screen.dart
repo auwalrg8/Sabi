@@ -161,7 +161,7 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                         SizedBox(height: 8.h),
                         Text(
                           widget.isSeller
-                              ? 'You sold ${formatter.format(widget.sats.toInt())} sats'
+                              ? 'You sold ${formatter.format(_safeToInt(widget.sats))} sats'
                               : 'BTC has been added to your wallet',
                           style: TextStyle(
                             color: const Color(0xFFA1A1B2),
@@ -210,7 +210,7 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '+${formatter.format(widget.sats.toInt())} sats',
+                                    '+${formatter.format(_safeToInt(widget.sats))} sats',
                                     style: TextStyle(
                                       color: const Color(0xFF00FFB2),
                                       fontSize: 24.sp,
@@ -218,7 +218,7 @@ class _P2PSuccessScreenState extends State<P2PSuccessScreen>
                                     ),
                                   ),
                                   Text(
-                                    '≈ ₦${formatter.format(widget.amount.toInt())}',
+                                    '≈ ₦${formatter.format(_safeToInt(widget.amount))}',
                                     style: TextStyle(
                                       color: const Color(0xFFA1A1B2),
                                       fontSize: 14.sp,
@@ -364,4 +364,10 @@ class _DetailRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Safely converts double to int, handling Infinity and NaN
+int _safeToInt(double value, [int defaultValue = 0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value.toInt();
 }

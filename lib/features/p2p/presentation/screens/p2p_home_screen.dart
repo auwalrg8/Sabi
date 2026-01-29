@@ -13,7 +13,6 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_create_offer_s
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_history_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_my_trades_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_merchant_profile_screen.dart';
-import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_escrow_info_screen.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -77,12 +76,20 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
   Future<void> _loadData() async {
     try {
       setState(() => _isLoading = true);
+      
+      P2PLogger.info('Home', 'Refreshing P2P offers from relays...');
 
-      // Invalidate fetched offers to trigger a fresh fetch from relays
-      ref.invalidate(fetchedNostrOffersProvider);
+      // Invalidate ALL offer providers to trigger a complete fresh fetch
+      // This ensures both new and existing offers are fetched from relays
+      ref.invalidate(nip99P2POffersProvider);        // NIP-99 fetched offers
+      ref.invalidate(nip99P2POffersStreamProvider);  // NIP-99 real-time stream
+      ref.invalidate(fetchedNostrOffersProvider);    // Legacy fallback offers
+      ref.invalidate(userNip99OffersProvider);       // User's own offers
 
-      // Give relays time to respond
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Give relays time to respond and re-establish subscriptions
+      await Future.delayed(const Duration(milliseconds: 2000));
+      
+      P2PLogger.info('Home', 'P2P offers refresh complete');
       if (mounted) setState(() => _isLoading = false);
     } catch (e, stack) {
       P2PLogger.error(
@@ -330,10 +337,15 @@ class _BuyBtcTab extends ConsumerWidget {
     }
 
     final dedupedOffers = offerMap.values.toList();
+    debugPrint('📊 BuyBtcTab: Total deduped offers: ${dedupedOffers.length}');
 
     // Get sell offers (offers from sellers who want to sell BTC)
+    // Show all sell type offers - filtering is done at conversion level
     final sellOffers =
-        dedupedOffers.where((o) => o.type == OfferType.sell).toList();
+        dedupedOffers
+            .where((o) => o.type == OfferType.sell)
+            .toList();
+    debugPrint('📊 BuyBtcTab: Sell offers count: ${sellOffers.length}');
 
     // Apply payment filter
     final filteredOffers =
@@ -578,13 +590,21 @@ class _SellBtcTab extends ConsumerWidget {
     final allOffers = offerMap.values.toList();
 
     // Get buy offers (offers from buyers who want to buy BTC) - excluding user's own
+    // Filter out offers without valid price and limits
     final userOfferIds = userOffers.map((o) => o.id).toSet();
+    debugPrint('📊 SellBtcTab: Total all offers: ${allOffers.length}, user offers: ${userOffers.length}');
+    
+    // Get buy offers (offers from buyers who want to buy BTC) - exclude user's own offers
+    // Show all buy type offers - filtering is done at conversion level
     final buyOffers =
         allOffers
             .where(
-              (o) => o.type == OfferType.buy && !userOfferIds.contains(o.id),
+              (o) =>
+                  o.type == OfferType.buy &&
+                  !userOfferIds.contains(o.id),
             )
             .toList();
+    debugPrint('📊 SellBtcTab: Buy offers from others: ${buyOffers.length}');
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
@@ -1868,7 +1888,7 @@ class _BuyRequestCard extends StatelessWidget {
                       ),
                       SizedBox(height: 2.h),
                       Text(
-                        '₦${_formatAmount(offer.pricePerBtc.toInt())}',
+                        '₦${_formatAmount(_safeToInt(offer.pricePerBtc))}',
                         style: TextStyle(
                           fontSize: 18.sp,
                           fontWeight: FontWeight.bold,
@@ -1975,6 +1995,12 @@ class _BuyRequestCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Safely converts double to int, handling Infinity and NaN
+  int _safeToInt(double value, [int defaultValue = 0]) {
+    if (value.isNaN || value.isInfinite) return defaultValue;
+    return value.toInt();
   }
 
   String _formatAmount(int amount) {

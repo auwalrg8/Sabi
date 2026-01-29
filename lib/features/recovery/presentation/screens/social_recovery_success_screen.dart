@@ -7,7 +7,14 @@ import 'package:sabi_wallet/features/recovery/services/social_recovery_service.d
 class SocialRecoverySuccessScreen extends StatefulWidget {
   final List<RecoveryContact> contacts;
 
-  const SocialRecoverySuccessScreen({super.key, required this.contacts});
+  /// If true, navigate to /home. If false, just pop back (for settings flow)
+  final bool isOnboarding;
+
+  const SocialRecoverySuccessScreen({
+    super.key,
+    required this.contacts,
+    this.isOnboarding = false,
+  });
 
   @override
   State<SocialRecoverySuccessScreen> createState() =>
@@ -178,11 +185,18 @@ class _SocialRecoverySuccessScreenState
                 height: 56.h,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Use root navigator to avoid history assertion error
-                    Navigator.of(
-                      context,
-                      rootNavigator: true,
-                    ).pushNamedAndRemoveUntil('/home', (route) => false);
+                    if (widget.isOnboarding) {
+                      // During onboarding, clear stack and go to home
+                      Navigator.of(
+                        context,
+                        rootNavigator: true,
+                      ).pushNamedAndRemoveUntil('/home', (route) => false);
+                    } else {
+                      // From settings, just pop back to settings
+                      Navigator.of(
+                        context,
+                      ).pop(true); // Return true to indicate success
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF7931A),
@@ -191,7 +205,7 @@ class _SocialRecoverySuccessScreenState
                     ),
                   ),
                   child: Text(
-                    'Continue to Wallet',
+                    widget.isOnboarding ? 'Continue to Wallet' : 'Done',
                     style: TextStyle(
                       color: const Color(0xFF0C0C1A),
                       fontSize: 16.sp,

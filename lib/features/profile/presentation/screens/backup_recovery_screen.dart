@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
-import 'package:sabi_wallet/features/onboarding/presentation/screens/recover_with_guys_screen.dart';
+import 'package:sabi_wallet/features/onboarding/presentation/screens/social_recovery_restore_screen.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/seed_phrase_screen.dart';
 import 'package:sabi_wallet/features/recovery/presentation/screens/guardian_management_screen.dart';
 import 'package:sabi_wallet/features/recovery/services/social_recovery_service.dart';
@@ -112,6 +113,9 @@ class _BackupRecoveryScreenState extends ConsumerState<BackupRecoveryScreen> {
                 ),
                 SizedBox(height: 12.h),
                 _ManualBackupCard(storage: storage),
+                SizedBox(height: 28.h),
+                // Guardian section - if user is holding someone else's share
+                _GuardianShareSection(),
               ],
             ),
           ),
@@ -501,7 +505,7 @@ class _BackupRecoveryScreenState extends ConsumerState<BackupRecoveryScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const RecoverWithGuysScreen(),
+                        builder: (_) => const SocialRecoveryRestoreScreen(),
                       ),
                     );
                   },
@@ -841,6 +845,293 @@ class _ManualBackupCard extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Section shown if user is holding a recovery share for someone else
+class _GuardianShareSection extends StatefulWidget {
+  const _GuardianShareSection();
+
+  @override
+  State<_GuardianShareSection> createState() => _GuardianShareSectionState();
+}
+
+class _GuardianShareSectionState extends State<_GuardianShareSection> {
+  bool _hasShare = false;
+  Map<String, dynamic>? _shareInfo;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShareInfo();
+  }
+
+  Future<void> _loadShareInfo() async {
+    final hasShare = await SocialRecoveryService.hasReceivedShare();
+    Map<String, dynamic>? info;
+    if (hasShare) {
+      info = await SocialRecoveryService.getReceivedShare();
+    }
+    if (mounted) {
+      setState(() {
+        _hasShare = hasShare;
+        _shareInfo = info;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _showShareDetails() async {
+    final shareJson = await SocialRecoveryService.getShareForManualSending();
+    if (shareJson == null || !mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Recovery Share',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'You are holding a recovery share for someone. Copy this JSON and send it as an encrypted DM (NIP-04) when they request recovery.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13.sp,
+                ),
+              ),
+              SizedBox(height: 16.h),
+
+              // Share info
+              if (_shareInfo != null) ...[
+                Row(
+                  children: [
+                    Text(
+                      'Share Index: ',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    Text(
+                      '#${_shareInfo!['share_index']}',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    Text(
+                      'Owner: ',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        _shareInfo!['owner_npub'] ?? 'Unknown',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 11.sp,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16.h),
+              ],
+
+              // Share JSON
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: SelectableText(
+                  shareJson,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 10.sp,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              SizedBox(height: 16.h),
+
+              // Copy button
+              SizedBox(
+                width: double.infinity,
+                height: 50.h,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: shareJson));
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Share copied! Send as encrypted DM.'),
+                        backgroundColor: AppColors.accentGreen,
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.copy, size: 18.sp),
+                  label: Text(
+                    'Copy to Clipboard',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 12.h),
+
+              // Help text
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      color: AppColors.primary,
+                      size: 18.sp,
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Text(
+                        'You can send this via Primal, Damus, or any Nostr client that supports NIP-04 encrypted DMs.',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11.sp,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    if (!_hasShare) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'You Are a Guardian',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+            height: 1.5,
+          ),
+        ),
+        SizedBox(height: 12.h),
+        Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: Colors.purple.withOpacity(0.3), width: 1),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44.w,
+                height: 44.w,
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.shield, color: Colors.purple, size: 22.sp),
+              ),
+              SizedBox(width: 14.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Holding Share #${_shareInfo?['share_index'] ?? '?'}',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'You can resend this via any Nostr client',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: _showShareDetails,
+                child: Text(
+                  'View',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

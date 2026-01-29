@@ -95,7 +95,10 @@ class _SocialRecoverySetupScreenState extends State<SocialRecoverySetupScreen> {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder:
-                (_) => SocialRecoverySuccessScreen(contacts: _selectedContacts),
+                (_) => SocialRecoverySuccessScreen(
+                  contacts: _selectedContacts,
+                  isOnboarding: false,
+                ),
           ),
           (route) => route.isFirst,
         );

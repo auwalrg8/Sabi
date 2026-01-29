@@ -94,7 +94,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       );
     } else {
       _addSystemMessage(
-        '🔔 New trade request! Buyer wants to purchase ${formatter.format(widget.receiveSats.toInt())} sats.',
+        '🔔 New trade request! Buyer wants to purchase ${formatter.format(_safeToInt(widget.receiveSats))} sats.',
       );
       _addSystemMessage(
         'Wait for buyer to send fiat payment, then confirm when received.',
@@ -115,7 +115,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       final trade = await P2PTradeManager().startBuyTrade(
         offer: widget.offer,
         fiatAmount: widget.tradeAmount,
-        satsAmount: widget.receiveSats.toInt(),
+        satsAmount: _safeToInt(widget.receiveSats),
       );
       if (trade != null) {
         setState(() => _activeTrade = trade);
@@ -300,7 +300,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
       offerId: widget.offer.id,
       buyerPubkey: buyerPubkey,
       fiatAmount: data?['fiatAmount']?.toDouble() ?? widget.tradeAmount,
-      satsAmount: data?['satsAmount'] ?? widget.receiveSats.toInt(),
+      satsAmount: data?['satsAmount'] ?? _safeToInt(widget.receiveSats),
       paymentMethod: data?['paymentMethod'] ?? widget.offer.paymentMethod,
     );
 
@@ -692,7 +692,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
 
     if (_isSeller) {
       _addSystemMessage(
-        '🎉 BTC released! ${formatter.format(widget.receiveSats.toInt())} sats sent to buyer.',
+        '🎉 BTC released! ${formatter.format(_safeToInt(widget.receiveSats))} sats sent to buyer.',
       );
     } else {
       _addSystemMessage('🎉 BTC has been released to your wallet!');
@@ -956,7 +956,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
                   ),
                   SizedBox(height: 2.h),
                   Text(
-                    'Buyer will send ₦${formatter.format(widget.tradeAmount.toInt())} via ${widget.offer.paymentMethod}',
+                    'Buyer will send ₦${formatter.format(_safeToInt(widget.tradeAmount))} via ${widget.offer.paymentMethod}',
                     style: TextStyle(
                       color: const Color(0xFFA1A1B2),
                       fontSize: 12.sp,
@@ -1074,7 +1074,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
                 SizedBox(width: 8.w),
                 Expanded(
                   child: Text(
-                    'Only release after confirming you received ₦${formatter.format(widget.tradeAmount.toInt())}',
+                    'Only release after confirming you received ₦${formatter.format(_safeToInt(widget.tradeAmount))}',
                     style: TextStyle(
                       color: const Color(0xFFFF6B6B),
                       fontSize: 12.sp,
@@ -1123,7 +1123,7 @@ class _P2PTradeChatScreenState extends ConsumerState<P2PTradeChatScreen> {
                         ],
                       )
                       : Text(
-                        '✓ I Received Payment - Release ${formatter.format(widget.receiveSats.toInt())} sats',
+                        '✓ I Received Payment - Release ${formatter.format(_safeToInt(widget.receiveSats))} sats',
                         style: TextStyle(
                           color: const Color(0xFF0C0C1A),
                           fontSize: 14.sp,
@@ -1655,7 +1655,7 @@ class _TradeInfoCard extends StatelessWidget {
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  '₦${formatter.format(amount.toInt())}',
+                  '₦${formatter.format(_safeToInt(amount))}',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18.sp,
@@ -1684,7 +1684,7 @@ class _TradeInfoCard extends StatelessWidget {
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  '${formatter.format(sats.toInt())} sats',
+                  '${formatter.format(_safeToInt(sats))} sats',
                   style: TextStyle(
                     color: const Color(0xFF00FFB2),
                     fontSize: 18.sp,
@@ -1879,4 +1879,10 @@ class _OptionTile extends StatelessWidget {
       onTap: onTap,
     );
   }
+}
+
+/// Safely converts double to int, handling Infinity and NaN
+int _safeToInt(double value, [int defaultValue = 0]) {
+  if (value.isNaN || value.isInfinite) return defaultValue;
+  return value.toInt();
 }
