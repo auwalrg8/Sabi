@@ -99,10 +99,7 @@ void main() async {
     debugPrint('⚠️ NostrProfileService quick cache error: $e');
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LAUNCH UI IMMEDIATELY - User sees the app in ~200ms instead of 4-12 seconds
-  // ═══════════════════════════════════════════════════════════════════════════
-  runApp(
+    runApp(
     const ProviderScope(
       child: ScreenUtilInit(
         designSize: Size(412, 917),

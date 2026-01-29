@@ -15,7 +15,7 @@ final p2pV2Provider = StateNotifierProvider<P2PStateNotifier, P2PState>((ref) {
 });
 
 /// P2P v2 State Notifier
-/// 
+///
 /// This is the ONLY provider you need for P2P v2.
 /// It manages:
 /// - Offers (browse & my offers)
@@ -36,22 +36,22 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
 
   Future<void> _init() async {
     debugPrint('🚀 P2PStateNotifier: Initializing...');
-    
+
     // Initialize trade storage first
     await P2PTradeStorage.init();
-    
+
     // Load persisted trades
     final persistedTrades = await P2PTradeStorage.loadAllTrades();
     if (persistedTrades.isNotEmpty) {
       state = state.copyWith(trades: persistedTrades);
-      debugPrint('📦 P2PStateNotifier: Loaded ${persistedTrades.length} trades from storage');
+      debugPrint(
+        '📦 P2PStateNotifier: Loaded ${persistedTrades.length} trades from storage',
+      );
     }
-    
+
     // Listen to connection status
     _connectionSubscription = _nostrService.connectionStream.listen((status) {
-      state = state.copyWith(
-        connectionStatus: _mapConnectionStatus(status),
-      );
+      state = state.copyWith(connectionStatus: _mapConnectionStatus(status));
     });
 
     // Listen to offers updates
@@ -85,29 +85,29 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
   bool get hasIdentity => _nostrService.hasIdentity;
 
   /// All offers for browsing (excluding my own)
-  List<NostrP2POffer> get browseOffers => state.offers.values
-      .where((o) => o.pubkey != myPubkey)
-      .where((o) => o.status == P2POfferStatus.active)
-      .toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  List<NostrP2POffer> get browseOffers =>
+      state.offers.values
+          .where((o) => o.pubkey != myPubkey)
+          .where((o) => o.status == P2POfferStatus.active)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   /// My own offers
-  List<NostrP2POffer> get myOffers => state.offers.values
-      .where((o) => o.pubkey == myPubkey)
-      .toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  List<NostrP2POffer> get myOffers =>
+      state.offers.values.where((o) => o.pubkey == myPubkey).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   /// Active trades (where I'm buyer or seller)
-  List<P2PTrade> get activeTrades => state.trades.values
-      .where((t) => !t.isCompleted && !t.isCancelled)
-      .toList()
-    ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  List<P2PTrade> get activeTrades =>
+      state.trades.values
+          .where((t) => !t.isCompleted && !t.isCancelled)
+          .toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
   /// Completed trades
-  List<P2PTrade> get completedTrades => state.trades.values
-      .where((t) => t.isCompleted)
-      .toList()
-    ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  List<P2PTrade> get completedTrades =>
+      state.trades.values.where((t) => t.isCompleted).toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
   // ==================== Offers ====================
 
@@ -120,14 +120,11 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
   }) async {
     if (state.isLoadingOffers) return;
 
-    state = state.copyWith(
-      isLoadingOffers: true,
-      offersError: null,
-    );
+    state = state.copyWith(isLoadingOffers: true, offersError: null);
 
     try {
       await _nostrService.init();
-      
+
       // Fetch offers with filters
       final offers = await _nostrService.refreshOffers(
         location: location,
@@ -135,28 +132,29 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
         type: type,
         paymentMethod: paymentMethod,
       );
-      debugPrint('📦 P2PStateNotifier: Got ${offers.length} Sabi Wallet P2P offers');
-      
+      debugPrint(
+        '📦 P2PStateNotifier: Got ${offers.length} Sabi Wallet P2P offers',
+      );
+
       // Update state with fetched offers
       _updateOffers(offers);
-      
+
       // Also fetch my offers specifically
       final myOffers = await _nostrService.fetchMyOffers();
       if (myOffers.isNotEmpty) {
         _updateOffers(myOffers);
       }
-      
+
       state = state.copyWith(
         isLoadingOffers: false,
         hasMoreOffers: offers.length >= 200, // Assume more if we hit limit
       );
-      debugPrint('✅ P2PStateNotifier: Offers refreshed, total: ${state.offers.length}');
+      debugPrint(
+        '✅ P2PStateNotifier: Offers refreshed, total: ${state.offers.length}',
+      );
     } catch (e) {
       debugPrint('❌ P2PStateNotifier: Failed to refresh offers: $e');
-      state = state.copyWith(
-        isLoadingOffers: false,
-        offersError: e.toString(),
-      );
+      state = state.copyWith(isLoadingOffers: false, offersError: e.toString());
     }
   }
 
@@ -180,17 +178,17 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
         type: type,
         paymentMethod: paymentMethod,
       );
-      
+
       // Add new offers to state
       if (moreOffers.isNotEmpty) {
         _updateOffers(moreOffers);
       }
-      
+
       state = state.copyWith(
         isLoadingOffers: false,
         hasMoreOffers: moreOffers.length >= 50, // Assume more if we hit limit
       );
-      
+
       debugPrint('✅ P2PStateNotifier: Loaded ${moreOffers.length} more offers');
     } catch (e) {
       debugPrint('❌ P2PStateNotifier: Failed to load more offers: $e');
@@ -233,10 +231,10 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       );
 
       state = state.copyWith(isPublishing: false);
-      
+
       // Refresh my offers
       await _nostrService.fetchMyOffers();
-      
+
       return eventId;
     } catch (e) {
       debugPrint('❌ P2PStateNotifier: Failed to publish offer: $e');
@@ -262,30 +260,31 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
   /// Delete an offer
   Future<bool> deleteOffer(String offerId) async {
     try {
-      final success = await _nostrService.deleteOffer(offerId);
-      if (success) {
-        final newOffers = Map<String, NostrP2POffer>.from(state.offers);
-        newOffers.remove(offerId);
-        
-        final newMyOfferIds = Set<String>.from(state.myOfferIds);
-        newMyOfferIds.remove(offerId);
-        
-        state = state.copyWith(
-          offers: newOffers,
-          myOfferIds: newMyOfferIds,
-        );
-      }
-      return success;
+      // First update local state immediately for responsive UI
+      final newOffers = Map<String, NostrP2POffer>.from(state.offers);
+      newOffers.remove(offerId);
+
+      final newMyOfferIds = Set<String>.from(state.myOfferIds);
+      newMyOfferIds.remove(offerId);
+
+      state = state.copyWith(offers: newOffers, myOfferIds: newMyOfferIds);
+
+      // Then delete from Nostr (this also removes from service cache)
+      await _nostrService.deleteOffer(offerId);
+
+      debugPrint('✅ P2PStateNotifier: Offer $offerId deleted');
+      return true;
     } catch (e) {
       debugPrint('❌ P2PStateNotifier: Failed to delete offer: $e');
-      return false;
+      // Even if Nostr delete fails, we've already removed from local state
+      return true;
     }
   }
 
   // ==================== Trades ====================
 
   /// Start a new trade (as buyer)
-  /// 
+  ///
   /// The buyer provides their Lightning invoice so the seller can
   /// release Bitcoin to them after confirming fiat payment.
   Future<P2PTrade?> initiateTrade({
@@ -312,7 +311,8 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
 
     // Create trade
     final trade = P2PTrade(
-      id: 'trade_${DateTime.now().millisecondsSinceEpoch}_${buyerPubkey.substring(0, 8)}',
+      id:
+          'trade_${DateTime.now().millisecondsSinceEpoch}_${buyerPubkey.substring(0, 8)}',
       offerId: offerId,
       offerTitle: offer.title,
       buyerPubkey: buyerPubkey,
@@ -332,17 +332,20 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     final newTrades = Map<String, P2PTrade>.from(state.trades);
     newTrades[trade.id] = trade;
     state = state.copyWith(trades: newTrades);
-    
+
     // Persist to storage
     await P2PTradeStorage.saveTrade(trade);
 
-    // Send trade request message (includes invoice if provided)
+    // Send trade request message (includes offer ID, amount, payment method, and invoice if provided)
     await _nostrService.sendTradeMessage(
       tradeId: trade.id,
+      offerId:
+          offerId, // Important: include the offer ID so seller can find their offer
       recipientPubkey: offer.pubkey,
       type: TradeMessageType.tradeRequest,
       amountSats: amountSats,
       lightningInvoice: lightningInvoice,
+      paymentMethod: paymentMethod,
       content: 'Trade request: $amountSats sats via $paymentMethod',
     );
 
@@ -351,10 +354,13 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
   }
 
   /// Submit Lightning invoice (as buyer)
-  /// 
+  ///
   /// If the buyer didn't provide an invoice during trade initiation,
   /// they can submit it later with this method.
-  Future<bool> submitBuyerInvoice(String tradeId, String lightningInvoice) async {
+  Future<bool> submitBuyerInvoice(
+    String tradeId,
+    String lightningInvoice,
+  ) async {
     final trade = state.trades[tradeId];
     if (trade == null) return false;
 
@@ -386,9 +392,7 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     final trade = state.trades[tradeId];
     if (trade == null) return false;
 
-    final updatedTrade = trade.copyWith(
-      status: TradeStatus.awaitingPayment,
-    );
+    final updatedTrade = trade.copyWith(status: TradeStatus.awaitingPayment);
 
     _updateTrade(updatedTrade);
 
@@ -453,9 +457,7 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     if (trade == null) return false;
 
     final updatedReceipts = [...trade.receiptImages, imageUrl];
-    final updatedTrade = trade.copyWith(
-      receiptImages: updatedReceipts,
-    );
+    final updatedTrade = trade.copyWith(receiptImages: updatedReceipts);
 
     _updateTrade(updatedTrade);
 
@@ -493,7 +495,7 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
   }
 
   /// Release Bitcoin (as seller)
-  /// 
+  ///
   /// This sends the Lightning payment to the buyer's invoice/address.
   /// Since Breez SDK Spark doesn't support hold invoices, we use a
   /// reputation-based "seller-first" approach:
@@ -507,20 +509,23 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       return false;
     }
 
-    if (trade.buyerLightningInvoice == null || trade.buyerLightningInvoice!.isEmpty) {
-      debugPrint('❌ P2PStateNotifier.releaseBitcoin: No buyer Lightning invoice');
+    if (trade.buyerLightningInvoice == null ||
+        trade.buyerLightningInvoice!.isEmpty) {
+      debugPrint(
+        '❌ P2PStateNotifier.releaseBitcoin: No buyer Lightning invoice',
+      );
       return false;
     }
 
     // Update status to releasing
-    var updatedTrade = trade.copyWith(
-      status: TradeStatus.releasing,
-    );
+    var updatedTrade = trade.copyWith(status: TradeStatus.releasing);
     _updateTrade(updatedTrade);
 
     try {
-      debugPrint('⚡ P2PStateNotifier: Sending ${trade.satsAmount} sats to buyer...');
-      
+      debugPrint(
+        '⚡ P2PStateNotifier: Sending ${trade.satsAmount} sats to buyer...',
+      );
+
       // Send Lightning payment using Breez SDK
       await BreezSparkService.sendPayment(
         trade.buyerLightningInvoice!,
@@ -544,19 +549,20 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
         recipientPubkey: trade.buyerPubkey,
         type: TradeMessageType.btcReleased,
         amountSats: trade.satsAmount,
-        content: 'Bitcoin released! ${trade.satsAmount} sats sent to your wallet.',
+        content:
+            'Bitcoin released! ${trade.satsAmount} sats sent to your wallet.',
       );
 
       return true;
     } catch (e) {
       debugPrint('❌ P2PStateNotifier: Failed to release Bitcoin: $e');
-      
+
       // Revert to paymentConfirmed status on failure
       updatedTrade = updatedTrade.copyWith(
         status: TradeStatus.paymentConfirmed,
       );
       _updateTrade(updatedTrade);
-      
+
       rethrow;
     }
   }
@@ -575,9 +581,8 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     _updateTrade(updatedTrade);
 
     // Notify counterparty
-    final recipientPubkey = trade.buyerPubkey == myPubkey 
-        ? trade.sellerPubkey 
-        : trade.buyerPubkey;
+    final recipientPubkey =
+        trade.buyerPubkey == myPubkey ? trade.sellerPubkey : trade.buyerPubkey;
 
     await _nostrService.sendTradeMessage(
       tradeId: tradeId,
@@ -594,9 +599,8 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     final trade = state.trades[tradeId];
     if (trade == null) return false;
 
-    final recipientPubkey = trade.buyerPubkey == myPubkey 
-        ? trade.sellerPubkey 
-        : trade.buyerPubkey;
+    final recipientPubkey =
+        trade.buyerPubkey == myPubkey ? trade.sellerPubkey : trade.buyerPubkey;
 
     return await _nostrService.sendTradeMessage(
       tradeId: tradeId,
@@ -614,8 +618,10 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
   // ==================== Private Methods ====================
 
   void _updateOffers(List<NostrP2POffer> offers) {
-    debugPrint('🔄 P2PStateNotifier._updateOffers: Processing ${offers.length} offers');
-    
+    debugPrint(
+      '🔄 P2PStateNotifier._updateOffers: Processing ${offers.length} offers',
+    );
+
     final newOffers = Map<String, NostrP2POffer>.from(state.offers);
     final newMyOfferIds = Set<String>.from(state.myOfferIds);
 
@@ -626,36 +632,41 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       }
     }
 
-    debugPrint('📊 P2PStateNotifier._updateOffers: New total offers: ${newOffers.length}');
-    
-    state = state.copyWith(
-      offers: newOffers,
-      myOfferIds: newMyOfferIds,
+    debugPrint(
+      '📊 P2PStateNotifier._updateOffers: New total offers: ${newOffers.length}',
     );
+
+    state = state.copyWith(offers: newOffers, myOfferIds: newMyOfferIds);
   }
 
   void _updateTrade(P2PTrade trade) {
     final newTrades = Map<String, P2PTrade>.from(state.trades);
     newTrades[trade.id] = trade;
     state = state.copyWith(trades: newTrades);
-    
+
     // Persist to storage
-    P2PTradeStorage.saveTrade(trade).then((_) {
-      debugPrint('💾 P2PStateNotifier: Trade ${trade.id.substring(0, 8)}... persisted');
-    }).catchError((e) {
-      debugPrint('❌ P2PStateNotifier: Failed to persist trade: $e');
-    });
+    P2PTradeStorage.saveTrade(trade)
+        .then((_) {
+          debugPrint(
+            '💾 P2PStateNotifier: Trade ${trade.id.substring(0, 8)}... persisted',
+          );
+        })
+        .catchError((e) {
+          debugPrint('❌ P2PStateNotifier: Failed to persist trade: $e');
+        });
   }
 
   void _handleIncomingMessage(TradeMessageEvent event) {
     final trade = state.trades[event.tradeId];
-    
+
     if (trade == null) {
       // New trade from incoming request - we are the seller receiving a buy request
       if (event.type == TradeMessageType.tradeRequest) {
         _handleIncomingTradeRequest(event);
       } else {
-        debugPrint('⚠️ P2PStateNotifier: Unknown trade ${event.tradeId} for message type ${event.type}');
+        debugPrint(
+          '⚠️ P2PStateNotifier: Unknown trade ${event.tradeId} for message type ${event.type}',
+        );
       }
       return;
     }
@@ -671,20 +682,20 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     );
 
     final updatedMessages = [...trade.messages, message];
-    var updatedTrade = trade.copyWith(
-      messages: updatedMessages,
-    );
-    
+    var updatedTrade = trade.copyWith(messages: updatedMessages);
+
     // Handle invoice submission - update buyer's Lightning invoice
-    if (event.type == TradeMessageType.invoiceSubmitted && event.lightningInvoice != null) {
+    if (event.type == TradeMessageType.invoiceSubmitted &&
+        event.lightningInvoice != null) {
       updatedTrade = updatedTrade.copyWith(
         buyerLightningInvoice: event.lightningInvoice,
       );
       debugPrint('📝 P2PStateNotifier: Buyer submitted Lightning invoice');
     }
-    
+
     // Handle trade request with invoice attached
-    if (event.type == TradeMessageType.tradeRequest && event.lightningInvoice != null) {
+    if (event.type == TradeMessageType.tradeRequest &&
+        event.lightningInvoice != null) {
       updatedTrade = updatedTrade.copyWith(
         buyerLightningInvoice: event.lightningInvoice,
       );
@@ -694,12 +705,12 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
     final newStatus = _getStatusFromMessageType(event.type);
     if (newStatus != null) {
       _updateTrade(updatedTrade.copyWith(status: newStatus));
-      
+
       // Show notification for important status changes
       _notifyTradeStatusChange(trade, event.type);
     } else {
       _updateTrade(updatedTrade);
-      
+
       // Show notification for chat messages or invoice submission
       if (event.type == TradeMessageType.chat) {
         _showTradeNotification(
@@ -716,20 +727,21 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       }
     }
   }
-  
+
   /// Show notification based on trade status change
   void _notifyTradeStatusChange(P2PTrade trade, TradeMessageType messageType) {
     final isBuyer = trade.myRole == TradeRole.buyer;
-    
+
     String title;
     String body;
-    
+
     switch (messageType) {
       case TradeMessageType.tradeAccepted:
         title = '✅ Trade Accepted';
-        body = isBuyer 
-            ? 'Seller accepted your trade! Please send payment.'
-            : 'You accepted the trade. Waiting for payment.';
+        body =
+            isBuyer
+                ? 'Seller accepted your trade! Please send payment.'
+                : 'You accepted the trade. Waiting for payment.';
         break;
       case TradeMessageType.tradeRejected:
         title = '❌ Trade Rejected';
@@ -737,15 +749,17 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
         break;
       case TradeMessageType.paymentSent:
         title = '💸 Payment Sent';
-        body = isBuyer 
-            ? 'Waiting for seller to confirm payment.'
-            : 'Buyer marked payment as sent. Please verify and confirm.';
+        body =
+            isBuyer
+                ? 'Waiting for seller to confirm payment.'
+                : 'Buyer marked payment as sent. Please verify and confirm.';
         break;
       case TradeMessageType.paymentConfirmed:
         title = '✅ Payment Confirmed';
-        body = isBuyer 
-            ? 'Seller confirmed your payment!'
-            : 'You confirmed the payment. Releasing Bitcoin...';
+        body =
+            isBuyer
+                ? 'Seller confirmed your payment!'
+                : 'You confirmed the payment. Releasing Bitcoin...';
         break;
       case TradeMessageType.btcReleased:
         title = '⚡ Bitcoin Released';
@@ -762,21 +776,37 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       default:
         return; // No notification for other types
     }
-    
+
     _showTradeNotification(title: title, body: body, tradeId: trade.id);
   }
 
   /// Handle incoming trade request - creates a new trade where we are the seller
   void _handleIncomingTradeRequest(TradeMessageEvent event) {
-    debugPrint('📥 P2PStateNotifier: Received trade request from ${event.senderPubkey.substring(0, 8)}...');
-    
-    // Find the related offer to get details
-    final relatedOffer = state.offers[event.tradeId] ?? 
-                         state.offers.values.firstWhere(
-                           (o) => o.pubkey == myPubkey,
-                           orElse: () => throw Exception('No matching offer found'),
-                         );
-    
+    debugPrint(
+      '📥 P2PStateNotifier: Received trade request from ${event.senderPubkey.substring(0, 8)}... offerId=${event.offerId}',
+    );
+
+    // Find the related offer using the offerId from the message
+    NostrP2POffer? relatedOffer;
+
+    if (event.offerId != null) {
+      relatedOffer = state.offers[event.offerId];
+    }
+
+    // Fallback: try to find any of my offers if offerId not provided or not found
+    if (relatedOffer == null) {
+      relatedOffer = state.offers.values.firstWhere(
+        (o) => o.pubkey == myPubkey,
+        orElse:
+            () => throw Exception('No matching offer found for trade request'),
+      );
+    }
+
+    if (relatedOffer.pubkey != myPubkey) {
+      debugPrint('⚠️ P2PStateNotifier: Trade request for offer I don\'t own');
+      return;
+    }
+
     // Create trade as seller
     final trade = P2PTrade(
       id: event.tradeId,
@@ -784,6 +814,8 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       offerTitle: relatedOffer.title,
       buyerPubkey: event.senderPubkey,
       sellerPubkey: myPubkey ?? '',
+      buyerLightningInvoice:
+          event.lightningInvoice, // Buyer may include invoice
       myRole: TradeRole.seller,
       satsAmount: event.amountSats ?? relatedOffer.minAmountSats ?? 10000,
       fiatAmount: _calculateFiatAmount(
@@ -792,7 +824,10 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       ),
       fiatCurrency: relatedOffer.currency,
       pricePerBtc: relatedOffer.pricePerBtc,
-      paymentMethod: relatedOffer.paymentMethods.firstOrNull ?? 'Bank Transfer',
+      paymentMethod:
+          event.paymentMethod ??
+          relatedOffer.paymentMethods.firstOrNull ??
+          'Bank Transfer',
       paymentDetails: relatedOffer.paymentAccountDetails,
       status: TradeStatus.requested,
       createdAt: event.timestamp,
@@ -806,17 +841,17 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
         ),
       ],
     );
-    
+
     // Add to state
     final newTrades = Map<String, P2PTrade>.from(state.trades);
     newTrades[trade.id] = trade;
     state = state.copyWith(trades: newTrades);
-    
+
     // Persist to storage
     P2PTradeStorage.saveTrade(trade);
-    
+
     debugPrint('✅ P2PStateNotifier: Trade request added - ${trade.id}');
-    
+
     // Send local notification to alert seller
     _showTradeNotification(
       title: '🛒 New Trade Request',
@@ -824,7 +859,7 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       tradeId: trade.id,
     );
   }
-  
+
   /// Show a local notification for trade updates
   void _showTradeNotification({
     required String title,
@@ -838,7 +873,7 @@ class P2PStateNotifier extends StateNotifier<P2PState> {
       payload: 'p2p_trade:$tradeId',
     );
   }
-  
+
   double _calculateFiatAmount(int sats, double pricePerBtc) {
     return (sats / 100000000) * pricePerBtc;
   }
@@ -910,7 +945,10 @@ final p2pConnectionStatusProvider = Provider<RelayConnectionStatus>((ref) {
 });
 
 /// Specific offer by ID
-final p2pOfferProvider = Provider.family<NostrP2POffer?, String>((ref, offerId) {
+final p2pOfferProvider = Provider.family<NostrP2POffer?, String>((
+  ref,
+  offerId,
+) {
   final state = ref.watch(p2pV2Provider);
   return state.offers[offerId];
 });

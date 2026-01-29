@@ -5,7 +5,7 @@ import 'package:sabi_wallet/services/nostr/nostr_service.dart';
 import 'package:sabi_wallet/services/nostr/dm_service.dart';
 
 /// P2P v2 Nostr Service - Clean wrapper around NIP-99 marketplace
-/// 
+///
 /// Responsibilities:
 /// - Fetch and cache offers from Nostr relays
 /// - Publish/update/delete offers
@@ -28,7 +28,7 @@ class P2PNostrService {
   // Caches
   final Map<String, NostrP2POffer> _offersCache = {};
   final Map<String, List<TradeMessageEvent>> _messagesCache = {};
-  
+
   // State
   bool _isInitialized = false;
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
@@ -39,19 +39,19 @@ class P2PNostrService {
 
   /// Stream of all offers (updates when offers change)
   Stream<List<NostrP2POffer>> get offersStream => _offersController.stream;
-  
+
   /// Stream of incoming trade messages
   Stream<TradeMessageEvent> get messagesStream => _messagesController.stream;
-  
+
   /// Stream of connection status changes
   Stream<ConnectionStatus> get connectionStream => _connectionController.stream;
-  
+
   /// Current connection status
   ConnectionStatus get connectionStatus => _connectionStatus;
-  
+
   /// Current user's public key
   String? get currentPubkey => _profileService.currentPubkey;
-  
+
   /// Whether the user has a Nostr identity
   bool get hasIdentity => currentPubkey != null;
 
@@ -70,16 +70,16 @@ class P2PNostrService {
     try {
       // Initialize DM service for trade messages
       await _dmService.initialize();
-      
+
       // Subscribe to incoming DMs for trade messages
       _subscribeToTradeDMs();
-      
+
       // Fetch initial offers
       await refreshOffers();
-      
+
       // Subscribe to real-time updates
       _subscribeToOfferUpdates();
-      
+
       _isInitialized = true;
       _updateConnectionStatus(ConnectionStatus.connected);
       debugPrint('✅ P2PNostrService: Initialized successfully');
@@ -111,8 +111,10 @@ class P2PNostrService {
     String? paymentMethod,
     bool useCache = false,
   }) async {
-    debugPrint('🔄 P2PNostrService: Refreshing offers (limit: $limit, currency: $currency)...');
-    
+    debugPrint(
+      '🔄 P2PNostrService: Refreshing offers (limit: $limit, currency: $currency)...',
+    );
+
     try {
       final offers = await _marketplace.fetchOffers(
         limit: limit,
@@ -123,17 +125,19 @@ class P2PNostrService {
         useCache: useCache,
       );
       await _marketplace.enrichOffersWithProfiles(offers);
-      
+
       // Update cache
       _offersCache.clear();
       for (final offer in offers) {
         _offersCache[offer.id] = offer;
       }
-      
+
       // Emit update
       _offersController.add(_offersCache.values.toList());
-      
-      debugPrint('✅ P2PNostrService: Got ${offers.length} Sabi Wallet P2P offers');
+
+      debugPrint(
+        '✅ P2PNostrService: Got ${offers.length} Sabi Wallet P2P offers',
+      );
       return offers;
     } catch (e) {
       debugPrint('❌ P2PNostrService: Failed to refresh offers: $e');
@@ -152,7 +156,7 @@ class P2PNostrService {
     String? paymentMethod,
   }) async {
     debugPrint('🔄 P2PNostrService: Loading more offers (offset: $offset)...');
-    
+
     try {
       final offers = await _marketplace.fetchOffers(
         limit: limit,
@@ -164,15 +168,15 @@ class P2PNostrService {
         useCache: false,
       );
       await _marketplace.enrichOffersWithProfiles(offers);
-      
+
       // Add to cache (don't clear)
       for (final offer in offers) {
         _offersCache[offer.id] = offer;
       }
-      
+
       // Emit updated full list
       _offersController.add(_offersCache.values.toList());
-      
+
       debugPrint('✅ P2PNostrService: Loaded ${offers.length} more offers');
       return offers;
     } catch (e) {
@@ -208,15 +212,15 @@ class P2PNostrService {
     if (pubkey == null) return [];
 
     debugPrint('🔄 P2PNostrService: Fetching my offers...');
-    
+
     try {
       final offers = await _marketplace.fetchUserOffers(pubkey);
-      
+
       // Update cache with my offers
       for (final offer in offers) {
         _offersCache[offer.id] = offer;
       }
-      
+
       debugPrint('✅ P2PNostrService: Got ${offers.length} of my offers');
       return offers;
     } catch (e) {
@@ -231,7 +235,7 @@ class P2PNostrService {
     if (_offersCache.containsKey(offerId)) {
       return _offersCache[offerId];
     }
-    
+
     // Not in cache, refresh and try again
     await refreshOffers();
     return _offersCache[offerId];
@@ -258,7 +262,8 @@ class P2PNostrService {
     debugPrint('📢 P2PNostrService: Publishing offer...');
 
     // Generate unique ID
-    final uniqueId = 'p2p_${DateTime.now().millisecondsSinceEpoch}_${pubkey.substring(0, 8)}';
+    final uniqueId =
+        'p2p_${DateTime.now().millisecondsSinceEpoch}_${pubkey.substring(0, 8)}';
 
     final offer = NostrP2POffer(
       id: uniqueId,
@@ -280,14 +285,14 @@ class P2PNostrService {
 
     try {
       final eventId = await _marketplace.publishOffer(offer);
-      
+
       if (eventId != null) {
         // Cache the new offer
         _offersCache[offer.id] = offer;
         _offersController.add(_offersCache.values.toList());
         debugPrint('✅ P2PNostrService: Offer published: $eventId');
       }
-      
+
       return eventId;
     } catch (e) {
       debugPrint('❌ P2PNostrService: Failed to publish offer: $e');
@@ -298,16 +303,16 @@ class P2PNostrService {
   /// Update an existing offer
   Future<bool> updateOffer(NostrP2POffer offer) async {
     debugPrint('📝 P2PNostrService: Updating offer ${offer.id}...');
-    
+
     try {
       final success = await _marketplace.updateOffer(offer);
-      
+
       if (success) {
         _offersCache[offer.id] = offer;
         _offersController.add(_offersCache.values.toList());
         debugPrint('✅ P2PNostrService: Offer updated');
       }
-      
+
       return success;
     } catch (e) {
       debugPrint('❌ P2PNostrService: Failed to update offer: $e');
@@ -318,16 +323,16 @@ class P2PNostrService {
   /// Delete/cancel an offer
   Future<bool> deleteOffer(String offerId) async {
     debugPrint('🗑️ P2PNostrService: Deleting offer $offerId...');
-    
+
     try {
       final success = await _marketplace.deleteOffer(offerId);
-      
+
       if (success) {
         _offersCache.remove(offerId);
         _offersController.add(_offersCache.values.toList());
         debugPrint('✅ P2PNostrService: Offer deleted');
       }
-      
+
       return success;
     } catch (e) {
       debugPrint('❌ P2PNostrService: Failed to delete offer: $e');
@@ -345,19 +350,24 @@ class P2PNostrService {
     required String tradeId,
     required String recipientPubkey,
     required TradeMessageType type,
+    String? offerId,
     String? content,
     String? imageUrl,
     int? amountSats,
     String? lightningInvoice,
+    String? paymentMethod,
   }) async {
     final pubkey = currentPubkey;
     if (pubkey == null) return false;
 
-    debugPrint('💬 P2PNostrService: Sending trade message type=$type...');
+    debugPrint(
+      '💬 P2PNostrService: Sending trade message type=$type offerId=$offerId...',
+    );
 
     final message = TradeMessageEvent(
       id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
       tradeId: tradeId,
+      offerId: offerId,
       senderPubkey: pubkey,
       recipientPubkey: recipientPubkey,
       type: type,
@@ -365,6 +375,7 @@ class P2PNostrService {
       imageUrl: imageUrl,
       amountSats: amountSats,
       lightningInvoice: lightningInvoice,
+      paymentMethod: paymentMethod,
       timestamp: DateTime.now(),
     );
 
@@ -373,23 +384,25 @@ class P2PNostrService {
       final payload = {
         'type': type.name,
         'trade_id': tradeId,
+        'offer_id': offerId,
         'content': content,
         'image_url': imageUrl,
         'amount_sats': amountSats,
         'lightning_invoice': lightningInvoice,
+        'payment_method': paymentMethod,
         'timestamp': message.timestamp.millisecondsSinceEpoch,
       };
-      
+
       // Encode as JSON with prefix so we can identify P2P messages
       final dmContent = '$_tradeMessagePrefix${jsonEncode(payload)}';
-      
+
       // Send via DMService (NIP-04 encrypted)
       final success = await _dmService.sendDM(
         recipientPubkey: recipientPubkey,
         message: dmContent,
         relatedOfferId: tradeId,
       );
-      
+
       if (success) {
         // Cache locally
         _cacheMessage(message);
@@ -398,7 +411,7 @@ class P2PNostrService {
       } else {
         debugPrint('❌ P2PNostrService: Failed to send DM');
       }
-      
+
       return success;
     } catch (e) {
       debugPrint('❌ P2PNostrService: Failed to send message: $e');
@@ -441,10 +454,11 @@ class P2PNostrService {
       // Extract JSON payload after prefix
       final jsonStr = dm.content.substring(_tradeMessagePrefix.length);
       final payload = jsonDecode(jsonStr) as Map<String, dynamic>;
-      
+
       final message = TradeMessageEvent(
         id: dm.id,
         tradeId: payload['trade_id'] as String? ?? '',
+        offerId: payload['offer_id'] as String?,
         senderPubkey: dm.senderPubkey,
         recipientPubkey: dm.recipientPubkey,
         type: TradeMessageType.values.firstWhere(
@@ -454,11 +468,15 @@ class P2PNostrService {
         content: payload['content'] as String?,
         imageUrl: payload['image_url'] as String?,
         amountSats: payload['amount_sats'] as int?,
+        lightningInvoice: payload['lightning_invoice'] as String?,
+        paymentMethod: payload['payment_method'] as String?,
         timestamp: dm.timestamp,
       );
-      
-      debugPrint('📨 P2PNostrService: Received trade message: ${message.type}');
-      
+
+      debugPrint(
+        '📨 P2PNostrService: Received trade message: ${message.type} offerId=${message.offerId}',
+      );
+
       // Cache and emit
       _cacheMessage(message);
       _messagesController.add(message);
@@ -494,47 +512,42 @@ class P2PNostrService {
 
 // ==================== Connection Status ====================
 
-enum ConnectionStatus {
-  disconnected,
-  connecting,
-  connected,
-  error,
-}
+enum ConnectionStatus { disconnected, connecting, connected, error }
 
 // ==================== Trade Message Types ====================
 
 enum TradeMessageType {
   /// Buyer initiates trade
   tradeRequest,
-  
+
   /// Seller accepts/rejects trade
   tradeAccepted,
   tradeRejected,
-  
+
   /// Buyer submits Lightning invoice
   invoiceSubmitted,
-  
+
   /// Buyer marks payment as sent
   paymentSent,
-  
+
   /// Buyer uploads payment receipt
   receiptUploaded,
-  
+
   /// Seller confirms payment received
   paymentConfirmed,
-  
+
   /// Seller releases Bitcoin
   btcReleased,
-  
+
   /// Trade completed
   tradeCompleted,
-  
+
   /// Trade cancelled
   tradeCancelled,
-  
+
   /// Generic chat message
   chat,
-  
+
   /// Trade dispute
   dispute,
 }
@@ -544,6 +557,7 @@ enum TradeMessageType {
 class TradeMessageEvent {
   final String id;
   final String tradeId;
+  final String? offerId; // The offer this trade is for
   final String senderPubkey;
   final String recipientPubkey;
   final TradeMessageType type;
@@ -551,12 +565,14 @@ class TradeMessageEvent {
   final String? imageUrl;
   final int? amountSats;
   final String? lightningInvoice;
+  final String? paymentMethod;
   final DateTime timestamp;
   final bool isRead;
 
   const TradeMessageEvent({
     required this.id,
     required this.tradeId,
+    this.offerId,
     required this.senderPubkey,
     required this.recipientPubkey,
     required this.type,
@@ -564,6 +580,7 @@ class TradeMessageEvent {
     this.imageUrl,
     this.amountSats,
     this.lightningInvoice,
+    this.paymentMethod,
     required this.timestamp,
     this.isRead = false,
   });
@@ -604,6 +621,7 @@ class TradeMessageEvent {
   Map<String, dynamic> toJson() => {
     'id': id,
     'trade_id': tradeId,
+    'offer_id': offerId,
     'sender_pubkey': senderPubkey,
     'recipient_pubkey': recipientPubkey,
     'type': type.name,
@@ -611,6 +629,7 @@ class TradeMessageEvent {
     'image_url': imageUrl,
     'amount_sats': amountSats,
     'lightning_invoice': lightningInvoice,
+    'payment_method': paymentMethod,
     'timestamp': timestamp.millisecondsSinceEpoch,
     'is_read': isRead,
   };
@@ -619,6 +638,7 @@ class TradeMessageEvent {
     return TradeMessageEvent(
       id: json['id'] as String,
       tradeId: json['trade_id'] as String,
+      offerId: json['offer_id'] as String?,
       senderPubkey: json['sender_pubkey'] as String,
       recipientPubkey: json['recipient_pubkey'] as String,
       type: TradeMessageType.values.firstWhere(
@@ -629,6 +649,7 @@ class TradeMessageEvent {
       imageUrl: json['image_url'] as String?,
       amountSats: json['amount_sats'] as int?,
       lightningInvoice: json['lightning_invoice'] as String?,
+      paymentMethod: json['payment_method'] as String?,
       timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
       isRead: json['is_read'] as bool? ?? false,
     );

@@ -68,6 +68,13 @@ android {
         }
     }
 
+    // Support 16 KB page sizes for Android 15+ compatibility
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
     }
