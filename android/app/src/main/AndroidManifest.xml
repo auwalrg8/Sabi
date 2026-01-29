@@ -40,7 +40,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true"
-        android:extractNativeLibs="false">
+        android:extractNativeLibs="true">
         <!-- Firebase Cloud Messaging default channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

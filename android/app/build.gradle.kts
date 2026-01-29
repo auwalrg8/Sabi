@@ -36,7 +36,9 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // Temporarily target SDK 34 until Breez SDK provides 16KB page-aligned binaries
+        // TODO: Update to targetSdk = flutter.targetSdkVersion when Breez SDK is updated
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
@@ -69,9 +71,11 @@ android {
     }
 
     // Support 16 KB page sizes for Android 15+ compatibility
+    // Using useLegacyPackaging=true because Breez SDK precompiled binaries
+    // are not yet 16KB page-aligned. This extracts libs at install time.
     packaging {
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
         }
     }
 

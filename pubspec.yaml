@@ -1,7 +1,7 @@
 name: sabi_wallet
 description: Sabi Wallet - Nigeria's non-custodial Bitcoin + Lightning wallet.
 publish_to: "none"
-version: 1.0.4+7
+version: 1.0.4+9
 
 environment:
   sdk: ^3.7.2
