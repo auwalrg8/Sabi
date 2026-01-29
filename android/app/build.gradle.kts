@@ -18,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.example.sabi_wallet"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "28.2.13676358"
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -36,9 +36,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        // Temporarily target SDK 34 until Breez SDK provides 16KB page-aligned binaries
-        // TODO: Update to targetSdk = flutter.targetSdkVersion when Breez SDK is updated
-        targetSdk = 34
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
@@ -71,11 +69,15 @@ android {
     }
 
     // Support 16 KB page sizes for Android 15+ compatibility
-    // Using useLegacyPackaging=true because Breez SDK precompiled binaries
-    // are not yet 16KB page-aligned. This extracts libs at install time.
+    // Using useLegacyPackaging=true extracts native libs at install time
+    // This bypasses the 16KB alignment requirement for memory-mapped libraries
     packaging {
         jniLibs {
+            // Extract native libs at install time instead of memory-mapping from APK
             useLegacyPackaging = true
+        }
+        resources {
+            excludes += listOf("META-INF/*.kotlin_module")
         }
     }
 
