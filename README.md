@@ -45,7 +45,7 @@ Sabi Wallet is an open-source, non-custodial Bitcoin Lightning wallet designed s
 |---------|-------------|
 | 🇳🇬 **Naira Balance** | See your balance in Naira (tap to toggle sats) |
 | ⚡ **Instant Payments** | Lightning-fast payments with low fees |
-| 💬 **Nostr Integration** | Social feed, zaps, DMs, and profile management |
+| 💬 **Nostr Integration** | zaps, DMs, and profile management |
 | 🔄 **P2P Trading** | Buy/sell Bitcoin with Naira, escrow-protected |
 | 🛡️ **Social Recovery** | Pick 3 trusted contacts - no seed phrase needed |
 | 📲 **Lightning Address** | Get your own `username@sabi.wallet` address |
