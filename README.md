@@ -183,6 +183,7 @@ dart format lib
 | Platform | Link |
 |----------|------|
 | Android APK | [Download Latest](https://github.com/AuwalRG8/sabi_wallet/releases) |
+| Playstore | [Download Latest](https://play.google.com/store/apps/details?id=com.sabi.app&hl=en) |
 | iOS | Coming Soon |
 
 ---
