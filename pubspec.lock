@@ -181,11 +181,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v0.6.6"
-      resolved-ref: "4fb31dd9a952290bcaf9ad0ec565003a7133e124"
+      ref: "v0.7.14"
+      resolved-ref: "823d8d0a69e8b1b5e10d8f94110d26352f47f403"
       url: "https://github.com/breez/breez-sdk-spark-flutter"
     source: git
-    version: "0.6.6"
+    version: "0.7.14"
   build:
     dependency: transitive
     description:
@@ -1050,10 +1050,10 @@ packages:
     dependency: "direct main"
     description:
       name: mobile_scanner
-      sha256: d234581c090526676fd8fab4ada92f35c6746e3fb4f05a399665d75a399fb760
+      sha256: c6184bf2913dd66be244108c9c27ca04b01caf726321c44b0e7a7a1e32d41044
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.3"
+    version: "7.1.4"
   mockito:
     dependency: transitive
     description:

@@ -46,6 +46,8 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
   int _availableBalance = 0;
   double? _availableNgn;
   String _errorMessage = '';
+  String _errorTitle = 'Payment Failed';
+  bool _isInsufficientBalanceError = false;
   int _buyInjectAttempts = 0;
   static const int _buyInjectMaxAttempts = 2;
 
@@ -91,10 +93,16 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
 
     final base =
         widget.isBuying
-            ? 'https://tapnob.com/buybtc'
-            : 'https://tapnob.com/spendbtc';
-    final full =
-        '$base?amountNGN=${widget.amount.toInt()}&mode=${widget.isBuying ? 'buy' : 'spend'}';
+            ? 'https://www.tapnob.com/buybtc'
+            : 'https://www.tapnob.com/spendbtc';
+    var full =
+        '$base?amountNGN=${widget.amount.toInt()}&mode=${widget.isBuying ? 'buy' : 'spend'}&asset=${widget.isBuying ? 'bitcoin_lightning' : 'BTC'}';
+    if (widget.isBuying) {
+      full += '&method=invoice';
+      if (widget.invoice != null && widget.invoice!.isNotEmpty) {
+        full += '&invoice=${Uri.encodeComponent(widget.invoice!)}';
+      }
+    }
     _controller.loadRequest(Uri.parse(full));
   }
 
@@ -258,6 +266,10 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
   void _preparePayment(String invoice) async {
     if (_paymentSettled) return;
     try {
+      // First check balance before preparing payment
+      final balance = await BreezSparkService.getBalance();
+      _availableBalance = balance;
+      
       final prep = await BreezSparkService.prepareSendPayment(invoice);
       _invoiceAmountSats = prep.amount.toInt();
       final btcToNgn = await RateService.getBtcToNgnRate();
@@ -267,9 +279,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
       final usdAmount = btcAmount * btcToUsd;
       _expectedNgn = usdAmount * usdToNgn;
 
-      // Get available balance
-      final balance = await BreezSparkService.getBalance();
-      _availableBalance = balance;
+      // Calculate available balance in NGN
       final availableBtcAmount = balance / 100000000.0;
       final availableUsdAmount = availableBtcAmount * btcToUsd;
       _availableNgn = availableUsdAmount * usdToNgn;
@@ -285,7 +295,27 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
       }
     } catch (e) {
       debugPrint('Error preparing payment: $e');
-      _errorMessage = 'Failed to prepare payment: ${e.toString()}';
+      final errorStr = e.toString().toLowerCase();
+      
+      // Check if it's an insufficient balance error
+      if (errorStr.contains('insufficient') || 
+          errorStr.contains('not enough') ||
+          errorStr.contains('balance') ||
+          (errorStr.contains('invalid') && _availableBalance == 0)) {
+        _errorTitle = 'Insufficient Balance';
+        _errorMessage = 'You don\'t have enough sats to pay this invoice. Please top up your wallet first.';
+        _isInsufficientBalanceError = true;
+      } else if (errorStr.contains('invalid input') || errorStr.contains('invalidinput')) {
+        // "invalid input" often means the invoice couldn't be parsed or balance issue
+        _errorTitle = 'Unable to Process';
+        _errorMessage = 'Could not process this invoice. This may be due to insufficient balance or an invalid invoice format.';
+        _isInsufficientBalanceError = true;
+      } else {
+        _errorTitle = 'Payment Failed';
+        _errorMessage = BreezSparkService.getUserFriendlyErrorMessage(e);
+        _isInsufficientBalanceError = false;
+      }
+      
       setState(() {
         _showErrorModal = true;
       });
@@ -335,7 +365,21 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
       });
     } catch (e) {
       debugPrint('Error paying invoice: $e');
-      _errorMessage = 'Payment failed: ${e.toString()}';
+      final errorStr = e.toString().toLowerCase();
+      
+      // Check if it's an insufficient balance error
+      if (errorStr.contains('insufficient') || 
+          errorStr.contains('not enough') ||
+          errorStr.contains('balance')) {
+        _errorTitle = 'Insufficient Balance';
+        _errorMessage = 'You don\'t have enough sats to complete this payment.';
+        _isInsufficientBalanceError = true;
+      } else {
+        _errorTitle = 'Payment Failed';
+        _errorMessage = BreezSparkService.getUserFriendlyErrorMessage(e);
+        _isInsufficientBalanceError = BreezSparkService.isRetryableError(e) == false;
+      }
+      
       setState(() {
         _showPayModal = false;
         _isPaying = false;
@@ -350,7 +394,8 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
     if (_completed) return;
     if (u.contains('success') ||
         u.contains('status=success') ||
-        u.contains('tapnob.com/success')) {
+        u.contains('tapnob.com/success') ||
+        u.contains('www.tapnob.com/success')) {
       setState(() {
         _completed = true;
       });
@@ -893,7 +938,9 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(20.r),
               border: Border.all(
-                color: AppColors.accentRed.withValues(alpha: 0.3),
+                color: _isInsufficientBalanceError 
+                    ? AppColors.primary.withValues(alpha: 0.3)
+                    : AppColors.accentRed.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -905,12 +952,18 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
                   width: 64.w,
                   height: 64.w,
                   decoration: BoxDecoration(
-                    color: AppColors.accentRed.withValues(alpha: 0.15),
+                    color: _isInsufficientBalanceError
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : AppColors.accentRed.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.error_outline_rounded,
-                    color: AppColors.accentRed,
+                    _isInsufficientBalanceError 
+                        ? Icons.account_balance_wallet_outlined
+                        : Icons.error_outline_rounded,
+                    color: _isInsufficientBalanceError 
+                        ? AppColors.primary 
+                        : AppColors.accentRed,
                     size: 32.sp,
                   ),
                 ),
@@ -918,7 +971,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
 
                 // Title
                 Text(
-                  'Payment Failed',
+                  _errorTitle,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20.sp,
@@ -954,6 +1007,8 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
                     onPressed: () {
                       HapticFeedback.lightImpact();
                       setState(() => _showErrorModal = false);
+                      // Navigate back to Cash/Trade tab
+                      Navigator.of(context).pop();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -964,7 +1019,7 @@ class _TapnobWebViewScreenState extends ConsumerState<TapnobWebViewScreen>
                       ),
                     ),
                     child: Text(
-                      'Dismiss',
+                      _isInsufficientBalanceError ? 'Top Up Wallet' : 'Go Back',
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w600,

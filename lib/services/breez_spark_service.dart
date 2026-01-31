@@ -964,4 +964,86 @@ class BreezSparkService {
       return 0;
     }
   }
+
+  // ============================================================================
+  // User-Friendly Error Messages
+  // ============================================================================
+  
+  /// Converts SDK errors into user-friendly messages
+  static String getUserFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    // Spark internal validation errors (signing/leaf issues)
+    if (errorString.contains('signing jobs') || 
+        errorString.contains('leaf id') ||
+        errorString.contains('identical transfer')) {
+      return 'Payment service is temporarily busy. Please wait a moment and try again.';
+    }
+    
+    // Connection/network errors
+    if (errorString.contains('connection error') || 
+        errorString.contains('service connection') ||
+        errorString.contains('timeout') ||
+        errorString.contains('network')) {
+      return 'Unable to connect to payment network. Please check your internet connection and try again.';
+    }
+    
+    // Insufficient balance
+    if (errorString.contains('insufficient') || 
+        errorString.contains('not enough') ||
+        errorString.contains('balance')) {
+      return 'Insufficient balance to complete this payment.';
+    }
+    
+    // Invalid destination
+    if (errorString.contains('invalid') && 
+        (errorString.contains('address') || 
+         errorString.contains('invoice') ||
+         errorString.contains('destination'))) {
+      return 'Invalid payment destination. Please check the address or invoice and try again.';
+    }
+    
+    // Invoice expired
+    if (errorString.contains('expired') || errorString.contains('expiry')) {
+      return 'This invoice has expired. Please request a new one from the recipient.';
+    }
+    
+    // Route not found
+    if (errorString.contains('route') || errorString.contains('path')) {
+      return 'Could not find a payment route. The recipient may be offline or unreachable.';
+    }
+    
+    // SDK not initialized
+    if (errorString.contains('not initialized')) {
+      return 'Wallet is still loading. Please wait a moment and try again.';
+    }
+    
+    // gRPC/server errors
+    if (errorString.contains('grpc') || 
+        errorString.contains('internal') ||
+        errorString.contains('service error')) {
+      return 'Payment service encountered an error. Please try again in a few moments.';
+    }
+    
+    // Default message - truncate if too long
+    final rawMessage = error.toString();
+    if (rawMessage.length > 150) {
+      return 'Payment failed. Please try again or contact support if the issue persists.';
+    }
+    return rawMessage;
+  }
+  
+  /// Check if the error is retryable
+  static bool isRetryableError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    // These errors are likely temporary and worth retrying
+    return errorString.contains('signing jobs') ||
+           errorString.contains('leaf id') ||
+           errorString.contains('connection') ||
+           errorString.contains('timeout') ||
+           errorString.contains('service error') ||
+           errorString.contains('grpc') ||
+           errorString.contains('internal');
+  }
 }

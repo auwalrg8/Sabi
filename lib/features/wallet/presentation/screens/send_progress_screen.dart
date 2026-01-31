@@ -23,6 +23,9 @@ class _SendProgressScreenState extends State<SendProgressScreen>
   late Animation<double> _scaleAnimation;
   bool _hasError = false;
   String _errorMessage = '';
+  String _technicalError = '';
+  bool _isRetryable = false;
+  bool _isRetrying = false;
   Timer? _successTimer;
   bool _navigatedToSuccess = false;
 
@@ -87,7 +90,10 @@ class _SendProgressScreenState extends State<SendProgressScreen>
 
       setState(() {
         _hasError = true;
-        _errorMessage = e.toString();
+        _errorMessage = BreezSparkService.getUserFriendlyErrorMessage(e);
+        _technicalError = e.toString();
+        _isRetryable = BreezSparkService.isRetryableError(e);
+        _isRetrying = false;
       });
     }
   }
@@ -110,6 +116,70 @@ class _SendProgressScreenState extends State<SendProgressScreen>
     _animationController.dispose();
     _successTimer?.cancel();
     super.dispose();
+  }
+
+  void _retryPayment() {
+    setState(() {
+      _hasError = false;
+      _errorMessage = '';
+      _technicalError = '';
+      _isRetrying = true;
+    });
+    _executePayment();
+  }
+
+  void _showTechnicalDetails() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.all(24.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Technical Details',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Container(
+              padding: EdgeInsets.all(12.h),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: SelectableText(
+                _technicalError,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12.sp,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            SizedBox(height: 16.h),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -143,28 +213,72 @@ class _SendProgressScreenState extends State<SendProgressScreen>
                       fontSize: 14.sp,
                     ),
                   ),
-                  SizedBox(height: 40.h),
-                  ElevatedButton(
-                    onPressed:
-                        () => Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentRed,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 40.w,
-                        vertical: 16.h,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
+                  SizedBox(height: 32.h),
+                  if (_isRetryable) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _retryPayment,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 40.w,
+                            vertical: 16.h,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                        child: Text(
+                          'Try Again',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
+                    SizedBox(height: 12.h),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed:
+                          () => Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isRetryable 
+                            ? AppColors.surface 
+                            : AppColors.accentRed,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 40.w,
+                          vertical: 16.h,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                      ),
+                      child: Text(
+                        _isRetryable ? 'Cancel' : 'Go Back',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24.h),
+                  TextButton(
+                    onPressed: _showTechnicalDetails,
                     child: Text(
-                      'Go Back',
+                      'View technical details',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),

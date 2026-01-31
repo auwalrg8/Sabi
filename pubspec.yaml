@@ -1,7 +1,7 @@
 name: sabi_wallet
 description: Sabi Wallet - Nigeria's non-custodial Bitcoin + Lightning wallet.
 publish_to: "none"
-version: 1.0.4+11
+version: 1.0.5+14
 
 environment:
   sdk: ^3.7.2
@@ -49,13 +49,13 @@ dependencies:
   uuid: ^4.5.0
   crypto: ^3.0.3
   local_auth: ^2.3.0
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.1.4
   permission_handler: ^11.3.1
-  image_picker: ^1.0.7
+  image_picker: ^1.1.2
   breez_sdk_spark_flutter:
     git:
       url: https://github.com/breez/breez-sdk-spark-flutter
-      ref: v0.6.6
+      ref: v0.7.14  # Updated for 16KB page size support (Android 15+)
   flutter_localizations:
     sdk: flutter
   share_plus: ^12.0.1

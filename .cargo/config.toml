@@ -1,0 +1,14 @@
+# Cargo configuration for 16KB page size alignment (Android 15+ compatibility)
+# This ensures native libraries work on devices with 16KB memory pages
+
+[target.aarch64-linux-android]
+rustflags = ["-Clink-arg=-Wl,-z,max-page-size=16384"]
+
+[target.armv7-linux-androideabi]
+rustflags = ["-Clink-arg=-Wl,-z,max-page-size=16384"]
+
+[target.x86_64-linux-android]
+rustflags = ["-Clink-arg=-Wl,-z,max-page-size=16384"]
+
+[target.i686-linux-android]
+rustflags = ["-Clink-arg=-Wl,-z,max-page-size=16384"]

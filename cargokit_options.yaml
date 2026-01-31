@@ -1,2 +1,12 @@
 use_precompiled_binaries: true
 verbose_logging: true
+
+# Temporarily using precompiled binaries to verify the build works
+# For 16KB page alignment, we'll need to verify the precompiled binaries are compliant
+# Build from source with 16KB page size alignment for Android 15+ / Play Store compliance
+# This requires:
+# - Rust toolchain with Android targets (rustup target add aarch64-linux-android)
+# - Android NDK r27+ (for 16KB support)
+# - Perl (for OpenSSL compilation)
+#
+# CargoKit automatically adds -Wl,-z,max-page-size=16384 for arm64-v8a and x86_64
