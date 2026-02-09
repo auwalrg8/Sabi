@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
-// P2P v2 - Clean unified P2P trading system
-import 'package:sabi_wallet/features/p2p_v2/screens/p2p_home_screen.dart';
+// P2P shared widgets
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_escrow_info_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/widgets/p2p_shared_widgets.dart';
 import 'package:sabi_wallet/features/cash/presentation/screens/cash_screen.dart';
 import 'package:sabi_wallet/features/cash/presentation/providers/cash_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
+// Hodl Hodl P2P Beta integration
+import 'package:sabi_wallet/features/trade/presentation/screens/hodl_hodl_marketplace_screen.dart';
+
+/// Trade mode enum for 3-way toggle
+enum TradeMode { ramp, p2pBeta, decentralized }
 
 class TradeScreen extends ConsumerStatefulWidget {
   const TradeScreen({Key? key}) : super(key: key);
@@ -19,10 +24,24 @@ class TradeScreen extends ConsumerStatefulWidget {
 }
 
 class _TradeScreenState extends ConsumerState<TradeScreen> {
-  bool _isP2P = true;
+  TradeMode _tradeMode = TradeMode.ramp;
 
-  void _toggle(bool p2p) {
-    setState(() => _isP2P = p2p);
+  void _setMode(TradeMode mode) {
+    if (mode == TradeMode.decentralized) {
+      // Show coming soon feedback
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('NIP-99 Decentralized Marketplace coming soon!'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    setState(() => _tradeMode = mode);
   }
 
   @override
@@ -86,15 +105,15 @@ class _TradeScreenState extends ConsumerState<TradeScreen> {
               const _TradeLiveRatesCard(),
               SizedBox(height: 16.h),
 
-              // Full-width P2P / Market toggle under Live Rates
+              // Full-width 3-way toggle: Ramp / P2P Beta / Decentralized
               SizedBox(
                 width: double.infinity,
-                child: _RampMarketToggle(isRamp: _isP2P, onChanged: _toggle),
+                child: _TradeToggle(mode: _tradeMode, onChanged: _setMode),
               ),
               SizedBox(height: 16.h),
 
-              // P2P or Market content
-              if (_isP2P) ...[
+              // Content based on selected mode
+              if (_tradeMode == TradeMode.ramp) ...[
                 SizedBox(height: 8.h),
                 SizedBox(
                   width: double.infinity,
@@ -152,51 +171,12 @@ class _TradeScreenState extends ConsumerState<TradeScreen> {
                   'Instant buy/sell with fixed rates',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
                 ),
+              ] else if (_tradeMode == TradeMode.p2pBeta) ...[
+                // P2P Beta (Hodl Hodl) content
+                _buildP2PBetaContent(),
               ] else ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: EdgeInsets.symmetric(vertical: 14.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const P2PV2HomeScreen()),
-                      );
-                    },
-                    child: Text(
-                      'Browse Offers',
-                      style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12.h),
-
-                // Canonical NIP-99 Marketplace banner (shared)
-                const Nip99StatusBanner(),
-                SizedBox(height: 12.h),
-                // Open Marketplace action removed per design
-                SizedBox(height: 12.h),
-
-                // Buy Bitcoin info (using shared ExplainerCard)
-                Padding(
-                  padding: EdgeInsets.fromLTRB(0, 0, 0, 0),
-                  child: ExplainerCard(
-                    icon: Icons.shopping_cart,
-                    iconColor: const Color(0xFF00C853),
-                    title: 'Buy Bitcoin',
-                    description:
-                        'Fast peer-to-peer purchases with transparent rates and escrow support.',
-                  ),
-                ),
-                SizedBox(height: 12.h),
-
-                
+                // Decentralized (NIP-99) - Coming Soon content
+                _buildDecentralizedContent(),
               ],
 
               // Fill remaining space
@@ -208,14 +188,191 @@ class _TradeScreenState extends ConsumerState<TradeScreen> {
       ),
     );
   }
+
+  /// P2P Beta (Hodl Hodl) content
+  Widget _buildP2PBetaContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Beta badge banner
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.science, color: AppColors.primary, size: 16.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  'P2P Beta powered by Hodl Hodl escrow',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 16.h),
+
+        // Browse Marketplace button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HodlHodlMarketplaceScreen()),
+              );
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.store, color: Colors.white, size: 20.sp),
+                SizedBox(width: 8.w),
+                Text(
+                  'Browse P2P Marketplace',
+                  style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+
+        // Feature cards
+        Row(
+          children: [
+            Expanded(
+              child: _buildFeatureCard(
+                icon: Icons.security,
+                title: 'Escrow Protected',
+                color: const Color(0xFF00C853),
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: _buildFeatureCard(
+                icon: Icons.people,
+                title: 'Peer-to-Peer',
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12.h),
+
+        // Info text
+        Text(
+          'Trade directly with other users using non-custodial escrow. No KYC required.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+        ),
+      ],
+    );
+  }
+
+  /// Decentralized (NIP-99) coming soon content  
+  Widget _buildDecentralizedContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Coming soon banner
+        Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.construction, color: Colors.white38, size: 48.sp),
+              SizedBox(height: 12.h),
+              Text(
+                'NIP-99 Decentralized Marketplace',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Fully decentralized P2P trading on Nostr coming soon!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 13.sp,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 12.h),
+        
+        // NIP-99 Banner
+        const Nip99StatusBanner(),
+      ],
+    );
+  }
+
+  Widget _buildFeatureCard({
+    required IconData icon,
+    required String title,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8.w),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Icon(icon, color: color, size: 16.sp),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-/// Simple P2P / Market toggle styled with orange active accent.
-class _RampMarketToggle extends StatelessWidget {
-  final bool isRamp;
-  final ValueChanged<bool> onChanged;
+/// 3-way trade mode toggle: Ramp / P2P Beta / Decentralized
+class _TradeToggle extends StatelessWidget {
+  final TradeMode mode;
+  final ValueChanged<TradeMode> onChanged;
 
-  const _RampMarketToggle({required this.isRamp, required this.onChanged});
+  const _TradeToggle({required this.mode, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -226,54 +383,54 @@ class _RampMarketToggle extends StatelessWidget {
         borderRadius: BorderRadius.circular(24.r),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(true),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: isRamp ? const Color(0xFFF7931A) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20.r),
-                ),
-                child: Center(
-                  child: Text(
-                    'Ramp',
-                    style: TextStyle(
-                      color: isRamp ? Colors.white : Colors.white70,
-                      fontWeight: isRamp ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(false),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.symmetric(vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: !isRamp ? const Color(0xFFF7931A) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20.r),
-                ),
-                child: Center(
-                  child: Text(
-                    'P2P',
-                    style: TextStyle(
-                      color: !isRamp ? Colors.white : Colors.white70,
-                      fontWeight: !isRamp ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          _buildTab(TradeMode.ramp, 'Ramp'),
+          SizedBox(width: 4.w),
+          _buildTab(TradeMode.p2pBeta, 'P2P Beta'),
+          SizedBox(width: 4.w),
+          _buildTab(TradeMode.decentralized, 'Nostr', comingSoon: true),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTab(TradeMode tabMode, String label, {bool comingSoon = false}) {
+    final isActive = mode == tabMode;
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onChanged(tabMode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(vertical: 10.h),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFF7931A) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: comingSoon 
+                      ? Colors.white38
+                      : isActive ? Colors.white : Colors.white70,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 13.sp,
+                ),
+              ),
+              if (comingSoon)
+                Text(
+                  'Soon',
+                  style: TextStyle(
+                    color: Colors.white24,
+                    fontSize: 9.sp,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

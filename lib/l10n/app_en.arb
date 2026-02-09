@@ -170,5 +170,36 @@
   
   "economy": "Economy",
   "normal": "Normal",
-  "priority": "Priority"
+  "priority": "Priority",
+  
+  "onchainBitcoin": "On-chain Bitcoin",
+  "bitcoinDeposits": "Bitcoin Deposits",
+  "pendingDeposits": "Pending Deposits",
+  "unclaimedDeposits": "Unclaimed Deposits",
+  "noPendingDeposits": "No Pending Deposits",
+  "allDepositsClaimedDesc": "All your on-chain deposits have been claimed",
+  "claimDeposit": "Claim Deposit",
+  "refundDeposit": "Refund Deposit",
+  "depositAmount": "Deposit Amount",
+  "claimFee": "Claim Fee",
+  "feeExceeded": "Fee too high - manual claim needed",
+  "utxoNotFound": "UTXO not found",
+  "claimFailed": "Claim failed",
+  "depositClaimedSuccess": "Deposit claimed successfully!",
+  "refundBroadcast": "Refund transaction broadcast!",
+  
+  "transactionSpeed": "Transaction Speed",
+  "economySpeed": "Economy (~1 hour)",
+  "standardSpeed": "Standard (~30 min)",
+  "fastSpeed": "Fast (~10 min)",
+  
+  "staticBitcoinAddress": "Static Bitcoin Address",
+  "onchainDepositsInfo": "On-chain Bitcoin Deposits",
+  "reusableAddress": "This is a reusable static address",
+  "depositsRequireConfirmations": "Deposits require 1+ confirmations",
+  "fundsAutoClaimedToBalance": "Funds are auto-claimed to your balance",
+  "networkFeesApply": "Network fees apply for claiming deposits",
+  
+  "enterBitcoinAddress": "Enter Bitcoin address",
+  "bitcoinPayment": "Bitcoin Payment"
 }

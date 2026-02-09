@@ -18,6 +18,7 @@ ios/Runner/GeneratedPluginRegistrant.*
 *.local.json
 lib/config/breez_api_key.local.dart
 lib/config/vtu_config.local.dart
+lib/config/hodl_hodl_config.local.dart
 config/firebase-service-account.local.json
 
 # Firebase config files (contain API keys - use .example templates)

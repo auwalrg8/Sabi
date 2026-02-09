@@ -881,6 +881,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Priority'**
   String get priority;
+
+  /// No description provided for @onchainBitcoin.
+  ///
+  /// In en, this message translates to:
+  /// **'On-chain Bitcoin'**
+  String get onchainBitcoin;
+
+  /// No description provided for @bitcoinDeposits.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitcoin Deposits'**
+  String get bitcoinDeposits;
+
+  /// No description provided for @pendingDeposits.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Deposits'**
+  String get pendingDeposits;
+
+  /// No description provided for @unclaimedDeposits.
+  ///
+  /// In en, this message translates to:
+  /// **'Unclaimed Deposits'**
+  String get unclaimedDeposits;
+
+  /// No description provided for @noPendingDeposits.
+  ///
+  /// In en, this message translates to:
+  /// **'No Pending Deposits'**
+  String get noPendingDeposits;
+
+  /// No description provided for @allDepositsClaimedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'All your on-chain deposits have been claimed'**
+  String get allDepositsClaimedDesc;
+
+  /// No description provided for @claimDeposit.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim Deposit'**
+  String get claimDeposit;
+
+  /// No description provided for @refundDeposit.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Deposit'**
+  String get refundDeposit;
+
+  /// No description provided for @depositAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit Amount'**
+  String get depositAmount;
+
+  /// No description provided for @claimFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim Fee'**
+  String get claimFee;
+
+  /// No description provided for @feeExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee too high - manual claim needed'**
+  String get feeExceeded;
+
+  /// No description provided for @utxoNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'UTXO not found'**
+  String get utxoNotFound;
+
+  /// No description provided for @claimFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim failed'**
+  String get claimFailed;
+
+  /// No description provided for @depositClaimedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit claimed successfully!'**
+  String get depositClaimedSuccess;
+
+  /// No description provided for @refundBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund transaction broadcast!'**
+  String get refundBroadcast;
+
+  /// No description provided for @transactionSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction Speed'**
+  String get transactionSpeed;
+
+  /// No description provided for @economySpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Economy (~1 hour)'**
+  String get economySpeed;
+
+  /// No description provided for @standardSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard (~30 min)'**
+  String get standardSpeed;
+
+  /// No description provided for @fastSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast (~10 min)'**
+  String get fastSpeed;
+
+  /// No description provided for @staticBitcoinAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Static Bitcoin Address'**
+  String get staticBitcoinAddress;
+
+  /// No description provided for @onchainDepositsInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'On-chain Bitcoin Deposits'**
+  String get onchainDepositsInfo;
+
+  /// No description provided for @reusableAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a reusable static address'**
+  String get reusableAddress;
+
+  /// No description provided for @depositsRequireConfirmations.
+  ///
+  /// In en, this message translates to:
+  /// **'Deposits require 1+ confirmations'**
+  String get depositsRequireConfirmations;
+
+  /// No description provided for @fundsAutoClaimedToBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Funds are auto-claimed to your balance'**
+  String get fundsAutoClaimedToBalance;
+
+  /// No description provided for @networkFeesApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Network fees apply for claiming deposits'**
+  String get networkFeesApply;
+
+  /// No description provided for @enterBitcoinAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Bitcoin address'**
+  String get enterBitcoinAddress;
+
+  /// No description provided for @bitcoinPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitcoin Payment'**
+  String get bitcoinPayment;
 }
 
 class _AppLocalizationsDelegate

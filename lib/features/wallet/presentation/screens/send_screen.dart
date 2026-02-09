@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart' hide FiatCurrency;
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
@@ -50,6 +51,13 @@ class _SendScreenState extends ConsumerState<SendScreen>
   List<ContactInfo> _recent = [];
   List<ContactInfo> _contacts = [];
   bool _loadingContacts = false;
+
+  // Bitcoin address payment state
+  bool _isBitcoinAddress = false;
+  PrepareSendPaymentResponse? _bitcoinPrepareResponse;
+  OnchainConfirmationSpeed _selectedSpeed = OnchainConfirmationSpeed.medium;
+  bool _loadingBitcoinFees = false;
+  String? _bitcoinFeeError;
 
   @override
   void initState() {
@@ -119,7 +127,13 @@ class _SendScreenState extends ConsumerState<SendScreen>
     }
 
     RecipientType type;
-    if (input.startsWith('npub')) {
+    bool isBtcAddress = false;
+    
+    // Check for Bitcoin address first
+    if (BreezSparkService.looksLikeBitcoinAddress(input)) {
+      type = RecipientType.lightning; // We'll use lightning type but track isBtcAddress
+      isBtcAddress = true;
+    } else if (input.startsWith('npub')) {
       type = RecipientType.npub;
     } else if (input.contains('@') && input.contains('.')) {
       type = RecipientType.lnAddress;
@@ -137,7 +151,10 @@ class _SendScreenState extends ConsumerState<SendScreen>
 
     final parsedInvoiceSats = _parseBolt11AmountSats(input);
     setState(() {
-      _recipient = Recipient(name: input, identifier: input, type: type);
+      _isBitcoinAddress = isBtcAddress;
+      _bitcoinPrepareResponse = null; // Reset when recipient changes
+      _bitcoinFeeError = null;
+      _recipient = Recipient(name: isBtcAddress ? 'Bitcoin Address' : input, identifier: input, type: type);
       if (parsedInvoiceSats != null) {
         _mode = _CurrencyMode.sats;
         _amountText = parsedInvoiceSats.toString();
@@ -309,7 +326,42 @@ class _SendScreenState extends ConsumerState<SendScreen>
       _showSnack('Enter an amount');
       return;
     }
+    
+    // If Bitcoin address, prepare the payment to get fee quotes
+    if (_isBitcoinAddress) {
+      _prepareBitcoinPayment(sats);
+    }
+    
     setState(() => _step = _SendStep.confirm);
+  }
+
+  Future<void> _prepareBitcoinPayment(int sats) async {
+    if (_recipient == null) return;
+    
+    setState(() {
+      _loadingBitcoinFees = true;
+      _bitcoinFeeError = null;
+    });
+    
+    try {
+      final response = await BreezSparkService.prepareBitcoinPayment(
+        bitcoinAddress: _recipient!.identifier,
+        amountSats: sats,
+      );
+      if (mounted) {
+        setState(() {
+          _bitcoinPrepareResponse = response;
+          _loadingBitcoinFees = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _bitcoinFeeError = e.toString().replaceAll('Exception: ', '');
+          _loadingBitcoinFees = false;
+        });
+      }
+    }
   }
 
   Future<void> _confirmAndSend() async {
@@ -397,16 +449,29 @@ class _SendScreenState extends ConsumerState<SendScreen>
 
     setState(() => _isSending = true);
     try {
-      final paymentIdentifier = await _resolvePaymentIdentifier(
-        _recipient!,
-        sats,
-      );
-      final result = await BreezSparkService.sendPayment(
-        paymentIdentifier,
-        sats: sats,
-        comment: _memoController.text,
-        recipientName: _recipient?.name,
-      );
+      Map<String, dynamic> result;
+      
+      // Use Bitcoin-specific payment flow if it's a Bitcoin address
+      if (_isBitcoinAddress && _bitcoinPrepareResponse != null) {
+        result = await BreezSparkService.sendBitcoinPayment(
+          prepareResponse: _bitcoinPrepareResponse!,
+          speed: _selectedSpeed,
+          recipientName: _recipient?.name,
+        );
+      } else {
+        // Regular Lightning/Spark payment
+        final paymentIdentifier = await _resolvePaymentIdentifier(
+          _recipient!,
+          sats,
+        );
+        result = await BreezSparkService.sendPayment(
+          paymentIdentifier,
+          sats: sats,
+          comment: _memoController.text,
+          recipientName: _recipient?.name,
+        );
+      }
+      
       if (!mounted) return;
       final feeSats = BreezSparkService.extractSendFeeSats(result);
       final amountSats = BreezSparkService.extractSendAmountSats(result);
@@ -1062,27 +1127,30 @@ class _SendScreenState extends ConsumerState<SendScreen>
                   ],
                 ),
                 SizedBox(height: 16.h),
-                // Fee notice
-                Container(
-                  padding: EdgeInsets.all(14.r),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        color: AppColors.textSecondary,
-                        size: 18.sp,
-                      ),
-                      SizedBox(width: 10.w),
-                      Expanded(
-                        child: Text(
-                          'Network fees will be calculated at time of sending',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12.sp,
+                // Bitcoin fee tier selector or regular fee notice
+                if (_isBitcoinAddress)
+                  _buildBitcoinFeeSelector()
+                else
+                  Container(
+                    padding: EdgeInsets.all(14.r),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.textSecondary,
+                          size: 18.sp,
+                        ),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          child: Text(
+                            'Network fees will be calculated at time of sending',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12.sp,
                           ),
                         ),
                       ),
@@ -1212,6 +1280,216 @@ class _SendScreenState extends ConsumerState<SendScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBitcoinFeeSelector() {
+    // Loading state
+    if (_loadingBitcoinFees) {
+      return Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20.w,
+              height: 20.h,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.w,
+                color: const Color(0xFFF7931A),
+              ),
+            ),
+            SizedBox(width: 12.w),
+            Text(
+              'Loading fee estimates...',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14.sp,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Error state
+    if (_bitcoinFeeError != null) {
+      return Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.red, size: 20.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: Text(
+                    'Failed to load fees',
+                    style: TextStyle(color: Colors.red, fontSize: 14.sp),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8.h),
+            TextButton(
+              onPressed: () => _prepareBitcoinPayment(_amountSats()),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Fee selector
+    BigInt? slowFee;
+    BigInt? mediumFee;
+    BigInt? fastFee;
+
+    if (_bitcoinPrepareResponse?.paymentMethod case SendPaymentMethod_BitcoinAddress btcMethod) {
+      slowFee = btcMethod.feeQuote.speedSlow.userFeeSat;
+      mediumFee = btcMethod.feeQuote.speedMedium.userFeeSat;
+      fastFee = btcMethod.feeQuote.speedFast.userFeeSat;
+    }
+
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(
+          color: const Color(0xFFF7931A).withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.currency_bitcoin_rounded,
+                color: const Color(0xFFF7931A),
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'On-chain Transaction Speed',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSpeedOption(
+                  'Economy',
+                  '~1 hour',
+                  slowFee?.toInt() ?? 0,
+                  OnchainConfirmationSpeed.slow,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSpeedOption(
+                  'Standard',
+                  '~30 min',
+                  mediumFee?.toInt() ?? 0,
+                  OnchainConfirmationSpeed.medium,
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _buildSpeedOption(
+                  'Fast',
+                  '~10 min',
+                  fastFee?.toInt() ?? 0,
+                  OnchainConfirmationSpeed.fast,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpeedOption(
+    String label,
+    String time,
+    int feeSats,
+    OnchainConfirmationSpeed speed,
+  ) {
+    final isSelected = _selectedSpeed == speed;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedSpeed = speed);
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFFF7931A).withValues(alpha: 0.15)
+              : AppColors.background,
+          borderRadius: BorderRadius.circular(10.r),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFF7931A)
+                : AppColors.textSecondary.withValues(alpha: 0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFFF7931A) : Colors.white,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              time,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10.sp,
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              '${feeSats}',
+              style: TextStyle(
+                color: isSelected ? const Color(0xFFF7931A) : Colors.white,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              'sats',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10.sp,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

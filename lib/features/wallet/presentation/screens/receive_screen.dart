@@ -9,7 +9,9 @@ import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
 // Nostr receive removed from this screen — nostr imports not required here
 import 'package:sabi_wallet/features/wallet/presentation/widgets/edit_lightning_address_modal.dart';
-import 'package:sabi_wallet/l10n/app_localizations.dart';
+
+/// Receive method tab
+enum ReceiveMethod { lightning, bitcoin }
 
 class ReceiveScreen extends ConsumerStatefulWidget {
   const ReceiveScreen({super.key});
@@ -18,7 +20,13 @@ class ReceiveScreen extends ConsumerStatefulWidget {
   ConsumerState<ReceiveScreen> createState() => _ReceiveScreenState();
 }
 
-class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
+class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
+    with SingleTickerProviderStateMixin {
+  // Tab controller
+  late TabController _tabController;
+  ReceiveMethod _selectedMethod = ReceiveMethod.lightning;
+  
+  // Lightning state
   bool isStaticMode = false;
   int? selectedAmount;
   String selectedExpiry = '24 hours';
@@ -28,6 +36,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   bool _creating = false;
   bool _isSyncingLightningAddress = false;
   UserProfile? _userProfile;
+
+  // Bitcoin state
+  String? _bitcoinAddress;
+  bool _loadingBitcoinAddress = false;
+  String? _bitcoinAddressError;
 
   final List<int> presetAmounts = [1000, 5000, 10000];
   final List<String> expiryOptions = [
@@ -40,13 +53,54 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadUserProfile();
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {
+        _selectedMethod = _tabController.index == 0 
+            ? ReceiveMethod.lightning 
+            : ReceiveMethod.bitcoin;
+      });
+      // Load Bitcoin address when switching to Bitcoin tab
+      if (_selectedMethod == ReceiveMethod.bitcoin && _bitcoinAddress == null) {
+        _loadBitcoinAddress();
+      }
+    }
   }
 
   Future<void> _loadUserProfile() async {
     final profile = await ProfileService.getProfile();
     if (mounted) {
       setState(() => _userProfile = profile);
+    }
+  }
+
+  Future<void> _loadBitcoinAddress() async {
+    if (_loadingBitcoinAddress) return;
+    setState(() {
+      _loadingBitcoinAddress = true;
+      _bitcoinAddressError = null;
+    });
+    
+    try {
+      final address = await BreezSparkService.getBitcoinAddress();
+      if (mounted) {
+        setState(() {
+          _bitcoinAddress = address;
+          _loadingBitcoinAddress = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _bitcoinAddressError = e.toString().replaceAll('Exception: ', '');
+          _loadingBitcoinAddress = false;
+        });
+      }
     }
   }
 
@@ -111,12 +165,15 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label copied to clipboard'),
@@ -134,27 +191,460 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
         child: Column(
           children: [
             _buildHeader(),
+            _buildMethodTabs(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(30.h),
-                child: Column(
-                  children: [
-                      _buildQRCodeSection(),
-                      SizedBox(height: 30.h),
-                      _buildUserInfo(),
-                      SizedBox(height: 4.h),
-                      _buildAmountSelector(),
-                      SizedBox(height: 30.h),
-                      _buildExpiryAndDescription(),
-                      SizedBox(height: 30.h),
-                      _buildActionButtons(),
-                  ],
-                ),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildLightningTab(),
+                  _buildBitcoinTab(),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMethodTabs() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.textSecondary,
+        labelStyle: TextStyle(
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        padding: EdgeInsets.all(4.r),
+        tabs: [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bolt_rounded, size: 18.sp),
+                SizedBox(width: 6.w),
+                const Text('Lightning'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.currency_bitcoin_rounded, size: 18.sp),
+                SizedBox(width: 6.w),
+                const Text('Bitcoin'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLightningTab() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(20.h),
+      child: Column(
+        children: [
+          _buildQRCodeSection(),
+          SizedBox(height: 20.h),
+          _buildUserInfo(),
+          SizedBox(height: 4.h),
+          _buildAmountSelector(),
+          SizedBox(height: 20.h),
+          _buildExpiryAndDescription(),
+          SizedBox(height: 20.h),
+          _buildActionButtons(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBitcoinTab() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(20.h),
+      child: Column(
+        children: [
+          _buildBitcoinQRSection(),
+          SizedBox(height: 20.h),
+          _buildBitcoinAddressCard(),
+          SizedBox(height: 20.h),
+          _buildBitcoinInfoCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBitcoinQRSection() {
+    if (_loadingBitcoinAddress) {
+      return Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          width: 220.w,
+          height: 220.w,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2.w,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Loading Bitcoin address...',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_bitcoinAddressError != null) {
+      return Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: SizedBox(
+          width: 220.w,
+          height: 220.w,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 48.sp,
+                  color: Colors.red[400],
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Failed to load address',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                TextButton(
+                  onPressed: _loadBitcoinAddress,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_bitcoinAddress == null) {
+      return Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.r),
+        ),
+        child: SizedBox(
+          width: 220.w,
+          height: 220.w,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.currency_bitcoin_rounded,
+                  size: 48.sp,
+                  color: Colors.grey[400],
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Tap to load Bitcoin address',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 12.sp,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _copyToClipboard(_bitcoinAddress!, 'Bitcoin address'),
+      child: Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.r),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF7931A).withValues(alpha: 0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            QrImageView(
+              data: _bitcoinAddress!,
+              version: QrVersions.auto,
+              size: 220.w,
+              backgroundColor: Colors.white,
+              padding: EdgeInsets.all(8.r),
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Color(0xFFF7931A),
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Color(0xFFF7931A),
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7931A).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20.r),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.touch_app_rounded,
+                    color: const Color(0xFFF7931A),
+                    size: 14.sp,
+                  ),
+                  SizedBox(width: 4.w),
+                  Text(
+                    'Tap to copy',
+                    style: TextStyle(
+                      color: const Color(0xFFF7931A),
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBitcoinAddressCard() {
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10.r),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7931A).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  Icons.currency_bitcoin_rounded,
+                  color: const Color(0xFFF7931A),
+                  size: 24.sp,
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bitcoin Address',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'On-chain deposits',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _bitcoinAddress != null
+                    ? () => _copyToClipboard(_bitcoinAddress!, 'Bitcoin address')
+                    : null,
+                icon: Icon(
+                  Icons.copy_rounded,
+                  color: _bitcoinAddress != null
+                      ? const Color(0xFFF7931A)
+                      : AppColors.textSecondary,
+                  size: 20.sp,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12.r),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(
+                color: const Color(0xFFF7931A).withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              _bitcoinAddress ?? 'Loading...',
+              style: TextStyle(
+                color: _bitcoinAddress != null ? Colors.white : AppColors.textSecondary,
+                fontSize: 12.sp,
+                fontFamily: 'monospace',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBitcoinInfoCard() {
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: const Color(0xFFF7931A).withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: const Color(0xFFF7931A),
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'On-chain Bitcoin Deposits',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          _buildInfoRow(
+            icon: Icons.loop_rounded,
+            text: 'This is a reusable static address',
+          ),
+          SizedBox(height: 8.h),
+          _buildInfoRow(
+            icon: Icons.schedule_rounded,
+            text: 'Deposits require 1+ confirmations',
+          ),
+          SizedBox(height: 8.h),
+          _buildInfoRow(
+            icon: Icons.account_balance_wallet_rounded,
+            text: 'Funds are auto-claimed to your balance',
+          ),
+          SizedBox(height: 8.h),
+          _buildInfoRow(
+            icon: Icons.warning_amber_rounded,
+            text: 'Network fees apply for claiming deposits',
+            isWarning: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String text,
+    bool isWarning = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: isWarning ? Colors.orange : AppColors.textSecondary,
+          size: 16.sp,
+        ),
+        SizedBox(width: 8.w),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: isWarning ? Colors.orange : AppColors.textSecondary,
+              fontSize: 13.sp,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -26,6 +26,7 @@ import 'package:sabi_wallet/l10n/app_localizations.dart';
 
 import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
 import 'package:sabi_wallet/features/home/widgets/suggestions_slider.dart';
+import 'package:sabi_wallet/features/home/widgets/setup_tooltip_overlay.dart';
 import 'package:sabi_wallet/features/onboarding/presentation/screens/backup_choice_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/nostr/presentation/widgets/nostr_edit_modal.dart';
@@ -447,7 +448,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-class _HomeContent extends StatefulWidget {
+class _HomeContent extends ConsumerStatefulWidget {
   final bool isBalanceVisible;
   final VoidCallback onToggleBalance;
 
@@ -457,17 +458,55 @@ class _HomeContent extends StatefulWidget {
   });
 
   @override
-  State<_HomeContent> createState() => _HomeContentState();
+  ConsumerState<_HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<_HomeContent> {
+class _HomeContentState extends ConsumerState<_HomeContent> {
+  bool _showSetupTooltip = false;
+  bool _tooltipChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSetupTooltip();
+  }
+
+  Future<void> _checkSetupTooltip() async {
+    if (_tooltipChecked) return;
+    _tooltipChecked = true;
+
+    final storage = ref.read(secureStorageServiceProvider);
+    final shown = await storage.read(key: SecureStorageService.keySetupTooltipShown);
+    
+    if (shown == 'true') {
+      return; // Already shown and dismissed
+    }
+
+    // Check if there are pending suggestions to show
+    final suggestions = ref.read(suggestionsProvider);
+    if (suggestions.isNotEmpty && mounted) {
+      // Small delay to let the home screen render first
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) {
+        setState(() => _showSetupTooltip = true);
+      }
+    }
+  }
+
+  Future<void> _dismissSetupTooltip() async {
+    setState(() => _showSetupTooltip = false);
+    final storage = ref.read(secureStorageServiceProvider);
+    await storage.write(key: SecureStorageService.keySetupTooltipShown, value: 'true');
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final walletAsync = ref.watch(walletInfoProvider);
+    final walletAsync = ref.watch(walletInfoProvider);
+    final suggestions = ref.watch(suggestionsProvider);
 
-        return SafeArea(
+    return Stack(
+      children: [
+        SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
@@ -560,7 +599,7 @@ class _HomeContentState extends State<_HomeContent> {
                             );
                           },
                         ),
-                        SizedBox(width: 30.w),
+                        SizedBox(width: 16.w),
                         _NotificationIcon(
                           onTap: () {
                             Navigator.push(
@@ -653,14 +692,13 @@ class _HomeContentState extends State<_HomeContent> {
                   },
                 ),
                 SizedBox(height: 17.h),
-                // Action buttons: 4 columns x 2 rows layout
-                Column(
-                  children: [
-                    // First row: Send, Receive, Airtime, Data
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _FigmaActionButton(
+                // Action buttons: 4 columns - responsive layout
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _FigmaActionButton(
                           asset: 'assets/icons/Send.png',
                           label: AppLocalizations.of(context)!.send,
                           onTap:
@@ -671,8 +709,10 @@ class _HomeContentState extends State<_HomeContent> {
                                 ),
                               ),
                         ),
-                        SizedBox(width: 10.w),
-                        _FigmaActionButton(
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: _FigmaActionButton(
                           asset: 'assets/icons/receive.png',
                           label: AppLocalizations.of(context)!.receive,
                           onTap:
@@ -683,8 +723,10 @@ class _HomeContentState extends State<_HomeContent> {
                                 ),
                               ),
                         ),
-                        SizedBox(width: 10.w),
-                        _FigmaActionButton(
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: _FigmaActionButton(
                           asset: 'assets/icons/airtime.png',
                           label: AppLocalizations.of(context)!.airtime,
                           onTap:
@@ -695,8 +737,10 @@ class _HomeContentState extends State<_HomeContent> {
                                 ),
                               ),
                         ),
-                        SizedBox(width: 10.w),
-                        _FigmaActionButton(
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: _FigmaActionButton(
                           asset: 'assets/icons/data.png',
                           label: 'Data',
                           onTap:
@@ -707,73 +751,9 @@ class _HomeContentState extends State<_HomeContent> {
                                 ),
                               ),
                         ),
-                      ],
-                    ),
-                    SizedBox(height: 10.h),
-                    // Second row: Nostr, Agent, Card were part of the UI
-                    // Commented out for now (kept for future feature work)
-                    /*
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _FigmaActionButton(
-                          icon: Icons.electric_bolt_outlined,
-                          label: 'Nostr',
-                          onTap:
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const NostrFeedScreen(),
-                                ),
-                              ),
-                        ),
-                        SizedBox(width: 10.w),
-                        _FigmaActionButton(
-                          icon: Icons.groups_outlined,
-                          label: 'Agent',
-                          onTap:
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const AgentScreen(),
-                                ),
-                              ),
-                        ),
-                        SizedBox(width: 10.w),
-                        _FigmaActionButton(
-                          icon: Icons.credit_card_outlined,
-                          label: 'card',
-                          onTap:
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (_) => const ComingSoonScreen(
-                                        featureName: 'Virtual Card',
-                                        icon: Icons.credit_card,
-                                        description:
-                                            'Get a virtual Naira card.\nSpend your Bitcoin anywhere!',
-                                        accentColor: Color(0xFF9C27B0),
-                                      ),
-                                ),
-                              ),
-                        ),
-                        SizedBox(width: 10.w),
-                        _FigmaActionButton(
-                          icon: Icons.receipt_long_outlined,
-                          label: 'utilities',
-                          onTap:
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const UtilitiesHubScreen(),
-                                ),
-                              ),
-                        ),
-                      ],
-                    ),
-                    */
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
                 SizedBox(height: 10.h),
                 Consumer(
@@ -784,11 +764,16 @@ class _HomeContentState extends State<_HomeContent> {
                     }
                     return SuggestionsSlider(
                       suggestions: suggestionsState,
+                      shouldPulse: _showSetupTooltip,
                       onDismiss:
                           (type) => ref
                               .read(suggestionsProvider.notifier)
                               .dismiss(type),
                       onTap: (type) {
+                        // Dismiss tooltip when user taps a suggestion
+                        if (_showSetupTooltip) {
+                          _dismissSetupTooltip();
+                        }
                         switch (type) {
                           case SuggestionType.backup:
                             Navigator.push(
@@ -985,8 +970,14 @@ class _HomeContentState extends State<_HomeContent> {
               ],
             ),
           ),
-        );
-      },
+        ),
+        // Setup tooltip overlay
+        if (_showSetupTooltip && suggestions.isNotEmpty)
+          SetupTooltipOverlay(
+            onDismiss: _dismissSetupTooltip,
+            pendingSetupItems: suggestions.map((s) => s.name).toList(),
+          ),
+      ],
     );
   }
 
@@ -1205,41 +1196,52 @@ class _FigmaActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen width to determine sizing
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompactScreen = screenWidth < 300; // Fold cover screen
+    final isMediumScreen = screenWidth < 400; // Small phones
+    
+    // Responsive icon size
+    final iconSize = isCompactScreen ? 22.w : (isMediumScreen ? 24.w : 28.w);
+    final fontSize = isCompactScreen ? 10.sp : (isMediumScreen ? 11.sp : 12.sp);
+    final verticalPadding = isCompactScreen ? 8.w : 10.w;
+    
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 80.w,
-        height: 80.h,
-        padding: EdgeInsets.all(10.w),
-        decoration: BoxDecoration(
-          color: const Color(0xFF111128),
-          borderRadius: BorderRadius.circular(15.r),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (asset != null)
-              Image.asset(
-                asset!,
-                width: 28.w,
-                height: 28.h,
-                color: const Color(0xFFA1A1B2),
-              )
-            else if (icon != null)
-              Icon(icon, size: 28.w, color: const Color(0xFFA1A1B2)),
-            SizedBox(height: 6.h),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: const Color(0xFFA1A1B2),
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
+      child: AspectRatio(
+        aspectRatio: 1.0, // Keep square shape
+        child: Container(
+          padding: EdgeInsets.all(verticalPadding),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111128),
+            borderRadius: BorderRadius.circular(15.r),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (asset != null)
+                Image.asset(
+                  asset!,
+                  width: iconSize,
+                  height: iconSize,
+                  color: const Color(0xFFA1A1B2),
+                )
+              else if (icon != null)
+                Icon(icon, size: iconSize, color: const Color(0xFFA1A1B2)),
+              SizedBox(height: 4.h),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: const Color(0xFFA1A1B2),
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -81,6 +81,9 @@ class SecureStorageService {
   static const String keyFirstPaymentConfettiPending =
       'first_payment_confetti_pending';
 
+  /// Setup tutorial/tooltip shown flag
+  static const String keySetupTooltipShown = 'setup_tooltip_shown';
+
   // ==================== Core Operations ====================
 
   /// Write a value to secure storage

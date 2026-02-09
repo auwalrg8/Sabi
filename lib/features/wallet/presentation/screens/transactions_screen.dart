@@ -6,6 +6,7 @@ import 'package:sabi_wallet/features/wallet/presentation/providers/pending_payme
 import 'package:sabi_wallet/features/wallet/presentation/providers/recent_transactions_provider.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_detail_screen.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/payment_debug_screen.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/unclaimed_deposits_screen.dart';
 import 'package:sabi_wallet/core/utils/date_utils.dart' as date_utils;
 import 'package:sabi_wallet/l10n/app_localizations.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
@@ -267,6 +268,27 @@ class TransactionsScreen extends ConsumerWidget {
             ),
           ),
           const Spacer(),
+          // Bitcoin pending deposits button
+          Material(
+            color: Colors.transparent,
+            child: Tooltip(
+              message: 'Pending Bitcoin Deposits',
+              child: IconButton(
+                icon: const Icon(
+                  Icons.currency_bitcoin_rounded,
+                  color: Color(0xFFF7931A),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UnclaimedDepositsScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
           // Debug button - tap 3 times to show
           Material(
             color: Colors.transparent,

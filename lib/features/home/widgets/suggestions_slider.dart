@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/features/home/providers/suggestions_provider.dart';
+import 'package:sabi_wallet/features/home/widgets/setup_tooltip_overlay.dart';
 
 class SuggestionsSlider extends StatelessWidget {
   final List<SuggestionType> suggestions;
   final void Function(SuggestionType) onDismiss;
   final void Function(SuggestionType) onTap;
+  final bool shouldPulse;
 
   const SuggestionsSlider({
     super.key,
     required this.suggestions,
     required this.onDismiss,
     required this.onTap,
+    this.shouldPulse = false,
   });
 
   @override
@@ -25,14 +28,36 @@ class SuggestionsSlider extends StatelessWidget {
         separatorBuilder: (_, __) => SizedBox(width: 12.w),
         itemBuilder: (context, index) {
           final type = suggestions[index];
-          return _SuggestionCard(
+          final card = _SuggestionCard(
             type: type,
             onDismiss: () => onDismiss(type),
             onTap: () => onTap(type),
           );
+          
+          if (shouldPulse) {
+            return PulsingGlowWrapper(
+              shouldPulse: true,
+              glowColor: _getTypeColor(type),
+              child: card,
+            );
+          }
+          return card;
         },
       ),
     );
+  }
+
+  Color _getTypeColor(SuggestionType type) {
+    switch (type) {
+      case SuggestionType.backup:
+        return const Color(0xFFF94B4B);
+      case SuggestionType.nostr:
+        return const Color(0xFF7A3DFE);
+      case SuggestionType.pin:
+        return const Color(0xFF00F2B5);
+      case SuggestionType.socialRecovery:
+        return const Color(0xFF8B5CF6);
+    }
   }
 }
 
@@ -109,90 +134,102 @@ class _SuggestionCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 280.w,
-        padding: EdgeInsets.all(13.w),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: borderColor, width: 1.0),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Colors.white, size: 24.sp),
-            SizedBox(width: 12.w),
-            // Main content: title+dismiss on a single row, body text below
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title row with dismiss aligned to the end
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Get screen width for responsive sizing
+          final screenWidth = MediaQuery.of(context).size.width;
+          // For compact screens (like Fold cover), use 85% of screen width
+          // For regular screens, cap at 280.w
+          final cardWidth = screenWidth < 300 
+              ? screenWidth * 0.85 
+              : (screenWidth < 400 ? screenWidth * 0.75 : 280.w);
+          
+          return Container(
+            width: cardWidth,
+            padding: EdgeInsets.all(13.w),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: borderColor, width: 1.0),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: Colors.white, size: 24.sp),
+                SizedBox(width: 12.w),
+                // Main content: title+dismiss on a single row, body text below
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Title row with dismiss aligned to the end
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15.sp,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          GestureDetector(
+                            onTap: onDismiss,
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white.withValues(alpha: 0.7),
+                              size: 18.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 6.h),
+                      // Body text placed below title row and spanning full width
                       Expanded(
                         child: Text(
-                          title,
+                          subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.left,
                           style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15.sp,
+                            color: actionColor,
+                            fontWeight: FontWeight.w400,
+                            fontSize: 12.sp,
                           ),
                         ),
                       ),
-                      SizedBox(width: 8.w),
-                      GestureDetector(
-                        onTap: onDismiss,
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white.withValues(alpha: 0.7),
-                          size: 18.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 6.h),
-                  // Body text placed below title row and spanning full width
-                  Expanded(
-                    child: Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.left,
-                      style: TextStyle(
-                        color: actionColor,
-                        fontWeight: FontWeight.w400,
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                  ),
-                  if (actionText.isNotEmpty)
-                    Padding(
-                      padding: EdgeInsets.only(top: 6.h),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          onTap: onTap,
-                          child: Text(
-                            actionText,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12.sp,
-                              decoration: TextDecoration.underline,
+                      if (actionText.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(top: 6.h),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: GestureDetector(
+                              onTap: onTap,
+                              child: Text(
+                                actionText,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12.sp,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -953,8 +953,272 @@ class BreezSparkService {
     return await listPayments(limit: limit);
   }
 
+  // ============================================================================
+  // On-chain Bitcoin Address (Static)
+  // ============================================================================
+  
+  /// Cached static Bitcoin address
+  static String? _cachedBitcoinAddress;
+  
+  /// Get the static on-chain Bitcoin address for receiving deposits.
+  /// This is a static address that can be reused for multiple deposits.
+  /// The SDK monitors it and automatically claims deposits when detected.
+  static Future<String> getBitcoinAddress() async {
+    // Return cached address if available
+    if (_cachedBitcoinAddress != null) {
+      return _cachedBitcoinAddress!;
+    }
+    
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot get Bitcoin address');
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      debugPrint('🔗 Requesting static Bitcoin address...');
+      final response = await _sdk!.receivePayment(
+        request: ReceivePaymentRequest(
+          paymentMethod: ReceivePaymentMethod.bitcoinAddress(),
+        ),
+      );
+      
+      _cachedBitcoinAddress = response.paymentRequest;
+      debugPrint('✅ Bitcoin address: ${response.paymentRequest}');
+      debugPrint('   Claim fee: ${response.fee} sats');
+      
+      return response.paymentRequest;
+    } catch (e) {
+      debugPrint('❌ Failed to get Bitcoin address: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get recommended on-chain fees for claims/refunds
+  static Future<RecommendedFees> getRecommendedFees() async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      final fees = await _sdk!.recommendedFees();
+      debugPrint('💰 Recommended fees:');
+      debugPrint('   Fastest: ${fees.fastestFee} sat/vB');
+      debugPrint('   Half-hour: ${fees.halfHourFee} sat/vB');
+      debugPrint('   Hour: ${fees.hourFee} sat/vB');
+      debugPrint('   Economy: ${fees.economyFee} sat/vB');
+      debugPrint('   Minimum: ${fees.minimumFee} sat/vB');
+      return fees;
+    } catch (e) {
+      debugPrint('❌ Failed to get recommended fees: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // Unclaimed Deposits Management
+  // ============================================================================
+  
+  /// List all unclaimed on-chain deposits
+  static Future<List<DepositInfo>> listUnclaimedDeposits() async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      final response = await _sdk!.listUnclaimedDeposits(
+        request: ListUnclaimedDepositsRequest(),
+      );
+      debugPrint('📋 Unclaimed deposits: ${response.deposits.length}');
+      return response.deposits;
+    } catch (e) {
+      debugPrint('❌ Failed to list unclaimed deposits: $e');
+      rethrow;
+    }
+  }
+  
+  /// Manually claim an on-chain deposit with specified max fee
+  static Future<void> claimDeposit({
+    required String txid,
+    required int vout,
+    required int maxFeeSats,
+  }) async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      debugPrint('📥 Claiming deposit $txid:$vout with max fee $maxFeeSats sats');
+      await _sdk!.claimDeposit(
+        request: ClaimDepositRequest(
+          txid: txid,
+          vout: vout,
+          maxFee: MaxFee.fixed(amount: BigInt.from(maxFeeSats)),
+        ),
+      );
+      debugPrint('✅ Deposit claimed successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to claim deposit: $e');
+      rethrow;
+    }
+  }
+  
+  /// Refund an unclaimed deposit to an external Bitcoin address
+  static Future<RefundDepositResponse> refundDeposit({
+    required String txid,
+    required int vout,
+    required String destinationAddress,
+    required int feeSatPerVbyte,
+  }) async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      debugPrint('💸 Refunding deposit $txid:$vout to $destinationAddress');
+      final response = await _sdk!.refundDeposit(
+        request: RefundDepositRequest(
+          txid: txid,
+          vout: vout,
+          destinationAddress: destinationAddress,
+          fee: Fee.rate(satPerVbyte: BigInt.from(feeSatPerVbyte)),
+        ),
+      );
+      debugPrint('✅ Refund tx: ${response.txId}');
+      return response;
+    } catch (e) {
+      debugPrint('❌ Failed to refund deposit: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // Send to On-chain Bitcoin Address
+  // ============================================================================
+  
+  /// Prepare payment to a Bitcoin address - returns fee quotes for different speeds
+  static Future<PrepareSendPaymentResponse> prepareBitcoinPayment({
+    required String bitcoinAddress,
+    required int amountSats,
+  }) async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      debugPrint('🔍 Preparing Bitcoin payment: $amountSats sats to $bitcoinAddress');
+      final response = await _sdk!.prepareSendPayment(
+        request: PrepareSendPaymentRequest(
+          paymentRequest: bitcoinAddress,
+          amount: BigInt.from(amountSats),
+        ),
+      );
+      
+      // Extract fee quotes if it's a Bitcoin address payment
+      if (response.paymentMethod case SendPaymentMethod_BitcoinAddress btcMethod) {
+        final quote = btcMethod.feeQuote;
+        debugPrint('💰 Fee quotes:');
+        debugPrint('   Slow: ${quote.speedSlow.userFeeSat} sats');
+        debugPrint('   Medium: ${quote.speedMedium.userFeeSat} sats');
+        debugPrint('   Fast: ${quote.speedFast.userFeeSat} sats');
+      }
+      
+      return response;
+    } catch (e) {
+      debugPrint('❌ Failed to prepare Bitcoin payment: $e');
+      rethrow;
+    }
+  }
+  
+  /// Send payment to a Bitcoin address
+  static Future<Map<String, dynamic>> sendBitcoinPayment({
+    required PrepareSendPaymentResponse prepareResponse,
+    OnchainConfirmationSpeed speed = OnchainConfirmationSpeed.medium,
+    String? recipientName,
+  }) async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    final pendingId = const Uuid().v4();
+    String addressDesc = 'Bitcoin address';
+    if (prepareResponse.paymentMethod case SendPaymentMethod_BitcoinAddress btcMethod) {
+      addressDesc = btcMethod.address.address;
+    }
+    
+    _registerPendingPayment(
+      PendingPaymentRecord(
+        id: pendingId,
+        recipientName: recipientName ?? 'Bitcoin Address',
+        recipientIdentifier: addressDesc,
+        amountSats: prepareResponse.amount.toInt(),
+        startedAt: DateTime.now(),
+      ),
+    );
+    
+    try {
+      debugPrint('💸 Sending Bitcoin payment with speed: $speed');
+      final response = await _sdk!.sendPayment(
+        request: SendPaymentRequest(
+          prepareResponse: prepareResponse,
+          options: SendPaymentOptions.bitcoinAddress(
+            confirmationSpeed: speed,
+          ),
+          idempotencyKey: pendingId,
+        ),
+      );
+      
+      debugPrint('✅ Bitcoin payment sent: ${response.payment.id}');
+      
+      // Update balance
+      final balance = await getBalance();
+      _balanceStream.add(balance);
+      
+      return {
+        'payment': response.payment,
+        'amount': response.payment.amount,
+        'fees': response.payment.fees,
+      };
+    } catch (e) {
+      debugPrint('❌ Bitcoin payment failed: $e');
+      rethrow;
+    } finally {
+      _removePendingPayment(pendingId);
+    }
+  }
+  
+  /// Parse an input string to determine its type (Bitcoin address, Lightning invoice, etc.)
+  static Future<InputType> parseInput(String input) async {
+    if (_sdk == null) {
+      throw Exception('SDK not initialized');
+    }
+    
+    try {
+      final result = await _sdk!.parse(input: input);
+      debugPrint('🔍 Parsed input type: ${result.runtimeType}');
+      return result;
+    } catch (e) {
+      debugPrint('❌ Failed to parse input: $e');
+      rethrow;
+    }
+  }
+  
+  /// Check if a string looks like a Bitcoin address (quick check without SDK)
+  static bool looksLikeBitcoinAddress(String input) {
+    final trimmed = input.trim().toLowerCase();
+    // Mainnet: starts with 1, 3, or bc1
+    // Testnet: starts with m, n, 2, or tb1
+    return trimmed.startsWith('bc1') || 
+           trimmed.startsWith('1') || 
+           trimmed.startsWith('3') ||
+           trimmed.startsWith('tb1') ||
+           trimmed.startsWith('m') ||
+           trimmed.startsWith('n') ||
+           trimmed.startsWith('2');
+  }
+
+  @Deprecated('Use getBitcoinAddress() instead')
   static Future<String> generateBitcoinAddress() async {
-    return 'Use createInvoice() for bolt11';
+    return getBitcoinAddress();
   }
 
   static Future<int> getBalanceSatsSafe() async {

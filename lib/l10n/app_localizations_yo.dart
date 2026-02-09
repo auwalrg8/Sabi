@@ -401,4 +401,88 @@ class AppLocalizationsYo extends AppLocalizations {
 
   @override
   String get priority => 'Pataki';
+
+  @override
+  String get onchainBitcoin => 'On-chain Bitcoin';
+
+  @override
+  String get bitcoinDeposits => 'Bitcoin Deposits';
+
+  @override
+  String get pendingDeposits => 'Pending Deposits';
+
+  @override
+  String get unclaimedDeposits => 'Unclaimed Deposits';
+
+  @override
+  String get noPendingDeposits => 'No Pending Deposits';
+
+  @override
+  String get allDepositsClaimedDesc =>
+      'All your on-chain deposits have been claimed';
+
+  @override
+  String get claimDeposit => 'Claim Deposit';
+
+  @override
+  String get refundDeposit => 'Refund Deposit';
+
+  @override
+  String get depositAmount => 'Deposit Amount';
+
+  @override
+  String get claimFee => 'Claim Fee';
+
+  @override
+  String get feeExceeded => 'Fee too high - manual claim needed';
+
+  @override
+  String get utxoNotFound => 'UTXO not found';
+
+  @override
+  String get claimFailed => 'Claim failed';
+
+  @override
+  String get depositClaimedSuccess => 'Deposit claimed successfully!';
+
+  @override
+  String get refundBroadcast => 'Refund transaction broadcast!';
+
+  @override
+  String get transactionSpeed => 'Transaction Speed';
+
+  @override
+  String get economySpeed => 'Economy (~1 hour)';
+
+  @override
+  String get standardSpeed => 'Standard (~30 min)';
+
+  @override
+  String get fastSpeed => 'Fast (~10 min)';
+
+  @override
+  String get staticBitcoinAddress => 'Static Bitcoin Address';
+
+  @override
+  String get onchainDepositsInfo => 'On-chain Bitcoin Deposits';
+
+  @override
+  String get reusableAddress => 'This is a reusable static address';
+
+  @override
+  String get depositsRequireConfirmations =>
+      'Deposits require 1+ confirmations';
+
+  @override
+  String get fundsAutoClaimedToBalance =>
+      'Funds are auto-claimed to your balance';
+
+  @override
+  String get networkFeesApply => 'Network fees apply for claiming deposits';
+
+  @override
+  String get enterBitcoinAddress => 'Enter Bitcoin address';
+
+  @override
+  String get bitcoinPayment => 'Bitcoin Payment';
 }
