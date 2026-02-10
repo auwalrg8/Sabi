@@ -24,8 +24,12 @@ class HodlHodlTradeChatScreen extends ConsumerStatefulWidget {
 
 class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScreen> {
   Timer? _refreshTimer;
+  Timer? _chatRefreshTimer;
   HodlHodlContract? _currentContract;
   bool _isPerformingAction = false;
+  bool _isSendingMessage = false;
+  final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -35,11 +39,18 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _refreshContract();
     });
+    // Auto-refresh chat messages every 10 seconds
+    _chatRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      ref.invalidate(hodlHodlChatMessagesProvider(_currentContract!.id));
+    });
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _chatRefreshTimer?.cancel();
+    _messageController.dispose();
+    _messageFocusNode.dispose();
     super.dispose();
   }
 
@@ -62,6 +73,7 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
     
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
@@ -99,33 +111,51 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
       body: SafeArea(
         child: Column(
           children: [
-            // Status card
-            _buildStatusCard(contract),
-            
-            // Escrow info
-            _buildEscrowCard(contract),
-            
-            // Payment info
-            if (contract.paymentMethodInstruction != null)
-              _buildPaymentInfoCard(contract),
-            
-            // Timer (if applicable)
-            if (contract.paymentWindowTimeLeftSeconds != null)
-              _buildTimerCard(contract),
-            
-            // Chat messages
+            // Scrollable content area
             Expanded(
-              child: messagesAsync.when(
-                data: (messages) => _buildChatList(messages),
-                loading: () => Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Status card
+                    _buildStatusCard(contract),
+                    
+                    // Escrow info
+                    _buildEscrowCard(contract),
+                    
+                    // Payment info
+                    if (contract.paymentMethodInstruction != null)
+                      _buildPaymentInfoCard(contract),
+                    
+                    // Timer (if applicable)
+                    if (contract.paymentWindowTimeLeftSeconds != null)
+                      _buildTimerCard(contract),
+                    
+                    // Chat messages
+                    SizedBox(
+                      height: 200.h,
+                      child: messagesAsync.when(
+                        data: (messages) => _buildChatList(messages),
+                        loading: () => Center(
+                          child: CircularProgressIndicator(color: AppColors.primary),
+                        ),
+                        error: (_, __) => _buildEmptyChat(),
+                      ),
+                    ),
+                  ],
                 ),
-                error: (_, __) => _buildEmptyChat(),
               ),
             ),
             
-            // Action buttons
-            _buildActionButtons(contract),
+            // Message input (fixed at bottom)
+            _buildMessageInput(),
+            
+            // Action buttons (only show when keyboard is not visible)
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              child: MediaQuery.of(context).viewInsets.bottom > 0
+                  ? const SizedBox.shrink()
+                  : _buildActionButtons(contract),
+            ),
           ],
         ),
       ),
@@ -572,7 +602,7 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
           ),
           SizedBox(height: 8.h),
           Text(
-            'Chat on hodlhodl.com to message your counterparty',
+            'Send a message to your trading partner below',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white38,
@@ -582,6 +612,111 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
         ],
       ),
     );
+  }
+
+  Widget _buildMessageInput() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(24.r),
+              ),
+              child: TextField(
+                controller: _messageController,
+                focusNode: _messageFocusNode,
+                style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 14.sp),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
+                ),
+                maxLines: 3,
+                minLines: 1,
+                textCapitalization: TextCapitalization.sentences,
+                onSubmitted: (_) => _sendMessage(),
+              ),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          GestureDetector(
+            onTap: _isSendingMessage ? null : _sendMessage,
+            child: Container(
+              width: 44.w,
+              height: 44.h,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: _isSendingMessage
+                    ? SizedBox(
+                        width: 20.w,
+                        height: 20.h,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.send, color: Colors.white, size: 20.sp),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) return;
+    
+    setState(() => _isSendingMessage = true);
+    
+    try {
+      final service = ref.read(hodlHodlServiceProvider);
+      await service.sendChatMessage(_currentContract!.id, message);
+      
+      _messageController.clear();
+      _messageFocusNode.unfocus();
+      
+      // Refresh messages
+      ref.invalidate(hodlHodlChatMessagesProvider(_currentContract!.id));
+      
+      if (mounted) {
+        HapticFeedback.lightImpact();
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMsg = e.toString();
+        // Clean up error message
+        if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
+          errorMsg = 'HodlHodl service is temporarily unavailable';
+        } else if (errorMsg.contains('HodlHodlApiException:')) {
+          errorMsg = errorMsg.split(':').last.trim();
+        } else if (errorMsg.contains('Exception:')) {
+          errorMsg = errorMsg.replaceFirst('Exception:', '').trim();
+        } else if (errorMsg.contains('temporarily unavailable')) {
+          errorMsg = 'HodlHodl service is temporarily unavailable';
+        }
+        _showError(errorMsg);
+      }
+    } finally {
+      if (mounted) setState(() => _isSendingMessage = false);
+    }
   }
 
   Widget _buildActionButtons(HodlHodlContract contract) {
@@ -596,6 +731,7 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
       child: SafeArea(
         top: false,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Primary action based on status
             if (contract.canMarkAsPaid)
@@ -622,16 +758,32 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
                 onPressed: _confirmEscrow,
               ),
             
-            // Secondary actions
+            // Cancel button with improved UX
             if (contract.canBeCanceled) ...[
-              SizedBox(height: 8.h),
-              TextButton(
-                onPressed: _cancelContract,
-                child: Text(
-                  'Cancel Trade',
-                  style: TextStyle(
+              SizedBox(height: 12.h),
+              SizedBox(
+                width: double.infinity,
+                height: 48.h,
+                child: OutlinedButton.icon(
+                  onPressed: _isPerformingAction ? null : _cancelContract,
+                  icon: Icon(
+                    Icons.close,
                     color: AppColors.accentRed,
-                    fontSize: 14.sp,
+                    size: 18.sp,
+                  ),
+                  label: Text(
+                    'Cancel Trade',
+                    style: TextStyle(
+                      color: AppColors.accentRed,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColors.accentRed.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
                   ),
                 ),
               ),

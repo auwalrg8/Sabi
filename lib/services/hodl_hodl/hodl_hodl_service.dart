@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'models/hodl_hodl_models.dart';
@@ -67,17 +68,55 @@ class HodlHodlService {
 
   /// Handle API response
   T _handleResponse<T>(http.Response response, T Function(Map<String, dynamic>) parser) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    // Debug logging
+    developer.log(
+      'HodlHodl API Response: ${response.statusCode}',
+      name: 'HodlHodlService',
+    );
+    developer.log(
+      'Response body (first 500 chars): ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}',
+      name: 'HodlHodlService',
+    );
     
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (body['status'] == 'success') {
-        return parser(body);
+    // First check if the response body looks like HTML (server error page)
+    final bodyStr = response.body.trim();
+    if (bodyStr.startsWith('<!DOCTYPE') || bodyStr.startsWith('<html') || bodyStr.startsWith('<HTML')) {
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        throw HodlHodlApiException('unauthorized', 'Authentication failed. Please reconnect your HodlHodl account.', response.statusCode);
+      } else if (response.statusCode == 429) {
+        throw HodlHodlApiException('rate_limited', 'Too many requests. Please try again later.', response.statusCode);
+      } else if (response.statusCode >= 500) {
+        throw HodlHodlApiException('server_error', 'HodlHodl server is temporarily unavailable. Please try again later.', response.statusCode);
       }
+      throw HodlHodlApiException('invalid_response', 'HodlHodl service is temporarily unavailable. Please try again.', response.statusCode);
     }
     
-    final errorCode = body['error_code'] ?? 'unknown_error';
-    final message = body['message'] ?? 'An error occurred';
-    throw HodlHodlApiException(errorCode, message, response.statusCode);
+    // Check for non-JSON responses (e.g., HTML error pages)
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('application/json') && bodyStr.isNotEmpty) {
+      if (response.statusCode == 404) {
+        throw HodlHodlApiException('not_found', 'Endpoint not found', response.statusCode);
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw HodlHodlApiException('unauthorized', 'Authentication failed. Please reconnect your HodlHodl account.', response.statusCode);
+      }
+      throw HodlHodlApiException('invalid_response', 'Server returned invalid response', response.statusCode);
+    }
+    
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (body['status'] == 'success') {
+          return parser(body);
+        }
+      }
+      
+      final errorCode = body['error_code'] ?? 'unknown_error';
+      final message = body['message'] ?? 'An error occurred';
+      throw HodlHodlApiException(errorCode, message, response.statusCode);
+    } on FormatException {
+      throw HodlHodlApiException('parse_error', 'Failed to parse server response', response.statusCode);
+    }
   }
 
   // ============ PUBLIC API ENDPOINTS (No auth required) ============
@@ -179,6 +218,9 @@ class HodlHodlService {
   Future<Map<String, dynamic>> getMe() async {
     final uri = Uri.parse('$_baseUrl/users/me');
     final headers = await _getHeaders();
+    
+    developer.log('getMe() - URL: $uri', name: 'HodlHodlService');
+    developer.log('getMe() - Headers: $headers', name: 'HodlHodlService');
     
     final response = await http.get(uri, headers: headers);
     
@@ -343,6 +385,29 @@ class HodlHodlService {
     return _handleResponse(response, (body) {
       final messages = body['chat_messages'] as List<dynamic>? ?? [];
       return messages.map((e) => HodlHodlChatMessage.fromJson(e)).toList();
+    });
+  }
+
+  /// Send a chat message in a contract
+  Future<HodlHodlChatMessage> sendChatMessage(String contractId, String message) async {
+    final uri = Uri.parse('$_baseUrl/contracts/$contractId/chat_messages');
+    final headers = await _getHeaders();
+    
+    // HodlHodl API expects the message wrapped in chat_message object
+    final body = {
+      'chat_message': {
+        'body': message,
+      }
+    };
+    
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    
+    return _handleResponse(response, (body) {
+      return HodlHodlChatMessage.fromJson(body['chat_message']);
     });
   }
 
