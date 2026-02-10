@@ -40,7 +40,9 @@ final paymentMethodsProvider = Provider<List<PaymentMethodModel>>((ref) {
       id: 'gtbank',
       name: 'GTBank',
       type: PaymentMethodType.bankTransfer,
-      accountDetails: 'GTBank 0123456789 – Auwal Abubakar',
+      bankName: 'GTBank',
+      accountNumber: '0123456789',
+      accountName: 'Auwal Abubakar',
     ),
     PaymentMethodModel(
       id: 'opay',

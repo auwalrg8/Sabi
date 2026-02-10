@@ -1168,6 +1168,10 @@ class _P2PCreateOfferScreenState extends ConsumerState<P2PCreateOfferScreen> {
         return Icons.money;
       case PaymentMethodType.giftCard:
         return Icons.card_giftcard;
+      case PaymentMethodType.wallet:
+        return Icons.account_balance_wallet;
+      case PaymentMethodType.other:
+        return Icons.more_horiz;
     }
   }
 

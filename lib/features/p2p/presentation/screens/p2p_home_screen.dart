@@ -13,6 +13,7 @@ import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_create_offer_s
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_trade_history_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_my_trades_screen.dart';
 import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_merchant_profile_screen.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_dashboard_screen.dart';
 import 'package:sabi_wallet/features/p2p/utils/p2p_logger.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
@@ -146,6 +147,20 @@ class _P2PHomeScreenState extends ConsumerState<P2PHomeScreen>
                             ),
                             Row(
                               children: [
+                                // Dashboard/Profile - first for visibility
+                                _IconButton(
+                                  icon: Icons.account_circle_outlined,
+                                  onTap:
+                                      () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => const P2PDashboardScreen(),
+                                        ),
+                                      ),
+                                  tooltip: 'Dashboard',
+                                ),
+                                SizedBox(width: 8.w),
                                 // Notification Bell
                                 Consumer(
                                   builder: (context, ref, _) {

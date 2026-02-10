@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/hodl_hodl/hodl_hodl.dart';
+import 'package:sabi_wallet/features/p2p/presentation/screens/p2p_dashboard_screen.dart';
 
 import 'hodl_hodl_offer_detail_screen.dart';
 import 'hodl_hodl_webview_setup_screen.dart';
@@ -46,8 +47,12 @@ class _HodlHodlMarketplaceScreenState extends ConsumerState<HodlHodlMarketplaceS
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.settings, color: Colors.white70, size: 22.sp),
-            onPressed: () => _navigateToApiSetup(),
+            icon: Icon(Icons.account_circle_outlined, color: Colors.white70, size: 24.sp),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const P2PDashboardScreen()),
+            ),
+            tooltip: 'Dashboard',
           ),
         ],
       ),
