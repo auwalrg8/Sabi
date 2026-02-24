@@ -232,7 +232,28 @@ class HodlHodlService {
       }
       
       final errorCode = body['error_code'] ?? 'unknown_error';
-      final message = body['message'] ?? 'An error occurred';
+      var message = body['message'] ?? 'An error occurred';
+      
+      // Handle validation errors with detailed field info
+      if (response.statusCode == 422 || errorCode == 'validation_error') {
+        final errors = body['errors'];
+        if (errors is Map) {
+          final errorMessages = <String>[];
+          errors.forEach((field, messages) {
+            if (messages is List) {
+              for (final msg in messages) {
+                errorMessages.add('$field: $msg');
+              }
+            } else {
+              errorMessages.add('$field: $messages');
+            }
+          });
+          if (errorMessages.isNotEmpty) {
+            message = errorMessages.join('; ');
+          }
+        }
+      }
+      
       throw HodlHodlApiException(errorCode, message, response.statusCode);
     } on FormatException {
       throw HodlHodlApiException('parse_error', 'Failed to parse server response', response.statusCode);
@@ -645,13 +666,18 @@ class HodlHodlService {
     final uri = Uri.parse('$_baseUrl/payment_method_instructions');
     final headers = await _getHeaders();
     
+    // payment_method_id must be an integer per HodlHodl API
+    final paymentMethodIdInt = int.tryParse(paymentMethodId) ?? 0;
+    
     final body = {
       'payment_method_instruction': {
-        'payment_method_id': paymentMethodId,
+        'payment_method_id': paymentMethodIdInt,
         'name': name,
         'details': details,
       },
     };
+    
+    developer.log('createPaymentInstruction() - Body: $body', name: 'HodlHodlService');
     
     final response = await http.post(
       uri,
