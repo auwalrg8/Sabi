@@ -625,7 +625,7 @@ class HodlHodlService {
 
   /// Get user's payment instructions
   Future<List<Map<String, dynamic>>> getMyPaymentInstructions() async {
-    final uri = Uri.parse('$_baseUrl/users/me/payment_method_instructions');
+    final uri = Uri.parse('$_baseUrl/payment_method_instructions');
     final headers = await _getHeaders();
     
     final response = await http.get(uri, headers: headers);
@@ -642,7 +642,7 @@ class HodlHodlService {
     required String name,
     required String details,
   }) async {
-    final uri = Uri.parse('$_baseUrl/users/me/payment_method_instructions');
+    final uri = Uri.parse('$_baseUrl/payment_method_instructions');
     final headers = await _getHeaders();
     
     final body = {
