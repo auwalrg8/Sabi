@@ -31,6 +31,7 @@ class _HodlHodlProfileScreenState extends ConsumerState<HodlHodlProfileScreen> {
 
   // Common countries for P2P trading
   static const List<Map<String, String>> _countries = [
+    {'code': 'Global', 'name': 'Global (Worldwide)'},
     {'code': 'NG', 'name': 'Nigeria'},
     {'code': 'GH', 'name': 'Ghana'},
     {'code': 'KE', 'name': 'Kenya'},
@@ -77,8 +78,22 @@ class _HodlHodlProfileScreenState extends ConsumerState<HodlHodlProfileScreen> {
     _descriptionController.text = userData['description'] ?? '';
     _verifiedOnly = userData['verified_only'] == true;
     _willSendFirst = userData['will_send_first'] == true;
-    _selectedCountry = userData['country_code'];
-    _selectedCurrency = userData['currency_code'];
+    
+    // Get country code, ensure it exists in our list
+    final countryCode = userData['country_code'] as String?;
+    if (countryCode != null && _countries.any((c) => c['code'] == countryCode)) {
+      _selectedCountry = countryCode;
+    } else {
+      _selectedCountry = null;
+    }
+    
+    // Get currency code, ensure it exists in our list
+    final currencyCode = userData['currency_code'] as String?;
+    if (currencyCode != null && _currencies.any((c) => c['code'] == currencyCode)) {
+      _selectedCurrency = currencyCode;
+    } else {
+      _selectedCurrency = null;
+    }
 
     // Listen for changes
     _nicknameController.addListener(_onFieldChanged);

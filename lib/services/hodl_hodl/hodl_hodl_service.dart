@@ -570,12 +570,14 @@ class HodlHodlService {
     final uri = Uri.parse('$_baseUrl/contracts/$contractId/chat_messages');
     final headers = await _getHeaders();
     
-    // HodlHodl API expects the message wrapped in chat_message object
+    // HodlHodl API expects the message with 'text' parameter
     final body = {
       'chat_message': {
-        'body': message,
+        'text': message,
       }
     };
+    
+    developer.log('sendChatMessage() - contractId: $contractId, body: $body', name: 'HodlHodlService');
     
     final response = await http.post(
       uri,
