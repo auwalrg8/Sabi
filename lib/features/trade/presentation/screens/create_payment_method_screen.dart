@@ -34,14 +34,9 @@ class _CreatePaymentMethodScreenState extends ConsumerState<CreatePaymentMethodS
     'Other': ['other'],
   };
 
-  // Nigerian-specific payment methods
-  static const Map<String, String> _nigerianMethods = {
-    'Bank Transfer (NGN)': 'bank_ng',
-    'Opay': 'opay',
-    'Palmpay': 'palmpay',
-    'Kuda': 'kuda',
-    'Chipper Cash': 'chipper_cash',
-  };
+  // NOTE: Nigerian-specific payment methods should come from HodlHodl API
+  // Using hardcoded fake IDs causes 422 validation errors
+  // The HodlHodl API payment_methods endpoint returns valid IDs
 
   @override
   void dispose() {
@@ -518,35 +513,34 @@ class _CreatePaymentMethodScreenState extends ConsumerState<CreatePaymentMethodS
 
   List<PaymentMethodOption> _getFilteredMethods(List<PaymentMethodOption> allMethods) {
     if (_selectedPaymentType == null) return allMethods;
-
-    // Add Nigerian methods for relevant types
-    if (_selectedPaymentType == 'Bank Transfer' || _selectedPaymentType == 'Mobile Money') {
-      final nigerianOptions = _nigerianMethods.entries
-          .map((e) => PaymentMethodOption(id: e.value, type: _selectedPaymentType!, name: e.key))
-          .toList();
+    
+    // Filter methods based on selected type
+    // The HodlHodl API provides valid payment methods with proper IDs
+    final typeKeywords = _paymentTypes[_selectedPaymentType] ?? [];
+    
+    // Filter methods that contain any of the type keywords in their id or type
+    final filtered = allMethods.where((method) {
+      final methodIdLower = method.id.toLowerCase();
+      final methodTypeLower = method.type.toLowerCase();
+      final methodNameLower = method.name.toLowerCase();
       
-      // Deduplicate by id - Nigerian methods take precedence
-      final seenIds = <String>{};
-      final result = <PaymentMethodOption>[];
-      
-      for (final method in nigerianOptions) {
-        if (!seenIds.contains(method.id)) {
-          seenIds.add(method.id);
-          result.add(method);
+      // Check if method matches the selected payment type
+      for (final keyword in typeKeywords) {
+        if (methodIdLower.contains(keyword) || 
+            methodTypeLower.contains(keyword) ||
+            methodNameLower.contains(keyword)) {
+          return true;
         }
       }
       
-      for (final method in allMethods) {
-        if (!seenIds.contains(method.id)) {
-          seenIds.add(method.id);
-          result.add(method);
-        }
-      }
-      
-      return result;
-    }
-
-    return allMethods;
+      // Also match based on type name
+      final typeNameLower = _selectedPaymentType!.toLowerCase();
+      return methodTypeLower.contains(typeNameLower) || 
+             methodNameLower.contains(typeNameLower);
+    }).toList();
+    
+    // If no filtered results, return all methods
+    return filtered.isEmpty ? allMethods : filtered;
   }
 
   IconData _getPaymentTypeIcon(String type) {

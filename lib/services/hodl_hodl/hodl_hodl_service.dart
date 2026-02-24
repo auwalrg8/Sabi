@@ -489,7 +489,12 @@ class HodlHodlService {
     final uri = Uri.parse('$_baseUrl/contracts/$contractId/confirm');
     final headers = await _getHeaders();
     
+    developer.log('confirmEscrow() - URL: $uri', name: 'HodlHodlService');
+    
     final response = await http.post(uri, headers: headers);
+    
+    developer.log('confirmEscrow() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('confirmEscrow() - Response: ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return HodlHodlContract.fromJson(body['contract']);
@@ -501,7 +506,12 @@ class HodlHodlService {
     final uri = Uri.parse('$_baseUrl/contracts/$contractId/mark_as_paid');
     final headers = await _getHeaders();
     
+    developer.log('markAsPaid() - URL: $uri', name: 'HodlHodlService');
+    
     final response = await http.post(uri, headers: headers);
+    
+    developer.log('markAsPaid() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('markAsPaid() - Response: ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return HodlHodlContract.fromJson(body['contract']);
@@ -577,6 +587,7 @@ class HodlHodlService {
       }
     };
     
+    developer.log('sendChatMessage() - URL: $uri', name: 'HodlHodlService');
     developer.log('sendChatMessage() - contractId: $contractId, body: $body', name: 'HodlHodlService');
     
     final response = await http.post(
@@ -584,6 +595,9 @@ class HodlHodlService {
       headers: headers,
       body: jsonEncode(body),
     );
+    
+    developer.log('sendChatMessage() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('sendChatMessage() - Response: ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return HodlHodlChatMessage.fromJson(body['chat_message']);
@@ -595,7 +609,12 @@ class HodlHodlService {
     final uri = Uri.parse('$_baseUrl/contracts/$contractId/dispute');
     final headers = await _getHeaders();
     
+    developer.log('startDispute() - URL: $uri', name: 'HodlHodlService');
+    
     final response = await http.post(uri, headers: headers);
+    
+    developer.log('startDispute() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('startDispute() - Response: ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return HodlHodlContract.fromJson(body['contract']);
@@ -669,7 +688,20 @@ class HodlHodlService {
     final headers = await _getHeaders();
     
     // payment_method_id must be an integer per HodlHodl API
-    final paymentMethodIdInt = int.tryParse(paymentMethodId) ?? 0;
+    final paymentMethodIdInt = int.tryParse(paymentMethodId);
+    
+    // Validate that we have a valid payment method ID
+    if (paymentMethodIdInt == null || paymentMethodIdInt <= 0) {
+      developer.log(
+        'createPaymentInstruction() - Invalid payment_method_id: $paymentMethodId (parsed as $paymentMethodIdInt)',
+        name: 'HodlHodlService',
+      );
+      throw HodlHodlApiException(
+        'validation',
+        'Invalid payment method. Please select a valid payment method from the list.',
+        422,
+      );
+    }
     
     final body = {
       'payment_method_instruction': {
@@ -679,6 +711,7 @@ class HodlHodlService {
       },
     };
     
+    developer.log('createPaymentInstruction() - URL: $uri', name: 'HodlHodlService');
     developer.log('createPaymentInstruction() - Body: $body', name: 'HodlHodlService');
     
     final response = await http.post(
@@ -686,6 +719,9 @@ class HodlHodlService {
       headers: headers,
       body: jsonEncode(body),
     );
+    
+    developer.log('createPaymentInstruction() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('createPaymentInstruction() - Response: ${response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return body['payment_method_instruction'] as Map<String, dynamic>;
