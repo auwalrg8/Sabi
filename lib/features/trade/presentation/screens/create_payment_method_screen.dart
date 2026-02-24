@@ -135,14 +135,85 @@ class _CreatePaymentMethodScreenState extends ConsumerState<CreatePaymentMethodS
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  'Payment details are only visible to your counterparty when escrow is funded.',
+                  'Add your payment details for an approved payment method. Details are only visible to your counterparty when escrow is funded.',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 12.sp,
                   ),
                 ),
+                SizedBox(height: 8.h),
+                GestureDetector(
+                  onTap: _openRequestPaymentMethod,
+                  child: Text(
+                    "Can't find your payment method? Request it on HodlHodl",
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12.sp,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openRequestPaymentMethod() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          'Request New Payment Method',
+          style: TextStyle(color: Colors.white, fontSize: 16.sp),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'To add a new payment method type (like Opay, Palmpay, etc.), you need to request it on the HodlHodl website.',
+              style: TextStyle(color: Colors.white70, fontSize: 14.sp),
+            ),
+            SizedBox(height: 12.h),
+            Text(
+              'Steps:',
+              style: TextStyle(color: Colors.white, fontSize: 14.sp, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              '1. Visit hodlhodl.com\n2. Go to Dashboard → Payment Methods\n3. Click "Add payment method (moderated)"\n4. Fill in the details and submit\n5. Wait for HodlHodl team to approve (within 1 business day)',
+              style: TextStyle(color: Colors.white70, fontSize: 13.sp),
+            ),
+            SizedBox(height: 12.h),
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.link, color: AppColors.primary, size: 16.sp),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: SelectableText(
+                      'hodlhodl.com/payment_methods',
+                      style: TextStyle(color: AppColors.primary, fontSize: 13.sp),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Got it', style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),

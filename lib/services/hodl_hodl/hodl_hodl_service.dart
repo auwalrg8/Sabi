@@ -333,10 +333,19 @@ class HodlHodlService {
     final uri = Uri.parse('$_baseUrl/payment_methods').replace(queryParameters: queryParams);
     final headers = await _getHeaders();
     
+    developer.log('getPaymentMethods() - URL: $uri', name: 'HodlHodlService');
+    
     final response = await http.get(uri, headers: headers);
+    
+    developer.log('getPaymentMethods() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('getPaymentMethods() - Response (first 1000): ${response.body.length > 1000 ? response.body.substring(0, 1000) : response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       final methods = body['payment_methods'] as List<dynamic>? ?? [];
+      developer.log('getPaymentMethods() - Found ${methods.length} methods', name: 'HodlHodlService');
+      if (methods.isNotEmpty) {
+        developer.log('getPaymentMethods() - First method: ${methods.first}', name: 'HodlHodlService');
+      }
       return methods.cast<Map<String, dynamic>>();
     });
   }
