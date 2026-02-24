@@ -71,12 +71,17 @@ class _HodlHodlApiSetupScreenState extends ConsumerState<HodlHodlApiSetupScreen>
 
     try {
       final service = ref.read(hodlHodlServiceProvider);
+      
+      // First validate the API key by testing it against the HodlHodl API
+      await service.validateApiKey(key);
+      
+      // If validation passed, save the API key
       await service.setApiKey(key);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('API key saved successfully'),
+            content: const Text('API key verified and saved!'),
             backgroundColor: AppColors.accentGreen,
             behavior: SnackBarBehavior.floating,
           ),
@@ -85,9 +90,17 @@ class _HodlHodlApiSetupScreenState extends ConsumerState<HodlHodlApiSetupScreen>
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = e.toString();
+        if (errorMessage.contains('invalid_api_key') || errorMessage.contains('authentication_failed')) {
+          errorMessage = 'Invalid API key. Please ensure API access is enabled in your HodlHodl account.';
+        } else if (errorMessage.contains('api_key_invalid')) {
+          errorMessage = 'API key is invalid or expired. Please generate a new one.';
+        } else if (errorMessage.contains('network') || errorMessage.contains('SocketException')) {
+          errorMessage = 'Network error. Please check your connection.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save API key: $e'),
+            content: Text(errorMessage),
             backgroundColor: AppColors.accentRed,
             behavior: SnackBarBehavior.floating,
           ),

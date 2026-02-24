@@ -128,7 +128,10 @@ class _HodlHodlWebViewSetupScreenState
     try {
       final service = ref.read(hodlHodlServiceProvider);
       
-      // Save the API key
+      // First validate the API key by testing it against the HodlHodl API
+      await service.validateApiKey(key);
+      
+      // If validation passed, save the API key
       await service.setApiKey(key);
       
       if (mounted) {
@@ -139,7 +142,7 @@ class _HodlHodlWebViewSetupScreenState
               children: [
                 Icon(Icons.check_circle, color: Colors.white, size: 20.sp),
                 SizedBox(width: 12.w),
-                const Text('API key saved successfully!'),
+                const Text('API key verified and saved!'),
               ],
             ),
             backgroundColor: AppColors.accentGreen,
@@ -149,7 +152,15 @@ class _HodlHodlWebViewSetupScreenState
         Navigator.pop(context, true);
       }
     } catch (e) {
-      _showError('Failed to save API key: $e');
+      String errorMessage = e.toString();
+      if (errorMessage.contains('invalid_api_key') || errorMessage.contains('authentication_failed')) {
+        errorMessage = 'Invalid API key. Please ensure:\n1. API access is enabled in your HodlHodl account\n2. You copied the correct API key';
+      } else if (errorMessage.contains('api_key_invalid')) {
+        errorMessage = 'API key is invalid or expired. Please generate a new one in your HodlHodl settings.';
+      } else if (errorMessage.contains('network') || errorMessage.contains('SocketException')) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      _showError(errorMessage);
     } finally {
       if (mounted) setState(() => _isValidating = false);
     }

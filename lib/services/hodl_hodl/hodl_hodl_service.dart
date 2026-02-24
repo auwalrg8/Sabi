@@ -57,6 +57,68 @@ class HodlHodlService {
     return apiKey != null && apiKey.isNotEmpty;
   }
 
+  /// Validate an API key by testing it against the HodlHodl API
+  /// Returns the user data if valid, throws an exception if invalid
+  Future<Map<String, dynamic>> validateApiKey(String apiKey) async {
+    final uri = Uri.parse('$_baseUrl/users/me');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $apiKey',
+    };
+    
+    developer.log('validateApiKey() - Testing API key against $uri', name: 'HodlHodlService');
+    
+    final response = await http.get(uri, headers: headers);
+    
+    developer.log('validateApiKey() - Response: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('validateApiKey() - Body (first 300): ${response.body.length > 300 ? response.body.substring(0, 300) : response.body}', name: 'HodlHodlService');
+    
+    // Check for HTML response (invalid key or API not enabled)
+    final bodyStr = response.body.trim();
+    if (bodyStr.startsWith('<!DOCTYPE') || bodyStr.startsWith('<html') || bodyStr.startsWith('<HTML')) {
+      if (response.statusCode == 404) {
+        throw HodlHodlApiException(
+          'invalid_api_key',
+          'Invalid API key or API access not enabled. Please ensure API access is enabled in your HodlHodl account settings.',
+          response.statusCode,
+        );
+      }
+      throw HodlHodlApiException(
+        'authentication_failed',
+        'Authentication failed. Please check your API key and ensure API access is enabled.',
+        response.statusCode,
+      );
+    }
+    
+    // Check for non-JSON response
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('application/json') && bodyStr.isNotEmpty) {
+      throw HodlHodlApiException(
+        'invalid_response',
+        'Server returned an unexpected response. Please try again.',
+        response.statusCode,
+      );
+    }
+    
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      
+      if (response.statusCode >= 200 && response.statusCode < 300 && body['status'] == 'success') {
+        return body['user'] as Map<String, dynamic>;
+      }
+      
+      final errorCode = body['error_code'] ?? 'unknown_error';
+      final message = body['message'] ?? 'API key validation failed';
+      throw HodlHodlApiException(errorCode, message, response.statusCode);
+    } on FormatException {
+      throw HodlHodlApiException(
+        'parse_error',
+        'Failed to validate API key. Server response was invalid.',
+        response.statusCode,
+      );
+    }
+  }
+
   /// Build authorization headers
   Future<Map<String, String>> _getHeaders() async {
     final apiKey = await getApiKey();
@@ -83,12 +145,19 @@ class HodlHodlService {
     if (bodyStr.startsWith('<!DOCTYPE') || bodyStr.startsWith('<html') || bodyStr.startsWith('<HTML')) {
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw HodlHodlApiException('unauthorized', 'Authentication failed. Please reconnect your HodlHodl account.', response.statusCode);
+      } else if (response.statusCode == 404) {
+        // 404 with HTML likely means API key is invalid or API access is not enabled
+        throw HodlHodlApiException(
+          'api_key_invalid',
+          'API key is invalid or API access is not enabled. Please check your HodlHodl API settings and ensure API access is enabled.',
+          response.statusCode,
+        );
       } else if (response.statusCode == 429) {
         throw HodlHodlApiException('rate_limited', 'Too many requests. Please try again later.', response.statusCode);
       } else if (response.statusCode >= 500) {
         throw HodlHodlApiException('server_error', 'HodlHodl server is temporarily unavailable. Please try again later.', response.statusCode);
       }
-      throw HodlHodlApiException('invalid_response', 'HodlHodl service is temporarily unavailable. Please try again.', response.statusCode);
+      throw HodlHodlApiException('invalid_response', 'HodlHodl service returned an unexpected response. Please try again.', response.statusCode);
     }
     
     // Check for non-JSON responses (e.g., HTML error pages)
@@ -223,6 +292,42 @@ class HodlHodlService {
     developer.log('getMe() - Headers: $headers', name: 'HodlHodlService');
     
     final response = await http.get(uri, headers: headers);
+    
+    return _handleResponse(response, (body) {
+      return body['user'] as Map<String, dynamic>;
+    });
+  }
+
+  /// Update current user profile
+  Future<Map<String, dynamic>> updateMe({
+    String? nickname,
+    String? description,
+    bool? verifiedOnly,
+    bool? willSendFirst,
+    String? countryCode,
+    String? currencyCode,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/users/me');
+    final headers = await _getHeaders();
+    
+    final userUpdate = <String, dynamic>{};
+    if (nickname != null) userUpdate['nickname'] = nickname;
+    if (description != null) userUpdate['description'] = description;
+    if (verifiedOnly != null) userUpdate['verified_only'] = verifiedOnly;
+    if (willSendFirst != null) userUpdate['will_send_first'] = willSendFirst;
+    if (countryCode != null) userUpdate['country_code'] = countryCode;
+    if (currencyCode != null) userUpdate['currency_code'] = currencyCode;
+    
+    final body = {'user': userUpdate};
+    
+    developer.log('updateMe() - URL: $uri', name: 'HodlHodlService');
+    developer.log('updateMe() - Body: $body', name: 'HodlHodlService');
+    
+    final response = await http.patch(
+      uri,
+      headers: headers,
+      body: jsonEncode(body),
+    );
     
     return _handleResponse(response, (body) {
       return body['user'] as Map<String, dynamic>;

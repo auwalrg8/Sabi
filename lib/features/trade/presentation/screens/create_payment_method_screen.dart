@@ -524,7 +524,26 @@ class _CreatePaymentMethodScreenState extends ConsumerState<CreatePaymentMethodS
       final nigerianOptions = _nigerianMethods.entries
           .map((e) => PaymentMethodOption(id: e.value, type: _selectedPaymentType!, name: e.key))
           .toList();
-      return [...nigerianOptions, ...allMethods];
+      
+      // Deduplicate by id - Nigerian methods take precedence
+      final seenIds = <String>{};
+      final result = <PaymentMethodOption>[];
+      
+      for (final method in nigerianOptions) {
+        if (!seenIds.contains(method.id)) {
+          seenIds.add(method.id);
+          result.add(method);
+        }
+      }
+      
+      for (final method in allMethods) {
+        if (!seenIds.contains(method.id)) {
+          seenIds.add(method.id);
+          result.add(method);
+        }
+      }
+      
+      return result;
     }
 
     return allMethods;

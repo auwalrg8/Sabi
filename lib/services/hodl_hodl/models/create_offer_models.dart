@@ -165,6 +165,15 @@ class PaymentMethodOption {
       description: json['description'],
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PaymentMethodOption && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 /// User's saved payment instruction
