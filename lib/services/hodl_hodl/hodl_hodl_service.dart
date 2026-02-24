@@ -57,21 +57,71 @@ class HodlHodlService {
     return apiKey != null && apiKey.isNotEmpty;
   }
 
+  /// Debug method to test API connection and return raw response details
+  /// This can be used to diagnose API connection issues
+  Future<Map<String, dynamic>> debugApiConnection() async {
+    final apiKey = await getApiKey();
+    final uri = Uri.parse('$_baseUrl/users/me');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (apiKey != null) 'Authorization': 'Bearer $apiKey',
+    };
+    
+    developer.log('debugApiConnection() - URL: $uri', name: 'HodlHodlService');
+    developer.log('debugApiConnection() - Has API key: ${apiKey != null}', name: 'HodlHodlService');
+    if (apiKey != null) {
+      developer.log('debugApiConnection() - API key length: ${apiKey.length}', name: 'HodlHodlService');
+      developer.log('debugApiConnection() - API key preview: ${apiKey.length > 10 ? '${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}' : apiKey}', name: 'HodlHodlService');
+    }
+    
+    try {
+      final response = await http.get(uri, headers: headers);
+      
+      developer.log('debugApiConnection() - Status: ${response.statusCode}', name: 'HodlHodlService');
+      developer.log('debugApiConnection() - Headers: ${response.headers}', name: 'HodlHodlService');
+      developer.log('debugApiConnection() - Body: ${response.body}', name: 'HodlHodlService');
+      
+      return {
+        'success': response.statusCode >= 200 && response.statusCode < 300,
+        'statusCode': response.statusCode,
+        'contentType': response.headers['content-type'],
+        'bodyPreview': response.body.length > 200 ? '${response.body.substring(0, 200)}...' : response.body,
+        'bodyLength': response.body.length,
+        'isHtml': response.body.trim().startsWith('<!DOCTYPE') || response.body.trim().startsWith('<html'),
+        'apiKeyConfigured': apiKey != null,
+        'apiKeyLength': apiKey?.length,
+      };
+    } catch (e) {
+      developer.log('debugApiConnection() - Error: $e', name: 'HodlHodlService');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'apiKeyConfigured': apiKey != null,
+        'apiKeyLength': apiKey?.length,
+      };
+    }
+  }
+
   /// Validate an API key by testing it against the HodlHodl API
   /// Returns the user data if valid, throws an exception if invalid
   Future<Map<String, dynamic>> validateApiKey(String apiKey) async {
     final uri = Uri.parse('$_baseUrl/users/me');
     final headers = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       'Authorization': 'Bearer $apiKey',
     };
     
-    developer.log('validateApiKey() - Testing API key against $uri', name: 'HodlHodlService');
+    developer.log('validateApiKey() - URL: $uri', name: 'HodlHodlService');
+    developer.log('validateApiKey() - API key length: ${apiKey.length}', name: 'HodlHodlService');
+    developer.log('validateApiKey() - API key first 8 chars: ${apiKey.length > 8 ? apiKey.substring(0, 8) : apiKey}...', name: 'HodlHodlService');
     
     final response = await http.get(uri, headers: headers);
     
-    developer.log('validateApiKey() - Response: ${response.statusCode}', name: 'HodlHodlService');
-    developer.log('validateApiKey() - Body (first 300): ${response.body.length > 300 ? response.body.substring(0, 300) : response.body}', name: 'HodlHodlService');
+    developer.log('validateApiKey() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('validateApiKey() - Content-Type: ${response.headers['content-type']}', name: 'HodlHodlService');
+    developer.log('validateApiKey() - Body (first 500): ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}', name: 'HodlHodlService');
     
     // Check for HTML response (invalid key or API not enabled)
     final bodyStr = response.body.trim();
@@ -79,13 +129,13 @@ class HodlHodlService {
       if (response.statusCode == 404) {
         throw HodlHodlApiException(
           'invalid_api_key',
-          'Invalid API key or API access not enabled. Please ensure API access is enabled in your HodlHodl account settings.',
+          'Invalid API key or API access not enabled. Go to HodlHodl.com → Account Settings → API Access tab and ensure API access is enabled.',
           response.statusCode,
         );
       }
       throw HodlHodlApiException(
         'authentication_failed',
-        'Authentication failed. Please check your API key and ensure API access is enabled.',
+        'Authentication failed. Please verify your API key and ensure API access is enabled in Account Settings → API Access on HodlHodl.com.',
         response.statusCode,
       );
     }
@@ -124,6 +174,7 @@ class HodlHodlService {
     final apiKey = await getApiKey();
     return {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       if (apiKey != null) 'Authorization': 'Bearer $apiKey',
     };
   }

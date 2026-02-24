@@ -114,14 +114,15 @@ class _HodlHodlDashboardScreenState
         if (errorMsg.contains('api_key_invalid') || 
             errorMsg.contains('invalid_api_key') || 
             errorMsg.contains('authentication_failed') ||
-            errorMsg.contains('API key is invalid')) {
-          errorMsg = 'Your API key is invalid or API access is not enabled.\n\nTo fix this:\n1. Go to HodlHodl.com → Account Settings\n2. Enable API Access\n3. Copy your API key\n4. Tap "Reconnect" below';
+            errorMsg.contains('API key is invalid') ||
+            errorMsg.contains('API access not enabled')) {
+          errorMsg = 'API access is not enabled or your API key is invalid.\n\nTo fix this:\n1. Go to HodlHodl.com\n2. Open Account Settings → API Access tab\n3. Enable "API Access"\n4. Copy your API key\n5. Tap "Reconnect" below';
           isApiKeyIssue = true;
-        } else if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
-          errorMsg = 'Unable to connect to HodlHodl. This may be an API key issue.\n\nTry reconnecting your account.';
+        } else if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html') || errorMsg.contains('404')) {
+          errorMsg = 'Unable to authenticate with HodlHodl.\n\nMake sure API access is enabled in your HodlHodl account settings (Account Settings → API Access tab).';
           isApiKeyIssue = true;
         } else if (errorMsg.contains('401') || errorMsg.contains('Unauthorized') || errorMsg.contains('unauthorized')) {
-          errorMsg = 'Session expired. Please reconnect your HodlHodl account.';
+          errorMsg = 'Authentication failed. Please check that API access is enabled in your HodlHodl account settings.';
           isApiKeyIssue = true;
         } else if (errorMsg.contains('network') || errorMsg.contains('SocketException')) {
           errorMsg = 'Network error. Please check your connection.';
@@ -285,8 +286,94 @@ class _HodlHodlDashboardScreenState
                 label: const Text('Try Again'),
                 style: TextButton.styleFrom(foregroundColor: AppColors.primary),
               ),
+            if (_isApiKeyIssue) ...[
+              SizedBox(height: 12.h),
+              TextButton.icon(
+                onPressed: _showDebugInfo,
+                icon: Icon(Icons.bug_report, size: 20.sp),
+                label: const Text('Debug API Connection'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showDebugInfo() async {
+    setState(() => _loading = true);
+    
+    try {
+      final debugInfo = await HodlHodlService().debugApiConnection();
+      
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'API Debug Info',
+            style: TextStyle(color: Colors.white, fontSize: 18.sp),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _debugRow('Status Code', '${debugInfo['statusCode'] ?? 'N/A'}'),
+                _debugRow('Content-Type', '${debugInfo['contentType'] ?? 'N/A'}'),
+                _debugRow('Is HTML Response', '${debugInfo['isHtml'] ?? 'N/A'}'),
+                _debugRow('API Key Configured', '${debugInfo['apiKeyConfigured'] ?? false}'),
+                _debugRow('API Key Length', '${debugInfo['apiKeyLength'] ?? 'N/A'}'),
+                _debugRow('Body Length', '${debugInfo['bodyLength'] ?? 0}'),
+                SizedBox(height: 12.h),
+                Text(
+                  'Response Preview:',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+                ),
+                SizedBox(height: 4.h),
+                Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Text(
+                    '${debugInfo['bodyPreview'] ?? debugInfo['error'] ?? 'No data'}',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10.sp,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Widget _debugRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp)),
+          Text(value, style: TextStyle(color: Colors.white, fontSize: 12.sp)),
+        ],
       ),
     );
   }
