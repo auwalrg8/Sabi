@@ -444,11 +444,17 @@ class HodlHodlService {
       },
     };
     
+    developer.log('createContract() - URL: $uri', name: 'HodlHodlService');
+    developer.log('createContract() - Body: ${jsonEncode(body)}', name: 'HodlHodlService');
+    
     final response = await http.post(
       uri,
       headers: headers,
       body: jsonEncode(body),
     );
+    
+    developer.log('createContract() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('createContract() - Response: ${response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return HodlHodlContract.fromJson(body['contract']);
@@ -822,11 +828,17 @@ class HodlHodlService {
     
     final body = {'offer': offerData};
     
+    developer.log('createOffer() - URL: $uri', name: 'HodlHodlService');
+    developer.log('createOffer() - Body: ${jsonEncode(body)}', name: 'HodlHodlService');
+    
     final response = await http.post(
       uri,
       headers: headers,
       body: jsonEncode(body),
     );
+    
+    developer.log('createOffer() - Status: ${response.statusCode}', name: 'HodlHodlService');
+    developer.log('createOffer() - Response: ${response.body}', name: 'HodlHodlService');
     
     return _handleResponse(response, (body) {
       return HodlHodlOffer.fromJson(body['offer']);

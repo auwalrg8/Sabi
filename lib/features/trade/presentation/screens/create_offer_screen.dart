@@ -62,6 +62,11 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
           ),
         ),
         actions: [
+          // Debug button
+          IconButton(
+            icon: Icon(Icons.bug_report, color: Colors.orange, size: 22.sp),
+            onPressed: () => _showDebugDialog(formState),
+          ),
           TextButton(
             onPressed: () {
               ref.read(createOfferFormProvider.notifier).reset();
@@ -1212,6 +1217,69 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _showDebugDialog(CreateOfferFormState formState) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Debug Create Offer', style: TextStyle(color: Colors.white, fontSize: 16.sp)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _debugRow('Side', formState.side.value),
+              _debugRow('Currency', formState.currency.code),
+              _debugRow('Country', formState.countryCode ?? 'null'),
+              _debugRow('Exchange Source', formState.exchangeSource.id),
+              _debugRow('Rate Type', formState.rateType.toString()),
+              _debugRow('Margin', formState.margin.toString()),
+              _debugRow('Amount Type', formState.amountType.toString()),
+              _debugRow('Min Amount', formState.minAmount?.toString() ?? 'null'),
+              _debugRow('Max Amount', formState.maxAmount?.toString() ?? 'null'),
+              _debugRow('Fixed Amount', formState.fixedAmount?.toString() ?? 'null'),
+              _debugRow('Payment Instructions', formState.selectedPaymentInstructionIds.join(', ')),
+              _debugRow('Payment Window', '${formState.paymentWindowMinutes} mins'),
+              _debugRow('Confirmations', formState.confirmations.toString()),
+              _debugRow('Is Valid', formState.isValid.toString()),
+              _debugRow('Validation Error', formState.validationError),
+              SizedBox(height: 16.h),
+              Text('Payment Instructions Count: ${formState.selectedPaymentInstructionIds.length}', 
+                   style: TextStyle(color: Colors.orange, fontSize: 14.sp, fontWeight: FontWeight.bold)),
+              if (formState.selectedPaymentInstructionIds.isEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: 8.h),
+                  child: Text(
+                    '⚠️ You must add at least one payment method before creating an offer!',
+                    style: TextStyle(color: AppColors.accentRed, fontSize: 13.sp),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: TextStyle(color: Colors.white70)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _debugRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label:', style: TextStyle(color: Colors.white54, fontSize: 12.sp)),
+          SelectableText(value.isEmpty ? '(empty)' : value, style: TextStyle(color: Colors.white, fontSize: 13.sp)),
+        ],
+      ),
+    );
   }
 
   void _resetControllers() {
