@@ -463,7 +463,7 @@ class _HodlHodlOfferDetailScreenState extends ConsumerState<HodlHodlOfferDetailS
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Pay to (Seller\\'s Payment Method)',
+            "Pay to (Seller's Payment Method)",
             style: TextStyle(
               color: Colors.white54,
               fontSize: 12.sp,
@@ -480,7 +480,151 @@ class _HodlHodlOfferDetailScreenState extends ConsumerState<HodlHodlOfferDetailS
         ],
       ),
     );
-  }\n\n  Widget _buildUserPaymentMethodCard() {\n    return Container(\n      padding: EdgeInsets.all(16.w),\n      decoration: BoxDecoration(\n        color: AppColors.surface,\n        borderRadius: BorderRadius.circular(20.r),\n      ),\n      child: Column(\n        crossAxisAlignment: CrossAxisAlignment.start,\n        children: [\n          Row(\n            children: [\n              Expanded(\n                child: Text(\n                  'Receive payment to (Your Payment Method)',\n                  style: TextStyle(\n                    color: Colors.white54,\n                    fontSize: 12.sp,\n                  ),\n                ),\n              ),\n              if (_userPaymentError != null)\n                GestureDetector(\n                  onTap: _loadUserPaymentInstructions,\n                  child: Icon(Icons.refresh, color: AppColors.primary, size: 20.sp),\n                ),\n            ],\n          ),\n          SizedBox(height: 12.h),\n          if (_isLoadingUserPaymentMethods)\n            Center(\n              child: SizedBox(\n                width: 24.w,\n                height: 24.h,\n                child: CircularProgressIndicator(\n                  color: AppColors.primary,\n                  strokeWidth: 2,\n                ),\n              ),\n            )\n          else if (_userPaymentError != null)\n            Column(\n              children: [\n                Text(\n                  'Failed to load payment methods',\n                  style: TextStyle(color: AppColors.accentRed, fontSize: 13.sp),\n                ),\n                SizedBox(height: 8.h),\n                TextButton(\n                  onPressed: _loadUserPaymentInstructions,\n                  child: Text('Retry', style: TextStyle(color: AppColors.primary)),\n                ),\n              ],\n            )\n          else if (_userPaymentInstructions == null || _userPaymentInstructions!.isEmpty)\n            Column(\n              children: [\n                Text(\n                  'You need to add a payment method first',\n                  style: TextStyle(color: Colors.white70, fontSize: 14.sp),\n                ),\n                SizedBox(height: 12.h),\n                TextButton.icon(\n                  onPressed: () {\n                    Navigator.pushNamed(context, '/create-payment-method').then((_) {\n                      _loadUserPaymentInstructions();\n                    });\n                  },\n                  icon: Icon(Icons.add, color: AppColors.primary),\n                  label: Text('Add Payment Method', style: TextStyle(color: AppColors.primary)),\n                ),\n              ],\n            )\n          else\n            ..._userPaymentInstructions!.map((instruction) => _buildUserPaymentItem(instruction)).toList(),\n        ],\n      ),\n    );\n  }\n\n  Widget _buildUserPaymentItem(Map<String, dynamic> instruction) {\n    final id = instruction['id']?.toString() ?? '';\n    final version = instruction['version']?.toString() ?? '';\n    final name = instruction['name']?.toString() ?? 'Unknown';\n    final paymentMethodName = instruction['payment_method']?['name']?.toString() ?? \n                              instruction['payment_method_name']?.toString() ?? '';\n    final isSelected = _selectedPaymentMethodId == id;\n    \n    return GestureDetector(\n      onTap: () {\n        setState(() {\n          _selectedPaymentMethodId = id;\n          _selectedPaymentMethodVersion = version;\n        });\n      },\n      child: Container(\n        margin: EdgeInsets.only(bottom: 8.h),\n        padding: EdgeInsets.all(12.w),\n        decoration: BoxDecoration(\n          color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white.withOpacity(0.03),\n          borderRadius: BorderRadius.circular(12.r),\n          border: Border.all(\n            color: isSelected ? AppColors.primary : Colors.white12,\n          ),\n        ),\n        child: Row(\n          children: [\n            Icon(\n              Icons.payment,\n              color: isSelected ? AppColors.primary : Colors.white54,\n              size: 20.sp,\n            ),\n            SizedBox(width: 12.w),\n            Expanded(\n              child: Column(\n                crossAxisAlignment: CrossAxisAlignment.start,\n                children: [\n                  Text(\n                    name,\n                    style: TextStyle(\n                      color: Colors.white,\n                      fontSize: 14.sp,\n                      fontWeight: FontWeight.w500,\n                    ),\n                  ),\n                  if (paymentMethodName.isNotEmpty)\n                    Text(\n                      paymentMethodName,\n                      style: TextStyle(\n                        color: Colors.white54,\n                        fontSize: 11.sp,\n                      ),\n                    ),\n                ],\n              ),\n            ),\n            if (isSelected)\n              Icon(Icons.check_circle, color: AppColors.primary, size: 20.sp),\n          ],\n        ),\n      ),\n    );\n  }
+  }
+
+  Widget _buildUserPaymentMethodCard() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Receive payment to (Your Payment Method)',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12.sp,
+                  ),
+                ),
+              ),
+              if (_userPaymentError != null)
+                GestureDetector(
+                  onTap: _loadUserPaymentInstructions,
+                  child: Icon(Icons.refresh, color: AppColors.primary, size: 20.sp),
+                ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          if (_isLoadingUserPaymentMethods)
+            Center(
+              child: SizedBox(
+                width: 24.w,
+                height: 24.h,
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                ),
+              ),
+            )
+          else if (_userPaymentError != null)
+            Column(
+              children: [
+                Text(
+                  'Failed to load payment methods',
+                  style: TextStyle(color: AppColors.accentRed, fontSize: 13.sp),
+                ),
+                SizedBox(height: 8.h),
+                TextButton(
+                  onPressed: _loadUserPaymentInstructions,
+                  child: Text('Retry', style: TextStyle(color: AppColors.primary)),
+                ),
+              ],
+            )
+          else if (_userPaymentInstructions == null || _userPaymentInstructions!.isEmpty)
+            Column(
+              children: [
+                Text(
+                  'You need to add a payment method first',
+                  style: TextStyle(color: Colors.white70, fontSize: 14.sp),
+                ),
+                SizedBox(height: 12.h),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/create-payment-method').then((_) {
+                      _loadUserPaymentInstructions();
+                    });
+                  },
+                  icon: Icon(Icons.add, color: AppColors.primary),
+                  label: Text('Add Payment Method', style: TextStyle(color: AppColors.primary)),
+                ),
+              ],
+            )
+          else
+            ..._userPaymentInstructions!.map((instruction) => _buildUserPaymentItem(instruction)).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserPaymentItem(Map<String, dynamic> instruction) {
+    final id = instruction['id']?.toString() ?? '';
+    final version = instruction['version']?.toString() ?? '';
+    final name = instruction['name']?.toString() ?? 'Unknown';
+    final paymentMethodName = instruction['payment_method']?['name']?.toString() ?? 
+                              instruction['payment_method_name']?.toString() ?? '';
+    final isSelected = _selectedPaymentMethodId == id;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethodId = id;
+          _selectedPaymentMethodVersion = version;
+        });
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8.h),
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.white12,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.payment,
+              color: isSelected ? AppColors.primary : Colors.white54,
+              size: 20.sp,
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (paymentMethodName.isNotEmpty)
+                    Text(
+                      paymentMethodName,
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11.sp,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: AppColors.primary, size: 20.sp),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildPaymentMethodItem(HodlHodlPaymentMethodInstruction method) {
     final isSelected = _selectedPaymentMethodId == method.id;

@@ -103,6 +103,73 @@ class HodlHodlService {
     }
   }
 
+  /// Debug method to test chat endpoint directly
+  Future<Map<String, dynamic>> debugChatEndpoint(String contractId) async {
+    final apiKey = await getApiKey();
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (apiKey != null) 'Authorization': 'Bearer $apiKey',
+    };
+    
+    final results = <String, dynamic>{
+      'contractId': contractId,
+    };
+    
+    // Test GET chat_messages
+    try {
+      final getUri = Uri.parse('$_baseUrl/contracts/$contractId/chat_messages');
+      developer.log('debugChatEndpoint() - GET URL: $getUri', name: 'HodlHodlService');
+      final getResponse = await http.get(getUri, headers: headers);
+      
+      results['GET_status'] = getResponse.statusCode;
+      results['GET_body'] = getResponse.body.length > 300 
+          ? '${getResponse.body.substring(0, 300)}...' 
+          : getResponse.body;
+    } catch (e) {
+      results['GET_error'] = e.toString();
+    }
+    
+    // Test GET contract to verify it exists
+    try {
+      final contractUri = Uri.parse('$_baseUrl/contracts/$contractId');
+      developer.log('debugChatEndpoint() - Contract URL: $contractUri', name: 'HodlHodlService');
+      final contractResponse = await http.get(contractUri, headers: headers);
+      
+      results['contract_status'] = contractResponse.statusCode;
+      if (contractResponse.statusCode == 200) {
+        final body = jsonDecode(contractResponse.body);
+        results['contract_id'] = body['contract']?['id'];
+        results['contract_status_name'] = body['contract']?['status'];
+        results['trader'] = body['contract']?['trader']?['login'];
+      } else {
+        results['contract_body'] = contractResponse.body.length > 200 
+            ? '${contractResponse.body.substring(0, 200)}...' 
+            : contractResponse.body;
+      }
+    } catch (e) {
+      results['contract_error'] = e.toString();
+    }
+    
+    // Test alternative endpoint paths that HodlHodl might use
+    final altPaths = [
+      '/contracts/$contractId/messages',
+      '/messages?contract_id=$contractId',
+    ];
+    
+    for (final path in altPaths) {
+      try {
+        final uri = Uri.parse('$_baseUrl$path');
+        final response = await http.get(uri, headers: headers);
+        results['ALT_${path}_status'] = response.statusCode;
+      } catch (e) {
+        results['ALT_${path}_error'] = e.toString();
+      }
+    }
+    
+    return results;
+  }
+
   /// Validate an API key by testing it against the HodlHodl API
   /// Returns the user data if valid, throws an exception if invalid
   Future<Map<String, dynamic>> validateApiKey(String apiKey) async {

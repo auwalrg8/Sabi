@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/hodl_hodl/hodl_hodl.dart';
 
+import 'hodl_hodl_chat_webview_screen.dart';
 import 'trade_success_screen.dart';
 
 /// Trade Chat Screen
@@ -27,9 +28,6 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
   Timer? _chatRefreshTimer;
   HodlHodlContract? _currentContract;
   bool _isPerformingAction = false;
-  bool _isSendingMessage = false;
-  final TextEditingController _messageController = TextEditingController();
-  final FocusNode _messageFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -49,8 +47,6 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
   void dispose() {
     _refreshTimer?.cancel();
     _chatRefreshTimer?.cancel();
-    _messageController.dispose();
-    _messageFocusNode.dispose();
     super.dispose();
   }
 
@@ -64,6 +60,18 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
     } catch (e) {
       // Silently fail on refresh
     }
+  }
+
+  void _openWebViewChat() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HodlHodlChatWebViewScreen(
+          contractId: _currentContract!.id,
+          counterpartyName: _currentContract!.counterparty.login,
+        ),
+      ),
+    );
   }
 
   @override
@@ -102,11 +110,6 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
           ],
         ),
         actions: [
-          // Debug button to test API
-          IconButton(
-            icon: Icon(Icons.bug_report, color: Colors.orange, size: 22.sp),
-            onPressed: _showDebugDialog,
-          ),
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.white70, size: 22.sp),
             onPressed: _refreshContract,
@@ -151,8 +154,8 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
               ),
             ),
             
-            // Message input (fixed at bottom)
-            _buildMessageInput(),
+            // Chat button (opens web view)
+            _buildChatButton(),
             
             // Action buttons (only show when keyboard is not visible)
             AnimatedSize(
@@ -614,12 +617,35 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
               fontSize: 12.sp,
             ),
           ),
+          SizedBox(height: 16.h),
+          GestureDetector(
+            onTap: _openWebViewChat,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8.r),
+                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.chat, color: AppColors.primary, size: 18.sp),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'Open Web Chat',
+                    style: TextStyle(color: AppColors.primary, fontSize: 13.sp, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildChatButton() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
       decoration: BoxDecoration(
@@ -628,221 +654,29 @@ class _HodlHodlTradeChatScreenState extends ConsumerState<HodlHodlTradeChatScree
           top: BorderSide(color: Colors.white.withOpacity(0.05)),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(24.r),
-              ),
-              child: TextField(
-                controller: _messageController,
-                focusNode: _messageFocusNode,
-                style: TextStyle(color: Colors.white, fontSize: 14.sp),
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: TextStyle(color: Colors.white38, fontSize: 14.sp),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
-                    vertical: 12.h,
-                  ),
-                ),
-                maxLines: 3,
-                minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
-                onSubmitted: (_) => _sendMessage(),
-              ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56.h,
+        child: ElevatedButton.icon(
+          onPressed: _openWebViewChat,
+          icon: Icon(Icons.chat, size: 20.sp),
+          label: Text(
+            'Chat with Trader',
+            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.r),
             ),
           ),
-          SizedBox(width: 8.w),
-          GestureDetector(
-            onTap: _isSendingMessage ? null : _sendMessage,
-            child: Container(
-              width: 44.w,
-              height: 44.h,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: _isSendingMessage
-                    ? SizedBox(
-                        width: 20.w,
-                        height: 20.h,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Icon(Icons.send, color: Colors.white, size: 20.sp),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendMessage() async {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-    
-    setState(() => _isSendingMessage = true);
-    
-    try {
-      final service = ref.read(hodlHodlServiceProvider);
-      await service.sendChatMessage(_currentContract!.id, message);
-      
-      _messageController.clear();
-      _messageFocusNode.unfocus();
-      
-      // Refresh messages
-      ref.invalidate(hodlHodlChatMessagesProvider(_currentContract!.id));
-      
-      if (mounted) {
-        HapticFeedback.lightImpact();
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMsg = e.toString();
-        // Clean up error message
-        if (errorMsg.contains('<!DOCTYPE') || errorMsg.contains('<html')) {
-          errorMsg = 'HodlHodl service is temporarily unavailable';
-        } else if (errorMsg.contains('HodlHodlApiException:')) {
-          errorMsg = errorMsg.split(':').last.trim();
-        } else if (errorMsg.contains('Exception:')) {
-          errorMsg = errorMsg.replaceFirst('Exception:', '').trim();
-        } else if (errorMsg.contains('temporarily unavailable')) {
-          errorMsg = 'HodlHodl service is temporarily unavailable';
-        }
-        _showError(errorMsg);
-      }
-    } finally {
-      if (mounted) setState(() => _isSendingMessage = false);
-    }
-  }
-
-  void _showDebugDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('Debug API', style: TextStyle(color: Colors.white, fontSize: 16.sp)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Contract ID:', style: TextStyle(color: Colors.white54, fontSize: 12.sp)),
-            SelectableText(_currentContract?.id ?? 'null', style: TextStyle(color: Colors.white, fontSize: 13.sp)),
-            SizedBox(height: 12.h),
-            Text('Contract Status:', style: TextStyle(color: Colors.white54, fontSize: 12.sp)),
-            Text(_currentContract?.status ?? 'null', style: TextStyle(color: Colors.white, fontSize: 13.sp)),
-            SizedBox(height: 16.h),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _testSendMessage();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: Text('Test Send Message'),
-            ),
-            SizedBox(height: 8.h),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _testApiConnection();
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: Text('Test API Connection'),
-            ),
-          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: TextStyle(color: Colors.white70)),
-          ),
-        ],
       ),
     );
   }
-  
-  Future<void> _testSendMessage() async {
-    final testMessage = 'Test message from Sabi Wallet - ${DateTime.now().toIso8601String()}';
-    
-    try {
-      final service = ref.read(hodlHodlServiceProvider);
-      final result = await service.sendChatMessage(_currentContract!.id, testMessage);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Success! Message sent. ID: ${result.id}'),
-            backgroundColor: AppColors.accentGreen,
-          ),
-        );
-        ref.invalidate(hodlHodlChatMessagesProvider(_currentContract!.id));
-      }
-    } catch (e) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            backgroundColor: AppColors.surface,
-            title: Text('Send Message Error', style: TextStyle(color: Colors.red)),
-            content: SingleChildScrollView(
-              child: SelectableText(e.toString(), style: TextStyle(color: Colors.white, fontSize: 12.sp)),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('Close')),
-            ],
-          ),
-        );
-      }
-    }
-  }
-  
-  Future<void> _testApiConnection() async {
-    try {
-      final service = ref.read(hodlHodlServiceProvider);
-      final result = await service.debugApiConnection();
-      
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            backgroundColor: AppColors.surface,
-            title: Text('API Connection Test', style: TextStyle(color: Colors.white)),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: result.entries.map((e) => Padding(
-                  padding: EdgeInsets.only(bottom: 8.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${e.key}:', style: TextStyle(color: Colors.white54, fontSize: 12.sp)),
-                      SelectableText('${e.value}', style: TextStyle(color: Colors.white, fontSize: 12.sp)),
-                    ],
-                  ),
-                )).toList(),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('Close')),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _showError('API test failed: $e');
-      }
-    }
-  }
+
+
 
   Widget _buildActionButtons(HodlHodlContract contract) {
     return Container(
