@@ -10,7 +10,7 @@ import FirebaseMessaging
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     // Configure Firebase
-    FirebaseApp.configure()
+    // FirebaseApp.configure()
     
     // Set FCM messaging delegate
     Messaging.messaging().delegate = self
