@@ -58,5 +58,13 @@
 		<!-- Enable Firebase Analytics collection (optional, set to false to disable) -->
 		<key>FirebaseAppDelegateProxyEnabled</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>Sabi Wallet needs access to the camera to scan QR codes for Bitcoin and Lightning payments.</string>
+		<key>NSContactsUsageDescription</key>
+		<string>Sabi Wallet needs access to your contacts to help you easily send payments to your friends and family.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Sabi Wallet uses Face ID to securely authenticate and protect your wallet.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Sabi Wallet needs access to your photo library to allow you to upload QR codes from your gallery.</string>
 	</dict>
 </plist>
