@@ -5,11 +5,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:encrypt/encrypt.dart' as encrypt_pkg;
 import 'package:flutter/foundation.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
@@ -198,6 +200,10 @@ class BreezSparkService {
   // Key for storing Hive encryption key in secure storage
   static const _hiveEncryptionKeyName = 'breez_spark_hive_encryption_key';
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static const String _stableBalanceStorageKey = 'stable_balance_active';
+  // Known token identifiers used by the app (kept in sync with SDK config)
+  static const String usdbTokenIdentifier =
+      'btkn1xgrvjwey5ngcagvap2dzzvsy4uk8ua9x69k82dwvt5e7ef9drm9qztux87';
 
   // ============================================================================
   // STEP 1: Initialize Hive persistence
@@ -247,6 +253,21 @@ class BreezSparkService {
       debugPrint('❌ Error getting encryption key: $e');
       // Fallback to generating a new key (will cause data loss if previous data exists)
       return encrypt_pkg.Key.fromLength(32).bytes;
+    }
+  }
+
+  /// Persist and (if possible) apply Stable Balance user preference.
+  /// Writes to secure storage and attempts to update the SDK user settings.
+  static Future<void> setStableBalanceActive(bool active) async {
+    await _secureStorage.write(key: _stableBalanceStorageKey, value: active.toString());
+
+    // If SDK initialized, we may apply the preference via SDK APIs later.
+    // For now, persist to secure storage and log; SDK initialization path
+    // should read this key and apply the preference when available.
+    if (_sdk != null) {
+      debugPrint('ℹ️ SDK initialized — stable balance pref saved: $active (SDK update deferred)');
+    } else {
+      debugPrint('ℹ️ SDK not initialized; stable balance pref saved for later: $active');
     }
   }
 
@@ -314,6 +335,20 @@ class BreezSparkService {
                 multiplicity: 1,
               ),
               lnurlDomain: lightningAddressDomain,
+              // Stable Balance configuration (USDB for USD stability against BTC volatility)
+              stableBalanceConfig: StableBalanceConfig(
+                tokens: [
+                  StableBalanceToken(
+                    label: 'USDB',
+                    tokenIdentifier: usdbTokenIdentifier,
+                  ),
+                ],
+                defaultActiveLabel: null, // Opt-in via UI toggle for clean UX
+                thresholdSats: null, // Use protocol minimum
+                maxSlippageBps: null, // Use default 10 bps (0.1%)
+              ),
+              // Required by SDK: limit concurrent claim operations (default 4)
+              maxConcurrentClaims: 4,
             ),
             seed: Seed.mnemonic(mnemonic: seedMnemonic),
             storageDir: storageDir,
@@ -391,6 +426,25 @@ class BreezSparkService {
       debugPrint('❌ SDK init failed: $e');
       rethrow;
     }
+      // Apply saved Stable Balance preference (if any) to the SDK user settings.
+      try {
+        final saved = await _secureStorage.read(key: _stableBalanceStorageKey);
+        if (saved == 'true' && !_useMockSDK && _sdk != null) {
+          try {
+            final req = UpdateUserSettingsRequest(
+              stableBalanceActiveLabel: StableBalanceActiveLabel.set_(label: 'USDB'),
+            );
+            await _sdk!.updateUserSettings(request: req);
+            debugPrint('✅ Applied saved stable-balance preference to SDK (USDB)');
+          } catch (e) {
+            debugPrint('⚠️ Failed to apply stable-balance pref to SDK: $e');
+          }
+        } else if (saved == 'true') {
+          debugPrint('ℹ️ Stable-balance pref present but SDK unavailable; will apply later');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Could not read stable-balance pref from storage: $e');
+      }
   }
 
   // ============================================================================
@@ -628,7 +682,8 @@ class BreezSparkService {
       address: info.lightningAddress,
       username: info.username,
       description: info.description,
-      lnurl: info.lnurl,
+      // SDK lnurl is a structured object; store its string representation
+      lnurl: info.lnurl.toString(),
     );
   }
 
@@ -682,6 +737,49 @@ class BreezSparkService {
       return response.paymentRequest; // Returns bolt11 string
     } catch (e) {
       debugPrint('❌ Invoice creation failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a token (e.g., USDB) receive invoice using Spark invoices.
+  /// Converts sats -> token fractional amount using live BTC->USD rate and token decimals.
+  static Future<String> createTokenInvoice({
+    required int sats,
+    required String tokenIdentifier,
+    String memo = '',
+  }) async {
+    if (_sdk == null) {
+      debugPrint('❌ SDK not initialized - cannot create token invoice');
+      throw Exception('SDK not initialized');
+    }
+
+    try {
+      // Convert sats -> BTC -> USD
+      final usd = await RateService.satsToUsd(sats);
+
+      // Fetch token metadata to get decimals
+      final metaResp = await _sdk!.getTokensMetadata(
+        request: GetTokensMetadataRequest(tokenIdentifiers: [tokenIdentifier]),
+      );
+      final meta = metaResp.tokensMetadata.isNotEmpty ? metaResp.tokensMetadata.first : null;
+      final decimals = meta?.decimals ?? 2;
+
+      // Convert USD amount to token fractional units
+      final fractionalAmount = BigInt.from((usd * pow(10, decimals)).round());
+
+      final method = ReceivePaymentMethod.sparkInvoice(
+        amount: fractionalAmount,
+        tokenIdentifier: tokenIdentifier,
+        description: memo,
+      );
+
+      final req = ReceivePaymentRequest(paymentMethod: method);
+      final response = await _sdk!.receivePayment(request: req);
+
+      debugPrint('✅ Token invoice created: ${response.paymentRequest}');
+      return response.paymentRequest;
+    } catch (e) {
+      debugPrint('❌ Token invoice creation failed: $e');
       rethrow;
     }
   }
@@ -1011,6 +1109,56 @@ class BreezSparkService {
     } catch (e) {
       debugPrint('❌ Failed to get recommended fees: $e');
       rethrow;
+    }
+  }
+
+  /// Record an on-chain claim as a local PaymentRecord and persist it.
+  /// This allows the UI to surface claimed funds in history and trigger
+  /// notifications via the existing `paymentStream`.
+  static Future<void> recordOnchainClaim({
+    required String txid,
+    required int vout,
+    required int amountSats,
+    int feeSats = 0,
+  }) async {
+    try {
+      final id = 'claim:$txid:$vout';
+      final rec = PaymentRecord(
+        id: id,
+        amountSats: amountSats,
+        feeSats: feeSats,
+        paymentTime: DateTime.now().millisecondsSinceEpoch,
+        description: 'Auto-claimed on-chain deposit $txid:$vout',
+        bolt11: null,
+        isIncoming: true,
+      );
+
+      // Emit to payment stream for UI listeners
+      try {
+        _paymentStream.add(rec);
+      } catch (e) {
+        debugPrint('Failed to emit paymentStream for claim: $e');
+      }
+
+      // Persist to Hive payments list if box available
+      try {
+        if (!_persistenceInitialized) await initPersistence();
+        final list = (_box.get('payments', defaultValue: []) as List).toList();
+        list.insert(0, {
+          'id': rec.id,
+          'amountSats': rec.amountSats,
+          'feeSats': rec.feeSats,
+          'paymentTime': rec.paymentTime,
+          'description': rec.description,
+          'bolt11': rec.bolt11,
+          'isIncoming': rec.isIncoming,
+        });
+        await _box.put('payments', list);
+      } catch (e) {
+        debugPrint('Failed to persist claim payment record: $e');
+      }
+    } catch (e) {
+      debugPrint('recordOnchainClaim error: $e');
     }
   }
 

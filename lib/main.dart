@@ -13,6 +13,7 @@ import 'package:sabi_wallet/services/firebase_notification_service.dart';
 import 'package:sabi_wallet/services/firebase/fcm_token_registration_service.dart';
 import 'package:sabi_wallet/services/firebase/webhook_bridge_services.dart';
 import 'package:sabi_wallet/services/background_payment_sync_service.dart';
+import 'package:sabi_wallet/services/payment_notification_service.dart';
 import 'package:sabi_wallet/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'l10n/localization.dart';
@@ -28,6 +29,7 @@ import 'features/wallet/presentation/screens/home_screen.dart';
 import 'features/onboarding/presentation/screens/splash_screen.dart';
 import 'features/onboarding/presentation/screens/entry_screen.dart';
 // ...existing code...
+import 'package:sabi_wallet/features/wallet/presentation/providers/auto_claim_manager.dart';
 
 /// Register FCM token with retry logic
 /// This handles cases where the token or pubkey isn't available immediately
@@ -201,6 +203,16 @@ Future<void> _initializeWalletServices() async {
           debugPrint('⚠️ BreezWebhookBridgeService error: $e');
         }
 
+          // Start local payment notification sync (OS notifications)
+          try {
+            await LocalNotificationService.initialize();
+            await LocalNotificationService.requestPermissions();
+            await PaymentNotificationSync.startListeningToPayments();
+            debugPrint('✅ PaymentNotificationSync started');
+          } catch (e) {
+            debugPrint('⚠️ PaymentNotificationSync start failed: $e');
+          }
+
         // Background payment sync (non-blocking)
         _initializeBackgroundPaymentSync();
       } catch (e) {
@@ -339,6 +351,16 @@ class SabiWalletApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Check if user has created/restored a wallet using app state service
     final hasWallet = AppStateService.hasWallet;
+
+    // Ensure auto-claim manager is started for wallets
+    if (hasWallet) {
+      try {
+        ref.read(autoClaimManagerProvider);
+        debugPrint('✅ AutoClaimManager instantiated');
+      } catch (e) {
+        debugPrint('⚠️ Failed to instantiate AutoClaimManager: $e');
+      }
+    }
 
     // Watch the current locale
     final locale = ref.watch(languageProvider);

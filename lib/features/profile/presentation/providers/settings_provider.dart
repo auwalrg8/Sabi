@@ -7,6 +7,7 @@ class SettingsState {
   final String transactionLimit;
   final String language;
   final bool notificationsEnabled;
+  final bool stableBalanceEnabled;
   final String networkFee;
 
   SettingsState({
@@ -15,6 +16,7 @@ class SettingsState {
     this.transactionLimit = '₦100,000',
     this.language = 'English',
     this.notificationsEnabled = true,
+    this.stableBalanceEnabled = false,
     this.networkFee = 'Economy',
   });
 
@@ -24,6 +26,7 @@ class SettingsState {
     String? transactionLimit,
     String? language,
     bool? notificationsEnabled,
+    bool? stableBalanceEnabled,
     String? networkFee,
   }) {
     return SettingsState(
@@ -32,6 +35,7 @@ class SettingsState {
       transactionLimit: transactionLimit ?? this.transactionLimit,
       language: language ?? this.language,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      stableBalanceEnabled: stableBalanceEnabled ?? this.stableBalanceEnabled,
       networkFee: networkFee ?? this.networkFee,
     );
   }
@@ -53,6 +57,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final notifications =
         await _storage.read(key: 'notifications_enabled') != 'false';
     final networkFee = await _storage.read(key: 'network_fee') ?? 'Economy';
+    final stableEnabled = await _storage.read(key: 'stable_balance_active') == 'true';
 
     state = SettingsState(
       biometricEnabled: biometric,
@@ -60,6 +65,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       transactionLimit: transactionLimit,
       language: language,
       notificationsEnabled: notifications,
+      stableBalanceEnabled: stableEnabled,
       networkFee: networkFee,
     );
   }
@@ -90,6 +96,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       value: enabled.toString(),
     );
     state = state.copyWith(notificationsEnabled: enabled);
+  }
+
+  Future<void> toggleStableBalance(bool enabled) async {
+    await _storage.write(key: 'stable_balance_active', value: enabled.toString());
+    state = state.copyWith(stableBalanceEnabled: enabled);
   }
 
   Future<void> setNetworkFee(String fee) async {

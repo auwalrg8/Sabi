@@ -6,12 +6,16 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/core/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/services/profile_service.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/onchain_deposits_screen.dart';
 // Nostr receive removed from this screen — nostr imports not required here
 import 'package:sabi_wallet/features/wallet/presentation/widgets/edit_lightning_address_modal.dart';
 
 /// Receive method tab
 enum ReceiveMethod { lightning, bitcoin }
+
+enum ReceiveUnit { sats, usdb }
 
 class ReceiveScreen extends ConsumerStatefulWidget {
   const ReceiveScreen({super.key});
@@ -29,6 +33,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
   // Lightning state
   bool isStaticMode = false;
   int? selectedAmount;
+  String _amountInput = '';
+  ReceiveUnit _receiveUnit = ReceiveUnit.sats;
   String selectedExpiry = '24 hours';
   bool isExpiryExpanded = false;
   final TextEditingController _descriptionController = TextEditingController();
@@ -106,6 +112,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 
   // Nostr npub loading removed — nostr receive removed from this screen
 
+  // Ignored: referenced via UI callbacks in other builds or by future features
+  // ignore: unused_element
   Future<void> _refreshLightningAddress() async {
     if (_isSyncingLightningAddress) return;
     setState(() => _isSyncingLightningAddress = true);
@@ -136,6 +144,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     }
   }
 
+  // Ignored: referenced via UI callbacks in other builds or by future features
+  // ignore: unused_element
   Future<void> _showEditLightningAddressModal() async {
     final currentUsername =
         _userProfile?.lightningAddress?.username ??
@@ -537,6 +547,22 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
             ],
           ),
           SizedBox(height: 12.h),
+          // Quick link to deposits screen
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const OnchainDepositsScreen()),
+                  );
+                },
+                icon: Icon(Icons.receipt_long, color: AppColors.primary),
+                label: Text('View incoming deposits', style: TextStyle(color: AppColors.primary)),
+              ),
+            ],
+          ),
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(12.r),
@@ -886,7 +912,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Amount (sats)',
+          _receiveUnit == ReceiveUnit.sats ? 'Amount (sats)' : 'Amount (USDB)',
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 12.sp,
@@ -906,7 +932,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
             ),
           ),
           child: TextField(
-            keyboardType: TextInputType.number,
+            keyboardType: _receiveUnit == ReceiveUnit.usdb
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.number,
             style: TextStyle(
               color: Colors.white,
               fontSize: 18.sp,
@@ -924,7 +952,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
                 color: AppColors.textSecondary,
                 size: 20.sp,
               ),
-              suffixText: 'sats',
+              suffixText: _receiveUnit == ReceiveUnit.sats ? 'sats' : 'USDB',
               suffixStyle: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 14.sp,
@@ -936,26 +964,57 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
               ),
             ),
             onChanged: (value) {
-              final amount = int.tryParse(value.replaceAll(',', ''));
               setState(() {
-                selectedAmount = amount;
+                _amountInput = value;
+                selectedAmount = null; // clear preset when custom entered
               });
             },
           ),
         ),
         SizedBox(height: 16.h),
         // Preset amounts using AmountChips
-        AmountChips(
-          amounts: presetAmounts,
-          selectedAmount: selectedAmount,
-          currency: '',
-          formatAmount: (amount) => '${_formatAmountShort(amount)} sats',
-          onSelected: (amount) {
-            HapticFeedback.selectionClick();
-            setState(() {
-              selectedAmount = amount;
-            });
-          },
+        if (_receiveUnit == ReceiveUnit.sats)
+          AmountChips(
+            amounts: presetAmounts,
+            selectedAmount: selectedAmount,
+            currency: '',
+            formatAmount: (amount) => '${_formatAmountShort(amount)} sats',
+            onSelected: (amount) {
+              HapticFeedback.selectionClick();
+              setState(() {
+                selectedAmount = amount;
+                _amountInput = '';
+              });
+            },
+          ),
+        SizedBox(height: 8.h),
+        // Unit selector for receive (sats / USDB)
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => setState(() => _receiveUnit = ReceiveUnit.sats),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: _receiveUnit == ReceiveUnit.sats ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Text('sats', style: TextStyle(color: _receiveUnit == ReceiveUnit.sats ? Colors.white : AppColors.textSecondary)),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            GestureDetector(
+              onTap: () => setState(() => _receiveUnit = ReceiveUnit.usdb),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+                decoration: BoxDecoration(
+                  color: _receiveUnit == ReceiveUnit.usdb ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Text('USDB', style: TextStyle(color: _receiveUnit == ReceiveUnit.usdb ? Colors.white : AppColors.textSecondary)),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -999,7 +1058,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 
   Widget _buildActionButtons() {
     final hasInvoice = _bolt11 != null;
-    final canCreate = selectedAmount != null && selectedAmount! > 0;
+    final canCreate = (_receiveUnit == ReceiveUnit.sats && selectedAmount != null && selectedAmount! > 0) ||
+        (_receiveUnit == ReceiveUnit.usdb && _amountInput.isNotEmpty);
 
     return Column(
       children: [
@@ -1125,17 +1185,37 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
   }
 
   Future<void> _createInvoice() async {
-    if (selectedAmount == null) return;
+    int satsToCreate;
+    if (_receiveUnit == ReceiveUnit.sats) {
+      if (selectedAmount == null) return;
+      satsToCreate = selectedAmount!;
+    } else {
+      // USDB: convert input USD to sats
+      final usd = double.tryParse(_amountInput.replaceAll(',', '')) ?? 0.0;
+      final btcUsd = await RateService.getBtcToUsdRate();
+      satsToCreate = ((usd / btcUsd) * 100000000).round();
+      if (satsToCreate <= 0) return;
+    }
     setState(() => _creating = true);
     try {
       final username = _userProfile?.sabiUsername ?? '@sabi/user';
-      final result = await BreezSparkService.createInvoice(
-        sats: selectedAmount!,
-        memo:
-            _descriptionController.text.isEmpty
-                ? 'Payment to $username'
-                : _descriptionController.text,
-      );
+      String result;
+      if (_receiveUnit == ReceiveUnit.usdb) {
+        result = await BreezSparkService.createTokenInvoice(
+          sats: satsToCreate,
+          tokenIdentifier: BreezSparkService.usdbTokenIdentifier,
+          memo: _descriptionController.text.isEmpty
+              ? 'Payment to $username'
+              : _descriptionController.text,
+        );
+      } else {
+        result = await BreezSparkService.createInvoice(
+          sats: satsToCreate,
+          memo: _descriptionController.text.isEmpty
+              ? 'Payment to $username'
+              : _descriptionController.text,
+        );
+      }
 
       if (!mounted) return;
 

@@ -5,6 +5,10 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:sabi_wallet/services/rate_service.dart';
 import 'package:sabi_wallet/features/wallet/presentation/providers/rate_provider.dart';
+import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/onchain_deposits_provider.dart';
+import 'package:sabi_wallet/features/wallet/presentation/providers/auto_claim_manager.dart';
+import 'package:sabi_wallet/features/wallet/presentation/screens/onchain_deposits_screen.dart';
 
 class BalanceCard extends ConsumerStatefulWidget {
   final int balanceSats;
@@ -28,8 +32,12 @@ class BalanceCard extends ConsumerStatefulWidget {
 
 class _BalanceCardState extends ConsumerState<BalanceCard> {
   bool _showFiat = false;
-  double? _btcToFiatRate;
+  // When Stable Balance is enabled, toggle primary display between sats/BTC and USDB
+  bool _showStable = false;
+  double? _btcToFiatRate; // user-selected fiat rate (NGN or USD)
+  double? _btcToUsdRate; // always fetch USD rate for USDB display
   FiatCurrency _currentCurrency = FiatCurrency.ngn;
+  String? _lastShownAutoClaimId;
 
   @override
   void initState() {
@@ -52,13 +60,29 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
         _currentCurrency = currency;
       });
     }
+    // Always load USD rate for Stable Balance display
+    try {
+      final usdRate = await RateService.getBtcToFiatRate(FiatCurrency.usd);
+      if (mounted) setState(() => _btcToUsdRate = usdRate);
+    } catch (_) {}
   }
 
   void _toggleCurrency() {
     HapticFeedback.selectionClick();
     setState(() {
-      _showFiat = !_showFiat;
+      // If stable is enabled and stable is currently showing, flip back to sats
+      if (_showStable) {
+        _showStable = false;
+        _showFiat = false;
+      } else {
+        _showFiat = !_showFiat;
+      }
     });
+  }
+
+  void _toggleStablePrimary() {
+    HapticFeedback.selectionClick();
+    setState(() => _showStable = !_showStable);
   }
 
   String _formatSats(int sats) {
@@ -87,6 +111,12 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
 
     return Stack(
       children: [
+        // Ensure auto-claim manager is instantiated (app-wide)
+        Builder(builder: (_) {
+          ref.read(autoClaimManagerProvider);
+          return const SizedBox.shrink();
+        }),
+
         GestureDetector(
           onTap: _toggleCurrency,
           child: Container(
@@ -141,7 +171,7 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Balance display (sats or fiat)
+                // Balance display (sats, fiat, or Stable USDB)
                 if (widget.isBalanceHidden)
                   const Text(
                     '••••',
@@ -152,6 +182,55 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
                       height: 0.9,
                       letterSpacing: 8,
                     ),
+                  )
+                else if (_showStable && _btcToUsdRate != null)
+                  // Stable USDB primary view
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '\$',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              height: 0.9,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                _formatFiat(widget.balanceSats, _btcToUsdRate!),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w700,
+                                  height: 0.9,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${_formatSats(widget.balanceSats)} sats',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                   )
                 else if (_showFiat && _btcToFiatRate != null)
                   // Fiat view (NGN or USD based on settings)
@@ -206,7 +285,7 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
                     ],
                   )
                 else
-                  // Sats view
+                  // Sats view (default)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -252,10 +331,69 @@ class _BalanceCardState extends ConsumerState<BalanceCard> {
                       const SizedBox(height: 4),
                     ],
                   ),
+                // On-chain breakdown: show total unclaimed on-chain deposits
+                SizedBox(height: 8),
+                Builder(builder: (ctx) {
+                  final deposits = ref.watch(onchainDepositsListProvider);
+                  final unclaimed = deposits.fold<int>(0, (p, e) => p + e.amountSats);
+                  // Listen for auto-claim events to surface SnackBar
+                  final event = ref.watch(autoClaimEventProvider);
+                  if (event != null && event.id != _lastShownAutoClaimId) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Auto-claimed ${event.amountSats} sats from ${event.txid.substring(0, 8)}...')));
+                      _lastShownAutoClaimId = event.id;
+                      // Clear the event after showing
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        ref.read(autoClaimEventProvider.notifier).state = null;
+                      });
+                    });
+                  }
+                  if (unclaimed <= 0) return const SizedBox.shrink();
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OnchainDepositsScreen()));
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'On‑chain: ${_formatSats(unclaimed)} sats',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.open_in_new, size: 14, color: AppColors.textSecondary),
+                      ],
+                    ),
+                  );
+                }),
+                // Stable toggle badge is rendered at Stack level (see below)
               ],
             ),
           ),
         ),
+        // Stable toggle badge (rendered at Stack level so Positioned is valid)
+        if (ref.watch(settingsNotifierProvider).stableBalanceEnabled)
+          Positioned(
+            right: 12,
+            top: 12,
+            child: GestureDetector(
+              onTap: _toggleStablePrimary,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _showStable ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _showStable ? 'USDB' : 'sats',
+                  style: TextStyle(
+                    color: _showStable ? AppColors.surface : AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
         // Confetti overlay
         if (widget.showConfetti)
           const Positioned.fill(child: IgnorePointer(child: Confetti())),

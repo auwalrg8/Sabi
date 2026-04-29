@@ -55,7 +55,7 @@ dependencies:
   breez_sdk_spark_flutter:
     git:
       url: https://github.com/breez/breez-sdk-spark-flutter
-      ref: v0.7.14  # Updated for 16KB page size support (Android 15+)
+      ref: main  # Latest (includes Stable Balance, Passkey, multi-device sync, and latest Spark features as of 2026)
   flutter_localizations:
     sdk: flutter
   share_plus: ^12.0.1

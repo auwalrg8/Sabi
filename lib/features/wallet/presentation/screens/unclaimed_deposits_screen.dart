@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
 import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class UnclaimedDepositsScreen extends ConsumerStatefulWidget {
   const UnclaimedDepositsScreen({super.key});
@@ -20,6 +21,8 @@ class _UnclaimedDepositsScreenState
   bool _loading = true;
   String? _error;
   RecommendedFees? _recommendedFees;
+  Box? _claimsBox;
+  Map<String, dynamic> _claimsMeta = {};
 
   @override
   void initState() {
@@ -36,6 +39,17 @@ class _UnclaimedDepositsScreenState
     try {
       final deposits = await BreezSparkService.listUnclaimedDeposits();
       final fees = await BreezSparkService.getRecommendedFees();
+      try {
+        await Hive.initFlutter();
+        _claimsBox = await Hive.openBox('onchain_claims');
+        final keys = _claimsBox!.keys;
+        for (final k in keys) {
+          final v = _claimsBox!.get(k);
+          if (v is Map) _claimsMeta[k.toString()] = Map<String, dynamic>.from(v);
+        }
+      } catch (e) {
+        debugPrint('Failed to open onchain_claims box: $e');
+      }
       if (mounted) {
         setState(() {
           _deposits = deposits;
@@ -397,6 +411,28 @@ class _UnclaimedDepositsScreenState
   Widget _buildDepositCard(DepositInfo deposit) {
     String statusText = 'Pending claim';
     Color statusColor = Colors.orange;
+
+    final key = '${deposit.txid}:${deposit.vout}';
+    final meta = _claimsMeta[key];
+    if (meta != null && meta is Map) {
+      final state = meta['state'] ?? '';
+      final lastError = meta['lastError'] ?? meta['lastErrorMsg'] ?? '';
+      final attempts = meta['attempts'] ?? 0;
+      if (state == 'in_progress') {
+        statusText = 'Claim in progress ($attempts attempts)';
+        statusColor = Colors.orange;
+      } else if (state == 'failed') {
+        statusText = 'Auto-claim failed (${attempts} attempts)';
+        statusColor = Colors.red;
+      } else if (state == 'claimed') {
+        statusText = 'Claimed';
+        statusColor = Colors.green;
+      }
+      // If there's a lastError and it's failed, show it below
+      if (lastError != null && lastError.toString().isNotEmpty && state == 'failed') {
+        statusText = '$statusText: ${lastError.toString().split('\n').first}';
+      }
+    }
 
     if (deposit.claimError != null) {
       if (deposit.claimError case DepositClaimError_MaxDepositClaimFeeExceeded _) {

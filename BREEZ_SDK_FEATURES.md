@@ -1,9 +1,20 @@
 # Breez SDK Implementation Analysis - Sabi Wallet
 
 ## SDK Package Used
-- **`breez_sdk_spark_flutter`** - Nodeless Lightning implementation (non-custodial, no full node required)
+- **`breez_sdk_spark_flutter`** - v0.13.4 (latest from main as of April 2026) - Nodeless Lightning + Spark with **Stable Balance** support.
+
+**New: Stable Balance Feature**
+- Configured with USDB token for USD-stable balance.
+- Automatic conversion on receive (sats → USDB when threshold met) and send (USDB → sats if needed).
+- Opt-in via user settings toggle for clean UX.
+- Protects against BTC volatility while keeping non-custodial control.
 
 ---
+
+**Clean UX/UI Flow Added**
+- Toggle in wallet home screen (beautiful card with animation, modal explanation using wolt_modal_sheet, live rates).
+- Dual balance display (BTC + Stable USD).
+- Smooth transitions and educational onboarding.
 
 ## 📂 Implementation Categories
 

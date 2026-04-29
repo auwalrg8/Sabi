@@ -4,6 +4,10 @@ import 'package:sabi_wallet/core/constants/colors.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/recipient.dart';
 import 'package:sabi_wallet/features/wallet/domain/models/send_transaction.dart';
 import 'package:sabi_wallet/features/wallet/presentation/screens/send_confirmation_screen.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
+import 'package:sabi_wallet/services/rate_service.dart';
+import 'package:breez_sdk_spark_flutter/breez_sdk_spark.dart';
+import 'dart:async';
 
 class SendAmountScreen extends StatefulWidget {
   final Recipient recipient;
@@ -14,9 +18,16 @@ class SendAmountScreen extends StatefulWidget {
   State<SendAmountScreen> createState() => _SendAmountScreenState();
 }
 
+enum Unit { fiat, sats, usdb }
+
 class _SendAmountScreenState extends State<SendAmountScreen> {
   String _amount = '0';
+  bool _isPreparing = false;
+  PrepareSendPaymentResponse? _prepResponse;
+  int? _convertedSats;
   final TextEditingController _memoController = TextEditingController();
+  // Unit selector: fiat (NGN), sats, or USDB
+  Unit _selectedUnit = Unit.fiat;
 
   final List<String> _quickAmounts = [
     '1,000',
@@ -30,6 +41,13 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
   void dispose() {
     _memoController.dispose();
     super.dispose();
+  }
+
+  void _setUnit(Unit u) {
+    setState(() {
+      _selectedUnit = u;
+      _amount = '0';
+    });
   }
 
   void _onNumberPressed(String number) {
@@ -70,20 +88,69 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
   void _continue() {
     final numAmount = double.tryParse(_amount.replaceAll(',', '')) ?? 0;
     if (numAmount > 0) {
+      _prepareAndContinue(numAmount);
+    }
+  }
+
+  Future<void> _prepareAndContinue(double fiatAmount) async {
+    setState(() => _isPreparing = true);
+
+    try {
+      // Compute sats based on selected unit
+      int sats;
+      if (_selectedUnit == Unit.sats) {
+        sats = fiatAmount.round();
+      } else if (_selectedUnit == Unit.usdb) {
+        final btcUsd = await RateService.getBtcToUsdRate();
+        sats = ((fiatAmount / btcUsd) * 100000000).round();
+      } else {
+        // fiat NGN
+        final rate = await RateService.getBtcToNgnRate();
+        sats = ((fiatAmount / rate) * 100000000).round();
+      }
+      _convertedSats = sats;
+
+      // Call SDK prepare to get conversion estimates (if any)
+      final prep = await BreezSparkService.prepareSendPayment(widget.recipient.identifier);
+      _prepResponse = prep;
+
       final transaction = SendTransaction(
         recipient: widget.recipient,
-        amount: numAmount,
+        amount: fiatAmount,
         memo: _memoController.text.isEmpty ? null : _memoController.text,
-        fee: 120,
+        fee: 0,
+        amountSats: sats,
+        feeSats: _prepResponse?.conversionEstimate?.fee != null
+            ? (_prepResponse!.conversionEstimate!.fee.toInt())
+            : 0,
       );
 
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder:
-              (context) => SendConfirmationScreen(transaction: transaction),
+          builder: (context) => SendConfirmationScreen(transaction: transaction),
         ),
       );
+    } catch (e) {
+      debugPrint('⚠️ Prepare send failed: $e');
+      // Fallback: continue with basic transaction
+      final transaction = SendTransaction(
+        recipient: widget.recipient,
+        amount: fiatAmount,
+        memo: _memoController.text.isEmpty ? null : _memoController.text,
+        fee: 0,
+        amountSats: _convertedSats,
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SendConfirmationScreen(transaction: transaction),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPreparing = false);
     }
   }
 
@@ -137,6 +204,8 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
                       ],
                     ),
                     SizedBox(height: 30.h),
+                    _buildUnitSelector(),
+                    SizedBox(height: 12.h),
                     _buildAmountDisplay(),
                     SizedBox(height: 17.h),
                     _buildQuickAmounts(),
@@ -165,8 +234,8 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text(
-                '₦',
+              Text(
+                _selectedUnit == Unit.sats ? 'sats' : (_selectedUnit == Unit.usdb ? 'USDB' : '₦'),
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 20),
               ),
               SizedBox(width: 10.w),
@@ -181,13 +250,39 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
             ],
           ),
           SizedBox(height: 8.h),
-          Text(
-            '≈ 0 sats',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+          FutureBuilder<int>(
+            future: _estimateSatsFromInput(),
+            builder: (context, snap) {
+              final satsText = snap.hasData ? '${snap.data} sats' : '≈ 0 sats';
+              return Text(
+                satsText,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+              );
+            },
           ),
         ],
       ),
     );
+  }
+
+  Future<int> _estimateSatsFromInput() async {
+    final raw = _amount.replaceAll(',', '');
+    if (raw.isEmpty) return 0;
+    if (_selectedUnit == Unit.sats) {
+      final v = int.tryParse(raw) ?? 0;
+      return v;
+    }
+    if (_selectedUnit == Unit.usdb) {
+      final usd = double.tryParse(raw) ?? 0.0;
+      final btc = await RateService.getBtcToUsdRate();
+      final sats = ((usd / btc) * 100000000).round();
+      return sats;
+    }
+    // fiat
+    final fiat = double.tryParse(raw) ?? 0.0;
+    final rate = await RateService.getBtcToNgnRate();
+    final sats = ((fiat / rate) * 100000000).round();
+    return sats;
   }
 
   Widget _buildQuickAmounts() {
@@ -210,13 +305,50 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                     child: Text(
-                      '₦$amount',
+                      _selectedUnit == Unit.sats
+                          ? '$amount sats'
+                          : (_selectedUnit == Unit.usdb ? '$amount USDB' : '₦$amount'),
                       style: TextStyle(color: Colors.white, fontSize: 14.sp),
                     ),
                   ),
                 ),
               );
             }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildUnitSelector() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _unitButton('NGN', Unit.fiat),
+        SizedBox(width: 8.w),
+        _unitButton('sats', Unit.sats),
+        SizedBox(width: 8.w),
+        _unitButton('USDB', Unit.usdb),
+      ],
+    );
+  }
+
+  Widget _unitButton(String label, Unit u) {
+    final selected = _selectedUnit == u;
+    return GestureDetector(
+      onTap: () => _setUnit(u),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : AppColors.textSecondary,
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -333,24 +465,32 @@ class _SendAmountScreenState extends State<SendAmountScreen> {
         width: double.infinity,
         height: 52.h,
         child: ElevatedButton(
-          onPressed: enabled ? _continue : null,
+          onPressed: enabled && !_isPreparing ? _continue : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor:
-                enabled
-                    ? AppColors.primary
-                    : AppColors.primary.withValues(alpha: 0.5),
+            backgroundColor: enabled && !_isPreparing
+                ? AppColors.primary
+                : AppColors.primary.withValues(alpha: 0.5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16.r),
             ),
           ),
-          child: Text(
-            'Continue',
-            style: TextStyle(
-              color: AppColors.surface,
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          child: _isPreparing
+              ? SizedBox(
+                  height: 20.h,
+                  width: 20.h,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.w,
+                    color: AppColors.surface,
+                  ),
+                )
+              : Text(
+                  'Continue',
+                  style: TextStyle(
+                    color: AppColors.surface,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
         ),
       ),
     );

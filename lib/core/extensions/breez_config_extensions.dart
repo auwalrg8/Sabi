@@ -15,6 +15,9 @@ extension ConfigCopyWith on Config {
     bool? useDefaultExternalInputParsers,
     String? realTimeSyncServerUrl,
     bool? privateEnabledDefault,
+    StableBalanceConfig? stableBalanceConfig,
+    int? maxConcurrentClaims,
+    SparkConfig? sparkConfig,
   }) {
     return Config(
       apiKey: apiKey ?? this.apiKey,
@@ -32,6 +35,9 @@ extension ConfigCopyWith on Config {
           realTimeSyncServerUrl ?? this.realTimeSyncServerUrl,
       privateEnabledDefault:
           privateEnabledDefault ?? this.privateEnabledDefault,
+      stableBalanceConfig: stableBalanceConfig ?? this.stableBalanceConfig,
+      maxConcurrentClaims: maxConcurrentClaims ?? this.maxConcurrentClaims,
+      sparkConfig: sparkConfig ?? this.sparkConfig,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:sabi_wallet/core/services/secure_storage_service.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:sabi_wallet/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:sabi_wallet/features/profile/presentation/providers/settings_provider.dart';
+import 'package:sabi_wallet/services/breez_spark_service.dart';
 import 'package:sabi_wallet/features/settings/presentation/screens/notification_settings_screen.dart';
 import 'package:sabi_wallet/l10n/language_provider.dart';
 import 'package:sabi_wallet/l10n/app_localizations.dart';
@@ -274,6 +275,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           (value) => ref
                               .read(settingsNotifierProvider.notifier)
                               .toggleNotifications(value),
+                    ),
+
+                    SizedBox(height: 12.h),
+
+                    // Stable Balance (USDB) opt-in toggle
+                    _SettingToggleTile(
+                      icon: Icons.stacked_line_chart,
+                      iconColor: AppColors.primary,
+                      title: 'Stable Balance (USDB) Opt in',
+                      value: settings.stableBalanceEnabled,
+                      onChanged: (value) async {
+                        if (value) {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Enable Stable Balance'),
+                              content: const Text(
+                                'Enabling Stable Balance will allow automatic conversion of received sats to USDB and display balances in USDB. Do you want to enable it?'
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Enable'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true) return;
+                        }
+
+                        // Persist setting
+                        await ref
+                            .read(settingsNotifierProvider.notifier)
+                            .toggleStableBalance(value);
+
+                        // Notify SDK/service to apply preference (best-effort)
+                        try {
+                          await BreezSparkService.setStableBalanceActive(value);
+                        } catch (e) {
+                          debugPrint('Failed to notify Breez SDK about stable balance: $e');
+                        }
+                      },
                     ),
 
                     SizedBox(height: 12.h),
